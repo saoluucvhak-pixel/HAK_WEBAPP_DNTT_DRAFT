@@ -41,10 +41,32 @@ test('_ghiTheoDong_ writes per-row values in contiguous blocks', () => {
 
 test('_thayVungDuLieu_ overwrites first then clears only the leftover tail', () => {
   const { sh, run } = sheetWith([['h', 'h'], ['1', 'a'], ['2', 'b'], ['3', 'c']]);
-  run('_thayVungDuLieu_')(sh, 2, 2, 3, [['9', 'z']]);
-  assert.deepEqual(sh.rows(), [['h', 'h'], ['9', 'z']]);
+  run('_thayVungDuLieu_')(sh, 2, 2, 3, [['x9', 'z']]);
+  assert.deepEqual(sh.rows(), [['h', 'h'], ['x9', 'z']]);
   assert.deepEqual(sh.writes.map(w => w.op), ['setValues', 'clearContent']);
   assert.equal(sh.writes[1].row, 3);
+});
+
+test('_thayVungDuLieu_ keeps leading zeros in the declared text columns', () => {
+  const { sh, run } = sheetWith([['h', 'h'], ['a', 'b']]);
+  run('_thayVungDuLieu_')(sh, 2, 2, 1, [['0123', '0456']], [0]);
+  assert.deepEqual(sh.rows(), [['h', 'h'], ['0123', 456]]);
+});
+
+test('_chu_ adds exactly one apostrophe, _chuanHoaCCCD_ restores one lost leading zero', () => {
+  const { run } = sheetWith([]);
+  const chu = run('_chu_');
+  assert.equal(chu('0123'), "'0123");
+  assert.equal(chu("''0123"), "'0123");
+  assert.equal(chu(123), "'123");
+  assert.equal(chu(''), '');
+  assert.equal(chu(undefined), '');
+  const cccd = run('_chuanHoaCCCD_');
+  assert.equal(cccd(48123456789), '048123456789');     // CCCD 12 số, mất 1 số 0
+  assert.equal(cccd("'048123456789"), '048123456789');
+  assert.equal(cccd(12345678), '012345678');           // CMND 9 số, mất 1 số 0
+  assert.equal(cccd('201234567'), '201234567');
+  assert.equal(cccd('12345'), '12345');                // độ dài lạ: không đoán
 });
 
 test('_saoLuuVaXoaDong_ backs up then deletes matching rows bottom-up', () => {

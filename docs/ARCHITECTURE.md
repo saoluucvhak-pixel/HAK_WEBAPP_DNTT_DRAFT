@@ -112,5 +112,7 @@ File test dùng đuôi `.mjs` để công cụ đồng bộ Apps Script không c
 
 - Hàm nội bộ kết thúc bằng `_` (không gọi được từ client). Mọi hàm mới đều phải là hàm nội bộ; trình duyệt gọi qua `API_ROUTES` (xem §4b).
 - Email người thao tác: dùng `_emailNguoiThucHien_()`, không gọi `Session.getActiveUser()` trực tiếp.
+- **Số 0 đầu** (CCCD, STK, Số HĐ, Số phiếu cân, ID_112): mọi lần GHI giá trị dạng chữ dùng `_chu_(v)`; ghi lại cả dòng thì dùng `_giuDangChuTheoCot_(rows, COT_CHU.CT|H112|SRC)` hoặc tham số `cotChu` của `_thayVungDuLieu_`. CCCD đọc từ file gốc qua `_chuanHoaCCCD_()`. Không nối `"'" + x` trực tiếp.
+- Tên khách hàng chung trên phiếu cân: hằng `TEN_KHACH_CHUNG` (đã chuẩn hóa, gồm cả dạng có dấu).
 - Chỉ số cột: ưu tiên hằng (`PC_COL`, `COL_TRANG_THAI_DNTT`, `HDNCC_COL`…); chỉ số trần là nợ kỹ thuật (TODO H-01).
 - Chú thích chỉ giải thích **vì sao**; lịch sử thay đổi ghi ở `CHANGELOG.md`.

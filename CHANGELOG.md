@@ -2,6 +2,25 @@
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/). Phiên bản theo `NĂM.ĐỢT.SỬA`; thay đổi làm đổi hành vi nghiệp vụ (⚖️) sẽ tăng số ĐỢT và ghi rõ đã được người dùng đồng ý.
 
+## [2026.7.2] — Sửa tên KH, thêm phiếu cân khi sửa hồ sơ, Diễn giải, số 0 đầu
+
+### Fixed
+- **Sửa hồ sơ: không thấy phiếu cân cần thêm** — server chỉ trả 60 phiếu đầu tiên (cũ nhất), gộp chung với phiếu “Khách lẻ”, màn Sửa hồ sơ lại chỉ hiện 30 → phiếu mới của chính chủ rừng bị đẩy mất. Nay phiếu của **đúng chủ rừng luôn trả đủ và đứng đầu**; màn Sửa hồ sơ có **phân trang** như Tạo Mới.
+- Phiếu tên **“Khách lẻ”** (có dấu) không được nhận là khách chung (chuẩn hóa giữ dấu → “KHÁCHLẺ” ≠ “KHACHLE”) → bị ẩn khỏi danh sách và đối soát. Gom 4 bản sao danh sách tên chung về 1 hằng `TEN_KHACH_CHUNG`.
+- **Mất số 0 đầu** (CCCD, STK, Số HĐ, Số phiếu cân) khi hệ thống **ghi lại** dữ liệu Nháp/chính: Tổng Hợp 112, Duyệt (ghi CT/112/DNTT_GK_DN thật + dọn Nháp), Xóa hồ sơ, Bỏ phiếu cân, Sửa hồ sơ, Mở Đóng TT, cache Phiếu Cân. Khai báo cột dạng chữ `COT_CHU` cho từng loại sheet và bảo vệ ở mọi lần ghi.
+- **Sửa hồ sơ** ghi lại TOÀN BỘ Draft CT (làm mất số 0 đầu của hồ sơ khác) → chỉ ghi đúng các dòng của hồ sơ đang sửa.
+- `''0123` / `'undefined` khi nối dấu `'` vào giá trị đã có dấu hoặc rỗng → hàm `_chu_()` dùng chung cho mọi chỗ ghi (UNC, MISA, ChiTietDNTT, ChiTietUNC, file Excel xuất, tạo mới).
+- ID_112 (18 chữ số) ghi dạng số bị Google Sheets làm tròn → ghi dạng chữ.
+
+### Added
+- **Khôi phục số 0 đầu của CCCD/CMND** đã mất ở file gốc HD_NCC/HD_STK: CCCD luôn 12 số (còn 11 → thêm 0), CMND 9 số (còn 8 → thêm 0); độ dài khác giữ nguyên. Áp dụng cho mirror hợp đồng, ChiTietDNTT, MISA.
+- Nút **✏️ Sửa tên** hiện cho cả phiếu **khác tên** và phiếu **“Khách lẻ/KH/KL”** (Tạo Mới + Sửa hồ sơ); ô nhập điền sẵn **tên Chủ rừng** đang chọn; sau khi sửa phiếu vào ngay danh sách mặc định. Hướng dẫn ngay dưới ô tìm phiếu cân.
+- **Diễn giải** chữ to, rõ: bảng phiếu cân đã chọn (Số phiếu, Khách hàng, KL, Đơn giá, Thành tiền, tổng) ở Tạo Mới; khối Diễn giải (Nội dung CK, Tổng KL, Đã trả, Còn lại, Đề nghị đợt này, Phiếu — mỗi mục 1 dòng) ở Chi tiết hồ sơ; file Excel Báo Cáo ĐNTT: cột Nội dung/Ghi chú rộng hơn, cỡ chữ 12, mỗi phần diễn giải 1 dòng.
+- Test: 9 test mới (mock mô phỏng đúng việc Google Sheets đổi "0123" thành số) — 53 test.
+
+### Security
+- Các nút trong danh sách chọn phiếu cân dùng chỉ số dòng thay vì nhúng dữ liệu vào `onclick` (tránh lỗi/XSS khi tên có dấu nháy).
+
 ## [2026.7.1] — Hợp nhất bản code người dùng gửi (`Code_SUATENKH.gs`)
 
 So sánh với bản người dùng đang chạy (khác `main` ~330 dòng). Giữ lại mọi thay đổi của bản đó, không làm mất bản sửa nào đã có:

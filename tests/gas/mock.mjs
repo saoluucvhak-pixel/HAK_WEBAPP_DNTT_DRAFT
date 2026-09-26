@@ -80,8 +80,13 @@ export class MockSheet {
     this.writes.push({ op, row: range.row, col: range.col, numRows: range.numRows, numCols: range.numCols });
   }
   _set(row, col, value) {
-    // Like Google Sheets: a leading apostrophe only forces text, it is not stored.
-    const v = (typeof value === 'string' && value.startsWith("'")) ? value.slice(1) : value;
+    // Like Google Sheets on an unformatted cell: a leading apostrophe forces text and is
+    // not stored; a numeric-looking string WITHOUT it becomes a number ("0123" -> 123).
+    let v = value;
+    if (typeof value === 'string') {
+      if (value.startsWith("'")) v = value.slice(1);
+      else if (/^-?\d+(\.\d+)?$/.test(value)) v = Number(value);
+    }
     while (this.data.length < row) this.data.push([]);
     const line = this.data[row - 1];
     while (line.length < col) line.push('');
