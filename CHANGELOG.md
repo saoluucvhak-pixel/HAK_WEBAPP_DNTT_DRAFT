@@ -2,6 +2,22 @@
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/). Phiên bản theo `NĂM.ĐỢT.SỬA`; thay đổi làm đổi hành vi nghiệp vụ (⚖️) sẽ tăng số ĐỢT và ghi rõ đã được người dùng đồng ý.
 
+## [2026.9.0] — ⚖️ Khóa sổ năm (người dùng đồng ý 26/09/2026)
+
+### Added
+- **Cài đặt › 🗄️ File lưu trữ theo năm** (Quản trị): đăng ký file `DATA<năm>` chứa dữ liệu ĐNTT đã khóa sổ (giữ nguyên tên sheet). Kiểm tra: năm hợp lệ, không phải File Chính, đủ sheet `DNTT_GK_DN` / `_CT` / `_112`, và File Chính **không còn** dòng CT của file đó (tránh báo cáo cộng 2 lần). Bỏ đăng ký bằng nút “Bỏ”. Ghi nhật ký `CAU_HINH_LUU_TRU_NAM`.
+- **Hệ Thống › 🔒 Chuyển Phiếu Cân Đã Khóa Sổ** (Quản trị): phiếu cân đã trả trong năm đã khóa sổ chuyển khỏi PhieuCan_DN sang sheet `PhieuCan_DN_<năm ngày cân>` (cùng file Phiếu Cân, cùng quy ước QL_NHAPKHO). Phiếu chưa trả / trả ở năm đang mở ở lại. Có xem trước, chạy theo lô 500 Số phiếu trong khóa hệ thống, chép xong mới xóa, dừng an toàn sau ~4 phút; chạy lại không chép trùng. Ghi nhật ký `CHUYEN_PHIEU_CAN_KHOA_SO`.
+
+### Changed
+- Báo cáo có khoảng ngày chạm năm đã khóa sổ **tự đọc file DATA** (và phiếu cân ở `PhieuCan_DN_<năm>`): Báo cáo 112, Lịch sử UNC, Báo cáo Thanh toán Chi tiết, MISA, Tình hình thanh toán, Phân tích Nhập/TT, Công nợ khách hàng, Sổ chi tiết, Công nợ phiếu cân tại 1 ngày. Tiến độ / Công nợ theo hợp đồng cộng mọi năm. Báo cáo năm đang mở không đọc thêm gì.
+- Lũy kế công nợ khách hàng tính từ đầu năm của “Từ ngày” khi năm trước đã khóa sổ (năm cũ chỉ mang sang phiếu chưa trả); số **công nợ** không đổi.
+
+### Fixed
+- Mở Đóng TT từ chối Ngày Đóng TT thuộc năm đã khóa sổ (dữ liệu đã ở file lưu trữ).
+
+### Tests
+- 91 test (thêm 6 trong `luuTruNam`: đăng ký, báo cáo năm đóng/năm mở, xem trước + chuyển, chạy lại sau khi dừng giữa chừng, số liệu năm đóng không đổi sau khi chuyển và công nợ hiện tại = phiếu chưa trả, chặn Mở Đóng TT).
+
 ## [2026.8.4] — Chỉ đọc các cột Phiếu Cân cần dùng
 
 ### Changed

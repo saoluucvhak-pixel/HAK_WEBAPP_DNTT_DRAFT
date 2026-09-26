@@ -57,6 +57,9 @@ Trạng thái: ✅ xong · 🟡 một phần · ⏳ chưa làm · ⚖️ cần n
 - ✅ 2026.8.2: Giao diện “Khôi phục từ SYS_SaoLuuDongXoa” (hoàn tất C-07).
 - ⏳ Kiểm chứng trên Google Sheets thật: `getRangeList().setValue()` và `deleteRows()` với dữ liệu lớn (mock đã kiểm chứng logic).
 - ✅ Khóa sổ năm (quy trình người dùng): kiểm chứng công nợ đầu năm = phiếu chưa trả mang sang (test `khoaSoNam`); không cần bộ nhớ đệm 6 tháng.
+- ✅ 2026.9.0: Khóa sổ năm — đăng ký file DATA<năm>, báo cáo tự đọc năm đã khóa sổ, nút chuyển phiếu cân đã khóa sổ sang `PhieuCan_DN_<năm>`.
+- ⏳ Hỏi người dùng: ẩn/khóa nút “Chốt sổ năm” cũ của QL_NHAPKHO (chuyển theo năm ngày cân + Y = OK, không theo năm thanh toán → báo cáo ĐNTT sẽ thiếu phiếu). Khuyến nghị: không dùng nút đó.
+- ⏳ Kiểm chứng trên Google thật: chuyển phiếu cân khi dữ liệu lớn (thời gian `deleteRows` theo khối).
 - ✅ 2026.8.4: Chỉ đọc 20/28 cột Phiếu Cân cần dùng (bộ nhớ đệm ~16.000 phiếu).
 - ✅ 2026.8.3: Trang chủ đọc PhanTichNhapTT_DRAFT (không quét PhieuCan_DN); sửa trigger 15h bỏ sót cuối tháng.
 - 🚫 Không làm (người dùng quyết định): gọn bộ nhớ đệm Phiếu Cân; nhật ký trước/sau khi sửa hồ sơ; P4.1 hộp gõ mã (đã có hộp xác nhận).

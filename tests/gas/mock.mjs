@@ -61,6 +61,7 @@ export class MockRange {
   setNumberFormat() { return this; }
   setNumberFormats() { return this; }
   getNumberFormat() { return ''; }
+  getNumberFormats() { return Array.from({ length: this.numRows }, () => new Array(this.numCols).fill('')); }
   setFontWeight() { return this; }
   setBackground() { return this; }
   setFontColor() { return this; }

@@ -1,4 +1,4 @@
-# ARCHITECTURE — HAK Quản Lý Thanh Toán (v2026.8.4)
+# ARCHITECTURE — HAK Quản Lý Thanh Toán (v2026.9.0)
 
 > Tài liệu sống: cập nhật mỗi khi đổi module, lớp, luồng dữ liệu hoặc schema.
 > Phân tích chi tiết hiện trạng: `docs/PROJECT_ANALYSIS.md`. Kiến trúc đích: `docs/REFACTOR_PLAN.md` §3–§4.
@@ -119,7 +119,31 @@ Quy tắc: màn hình mở thường xuyên đọc snapshot, không quét PhieuC
 - DNTT_GK_DN khóa sổ theo năm (sổ đã chốt chỉ còn khoản trả của năm hiện tại).
 - Công nợ = Σ phiếu cân − Σ đã trả ⇒ sau khóa sổ đúng bằng **các phiếu cân chưa trả** (số dư đầu năm mang sang tự đúng, không cần bút toán số dư). Test `khoaSoNam.test.mjs`.
 - Bộ nhớ đệm Phiếu Cân tự giới hạn theo năm (~13.500 phiếu/năm < trần ~16.000).
-- Lưu ý khi khóa sổ: chuyển phiếu đã trả (Chọn TT = Y / ID_DNTT = Đóng TT) và khóa sổ DNTT_GK_DN **cùng lúc**; không chuyển phiếu đang nằm trong hồ sơ Nháp. Nếu khóa sổ bằng cách **tạo File Chính mới**, phải mang theo sheet `SYS_NguoiDung` (danh sách người dùng) – nếu không chỉ Quản trị cố định đăng nhập được.
+- Lưu ý khi khóa sổ: chuyển phiếu đã trả và khóa sổ DNTT_GK_DN **cùng lúc**; không chuyển phiếu đang nằm trong hồ sơ Nháp. Nếu khóa sổ bằng cách **tạo File Chính mới**, phải mang theo sheet `SYS_NguoiDung` (danh sách người dùng) – nếu không chỉ Quản trị cố định đăng nhập được.
+
+### Quy trình khóa sổ năm N (v2026.9.0)
+
+1. **Người dùng**: chuyển toàn bộ dữ liệu ĐNTT năm N (theo **ngày thanh toán**) — `DNTT_GK_DN`, `DNTT_GK_DN_CT`, `DNTT_GK_DN_112`, `ChiTietDNTT`, `ChiTietUNC` — sang file `DATA<N>`, **giữ nguyên tên sheet**, rồi xóa các dòng đó khỏi File Chính.
+2. **Cài đặt › File lưu trữ theo năm** (`webSetLuuTruNam_`, Quản trị): lưu `{N: ID}` vào Script Property `LUU_TRU_NAM`. Từ chối nếu thiếu 3 sheet sổ, là File Chính, hoặc File Chính **còn dòng CT cùng ID_CT** (báo cáo sẽ cộng 2 lần).
+3. **Hệ Thống › Chuyển Phiếu Cân Đã Khóa Sổ** (`webChuyenPhieuCanKhoaSo_`, Quản trị, trong `sysLock`): phiếu còn ở PhieuCan_DN có Số phiếu trong CT của file DATA đã đăng ký và **không** còn trong sổ đang mở → sheet `PhieuCan_DN_<năm NGÀY CÂN>` trong file Phiếu Cân (cùng quy ước `HT_chotSoNam` của QL_NHAPKHO, nên `LT_docPhieuCanGopLuuTru_` của kho vẫn đọc được).
+   - Sổ đã khóa là căn cứ “đã trả” (không cần ID_DNTT = Đóng TT). Mọi dòng cùng Số phiếu đi cùng nhau; thiếu ngày cân / còn trong sổ đang mở → ở lại, liệt kê trong xem trước.
+   - Mỗi lô 500 Số phiếu: chép phần **còn thiếu** (đếm theo Số phiếu ở sheet đích) → `flush` → xóa đúng các Số phiếu đó (đọc lại cột Số phiếu ngay lúc xóa). Bản chép ở sheet đích là bản sao lưu. Dừng sau ~4 phút, chạy lại để làm tiếp; chạy lại không chép trùng.
+   - Giữa bước 2 và 3, công nợ hiện tại **dư** (phiếu đã trả còn ở PhieuCan_DN nhưng khoản trả đã sang DATA) → làm bước 3 ngay sau bước 2.
+4. Mở Đóng TT từ chối Ngày Đóng TT thuộc năm đã khóa sổ.
+
+### Báo cáo đọc năm đã khóa sổ
+
+Chỉ khi khoảng ngày **chạm năm đã đăng ký**; báo cáo năm đang mở không mở file DATA (test `luuTruNam`). Dữ liệu lưu trữ cache 6 giờ, khóa cache gắn ID file.
+
+| Hàm | Đọc thêm |
+|---|---|
+| `_ctGopLuuTru_(f, t, docThang)` | CT của các năm khóa sổ ∈ [năm f, năm t] + sổ đang mở |
+| `_h112GopLuuTru_(f, t)` / `_docLuuTruTrongKhoang_(sheet, soCot, f, t)` | tương tự cho 112, ChiTietDNTT, ChiTietUNC |
+| `_pcGopLuuTru_(f, t)` | PhieuCan_DN + dòng ở `PhieuCan_DN_<năm>` có Số phiếu **trả trong** năm khóa sổ ∈ [năm f, năm t] |
+
+- Theo khoảng ngày thanh toán (112, UNC, Chi tiết, MISA, Tình hình TT): `(f, t)`.
+- Theo ngày cân / lũy kế đến ngày D (Phân tích, Công nợ KH, Sổ chi tiết KH, Công nợ phiếu cân tại D): `(f hoặc D, "")` — năm khóa sổ **từ** năm đó trở đi; năm khóa sổ trước đó chỉ mang sang phiếu chưa trả (lũy kế tính từ đầu năm của “Từ ngày”, công nợ không đổi).
+- Tiến độ hợp đồng / Công nợ theo HĐ / Sổ chi tiết HĐ: mọi năm `("", "")` (hợp đồng kéo dài nhiều năm).
 
 ## 4c. Công nợ theo khách hàng (v2026.8.0)
 
