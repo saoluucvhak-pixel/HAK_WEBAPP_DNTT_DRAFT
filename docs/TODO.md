@@ -56,4 +56,5 @@ Trạng thái: ✅ xong · 🟡 một phần · ⏳ chưa làm · ⚖️ cần n
 - ⏳ Kiểm chứng trên Google thật: đăng nhập qua Cổng (lần đầu Google hỏi quyền xem email), đăng xuất, khóa tài khoản.
 - ⏳ Giao diện “Khôi phục từ SYS_SaoLuuDongXoa” (hoàn tất C-07).
 - ⏳ Kiểm chứng trên Google Sheets thật: `getRangeList().setValue()` và `deleteRows()` với dữ liệu lớn (mock đã kiểm chứng logic).
+- ✅ 2026.8.1: Chặn trả 2 lần cho cùng 1 phiếu cân (cache “chưa TT” cũ khi làm mới chạy trùng lúc Duyệt) — kiểm tra với CT thật ở Tạo mới / Thêm phiếu / Duyệt.
 - ✅ 2026.7.4: Kế toán không Duyệt được / không bấm được “↻ Làm mới” (route xếp nhầm quyền Quản trị) — thêm test dò quyền theo trang.

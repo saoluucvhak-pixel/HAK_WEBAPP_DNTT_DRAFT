@@ -1,6 +1,6 @@
 /**
  * ============================================================
- * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.8.0
+ * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.8.1
  * Lịch sử thay đổi: CHANGELOG.md · Kiến trúc: docs/ARCHITECTURE.md
  * ------------------------------------------------------------
  * *** QUAN TRỌNG - CẦN LÀM TRƯỚC KHI DÙNG BẢN NÀY (chỉ 1 LẦN DUY NHẤT
@@ -1649,7 +1649,7 @@ function webSetUncConfig_(values) {
 // LIỆU TÀI CHÍNH ĐÃ CHỐT" khi ghi log nhưng trước đây KHÔNG hiện ra ở
 // trang audit trail này - vẫn nằm trong sheet log nhưng vô hình với
 // người xem trang "Lịch Sử Sửa Đổi".
-const LICH_SU_SUA_DOI_ACTIONS = new Set(["MO_DONG_THANH_TOAN", "DOI_SOAT_DONG_BO_TEN", "VA_NGAN_HANG_112", "XOA_MO_COI_CHITIET_DNTT", "XOA_MO_COI_CHITIET_UNC", "XOA_MO_COI_CT_THAT", "XOA_MO_COI_SRC_THAT", "SUA_TEN_KH_PHIEU_CAN", "PHAN_QUYEN", "CAU_HINH_DANG_NHAP", "CANH_BAO_HEADER_PC", "XAC_NHAN_HEADER_PHIEU_CAN"]);
+const LICH_SU_SUA_DOI_ACTIONS = new Set(["MO_DONG_THANH_TOAN", "DOI_SOAT_DONG_BO_TEN", "VA_NGAN_HANG_112", "XOA_MO_COI_CHITIET_DNTT", "XOA_MO_COI_CHITIET_UNC", "XOA_MO_COI_CT_THAT", "XOA_MO_COI_SRC_THAT", "SUA_TEN_KH_PHIEU_CAN", "PHAN_QUYEN", "CAU_HINH_DANG_NHAP", "CANH_BAO_HEADER_PC", "XAC_NHAN_HEADER_PHIEU_CAN", "CHAN_TRA_HAI_LAN"]);
 /**
  * SỬA (theo yêu cầu - "cho xem theo ngày, không phải cứ nối dài"): giờ
  * lọc theo khoảng ngày (fDate/tDate, dạng yyyy-MM-dd) thay vì luôn hiện
@@ -3857,8 +3857,25 @@ function runConfirmPayment_(selectedIds, payDateStr) {
       validIds.push(id);
     });
 
+    // Chặn TRẢ 2 LẦN (đọc thẳng CT thật, không qua cache): hồ sơ có phiếu cân
+    // đã chốt ở 1 hồ sơ KHÁC thì không chốt - cả hồ sơ, không chốt nửa vời.
+    const skippedDaTra = [];
+    {
+      const ctLr = shCTReal.getLastRow();
+      const daTra = _phieuCanDaTraThat_(ctLr > 1 ? shCTReal.getRange(2, 1, ctLr - 1, 22).getValues() : []);
+      validIds.slice().forEach(id => {
+        const trung = draftCTAll.filter(r => String(r[1] || "").trim() === id).map(r => String(r[11] || "").trim())
+          .filter(so => { const idDaTra = daTra.get(utils.standardize(so)); return idDaTra && idDaTra !== id; });
+        if (!trung.length) return;
+        skippedDaTra.push(`${id} (phiếu ${trung.join(", ")})`);
+        validIds.splice(validIds.indexOf(id), 1);
+      });
+      if (skippedDaTra.length) logAction_("CHAN_TRA_HAI_LAN", skippedDaTra.join("; ").slice(0, 200), "Không chốt vì có phiếu cân đã được thanh toán ở hồ sơ khác: " + skippedDaTra.join("; "));
+    }
+
     if (validIds.length === 0) {
       let msg = "❌ Không có hồ sơ nào đủ điều kiện để chốt.";
+      if (skippedDaTra.length) msg += ` ⛔ Có phiếu cân ĐÃ ĐƯỢC THANH TOÁN ở hồ sơ khác (bỏ phiếu đó khỏi hồ sơ rồi Duyệt lại): ${skippedDaTra.join("; ")}.`;
       if (skippedNoData.length) msg += ` Không tìm thấy trong File Nháp: ${skippedNoData.join(", ")}.`;
       if (skippedNotCalculated.length) msg += ` Chưa chạy "Tổng Hợp 112": ${skippedNotCalculated.join(", ")}.`;
       if (skippedNotConfirmed.length) msg += ` Chưa "Xác Nhận" ĐNTT: ${skippedNotConfirmed.join(", ")}.`;
@@ -4015,6 +4032,7 @@ function runConfirmPayment_(selectedIds, payDateStr) {
     if (skippedNoData.length) msg += ` ⚠️ Không tìm thấy trong Nháp (bỏ qua): ${skippedNoData.join(", ")}.`;
     if (skippedNotCalculated.length) msg += ` ⚠️ Chưa chạy Tổng Hợp 112 (bỏ qua): ${skippedNotCalculated.join(", ")}.`;
     if (skippedNotConfirmed.length) msg += ` ⚠️ Chưa "Xác Nhận" ĐNTT (bỏ qua): ${skippedNotConfirmed.join(", ")}.`;
+    if (skippedDaTra.length) msg += ` ⛔ KHÔNG chốt vì có phiếu cân ĐÃ ĐƯỢC THANH TOÁN ở hồ sơ khác (bỏ phiếu đó khỏi hồ sơ rồi Duyệt lại): ${skippedDaTra.join("; ")}.`;
 
     logAction_("CHOT_THANH_TOAN", validIds.join(","), `Chốt ${validIds.length} hồ sơ từ File Nháp, ngày TT ${dateForSheetStr}.`);
     _invalidateCtSrc112Cache_(); // MỚI (rà soát bổ sung): CT/Src/112 thật vừa thay đổi - xóa cache để lần đọc tiếp theo (gợi ý, chẩn đoán) thấy dữ liệu mới ngay
@@ -6922,6 +6940,22 @@ function getHopDongSummary_(soHD, stkDangDeNghi) {
 // SỬA (mục M): thêm "Ngày đề nghị" là trường BẮT BUỘC do người dùng
 // nhập (khác với Timestamp = giờ hệ thống tự động).
 // ============================================================
+/** Số phiếu cân (đã chuẩn hóa) ĐÃ CHỐT THANH TOÁN trong CT thật -> ID hồ sơ
+ * đã trả. Đây là nguồn chắc chắn: cache "phiếu cân chưa TT" có thể còn
+ * cũ vài phút (lượt tự làm mới chạy trùng lúc Duyệt) nên KHÔNG được dùng
+ * một mình để quyết định phiếu cân còn trả được hay không. */
+function _phieuCanDaTraThat_(ctThatRows) {
+  const m = new Map();
+  ctThatRows.forEach(r => { const so = utils.standardize(r[11]); if (so) m.set(so, String(r[1] || "").trim()); });
+  return m;
+}
+/** Chặn trả 2 lần khi lập/sửa hồ sơ: lỗi nếu có phiếu cân đã chốt trong CT thật. */
+function _chanPhieuCanDaTra_(dsSoPhieu) {
+  const daTra = _phieuCanDaTraThat_(_ctThatDataCache_());
+  const trung = dsSoPhieu.filter(so => daTra.has(utils.standardize(so)));
+  if (trung.length) throw new Error(`Số phiếu cân ${trung.map(so => `"${so}"`).join(", ")} ĐÃ ĐƯỢC THANH TOÁN (hồ sơ ${trung.map(so => daTra.get(utils.standardize(so))).join(", ")}) - không thể thanh toán lần nữa.`);
+}
+
 function createNewPaymentRequest_(payload) {
   let lock;
   try {
@@ -6936,6 +6970,7 @@ function createNewPaymentRequest_(payload) {
     if (isNaN(ngayDeNghiDate.getTime())) throw new Error("Ngày đề nghị không hợp lệ.");
     const dsPC = (payload.danhSachPhieuCan || []).map(x => String(x).trim()).filter(Boolean);
     if (dsPC.length === 0) throw new Error("Vui lòng chọn ít nhất 1 số phiếu cân.");
+    _chanPhieuCanDaTra_(dsPC);
 
     const ss = getMainSs_();
     // MỚI (mục AI): "đơn xin" gốc ghi vào Draft (shSrc từ getDraftSheets_)
@@ -7550,6 +7585,7 @@ function addPhieuCanToDraft_(idKey, soPhieuCan) {
     if (ctAll.some(r => utils.standardize(r[11]) === key)) {
       throw new Error(`Số phiếu cân "${soP}" đang được dùng bởi 1 hồ sơ trong Nháp rồi.`);
     }
+    _chanPhieuCanDaTra_([soP]);
 
     // SỬA (mục P - tối ưu tốc độ): dùng cache "chưa thanh toán" (nhỏ, nhanh).
     const pcMap = utils.buildIndexMap(_pcUnpaidData_(), 22, true);

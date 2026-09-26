@@ -113,3 +113,40 @@ test('runConfirmPayment skips records that are not confirmed yet', () => {
   assert.match(msg, /Chưa "Xác Nhận"/);
   assert.equal(world.main.getSheetByName('DNTT_GK_DN_CT').rows().length, 1);
 });
+
+// Lượt tự làm mới cache đọc PhieuCan_DN TRƯỚC khi Duyệt nhưng ghi xong SAU
+// khi Duyệt -> cache "chưa TT" còn phiếu vừa trả. Không được trả lần 2.
+test('a weigh ticket already paid can never be paid again, even with a stale cache', () => {
+  const world = buildWorld();
+  const { run } = loadCode(world.options);
+  run('refreshPhieuCanUnpaidCache_')();
+  const cacheCu = world.draft.getSheetByName('PhieuCan_DN_CHUA_TT_DRAFT').data.map(r => r.slice());
+  assert.match(run('runConfirmPayment_')(['A1'], '26/09/2026'), /^✅/);
+  world.draft.getSheetByName('PhieuCan_DN_CHUA_TT_DRAFT').data = cacheCu;
+  run('_invalidateChunkedCache_')('pc_unpaid_data_v1');
+
+  const payload = { hoTenChuRung: 'Nguyen Van A', cccdChuRung: '012345678901', nguoiDeNghi: 'X', nguoiNhanTien: 'Nguyen Van A',
+    soTKNhanTien: '0123', nganHang: 'BIDV', soHopDong: 'HD01', ngayDeNghi: '2026-09-26', danhSachPhieuCan: ['PC001'] };
+  const tao = run('createNewPaymentRequest_')(payload);
+  assert.equal(tao.success, false);
+  assert.match(tao.message, /PC001.*ĐÃ ĐƯỢC THANH TOÁN.*A1/);
+
+  const them = run('addPhieuCanToDraft_')('B2', 'PC002');
+  assert.equal(them.success, false);
+  assert.match(them.message, /PC002.*ĐÃ ĐƯỢC THANH TOÁN/);
+});
+
+test('approval skips a record that contains a ticket already paid in another record', () => {
+  const world = buildWorld();
+  const { run } = loadCode(world.options);
+  assert.match(run('runConfirmPayment_')(['A1'], '26/09/2026'), /^✅/);
+  // Hồ sơ B2 (tạo trước khi A1 được duyệt, dữ liệu cũ) lại chứa PC001 đã trả.
+  const ct = world.draft.getSheetByName('DNTT_GK_DN_CT_DRAFT');
+  ct.data.find(r => r[1] === 'B2')[11] = 'PC001';
+  const h = world.draft.getSheetByName('DNTT_GK_DN_112_DRAFT');
+  h.data.find(r => r[0] === 'B2')[23] = 'Đang ĐNTT';
+  const truoc = world.main.getSheetByName('DNTT_GK_DN_CT').rows().slice(1).filter(r => r[11]).length;
+  const msg = run('runConfirmPayment_')(['B2'], '26/09/2026');
+  assert.match(msg, /^❌.*ĐÃ ĐƯỢC THANH TOÁN.*B2.*PC001/);
+  assert.equal(world.main.getSheetByName('DNTT_GK_DN_CT').rows().slice(1).filter(r => r[11]).length, truoc, 'nothing was paid again');
+});

@@ -1,4 +1,4 @@
-# ARCHITECTURE — HAK Quản Lý Thanh Toán (v2026.8.0)
+# ARCHITECTURE — HAK Quản Lý Thanh Toán (v2026.8.1)
 
 > Tài liệu sống: cập nhật mỗi khi đổi module, lớp, luồng dữ liệu hoặc schema.
 > Phân tích chi tiết hiện trạng: `docs/PROJECT_ANALYSIS.md`. Kiến trúc đích: `docs/REFACTOR_PLAN.md` §3–§4.
@@ -64,6 +64,8 @@ Quy tắc bắt buộc cho mọi code mới: **không đọc cả sheet rồi gh
 5. Cập nhật trạng thái Src tại chỗ (cột O..R) cho dòng chưa “Y”.
 6. Khóa phiếu cân: 3 lệnh RangeList trên đúng các dòng.
 7. Dọn Nháp: ghi đè trước, xóa đuôi sau.
+
+Chặn trả 2 lần: trước bước 3, đọc thẳng CT thật (`_phieuCanDaTraThat_`); hồ sơ có phiếu cân đã chốt ở hồ sơ khác bị bỏ qua cả hồ sơ (`CHAN_TRA_HAI_LAN`). Tạo mới / Thêm phiếu cũng kiểm tra (`_chanPhieuCanDaTra_`). **Cache “phiếu cân chưa TT” chỉ để gợi ý, không dùng một mình để quyết định phiếu còn trả được.**
 
 Lỗi ở bất kỳ bước nào → log `LOI_CHOT_THANH_TOAN`, người dùng bấm Duyệt lại cùng hồ sơ để hoàn tất (không trùng dữ liệu).
 

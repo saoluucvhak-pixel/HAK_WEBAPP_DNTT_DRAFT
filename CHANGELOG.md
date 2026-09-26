@@ -2,6 +2,19 @@
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/). Phiên bản theo `NĂM.ĐỢT.SỬA`; thay đổi làm đổi hành vi nghiệp vụ (⚖️) sẽ tăng số ĐỢT và ghi rõ đã được người dùng đồng ý.
 
+## [2026.8.1] — Chặn trả tiền 2 lần cho cùng 1 phiếu cân
+
+### Fixed
+- **Có thể trả tiền 2 lần cho cùng 1 phiếu cân** (đã tái hiện được): lượt tự làm mới cache “phiếu cân chưa TT” (10 phút / nút ↻ Làm mới) đọc PhieuCan_DN **trước** khi Duyệt nhưng ghi xong **sau** khi Duyệt → cache vẫn còn phiếu vừa trả trong vài phút → Tạo mới / Thêm phiếu vào hồ sơ vẫn chọn được → Duyệt lần 2 ghi phiếu đó vào DNTT_GK_DN_CT lần nữa. Nay kiểm tra với **sổ đã chốt thật (DNTT_GK_DN_CT)**, không chỉ tin cache:
+  - Tạo mới và Thêm phiếu cân vào hồ sơ: báo lỗi “Số phiếu cân … ĐÃ ĐƯỢC THANH TOÁN (hồ sơ …)”.
+  - Duyệt: đọc thẳng CT thật; hồ sơ có phiếu đã trả ở hồ sơ khác thì **không chốt cả hồ sơ**, báo rõ phiếu nào, ghi nhật ký `CHAN_TRA_HAI_LAN`. Duyệt lại chính hồ sơ bị ngắt giữa chừng vẫn chạy như cũ.
+
+### Decided
+- H-01 (đọc theo tên cột) không làm: cột các file nguồn cố định, không ai sửa trực tiếp; đã có cảnh báo khi tiêu đề PhieuCan_DN thay đổi.
+
+### Tests
+- 76 test (thêm 2, đều thất bại trên bản 2026.8.0).
+
 ## [2026.8.0] — ⚖️ Công nợ theo khách hàng gom theo CCCD + Tên (M-04, người dùng đồng ý 26/09/2026)
 
 Đổi số liệu báo cáo Công nợ theo Khách hàng (đúng hơn); tổng công nợ toàn bộ không đổi.
