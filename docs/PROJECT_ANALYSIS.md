@@ -4,6 +4,8 @@
 > **Phương pháp**: đọc 100% mã nguồn (`Code.gs` 8 024 dòng · `Index.html` 4 121 dòng · `appsscript.json` · `README.md`), đối chiếu chéo luồng gọi hàm, luồng ghi/đọc sheet.
 > **Nguyên tắc**: tài liệu này **chỉ phân tích — KHÔNG sửa code**. Mọi đề xuất nằm ở `REFACTOR_PLAN.md` và chỉ thực hiện sau khi người dùng đồng ý.
 > Tham chiếu dạng `Code.gs:3071` = file:dòng tại commit trên.
+>
+> **Cập nhật v2026.6.0**: các rủi ro C-01…C-04, H-02…H-06 (xem `REFACTOR_PLAN.md`) đã được xử lý — chi tiết trong `CHANGELOG.md`, trạng thái trong `docs/TODO.md`. Nội dung dưới đây giữ nguyên là ảnh chụp hiện trạng **trước** khi sửa.
 
 ---
 
@@ -377,7 +379,7 @@ B03/B01 CFG/LINKS ◄──────── (mọi module, qua global)
 | 🔴 | `runConfirmPayment` +204: ghi đè **toàn bộ PhieuCan_DN** (file ngoài) | Người khác đang nhập phiếu cân trong lúc chốt → dòng mới/ô vừa sửa bị ghi đè bằng ảnh chụp cũ; công thức trong vùng bị thay bằng giá trị |
 | 🔴 | `runConfirmPayment` +191, `runProcessDetail`, `runFillMissingBankOnly`: ghi đè toàn bộ sheet chính | Như trên với DNTT_GK_DN / 112 |
 | 🔴 | `runConfirmPayment` bước 2-8 không nguyên tử | Timeout giữa chừng → CT/112 thật đã append nhưng Nháp chưa dọn → chạy lại tạo **bản trùng**; hoặc ngược lại |
-| 🔴 | `webMoDongThanhToanTheoHoSo`: xóa bản chính + 3 bảng con rồi mới chép sang nháp | Lỗi sau bước xóa → hồ sơ đã chốt **biến mất** khỏi cả hai nơi |
+| 🔴 | `webMoDongThanhToanTheoHoSo`: chép sang Nháp bằng nhiều `appendRow`, rồi xóa bản chính **theo vị trí dòng đọc từ trước**, từng dòng một, không sao lưu (đính chính: thứ tự là chép trước – xóa sau) | Sheet bị chèn/xóa dòng trong lúc chạy → xóa **nhầm dòng**; lỗi giữa chừng → CT đã xóa nhưng Src/112 còn (lệch); không có bản sao để khôi phục |
 | 🟠 | `webDongBoTenKhachHang` (`Code.gs:6975`): đọc cả cột KHÁCH HÀNG, sửa trong bộ nhớ, ghi lại cả cột, **không lock** | Ghi đè tên vừa sửa bởi người khác |
 | 🟠 | clearContent + setValues trên Draft CT/112/Src | Ngắt giữa 2 lệnh = mất toàn bộ nháp chưa chốt |
 | 🟠 | `refresh*Cache_` dùng `sh.clear()` không lock; trigger 10’ và 7:30 có thể chồng nhau | Mirror trống tạm thời → người dùng thấy “không còn phiếu cân” |

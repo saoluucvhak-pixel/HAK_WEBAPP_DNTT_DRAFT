@@ -1,7 +1,7 @@
 # REFACTOR_PLAN — Nâng cấp HAK lên Commercial Edition
 
 > Dựa trên `docs/PROJECT_ANALYSIS.md` (commit `1ece58f`).
-> **Trạng thái: ĐỀ XUẤT — chưa thực hiện.** Mọi hạng mục chỉ bắt đầu khi người dùng duyệt (theo từng Phase hoặc từng mục).
+> **Trạng thái:** P0 + P1 đã thực hiện ở v2026.6.0 (người dùng duyệt “tiếp tục”, theo khuyến nghị §9.2). Các Phase còn lại chờ quyết định §9. Tiến độ từng mục: `docs/TODO.md`.
 > Hạng mục có ký hiệu **⚖️** làm **thay đổi hành vi nghiệp vụ** → cần người dùng đồng ý riêng.
 
 ---
@@ -153,7 +153,7 @@ Cột “⚖️” = cần người dùng đồng ý vì thay đổi hành vi.
 | C-01 | Chốt thanh toán không nguyên tử / không idempotent | `runConfirmPayment` | Unit-of-Work + Journal + idempotency theo `ID_KEY`; tách bước; có `resume` | – | Mô phỏng lỗi ở mỗi bước → chạy lại không trùng, không mất |
 | C-02 | Ghi đè toàn bộ `PhieuCan_DN` (file ngoài) | `runConfirmPayment` (+204) | Chỉ ghi các ô cột khóa của đúng dòng phiếu cân (gom dải) | – | Người khác sửa PC cùng lúc → không mất dữ liệu |
 | C-03 | Ghi đè toàn bộ DNTT_GK_DN / 112 | `runConfirmPayment` (+191), `runProcessDetail`, `runFillMissingBankOnly` | Ghi theo dòng/ô | – | Công thức & dòng mới không bị ảnh hưởng |
-| C-04 | Mở Đóng TT xóa trước, chép sau | `webMoDongThanhToanTheoHoSo` | Chép sang nháp **trước**, xác minh, rồi mới xóa (trong Tx) + backup dòng bị xóa | – | Lỗi giữa chừng không mất hồ sơ |
+| C-04 | Mở Đóng TT xóa theo vị trí dòng cũ, từng dòng, không sao lưu | `webMoDongThanhToanTheoHoSo` | Ghi Nháp 1 lệnh; xóa theo ID đọc lại mới nhất, theo khối; sao lưu nguyên dòng trước khi xóa | – | Không xóa nhầm dòng; khôi phục được |
 | C-05 | `doGet?action=` không xác thực | `doGet` | Bỏ hẳn action ghi dữ liệu qua GET (`tach_phieu`, `lap_de_nghi`), action đọc yêu cầu token; webhook giữ secret nhưng chuyển sang `doPost` | ⚖️ | Gọi GET không token → từ chối |
 | C-06 | Không có xác thực/phân quyền | toàn bộ `web*` | `AuthService` + RBAC tại Router; vai trò mặc định: Admin, Kế toán, Người xem. `webShareConfigLink` **giữ hành vi**, chỉ đặt sau quyền Admin | ⚖️ | Người xem không gọi được hàm ghi |
 | C-07 | Thiếu backup trước thao tác nguy hiểm | Mở Đóng TT, Xóa mồ côi, Đồng bộ tên | `BackupService` snapshot dòng bị ảnh hưởng (sheet `SYS_Backup_Rows`) + restore | – | Khôi phục được 1 thao tác |
@@ -247,7 +247,7 @@ Mỗi Phase: backup dữ liệu → làm trên **deployment thử nghiệm** (De
 | `docs/ARCHITECTURE.md` | Thêm/đổi module, lớp, luồng dữ liệu, schema |
 | `CHANGELOG.md` | Mọi commit hợp nhất (theo Keep a Changelog: Added/Changed/Fixed/Security/Removed) |
 | `docs/TODO.md` | Mở/đóng hạng mục backlog (ID như §5) |
-| `VERSION` | SemVer: MAJOR (đổi schema/hành vi ⚖️), MINOR (tính năng), PATCH (sửa lỗi) — bắt đầu `2026.5.0` → `3.0.0-alpha` khi vào P1 |
+| `VERSION` | `NĂM.ĐỢT.SỬA` nối tiếp đánh số hiện có (v2026.5 → `2026.6.0`): tăng ĐỢT khi có tính năng/thay đổi hành vi (⚖️ ghi rõ đã được đồng ý), tăng SỬA khi chỉ sửa lỗi |
 | `docs/ROADMAP.md` | Tiến độ Phase |
 
 ---

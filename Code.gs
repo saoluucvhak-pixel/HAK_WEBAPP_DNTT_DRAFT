@@ -1,6 +1,7 @@
 /**
  * ============================================================
- * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN HOÀN THIỆN 2026.5
+ * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.6.0
+ * Lịch sử thay đổi: CHANGELOG.md · Kiến trúc: docs/ARCHITECTURE.md
  * ------------------------------------------------------------
  * *** QUAN TRỌNG - CẦN LÀM TRƯỚC KHI DÙNG BẢN NÀY (chỉ 1 LẦN DUY NHẤT
  * cho cả đời dự án - KHÔNG cần lặp lại kể cả khi dán đè code mới sau
@@ -543,6 +544,163 @@ const sysLock = {
   }
 };
 
+/** Chạy fn() trong sysLock và luôn nhả khóa. KHÔNG gọi từ đoạn code đang
+ * giữ sysLock (khóa lồng nhau). Dùng cho các đoạn "đọc rồi ghi thêm vào
+ * cuối sheet" để 2 người thao tác cùng lúc không ghi đè dòng của nhau. */
+function _chayTrongKhoa_(fn) {
+  const lock = sysLock.acquire();
+  try {
+    return fn();
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// ============================================================
+// GHI / XÓA AN TOÀN THEO DÒNG (v2026.6 - P1 an toàn dữ liệu)
+// ------------------------------------------------------------
+// Nguyên tắc: KHÔNG đọc cả sheet rồi ghi đè lại cả sheet. Chỉ chạm đúng
+// các ô/dòng cần đổi (gom dòng liền kề thành 1 lệnh để giảm số lần gọi
+// API), để không ghi đè thay đổi của người khác và không biến công thức
+// thành giá trị. Mọi thao tác XÓA dữ liệu đều sao lưu nguyên dòng trước.
+// ============================================================
+// Google Sheets giới hạn 50 000 ký tự/ô - chừa dư để ô nhật ký không bị lỗi ghi.
+const GIOI_HAN_KY_TU_O_NHAT_KY = 40000;
+const SAO_LUU_DONG_XOA_SHEET = "SYS_SaoLuuDongXoa";
+const SAO_LUU_DONG_XOA_HEADERS = ["Thời gian", "Người thực hiện", "Hành động", "File", "Sheet", "Dòng gốc", "Dữ liệu (JSON)"];
+
+/** Số cột (1-based) -> chữ cột A1 (1 -> A, 27 -> AA). */
+function _tenCotA1_(col) {
+  let s = "";
+  let n = col;
+  while (n > 0) {
+    const m = (n - 1) % 26;
+    s = String.fromCharCode(65 + m) + s;
+    n = Math.floor((n - 1) / 26);
+  }
+  return s;
+}
+
+/** Gom các số dòng thành các đoạn liền kề [[đầu, cuối], ...] tăng dần. */
+function _nhomDongLienTiep_(rowNumbers) {
+  const sorted = Array.from(new Set(rowNumbers)).sort((a, b) => a - b);
+  const groups = [];
+  sorted.forEach(r => {
+    const last = groups[groups.length - 1];
+    if (last && r === last[1] + 1) last[1] = r;
+    else groups.push([r, r]);
+  });
+  return groups;
+}
+
+/** Ghi CÙNG 1 giá trị vào cột colStart..colEnd của nhiều dòng - 1 lệnh API duy nhất. */
+function _ghiCungGiaTri_(sh, rowNumbers, colStart, colEnd, value) {
+  if (!rowNumbers.length) return;
+  const c1 = _tenCotA1_(colStart), c2 = _tenCotA1_(colEnd);
+  const a1s = _nhomDongLienTiep_(rowNumbers).map(([a, b]) => `${c1}${a}:${c2}${b}`);
+  sh.getRangeList(a1s).setValue(value);
+}
+
+/** Ghi giá trị RIÊNG từng dòng. items: [{row, values}] (cùng số cột), bắt
+ * đầu từ cột startCol - mỗi đoạn dòng liền kề là 1 lệnh setValues. */
+function _ghiTheoDong_(sh, items, startCol) {
+  if (!items.length) return;
+  const byRow = new Map(items.map(it => [it.row, it.values]));
+  _nhomDongLienTiep_(items.map(it => it.row)).forEach(([a, b]) => {
+    const block = [];
+    for (let r = a; r <= b; r++) block.push(byRow.get(r));
+    sh.getRange(a, startCol, block.length, block[0].length).setValues(block);
+  });
+}
+
+/** Thay vùng dữ liệu bắt đầu từ startRow (numCols cột, hiện có oldCount
+ * dòng) bằng newRows: GHI ĐÈ trước rồi mới xóa phần đuôi thừa - không có
+ * thời điểm nào vùng dữ liệu bị trống hoàn toàn (khác clearContent rồi
+ * mới setValues). */
+function _thayVungDuLieu_(sh, startRow, numCols, oldCount, newRows) {
+  if (newRows.length) sh.getRange(startRow, 1, newRows.length, numCols).setValues(newRows);
+  const du = oldCount - newRows.length;
+  if (du > 0) sh.getRange(startRow + newRows.length, 1, du, numCols).clearContent();
+}
+
+/** Ghi lại toàn bộ 1 sheet mirror/snapshot (header + rows) mà KHÔNG xóa
+ * sạch trước (khác sh.clear()): ghi đè trước, dọn phần dòng/cột thừa sau
+ * - người đang đọc (hoặc trigger chạy song song) không bao giờ thấy sheet
+ * trống. cotText: các cột (1-based) cần khóa định dạng TEXT trước khi ghi. */
+function _ghiLaiMirror_(sh, header, rows, cotText) {
+  const width = header.length;
+  const oldRows = sh.getLastRow(), oldCols = sh.getLastColumn();
+  if (!width) {
+    if (oldRows) sh.getRange(1, 1, oldRows, Math.max(1, oldCols)).clearContent();
+    return;
+  }
+  if (cotText && cotText.length) _lockTextCols_(sh, cotText, rows.length + 5);
+  sh.getRange(1, 1, 1, width).setValues([header]).setFontWeight("bold").setBackground("#d9d2e9");
+  if (rows.length) sh.getRange(2, 1, rows.length, width).setValues(rows);
+  const duDong = oldRows - (rows.length + 1);
+  if (duDong > 0) sh.getRange(rows.length + 2, 1, duDong, Math.max(width, oldCols)).clearContent();
+  if (oldCols > width) sh.getRange(1, width + 1, rows.length + 1, oldCols - width).clearContent();
+  sh.setFrozenRows(1);
+}
+
+/** Tiền tố "'" cho giá trị CHUỖI (vd "0123") để Google Sheets giữ nguyên
+ * dạng chữ (không tự đổi thành số, mất số 0 đầu). Số giữ nguyên là số. */
+function _giuDangChu_(v) {
+  return (typeof v === "string" && v !== "") ? "'" + v.replace(/^'+/, "") : v;
+}
+
+/** Tập giá trị (đã trim) của cột colKey (1-based) từ dòng 2. Nếu có
+ * colCo, chỉ lấy các dòng mà cột colCo đang là "Y" (đã chốt). */
+function _tapKhoaTrongCot_(sh, colKey, colCo) {
+  const out = new Set();
+  const lastRow = sh.getLastRow();
+  if (lastRow < 2) return out;
+  const keys = sh.getRange(2, colKey, lastRow - 1, 1).getValues();
+  const flags = colCo ? sh.getRange(2, colCo, lastRow - 1, 1).getValues() : null;
+  keys.forEach((r, i) => {
+    const k = String(r[0] || "").trim();
+    if (!k) return;
+    if (flags && String(flags[i][0] || "").trim().toUpperCase() !== "Y") return;
+    out.add(k);
+  });
+  return out;
+}
+
+/** Sao lưu nguyên dòng sắp bị xóa vào SAO_LUU_DONG_XOA_SHEET (File Chính).
+ * items: [{row, values}]. Nếu sao lưu lỗi -> ném lỗi để KHÔNG xóa. */
+function _saoLuuDong_(hanhDong, sh, items) {
+  if (!items.length) return;
+  const ss = getMainSs_();
+  let shBk = ss.getSheetByName(SAO_LUU_DONG_XOA_SHEET);
+  if (!shBk) {
+    shBk = ss.insertSheet(SAO_LUU_DONG_XOA_SHEET);
+    shBk.getRange(1, 1, 1, SAO_LUU_DONG_XOA_HEADERS.length).setValues([SAO_LUU_DONG_XOA_HEADERS]).setFontWeight("bold").setBackground("#d9d9d9");
+    shBk.setFrozenRows(1);
+  }
+  let user = "N/A";
+  try { user = Session.getActiveUser().getEmail() || "N/A"; } catch (e) {}
+  const now = new Date();
+  const tenFile = sh.getParent() ? sh.getParent().getName() : "";
+  const rows = items.map(it => [now, user, hanhDong, tenFile, sh.getName(), it.row, JSON.stringify(it.values)]);
+  shBk.getRange(shBk.getLastRow() + 1, 1, rows.length, SAO_LUU_DONG_XOA_HEADERS.length).setValues(rows);
+}
+
+/** Đọc lại dữ liệu MỚI NHẤT ngay lúc xóa, sao lưu rồi xóa mọi dòng (từ
+ * dòng 2) thỏa laDongCanXoa(row). Không dùng vị trí dòng đã đọc từ trước
+ * (tránh xóa nhầm nếu sheet vừa bị chèn/xóa dòng). Trả về số dòng đã xóa. */
+function _saoLuuVaXoaDong_(sh, laDongCanXoa, hanhDong) {
+  const lastRow = sh.getLastRow();
+  if (lastRow < 2) return 0;
+  const numCols = Math.max(1, sh.getLastColumn());
+  const data = sh.getRange(2, 1, lastRow - 1, numCols).getValues();
+  const items = [];
+  data.forEach((r, i) => { if (laDongCanXoa(r)) items.push({ row: i + 2, values: r }); });
+  if (!items.length) return 0;
+  _saoLuuDong_(hanhDong, sh, items);
+  _nhomDongLienTiep_(items.map(it => it.row)).reverse().forEach(([a, b]) => sh.deleteRows(a, b - a + 1));
+  return items.length;
+}
+
 function logAction(actionType, refId, detail) {
   try {
     const ss = getMainSs_();
@@ -1066,7 +1224,7 @@ function webMoDongThanhToanTheoHoSo(chuRungInput, ngayDongTTInput, lanTTInput) {
     const h112LastRow = sh112.getLastRow();
     const h112All = h112LastRow > 1 ? sh112.getRange(2, 1, h112LastRow - 1, 23).getValues() : [];
     const h112ByIdKey = new Map();
-    h112All.forEach((r, i) => { const id = String(r[0] || "").trim(); if (id) h112ByIdKey.set(id, { idx: i, row: r }); });
+    h112All.forEach(r => { const id = String(r[0] || "").trim(); if (id) h112ByIdKey.set(id, { row: r }); });
 
     const ungVien = [];
     for (let i = 0; i < srcAll.length; i++) {
@@ -1082,7 +1240,7 @@ function webMoDongThanhToanTheoHoSo(chuRungInput, ngayDongTTInput, lanTTInput) {
       if (!h112Match) continue; // không tra được 112 tương ứng -> bỏ qua, không đoán mò
       const rLanTT = String(h112Match.row[18] || "").trim();
       if (utils.standardize(rLanTT) !== utils.standardize(lanTT)) continue;
-      ungVien.push({ idx: i, row: r, h112RowIdx: h112Match.idx, h112Row: h112Match.row });
+      ungVien.push({ row: r, h112Row: h112Match.row });
     }
     if (ungVien.length === 0) {
       return { success: false, message: `❌ Không tìm thấy hồ sơ nào khớp đúng Chủ rừng "${chuRung}" + Ngày Đóng TT ${ngayISO} + Lần TT "${lanTT}" trong dữ liệu ĐÃ CHỐT. Lưu ý: "Lần TT" là số đơn giản (1, 2, 3...) - xem ở Báo Cáo Thanh Toán cột "Lần TT".` };
@@ -1090,9 +1248,7 @@ function webMoDongThanhToanTheoHoSo(chuRungInput, ngayDongTTInput, lanTTInput) {
     if (ungVien.length > 1) {
       return { success: false, message: `⚠️ Tìm thấy ${ungVien.length} hồ sơ CÙNG khớp Chủ rừng/Ngày/Lần TT - không xử lý tự động để tránh nhầm lẫn. Cần bạn kiểm tra tay lại trong DNTT_GK_DN (có thể do trùng tên chủ rừng khác nhau, hoặc dữ liệu bị lặp).` };
     }
-    const srcRowIdx = ungVien[0].idx;
     const srcRow = ungVien[0].row;
-    const h112RowIdx = ungVien[0].h112RowIdx;
     const h112Row = ungVien[0].h112Row;
     const idCha = String(srcRow[0] || "").trim();
     const soHD = String(srcRow[13] || "").replace(/'/g, "").trim();
@@ -1140,6 +1296,7 @@ function webMoDongThanhToanTheoHoSo(chuRungInput, ngayDongTTInput, lanTTInput) {
     const pcMap = utils.buildIndexMap(_pcData_(), 22, true);
     const dsPhieuCanGoc = [];
     const soPhieuCanLienQuan = [];
+    const draftCtRowsMoi = [];
     ctConIdx.forEach((idx, stt) => {
       const ctRow = ctAll[idx];
       const soP = String(ctRow[11] || "").replace(/'/g, "").trim();
@@ -1151,13 +1308,20 @@ function webMoDongThanhToanTheoHoSo(chuRungInput, ngayDongTTInput, lanTTInput) {
         klTongNguon: utils.parseNum(newSrcRow[9]), dsPhieuCanGoc: dsPhieuCanGoc.join(", "), soHD: soHD, ngayTT: "", ngayDeNghi: now
       };
       const { row: draftCtRow } = buildDraftCtRow_(newId, stt + 1, soP, srcInfoChoCt, pcMap);
-      shDraftCT.appendRow(draftCtRow);
+      draftCtRowsMoi.push(draftCtRow);
     });
+    // v2026.6: ghi toàn bộ CT con vào Nháp bằng 1 lệnh (trước đây appendRow
+    // từng dòng - lỗi giữa chừng để lại hồ sơ Nháp thiếu phiếu cân).
+    shDraftCT.getRange(shDraftCT.getLastRow() + 1, 1, draftCtRowsMoi.length, draftCtRowsMoi[0].length).setValues(draftCtRowsMoi);
 
-    // ===== 5. XÓA KHỎI BẢN CHÍNH (xóa CT trước, dòng lớn -> nhỏ để không lệch chỉ số) =====
-    ctConIdx.sort((a, b) => b - a).forEach(idx => shCT.deleteRow(idx + 2));
-    shSrc.deleteRow(srcRowIdx + 2);
-    if (h112RowIdx >= 0) sh112.deleteRow(h112RowIdx + 2);
+    // ===== 5. XÓA KHỎI BẢN CHÍNH =====
+    // v2026.6: đọc lại dữ liệu MỚI NHẤT ngay lúc xóa và xóa theo ĐÚNG ID
+    // (không dùng vị trí dòng đã đọc từ trước - tránh xóa nhầm dòng nếu
+    // sheet vừa bị chèn/xóa dòng), sao lưu nguyên dòng trước khi xóa.
+    const id112Cha = String(h112Row[0] || "").trim();
+    _saoLuuVaXoaDong_(shCT, r => String(r[1] || "").trim() === idCha, "MO_DONG_THANH_TOAN");
+    _saoLuuVaXoaDong_(shSrc, r => String(r[0] || "").trim() === idCha, "MO_DONG_THANH_TOAN");
+    if (id112Cha) _saoLuuVaXoaDong_(sh112, r => String(r[0] || "").trim() === id112Cha, "MO_DONG_THANH_TOAN");
 
     // MỚI (theo yêu cầu - "3 bảng con phải thay đổi theo bảng mẹ"):
     // ChiTietDNTT, ChiTietUNC, Update_NganHang_DN đều là BẢNG CON của
@@ -1178,18 +1342,16 @@ function webMoDongThanhToanTheoHoSo(chuRungInput, ngayDongTTInput, lanTTInput) {
         const idxBySoP = new Map();
         soPCol.forEach((r, i) => { const sp = String(r[0] || "").trim(); if (sp) idxBySoP.set(utils.standardize(sp), i); });
         const soPKeySet = new Set(soPhieuCanLienQuan.map(sp => utils.standardize(sp)));
+        const dongMoKhoa = [];
         soPKeySet.forEach(key => {
-          if (idxBySoP.has(key)) {
-            const rowSheet = idxBySoP.get(key) + 2;
-            shPC.getRange(rowSheet, PC_COL.ID_DNTT + 1, 1, 2).setValues([["", ""]]);
-            // SỬA (theo yêu cầu): đổi "Trạng Thái" từ "OK" sang "Test giá"
-            // cho MỌI phiếu cân được mở lại trong hồ sơ này.
-            shPC.getRange(rowSheet, PC_COL.TRANG_THAI + 1).setValue("Test giá");
-            soDaMoKhoa++;
-          } else {
-            khongMoDuoc.push(key);
-          }
+          if (idxBySoP.has(key)) dongMoKhoa.push(idxBySoP.get(key) + 2);
+          else khongMoDuoc.push(key);
         });
+        _ghiCungGiaTri_(shPC, dongMoKhoa, PC_COL.ID_DNTT + 1, PC_COL.CHON_TT + 1, "");
+        // SỬA (theo yêu cầu): đổi "Trạng Thái" từ "OK" sang "Test giá"
+        // cho MỌI phiếu cân được mở lại trong hồ sơ này.
+        _ghiCungGiaTri_(shPC, dongMoKhoa, PC_COL.TRANG_THAI + 1, PC_COL.TRANG_THAI + 1, "Test giá");
+        soDaMoKhoa = dongMoKhoa.length;
       }
       _invalidatePcCache_();
     } catch (e) { /* không chặn luồng chính nếu lỗi mở khóa - vẫn báo rõ ở kết quả */ }
@@ -1332,8 +1494,10 @@ function _ghiLichSuUNC_(filteredRows, uncCfg, toDate, toDateXuat, fileUrl) {
       ];
     });
     if (rows.length) {
-      const startRow = sh.getLastRow() + 1;
-      sh.getRange(startRow, 1, rows.length, CHITIET_UNC_HEADERS.length).setValues(rows);
+      _chayTrongKhoa_(() => {
+        const startRow = sh.getLastRow() + 1;
+        sh.getRange(startRow, 1, rows.length, CHITIET_UNC_HEADERS.length).setValues(rows);
+      });
     }
   } catch (e) {
     // Không chặn luồng chính "Tạo File UNC" nếu lỗi ghi lịch sử - file
@@ -2185,7 +2349,9 @@ function get112ViewData(fDate, tDate) {
     soLan: String(r[18] || ""),
     chuRung: String(r[2] || ""),
     nguoiNhan: String(r[3] || ""),
-    stk: String(r[5] || ""),
+    // v2026.6: bỏ dấu ' như Số HĐ - ô đã khóa TEXT có thể lưu nguyên dấu
+    // ', khi tạo UNC/báo cáo (tự thêm ' lần nữa) sẽ ra STK sai dạng ''0123.
+    stk: String(r[5] || "").replace(/'/g, ""),
     nganHang: String(r[4] || ""),
     soHD: String(r[8] || "").replace(/'/g, ""),
     klTan: utils.parseNum(r[11]) / 1000,
@@ -2438,24 +2604,28 @@ function _xayChiTietDNTTRows_(ctRowsDaLoc, layLanTT, layThongTinNhanTien) {
  * CŨ trước khi ghi dòng MỚI (tránh trùng lặp/dữ liệu cũ còn sót). */
 function _ghiChiTietDNTT_N_(idHeThongList, ctRowsDaLoc, layLanTT, layThongTinNhanTien) {
   try {
-    const sh = _getChiTietDnttSheet_();
-    const lastRow = sh.getLastRow();
-    if (lastRow > 1) {
-      const idColTt = sh.getRange(2, 1, lastRow - 1, 27).getValues();
-      const idSetToRemove = new Set(idHeThongList);
-      const rowsToDelete = [];
-      idColTt.forEach((r, i) => {
-        const id = String(r[0] || "").trim();
-        const tt = String(r[26] || "").trim();
-        if (idSetToRemove.has(id) && tt === "N") rowsToDelete.push(i + 2);
-      });
-      rowsToDelete.sort((a, b) => b - a).forEach(rowNum => sh.deleteRow(rowNum));
-    }
     const rows = _xayChiTietDNTTRows_(ctRowsDaLoc, layLanTT, layThongTinNhanTien);
-    if (rows.length) {
-      const startRow = sh.getLastRow() + 1;
-      sh.getRange(startRow, 1, rows.length, CHITIET_DNTT_HEADERS.length).setValues(rows);
-    }
+    // v2026.6: xóa dòng N cũ + ghi dòng N mới trong cùng 1 khóa - tránh 2
+    // người cùng In Báo Cáo ĐNTT ghi đè dòng của nhau.
+    _chayTrongKhoa_(() => {
+      const sh = _getChiTietDnttSheet_();
+      const lastRow = sh.getLastRow();
+      if (lastRow > 1) {
+        const idColTt = sh.getRange(2, 1, lastRow - 1, 27).getValues();
+        const idSetToRemove = new Set(idHeThongList);
+        const rowsToDelete = [];
+        idColTt.forEach((r, i) => {
+          const id = String(r[0] || "").trim();
+          const tt = String(r[26] || "").trim();
+          if (idSetToRemove.has(id) && tt === "N") rowsToDelete.push(i + 2);
+        });
+        _nhomDongLienTiep_(rowsToDelete).reverse().forEach(([a, b]) => sh.deleteRows(a, b - a + 1));
+      }
+      if (rows.length) {
+        const startRow = sh.getLastRow() + 1;
+        sh.getRange(startRow, 1, rows.length, CHITIET_DNTT_HEADERS.length).setValues(rows);
+      }
+    });
   } catch (e) {
     // Không chặn luồng chính "In Báo Cáo ĐNTT" nếu lỗi ghi ChiTietDNTT -
     // báo cáo Excel vẫn xuất bình thường, chỉ mất phần tăng tốc sau này.
@@ -2594,31 +2764,44 @@ function _chuyenChiTietDNTTSangYVaTinhBu_(validIds, ctToCommit, mapSoLan, mapNha
     if (id && soP) ngayCkByKey.set(id + "|" + utils.standardize(soP), row[20]);
   });
 
+  // v2026.6: chỉ ghi đúng ô "Ngày CK" (D) và "Trạng thái/Ngày ghi" (AA:AB)
+  // của đúng các dòng chuyển N -> Y, không ghi đè cả sheet. Hồ sơ đã có
+  // sẵn dòng Y (lần chốt trước bị ngắt giữa chừng) được coi là đã xử lý:
+  // KHÔNG tính bù thêm lần nữa, chỉ trả lại để bước MISA tự loại trùng.
+  const idsDaCoY = new Set();
   const lastRow = sh.getLastRow();
   if (lastRow > 1) {
     const data = sh.getRange(2, 1, lastRow - 1, CHITIET_DNTT_HEADERS.length).getValues();
-    let coCanGhiLai = false;
     const now = new Date();
-    data.forEach(r => {
+    const dongChuyenY = [], capNhatNgayCk = [];
+    data.forEach((r, i) => {
       const id = String(r[0] || "").trim();
+      if (!idSet.has(id)) return;
       const tt = String(r[26] || "").trim();
-      if (idSet.has(id) && tt === "N") {
-        const soP = String(r[2] || "").replace(/'/g, "").trim();
-        const ngayCK = ngayCkByKey.get(id + "|" + utils.standardize(soP));
-        if (ngayCK) r[3] = _formatNgayXuat_(ngayCK);
-        r[26] = "Y"; r[27] = now;
-        idsFoundN.add(id);
+      if (tt === "Y") {
+        idsDaCoY.add(id);
         rowsDaChuyenY.push(r);
-        coCanGhiLai = true;
+        return;
       }
+      if (tt !== "N") return;
+      const soP = String(r[2] || "").replace(/'/g, "").trim();
+      const ngayCK = ngayCkByKey.get(id + "|" + utils.standardize(soP));
+      if (ngayCK) {
+        r[3] = _formatNgayXuat_(ngayCK);
+        capNhatNgayCk.push({ row: i + 2, values: [r[3]] });
+      }
+      r[26] = "Y"; r[27] = now;
+      dongChuyenY.push(i + 2);
+      idsFoundN.add(id);
+      rowsDaChuyenY.push(r);
     });
-    if (coCanGhiLai) {
-      sh.getRange(2, 1, data.length, CHITIET_DNTT_HEADERS.length).setValues(data);
-    }
+    _ghiTheoDong_(sh, capNhatNgayCk, 4);
+    _ghiCungGiaTri_(sh, dongChuyenY, 27, 27, "Y");
+    _ghiCungGiaTri_(sh, dongChuyenY, 28, 28, now);
   }
 
   // Tính bù cho các hồ sơ CHƯA từng "In Báo Cáo ĐNTT" (không có dòng N sẵn)
-  const idsThieu = validIds.filter(id => !idsFoundN.has(id));
+  const idsThieu = validIds.filter(id => !idsFoundN.has(id) && !idsDaCoY.has(id));
   if (idsThieu.length) {
     const idsThieuSet = new Set(idsThieu);
     const ctCanBu = ctToCommit.filter(r => idsThieuSet.has(String(r[1] || "").trim()));
@@ -2660,26 +2843,18 @@ function _donDep3BangConKhiMoDong_(idCha, soPhieuCanLienQuan) {
   const ss = getMainSs_();
   let chiTietDnttXoa = 0, chiTietUncXoa = 0, misaXoa = 0;
 
+  // v2026.6: mọi dòng bị xóa đều được sao lưu nguyên dòng trước (xem
+  // _saoLuuVaXoaDong_) và xóa theo khối dòng liền kề.
   // 1. ChiTietDNTT - xóa mọi dòng khớp ID Hệ Thống (idCha) - dù đang Y hay N
   try {
     const sh = ss.getSheetByName(CHITIET_DNTT_SHEET);
-    if (sh && sh.getLastRow() > 1) {
-      const idCol = sh.getRange(2, 1, sh.getLastRow() - 1, 1).getValues();
-      const rowsToDelete = [];
-      idCol.forEach((r, i) => { if (String(r[0] || "").trim() === idCha) rowsToDelete.push(i + 2); });
-      rowsToDelete.sort((a, b) => b - a).forEach(rowNum => { sh.deleteRow(rowNum); chiTietDnttXoa++; });
-    }
+    if (sh) chiTietDnttXoa = _saoLuuVaXoaDong_(sh, r => String(r[0] || "").trim() === idCha, "MO_DONG_THANH_TOAN");
   } catch (e) { /* không chặn luồng chính Mở Đóng Thanh Toán nếu dọn ChiTietDNTT lỗi */ }
 
   // 2. ChiTietUNC - xóa mọi dòng khớp ID Hệ Thống (idCha)
   try {
     const sh = ss.getSheetByName(CHITIET_UNC_SHEET);
-    if (sh && sh.getLastRow() > 1) {
-      const idCol = sh.getRange(2, 1, sh.getLastRow() - 1, 1).getValues();
-      const rowsToDelete = [];
-      idCol.forEach((r, i) => { if (String(r[0] || "").trim() === idCha) rowsToDelete.push(i + 2); });
-      rowsToDelete.sort((a, b) => b - a).forEach(rowNum => { sh.deleteRow(rowNum); chiTietUncXoa++; });
-    }
+    if (sh) chiTietUncXoa = _saoLuuVaXoaDong_(sh, r => String(r[0] || "").trim() === idCha, "MO_DONG_THANH_TOAN");
   } catch (e) { /* không chặn luồng chính nếu dọn ChiTietUNC lỗi */ }
 
   // 3. Update_NganHang_DN - xóa dòng khớp Số phiếu cân (cột E/5) - sheet
@@ -2687,15 +2862,12 @@ function _donDep3BangConKhiMoDong_(idCha, soPhieuCanLienQuan) {
   try {
     const ssNH = SpreadsheetApp.openById(CFG.UPDATE_NH_SS_ID);
     const shUpdateNH = ssNH.getSheetByName("Update_NganHang_DN");
-    if (shUpdateNH && shUpdateNH.getLastRow() > 1 && soPhieuCanLienQuan.length) {
+    if (shUpdateNH && soPhieuCanLienQuan.length) {
       const soPKeySet = new Set(soPhieuCanLienQuan.map(sp => utils.standardize(sp)));
-      const soPCol = shUpdateNH.getRange(2, 5, shUpdateNH.getLastRow() - 1, 1).getValues();
-      const rowsToDelete = [];
-      soPCol.forEach((r, i) => {
-        const sp = String(r[0] || "").replace(/^'/, "").trim();
-        if (sp && soPKeySet.has(utils.standardize(sp))) rowsToDelete.push(i + 2);
-      });
-      rowsToDelete.sort((a, b) => b - a).forEach(rowNum => { shUpdateNH.deleteRow(rowNum); misaXoa++; });
+      misaXoa = _saoLuuVaXoaDong_(shUpdateNH, r => {
+        const sp = String(r[4] || "").replace(/^'/, "").trim();
+        return !!sp && soPKeySet.has(utils.standardize(sp));
+      }, "MO_DONG_THANH_TOAN");
     }
   } catch (e) {
     logAction("LOI_DON_DEP_MISA_KHI_MO_DONG", idCha, "Lỗi khi dọn Update_NganHang_DN lúc Mở Đóng Thanh Toán: " + e.toString());
@@ -2740,34 +2912,38 @@ function webTaoLaiMisaTheoNgay(fDate, tDate, offset, gioiHanMoiLan) {
     const shUpdateNH = ssNH.getSheetByName("Update_NganHang_DN");
     if (!shUpdateNH) return { success: false, message: "❌ Không tìm thấy sheet Update_NganHang_DN." };
 
-    const soPDaCo = _laySoPhieuCanDaCoTrongMisa_(shUpdateNH);
-    const tempRowsChuaCo = tempRows.filter(item => !soPDaCo.has(utils.standardize(item.bank.soPhieuCan)));
-
-    if (tempRowsChuaCo.length > 0) {
-      const bankInfo = getCompanyBankInfo_();
-      const bankUpdateRows = tempRowsChuaCo.map(item => {
-        const b = item.bank;
-        const row = new Array(33).fill("");
-        row[0] = ""; row[1] = 0;
-        row[2] = b.ngayCK; row[3] = b.ngayCK;
-        row[4] = "'" + b.soPhieuCan;
-        row[5] = "'" + bankInfo.account; row[6] = bankInfo.name; row[7] = bankInfo.code;
-        row[8] = b.noiDung || ("Thanh toán phiếu cân " + b.soPhieuCan);
-        // SỬA LỖI (rà soát phát hiện): STK/Ngân hàng/Tên thụ hưởng (cột
-        // 12/13/14) trước đây LUÔN lấy mặc định hợp đồng (b.hd[15/16/10])
-        // - dùng b.stk/b.nganHang/b.tenThuHuong (đã ưu tiên giá trị SỬA
-        // TAY nếu có - xem _gomChiTietChuyenKhoan_()) để khớp đúng với
-        // tiền đã chuyển thật (UNC).
-        row[9] = "'" + String(b.hd[6] || ""); row[10] = b.hd[4]; row[11] = b.hd[5];
-        row[12] = "'" + (b.stk || ""); row[13] = b.nganHang; row[14] = b.tenThuHuong;
-        row[15] = "'" + String(b.hd[11] || ""); row[19] = "VND"; row[21] = b.noiDung;
-        row[22] = "33111"; row[23] = "1121"; row[24] = b.thanhTien; row[32] = "'" + b.soHD;
-        return row;
-      });
-      const startRow = Math.max(2, shUpdateNH.getLastRow() + 1);
-      shUpdateNH.getRange(startRow, 1, bankUpdateRows.length, 33).setValues(bankUpdateRows);
-      _lockTextCols_(shUpdateNH, [3, 4, 5, 6, 10, 13, 16, 33], startRow + bankUpdateRows.length + 5);
-    }
+    // v2026.6: kiểm tra trùng + ghi thêm trong cùng 1 khóa - 2 lượt chạy
+    // song song không thể cùng thấy "chưa có" rồi cùng ghi trùng.
+    const tempRowsChuaCo = _chayTrongKhoa_(() => {
+      const soPDaCo = _laySoPhieuCanDaCoTrongMisa_(shUpdateNH);
+      const chuaCo = tempRows.filter(item => !soPDaCo.has(utils.standardize(item.bank.soPhieuCan)));
+      if (chuaCo.length > 0) {
+        const bankInfo = getCompanyBankInfo_();
+        const bankUpdateRows = chuaCo.map(item => {
+          const b = item.bank;
+          const row = new Array(33).fill("");
+          row[0] = ""; row[1] = 0;
+          row[2] = b.ngayCK; row[3] = b.ngayCK;
+          row[4] = "'" + b.soPhieuCan;
+          row[5] = "'" + bankInfo.account; row[6] = bankInfo.name; row[7] = bankInfo.code;
+          row[8] = b.noiDung || ("Thanh toán phiếu cân " + b.soPhieuCan);
+          // SỬA LỖI (rà soát phát hiện): STK/Ngân hàng/Tên thụ hưởng (cột
+          // 12/13/14) trước đây LUÔN lấy mặc định hợp đồng (b.hd[15/16/10])
+          // - dùng b.stk/b.nganHang/b.tenThuHuong (đã ưu tiên giá trị SỬA
+          // TAY nếu có - xem _gomChiTietChuyenKhoan_()) để khớp đúng với
+          // tiền đã chuyển thật (UNC).
+          row[9] = "'" + String(b.hd[6] || ""); row[10] = b.hd[4]; row[11] = b.hd[5];
+          row[12] = "'" + (b.stk || ""); row[13] = b.nganHang; row[14] = b.tenThuHuong;
+          row[15] = "'" + String(b.hd[11] || ""); row[19] = "VND"; row[21] = b.noiDung;
+          row[22] = "33111"; row[23] = "1121"; row[24] = b.thanhTien; row[32] = "'" + b.soHD;
+          return row;
+        });
+        const startRow = Math.max(2, shUpdateNH.getLastRow() + 1);
+        shUpdateNH.getRange(startRow, 1, bankUpdateRows.length, 33).setValues(bankUpdateRows);
+        _lockTextCols_(shUpdateNH, [3, 4, 5, 6, 10, 13, 16, 33], startRow + bankUpdateRows.length + 5);
+      }
+      return chuaCo;
+    });
 
     const offsetMoi = offset + loNay.length;
     const conLai = Math.max(0, dsHoSo.length - offsetMoi);
@@ -3148,6 +3324,14 @@ function runConfirmPayment(selectedIds, payDateStr) {
     }
     const validIdSet = new Set(validIds);
 
+    // v2026.6 (an toàn khi chạy lại): hồ sơ đã có sẵn trong bản chính do
+    // lần chốt trước bị ngắt giữa chừng thì KHÔNG ghi thêm lần nữa - chỉ
+    // hoàn tất nốt các bước còn lại (khóa phiếu cân, dọn Nháp...).
+    const ctDaChot = _tapKhoaTrongCot_(shCTReal, 2, 19);      // ID_KEY (B) + Đã chốt (S)
+    const h112DaChot = _tapKhoaTrongCot_(sh112Real, 1, 21);   // ID_KEY (A) + Đã chốt (U)
+    const srcDaCo = _tapKhoaTrongCot_(shSrc, 1);              // ID_KEY (A)
+    const idsDaCoTruoc = validIds.filter(id => h112DaChot.has(id) || ctDaChot.has(id));
+
     // 3. TÁCH DÒNG NHÁP: dòng thuộc hồ sơ được chốt (đẩy về THẬT) và
     // dòng còn lại (giữ nguyên trong Nháp)
     const ctToCommit = [], ctToKeepInDraft = [];
@@ -3175,16 +3359,18 @@ function runConfirmPayment(selectedIds, payDateStr) {
       }
     });
 
-    // 4. GHI VÀO DỮ LIỆU THẬT (APPEND)
-    if (ctToCommit.length > 0) {
+    // 4. GHI VÀO DỮ LIỆU THẬT (APPEND) - bỏ qua hồ sơ đã có sẵn (xem trên)
+    const ctCanGhi = ctToCommit.filter(row => !ctDaChot.has(String(row[1] || "").trim()));
+    if (ctCanGhi.length > 0) {
       const startRow = shCTReal.getLastRow() + 1;
-      shCTReal.getRange(startRow, 1, ctToCommit.length, 22).setValues(ctToCommit);
+      shCTReal.getRange(startRow, 1, ctCanGhi.length, 22).setValues(ctCanGhi);
     }
-    if (the112ToCommit.length > 0) {
+    const h112CanGhi = the112ToCommit.filter(row => !h112DaChot.has(String(row[0] || "").trim()));
+    if (h112CanGhi.length > 0) {
       // Sheet 112 THẬT chỉ có 23 cột - cắt bỏ cột "Trạng Thái ĐNTT" (chỉ
       // có ý nghĩa trong lúc còn ở Nháp) trước khi ghi vào THẬT.
       const startRow112 = sh112Real.getLastRow() + 1;
-      sh112Real.getRange(startRow112, 1, the112ToCommit.length, 23).setValues(the112ToCommit.map(r => r.slice(0, 23)));
+      sh112Real.getRange(startRow112, 1, h112CanGhi.length, 23).setValues(h112CanGhi.map(r => r.slice(0, 23)));
     }
 
     // MỚI (theo yêu cầu - "Báo Cáo Thanh Toán chạy nhanh và ổn định
@@ -3231,66 +3417,59 @@ function runConfirmPayment(selectedIds, payDateStr) {
         srcToKeepInDraft.push(row);
       }
     });
-    if (srcToCommit.length > 0) {
+    const srcCanGhi = srcToCommit.filter(row => !srcDaCo.has(String(row[0] || "").trim()));
+    if (srcCanGhi.length > 0) {
       const startRowSrc = shSrc.getLastRow() + 1;
-      shSrc.getRange(startRowSrc, 1, srcToCommit.length, 18).setValues(srcToCommit);
+      shSrc.getRange(startRowSrc, 1, srcCanGhi.length, 18).setValues(srcCanGhi);
     }
-    if (draftSrcAll.length > 0) {
-      shDraftSrc.getRange(2, 1, draftSrcAll.length, 18).clearContent();
-      if (srcToKeepInDraft.length > 0) shDraftSrc.getRange(2, 1, srcToKeepInDraft.length, 18).setValues(srcToKeepInDraft);
-    }
+    _thayVungDuLieu_(shDraftSrc, 2, 18, draftSrcAll.length, srcToKeepInDraft);
 
     // Tương thích ngược: nếu hồ sơ nào (hiếm - tạo từ bản cũ trước khi
     // có mục AI) vẫn đang nằm SẴN trong DNTT_GK_DN thật (vd do "Tách
     // Phiếu" thủ công từ Sheet - runProcessDetail()), vẫn cập nhật trạng
-    // thái tại chỗ như cũ, không bỏ sót.
+    // thái tại chỗ như cũ, không bỏ sót. v2026.6: chỉ ghi đúng 4 ô trạng
+    // thái (cột O..R) của đúng các dòng đó, không ghi đè cả sheet.
     if (shSrc.getLastRow() > 1) {
-      const dataSrc = shSrc.getRange(1, 1, shSrc.getLastRow(), shSrc.getLastColumn()).getValues();
-      let changed = false;
-      for (let i = 1; i < dataSrc.length; i++) {
-        const key = String(dataSrc[i][0]).trim();
-        if (!key || !validIdSet.has(key)) continue;
-        if (dataSrc[i][17] !== "Y") {
-          dataSrc[i][14] = "Đóng TT";
-          dataSrc[i][15] = prefixP + "_" + (mapSoLan.get(key) || "1");
-          dataSrc[i][16] = dateForSheet;
-          dataSrc[i][17] = "Y";
-          changed = true;
-        }
-      }
-      if (changed) shSrc.getRange(1, 1, dataSrc.length, dataSrc[0].length).setValues(dataSrc);
+      const dataSrc = shSrc.getRange(2, 1, shSrc.getLastRow() - 1, 18).getValues();
+      const capNhatSrc = [];
+      dataSrc.forEach((r, i) => {
+        const key = String(r[0]).trim();
+        if (!key || !validIdSet.has(key) || r[17] === "Y") return;
+        capNhatSrc.push({ row: i + 2, values: ["Đóng TT", prefixP + "_" + (mapSoLan.get(key) || "1"), dateForSheet, "Y"] });
+      });
+      _ghiTheoDong_(shSrc, capNhatSrc, 15);
     }
 
-    // 6. KHÓA VĨNH VIỄN PHIẾU CÂN LIÊN QUAN
+    // 6. KHÓA VĨNH VIỄN PHIẾU CÂN LIÊN QUAN - v2026.6: chỉ đọc cột Số
+    // phiếu cân và chỉ ghi đúng 3 ô khóa của đúng các dòng liên quan (file
+    // PhieuCan_DN có người khác cùng nhập liệu - không được ghi đè cả sheet).
     const pcKeySet = new Set();
     ctToCommit.forEach(row => { if (row[11]) pcKeySet.add(utils.standardize(row[11])); });
-    const dataPC = shPC.getRange(1, 1, shPC.getLastRow(), shPC.getLastColumn()).getValues();
-    for (let m = 1; m < dataPC.length; m++) {
-      if (utils.isBlank(dataPC[m][22])) continue;
-      if (pcKeySet.has(utils.standardize(dataPC[m][22]))) {
-        dataPC[m][24] = "OK"; dataPC[m][26] = "Đóng TT"; dataPC[m][27] = "Y";
-      }
+    const pcLastRow = shPC.getLastRow();
+    const dongPcCanKhoa = [];
+    if (pcLastRow > 1) {
+      shPC.getRange(2, PC_COL.SO_CT + 1, pcLastRow - 1, 1).getValues().forEach((r, i) => {
+        if (!utils.isBlank(r[0]) && pcKeySet.has(utils.standardize(r[0]))) dongPcCanKhoa.push(i + 2);
+      });
     }
-    shPC.getRange(1, 1, dataPC.length, dataPC[0].length).setValues(dataPC);
+    _ghiCungGiaTri_(shPC, dongPcCanKhoa, PC_COL.TRANG_THAI + 1, PC_COL.TRANG_THAI + 1, "OK");
+    _ghiCungGiaTri_(shPC, dongPcCanKhoa, PC_COL.ID_DNTT + 1, PC_COL.ID_DNTT + 1, "Đóng TT");
+    _ghiCungGiaTri_(shPC, dongPcCanKhoa, PC_COL.CHON_TT + 1, PC_COL.CHON_TT + 1, "Y");
     _invalidatePcCache_();
     // MỚI (mục P): xóa NGAY các phiếu cân vừa Chốt Thanh Toán khỏi cache
     // "chưa thanh toán" trong File Nháp - không cần đợi tới lần làm mới
     // định kỳ, đúng yêu cầu "đóng thanh toán xong thì xóa khỏi Nháp".
     _removeFromPcUnpaidCache_(pcKeySet);
 
-    // 7. DỌN DẸP FILE NHÁP - chỉ giữ lại các hồ sơ CHƯA chốt
-    if (draftCTAll.length > 0) {
-      shDraftCT.getRange(2, 1, draftCTAll.length, 22).clearContent();
-      if (ctToKeepInDraft.length > 0) shDraftCT.getRange(2, 1, ctToKeepInDraft.length, 22).setValues(ctToKeepInDraft);
-    }
-    if (draft112All.length > 0) {
-      shDraft112.getRange(2, 1, draft112All.length, 24).clearContent();
-      if (the112ToKeepInDraft.length > 0) shDraft112.getRange(2, 1, the112ToKeepInDraft.length, 24).setValues(the112ToKeepInDraft);
-    }
+    // 7. DỌN DẸP FILE NHÁP - chỉ giữ lại các hồ sơ CHƯA chốt (ghi đè
+    // trước, xóa đuôi sau - không có lúc Nháp bị trống hoàn toàn)
+    _thayVungDuLieu_(shDraftCT, 2, 22, draftCTAll.length, ctToKeepInDraft);
+    _thayVungDuLieu_(shDraft112, 2, 24, draft112All.length, the112ToKeepInDraft);
 
     SpreadsheetApp.flush();
 
     let msg = `✅ Đã chốt thành công ${validIds.length} hồ sơ, đẩy dữ liệu về sheet chính, khóa Phiếu Cân, dọn khỏi File Nháp và đã tự động ghi vào Update_NganHang_DN (MISA)!`;
+    if (idsDaCoTruoc.length) msg += ` ℹ️ Đã có sẵn trong bản chính từ lần chốt trước (chỉ hoàn tất phần còn thiếu, không ghi trùng): ${idsDaCoTruoc.join(", ")}.`;
     if (skippedNoData.length) msg += ` ⚠️ Không tìm thấy trong Nháp (bỏ qua): ${skippedNoData.join(", ")}.`;
     if (skippedNotCalculated.length) msg += ` ⚠️ Chưa chạy Tổng Hợp 112 (bỏ qua): ${skippedNotCalculated.join(", ")}.`;
     if (skippedNotConfirmed.length) msg += ` ⚠️ Chưa "Xác Nhận" ĐNTT (bỏ qua): ${skippedNotConfirmed.join(", ")}.`;
@@ -3313,7 +3492,8 @@ function runConfirmPayment(selectedIds, payDateStr) {
     } catch (e) { /* không chặn luồng chính nếu làm mới báo cáo công nợ lỗi */ }
     return msg;
   } catch (e) {
-    return "❌ Lỗi: " + e.toString();
+    logAction("LOI_CHOT_THANH_TOAN", Array.isArray(selectedIds) ? selectedIds.join(",") : "-", e.toString());
+    return "❌ Lỗi: " + e.toString() + " - Có thể bấm Duyệt lại cho CÙNG các hồ sơ này: hệ thống tự bỏ qua phần đã ghi, không tạo dữ liệu trùng.";
   } finally { if (lock) lock.releaseLock(); }
 }
 
@@ -3355,6 +3535,7 @@ function runProcessDetail() {
     }
 
     let newDraftRows = [];
+    const dongSrcDangXuLy = [];
     let countNewIds = 0;
     let countSkippedEmptyPC = 0, skippedIds = [];
     let countSkippedHeld = 0, heldWarnings = [];
@@ -3397,14 +3578,16 @@ function runProcessDetail() {
         countNewIds++;
         // Thông tin (KHÔNG dùng để xét điều kiện xử lý - chỉ để dễ nhận
         // biết trạng thái khi xem sheet nguồn).
-        srcData[i][14] = "Đang xử lý (Nháp)";
+        dongSrcDangXuLy.push(i + 1);
       }
     }
 
     if (newDraftRows.length > 0) {
       const startRow = shDraftCT.getLastRow() + 1;
       shDraftCT.getRange(startRow, 1, newDraftRows.length, 22).setValues(newDraftRows);
-      shSrc.getRange(1, 1, srcData.length, srcData[0].length).setValues(srcData);
+      // v2026.6: chỉ ghi đúng ô trạng thái (cột O) của các hồ sơ vừa tách,
+      // không ghi đè lại toàn bộ DNTT_GK_DN.
+      _ghiCungGiaTri_(shSrc, dongSrcDangXuLy, 15, 15, "Đang xử lý (Nháp)");
       SpreadsheetApp.flush();
 
       let logDetail = `Đã đưa ${countNewIds} hồ sơ (${newDraftRows.length} dòng chi tiết) vào File Nháp.`;
@@ -3582,8 +3765,7 @@ function runCreate112() {
     });
 
     if (draft112Rows.length > 0) {
-      if (shDraft112.getLastRow() > 1) shDraft112.getRange(2, 1, shDraft112.getLastRow() - 1, 24).clearContent();
-      shDraft112.getRange(2, 1, draft112Rows.length, 24).setValues(draft112Rows);
+      _thayVungDuLieu_(shDraft112, 2, 24, Math.max(0, shDraft112.getLastRow() - 1), draft112Rows);
       SpreadsheetApp.flush();
     }
 
@@ -3922,13 +4104,10 @@ function refreshHdNccCache_() {
   const allRaw = lastRow > 1 ? shSrc.getRange(2, 1, lastRow - 1, lastColSrc).getValues() : [];
   // SỬA LỖI NGHIÊM TRỌNG (rà soát phát hiện - "Số tài khoản/CCCD/Số HĐ
   // mất số 0 đầu"): "Số HĐ"/"CCCD" đọc thẳng từ HD_NCC gốc rồi ghi vào
-  // mirror KHÔNG có dấu ' bảo vệ, VÀ sh.clear() ngay dưới đây xóa sạch
-  // luôn cả định dạng cột (kể cả TEXT thuần đã khóa trước đó nếu có) -
-  // nếu giá trị gốc là chuỗi số có số 0 đầu (hoặc kể cả đã là số do
-  // HD_NCC gốc lỡ lưu sai), ghi vào ô đang ở định dạng "Tự động" sẽ bị
-  // Google Sheets tự hiểu lại thành SỐ, mất số 0 đầu NGAY TẠI ĐÂY - dù
-  // giá trị gốc trong HD_NCC có đúng hay không. Thêm dấu ' + khóa lại
-  // định dạng TEXT ngay sau clear() để chặn đứt tại khâu này.
+  // mirror KHÔNG có dấu ' bảo vệ - nếu giá trị gốc là chuỗi số có số 0
+  // đầu, ghi vào ô đang ở định dạng "Tự động" sẽ bị Google Sheets tự
+  // hiểu lại thành SỐ, mất số 0 đầu NGAY TẠI ĐÂY. Thêm dấu ' + khóa định
+  // dạng TEXT trước khi ghi (xem _ghiLaiMirror_) để chặn đứt tại khâu này.
   const allCompact = allRaw.map(r => [
     "'" + String(r[HDNCC_SRC_COL.SO_HD] || "").replace(/'/g, ""), r[HDNCC_SRC_COL.NGAY_KY], r[HDNCC_SRC_COL.HO_TEN],
     "'" + String(r[HDNCC_SRC_COL.CCCD] || "").replace(/'/g, ""),
@@ -3937,12 +4116,7 @@ function refreshHdNccCache_() {
 
   const active = allCompact.filter(r => utils.standardize(String(r[HDNCC_COL.TINH_TRANG] || "")) === HD_TRANG_THAI_DANG_THUC_HIEN);
 
-  const sh = getHdNccCacheSheet_();
-  sh.clear();
-  _lockTextCols_(sh, [1, 4], active.length + 5); // Số HĐ(1), CCCD(4)
-  sh.getRange(1, 1, 1, HDNCC_MIRROR_HEADER.length).setValues([HDNCC_MIRROR_HEADER]).setFontWeight("bold").setBackground("#d9d2e9");
-  if (active.length) sh.getRange(2, 1, active.length, HDNCC_MIRROR_HEADER.length).setValues(active);
-  sh.setFrozenRows(1);
+  _ghiLaiMirror_(getHdNccCacheSheet_(), HDNCC_MIRROR_HEADER, active, [1, 4]); // Số HĐ(1), CCCD(4)
   CacheService.getScriptCache().remove("hdncc_data_v1"); // dọn cache kiểu cũ (tên khác) nếu còn sót
   _invalidateChunkedCache_("hdncc_full_data_v1"); // SỬA: dữ liệu HD_NCC vừa làm mới - xóa luôn cache "đầy đủ" (dùng cho export/UNC) để không hiển thị dữ liệu cũ
 
@@ -3960,8 +4134,7 @@ function refreshHdStkCache_(activeSoHDSet) {
   const allRaw = lastRow > 1 ? shSrc.getRange(2, 1, lastRow - 1, lastColSrc).getValues() : [];
   // SỬA LỖI NGHIÊM TRỌNG (rà soát phát hiện - "Số tài khoản mất số 0
   // đầu khi tạo UNC"): giống hệt lý do ở refreshHdNccCache_() - "STK"/
-  // "CCCD"/"Số HĐ" ghi vào mirror KHÔNG có dấu ' bảo vệ, ngay sau
-  // sh.clear() (xóa sạch định dạng cột, kể cả khóa TEXT cũ nếu có) - ô
+  // "CCCD"/"Số HĐ" ghi vào mirror KHÔNG có dấu ' bảo vệ - ô
   // đang "Tự động" sẽ tự hiểu STK trông giống số thành SỐ THẬT, mất số
   // 0 đầu NGAY TẠI ĐÂY. Đây CHÍNH LÀ nguồn STK cho gợi ý tự động lúc
   // "Tạo Mới"/"Sửa" 112 - 1 khi đã mất số 0 ở mirror này, mọi hồ sơ chọn
@@ -3976,12 +4149,7 @@ function refreshHdStkCache_(activeSoHDSet) {
   const soHDSet = activeSoHDSet || new Set(_hdNccData_().map(r => utils.standardize(r[HDNCC_COL.SO_HD])));
   const active = allCompact.filter(r => soHDSet.has(utils.standardize(r[HDSTK_COL.SO_HD])));
 
-  const sh = getHdStkCacheSheet_();
-  sh.clear();
-  _lockTextCols_(sh, [2, 4, 6], active.length + 5); // CCCD(2), STK(4), Số HĐ(6)
-  sh.getRange(1, 1, 1, HDSTK_MIRROR_HEADER.length).setValues([HDSTK_MIRROR_HEADER]).setFontWeight("bold").setBackground("#d9d2e9");
-  if (active.length) sh.getRange(2, 1, active.length, HDSTK_MIRROR_HEADER.length).setValues(active);
-  sh.setFrozenRows(1);
+  _ghiLaiMirror_(getHdStkCacheSheet_(), HDSTK_MIRROR_HEADER, active, [2, 4, 6]); // CCCD(2), STK(4), Số HĐ(6)
   CacheService.getScriptCache().remove("hdstk_data_v1");
   _invalidateChunkedCache_("hdstk_full_data_v1"); // SỬA: tương tự HD_NCC ở trên
   return { count: active.length, total: allRaw.length };
@@ -4287,8 +4455,7 @@ function _refreshPhanTichNhapTTChoDanhSachNgayNoLock_(ngayList) {
     // Bỏ dòng CŨ của ĐÚNG các ngày trong danh sách - GIỮ NGUYÊN dữ liệu
     // các ngày KHÁC (kể cả nằm xen giữa) - không chạy lại hết.
     const kept = all.filter(r => !ngaySet.has(_ngayCellToStr_(r[0])));
-    sh.getRange(2, 1, all.length, PHANTICH_HEADERS.length).clearContent();
-    if (kept.length) sh.getRange(2, 1, kept.length, PHANTICH_HEADERS.length).setValues(kept);
+    _thayVungDuLieu_(sh, 2, PHANTICH_HEADERS.length, all.length, kept);
   }
   const startRow = sh.getLastRow() + 1;
   if (rowsOut.length) sh.getRange(startRow, 1, rowsOut.length, PHANTICH_HEADERS.length).setValues(rowsOut);
@@ -5064,15 +5231,11 @@ function refreshHopDongTienDoCache_(fDate, tDate) {
     ];
   }).filter(Boolean);
 
-  const sh = getHdTienDoCacheSheet_();
-  sh.clear();
   const header = [
     "Số HĐ", "Chủ rừng", "Ngày ký", "SL Dự Kiến", "SL Thực Hiện", "Số Lần Đã TT", "Chi Tiết Lần TT (JSON)", "Làm mới lúc",
     "Giá Trị Thực Hiện Lũy Kế", "Giá Trị Trong Kỳ", "Đang Chờ TT (Công Nợ)", "Còn Lại SL"
   ];
-  sh.getRange(1, 1, 1, header.length).setValues([header]).setFontWeight("bold").setBackground("#d9d2e9");
-  if (rows.length) sh.getRange(2, 1, rows.length, header.length).setValues(rows);
-  sh.setFrozenRows(1);
+  _ghiLaiMirror_(getHdTienDoCacheSheet_(), header, rows);
   _setHdTienDoCongNoMeta_(fDate, tDate);
   return rows.length;
 }
@@ -5222,11 +5385,14 @@ function refreshPhieuCanUnpaidCache_() {
     return !idDNTT && chonTT !== "Y" && chonTT !== "N";
   });
 
-  const sh = getPcCacheSheet_();
-  sh.clear();
-  if (header.length) sh.getRange(1, 1, 1, header.length).setValues([header]).setFontWeight("bold").setBackground("#d9d2e9");
-  if (unpaid.length) sh.getRange(2, 1, unpaid.length, lastCol).setValues(unpaid);
-  sh.setFrozenRows(1);
+  // v2026.6: giữ dạng chữ cho Số phiếu / Số phiếu cân (tránh mất số 0 đầu
+  // khi ghi vào mirror - cùng lỗi đã sửa cho HD_NCC/HD_STK) và không xóa
+  // trắng mirror trước khi ghi.
+  unpaid.forEach(r => {
+    r[PC_COL.SO_PHIEU] = _giuDangChu_(r[PC_COL.SO_PHIEU]);
+    if (PC_COL_SO_CT_IDX < r.length) r[PC_COL_SO_CT_IDX] = _giuDangChu_(r[PC_COL_SO_CT_IDX]);
+  });
+  _ghiLaiMirror_(getPcCacheSheet_(), header, unpaid);
   _invalidateChunkedCache_("pc_unpaid_data_v1"); // SỬA: dùng helper xóa hết các mảnh (dữ liệu có thể đã bị chia mảnh nếu lớn)
   logAction("REFRESH_CACHE_PC_CHUA_TT", "-", `Đã làm mới cache Phiếu Cân chưa TT: ${unpaid.length}/${all.length} dòng.`);
   return unpaid.length;
@@ -5260,8 +5426,7 @@ function _removeFromPcUnpaidCache_(soCTKeySet) {
     const all = sh.getRange(2, 1, lastRow - 1, lastCol).getValues();
     const kept = all.filter(r => !soCTKeySet.has(utils.standardize(r[PC_COL_SO_CT_IDX])));
     if (kept.length === all.length) return; // không có gì cần xóa
-    sh.getRange(2, 1, all.length, lastCol).clearContent();
-    if (kept.length > 0) sh.getRange(2, 1, kept.length, lastCol).setValues(kept);
+    _thayVungDuLieu_(sh, 2, lastCol, all.length, kept);
     _invalidateChunkedCache_("pc_unpaid_data_v1"); // SỬA: dùng helper xóa hết các mảnh (dữ liệu có thể đã bị chia mảnh nếu lớn)
   } catch (e) {
     // Không chặn luồng chính nếu dọn cache lỗi - lần làm mới định kỳ kế
@@ -5600,11 +5765,7 @@ function getCongNoKhCacheSheet_() {
 }
 
 function _writeCongNoKhSheet_(rows) {
-  const sh = getCongNoKhCacheSheet_();
-  sh.clear();
-  sh.getRange(1, 1, 1, CONGNO_KH_HEADERS.length).setValues([CONGNO_KH_HEADERS]).setFontWeight("bold").setBackground("#d9d2e9");
-  if (rows.length) sh.getRange(2, 1, rows.length, CONGNO_KH_HEADERS.length).setValues(rows.map(o => CONGNO_KH_HEADERS.map(k => o[k])));
-  sh.setFrozenRows(1);
+  _ghiLaiMirror_(getCongNoKhCacheSheet_(), CONGNO_KH_HEADERS, rows.map(o => CONGNO_KH_HEADERS.map(k => o[k])));
 }
 function _readCongNoKhSheet_() {
   const sh = getCongNoKhCacheSheet_();
@@ -6367,18 +6528,14 @@ function runDeleteDraftRecord(idKey) {
       const ctAll = shDraftCT.getRange(2, 1, ctLastRow - 1, 22).getValues();
       const kept = ctAll.filter(r => String(r[1] || "").trim() !== id);
       ctRemoved = ctAll.length - kept.length;
-      shDraftCT.getRange(2, 1, ctAll.length, 22).clearContent();
-      if (kept.length > 0) shDraftCT.getRange(2, 1, kept.length, 22).setValues(kept);
+      if (ctRemoved > 0) _thayVungDuLieu_(shDraftCT, 2, 22, ctAll.length, kept);
     }
 
     let c112Removed = 0;
     if (all112.length > 0) {
       const kept112 = all112.filter(r => String(r[0] || "").trim() !== id);
       c112Removed = all112.length - kept112.length;
-      if (c112Removed > 0) {
-        shDraft112.getRange(2, 1, all112.length, 24).clearContent();
-        if (kept112.length > 0) shDraft112.getRange(2, 1, kept112.length, 24).setValues(kept112);
-      }
+      if (c112Removed > 0) _thayVungDuLieu_(shDraft112, 2, 24, all112.length, kept112);
     }
 
     // MỚI (mục AI): xóa luôn dòng "đơn xin" tương ứng khỏi Draft
@@ -6392,10 +6549,7 @@ function runDeleteDraftRecord(idKey) {
         const srcAll = shDraftSrc.getRange(2, 1, srcLastRow - 1, 18).getValues();
         const srcKept = srcAll.filter(r => String(r[0] || "").trim() !== id);
         srcRemoved = srcAll.length - srcKept.length;
-        if (srcRemoved > 0) {
-          shDraftSrc.getRange(2, 1, srcAll.length, 18).clearContent();
-          if (srcKept.length > 0) shDraftSrc.getRange(2, 1, srcKept.length, 18).setValues(srcKept);
-        }
+        if (srcRemoved > 0) _thayVungDuLieu_(shDraftSrc, 2, 18, srcAll.length, srcKept);
       }
     } catch (e) { /* không chặn luồng chính */ }
 
@@ -6878,8 +7032,7 @@ function removePhieuCanFromDraft(idCT) {
     }
 
     const kept = ctAll.filter(r => String(r[0] || "").trim() !== idct);
-    shCT.getRange(2, 1, ctAll.length, 22).clearContent();
-    if (kept.length > 0) shCT.getRange(2, 1, kept.length, 22).setValues(kept);
+    _thayVungDuLieu_(shCT, 2, 22, ctAll.length, kept);
 
     // Còn phiếu cân nào khác của cùng hồ sơ này không?
     const stillHasOther = kept.some(r => String(r[1] || "").trim() === ownerId);
@@ -6890,8 +7043,7 @@ function removePhieuCanFromDraft(idCT) {
         const all112 = sh112.getRange(2, 1, c112LastRow - 1, 24).getValues();
         const kept112 = all112.filter(r => String(r[0] || "").trim() !== ownerId);
         if (kept112.length !== all112.length) {
-          sh112.getRange(2, 1, all112.length, 24).clearContent();
-          if (kept112.length > 0) sh112.getRange(2, 1, kept112.length, 24).setValues(kept112);
+          _thayVungDuLieu_(sh112, 2, 24, all112.length, kept112);
           alsoRemoved112 = true;
         }
       }
@@ -6973,8 +7125,10 @@ function getDoiSoatTenKhachHang() {
  * sau khi ghi để lần đọc tiếp theo lấy đúng dữ liệu mới.
  */
 function webDongBoTenKhachHang(items) {
+  let lock;
   try {
     if (!Array.isArray(items) || !items.length) return { success: false, message: "❌ Không có dòng nào được chọn." };
+    lock = sysLock.acquire();
     const shPC = openExternalSheet(CFG.PC_SS_ID, CFG.PC_SHEET, "Phiếu Cân");
     const lastRow = shPC.getLastRow();
     if (lastRow < 2) return { success: false, message: "⚠️ Sheet Phiếu Cân trống." };
@@ -6988,28 +7142,35 @@ function webDongBoTenKhachHang(items) {
       if (sp) idxMap.set(utils.standardize(sp), i);
     });
 
-    let count = 0;
+    // v2026.6: chỉ ghi đúng ô Khách hàng của các dòng được chọn (trước
+    // đây ghi lại CẢ CỘT - đè mất tên người khác vừa sửa cùng lúc), và
+    // lưu tên cũ -> mới vào nhật ký để truy vết.
+    const capNhat = [];
     const khongTim = [];
+    const vet = [];
     items.forEach(item => {
       const idx = idxMap.get(utils.standardize(item.soPhieuCan));
       if (idx !== undefined && item.chuRungCT) {
-        khachHangCol[idx][0] = item.chuRungCT;
-        count++;
+        vet.push(`${item.soPhieuCan}: "${khachHangCol[idx][0]}" → "${item.chuRungCT}"`);
+        capNhat.push({ row: idx + 2, values: [item.chuRungCT] });
       } else {
         khongTim.push(item.soPhieuCan);
       }
     });
+    const count = capNhat.length;
 
     if (count === 0) return { success: false, message: "❌ Không đồng bộ được dòng nào - không tìm thấy Số phiếu cân tương ứng trong Phiếu Cân (có thể đã đổi số)." };
-    shPC.getRange(2, PC_COL.KHACH_HANG + 1, khachHangCol.length, 1).setValues(khachHangCol);
+    _ghiTheoDong_(shPC, capNhat, PC_COL.KHACH_HANG + 1);
     _invalidatePcCache_(); // BẮT BUỘC: xóa cache để lần đọc tiếp theo (Đối Soát lại, báo cáo...) lấy đúng dữ liệu vừa sửa
 
     let msg = `✅ Đã đồng bộ ${count} dòng vào Phiếu Cân (theo CT).`;
     if (khongTim.length) msg += ` ⚠️ Không tìm thấy ${khongTim.length} số phiếu cân: ${khongTim.join(", ")}.`;
-    logAction("DOI_SOAT_DONG_BO_TEN", "-", `Đã đồng bộ tên khách hàng cho ${count} dòng trong Phiếu Cân (theo CT).`);
+    logAction("DOI_SOAT_DONG_BO_TEN", "-", `Đã đồng bộ tên khách hàng cho ${count} dòng trong Phiếu Cân (theo CT): ${vet.join("; ").slice(0, GIOI_HAN_KY_TU_O_NHAT_KY)}`);
     return { success: true, message: msg, count };
   } catch (e) {
     return { success: false, message: "❌ Lỗi: " + e.toString() };
+  } finally {
+    if (lock) lock.releaseLock();
   }
 }
 
@@ -7073,41 +7234,42 @@ function _gioiHan50_(arr) {
 /** Xóa dòng mồ côi khỏi ChiTietDNTT - AN TOÀN (chỉ bảng phụ). items:
  * mảng {idHeThong, soPhieuCan} (lấy từ chiTietDnttYMoCoi/chiTietDnttNMoCoi). */
 function webXoaMoCoiChiTietDNTT(items) {
+  let lock;
   try {
     if (!Array.isArray(items) || !items.length) return { success: false, message: "❌ Không có dòng nào được chọn." };
+    lock = sysLock.acquire();
     const sh = getMainSs_().getSheetByName(CHITIET_DNTT_SHEET);
     if (!sh || sh.getLastRow() < 2) return { success: false, message: "⚠️ Sheet ChiTietDNTT trống." };
     const keySetCanXoa = new Set(items.map(it => String(it.idHeThong || "").trim() + "|" + utils.standardize(String(it.soPhieuCan || "").trim())));
-    const data = sh.getRange(2, 1, sh.getLastRow() - 1, 3).getValues();
-    const rowsToDelete = [];
-    data.forEach((r, i) => {
-      const key = String(r[0] || "").trim() + "|" + utils.standardize(String(r[2] || "").replace(/'/g, "").trim());
-      if (keySetCanXoa.has(key)) rowsToDelete.push(i + 2);
-    });
-    rowsToDelete.sort((a, b) => b - a).forEach(rowNum => sh.deleteRow(rowNum));
-    logAction("XOA_MO_COI_CHITIET_DNTT", "-", `Đã xóa ${rowsToDelete.length} dòng mồ côi khỏi ChiTietDNTT (từ Bảo Trì).`);
-    return { success: true, message: `✅ Đã xóa ${rowsToDelete.length} dòng mồ côi khỏi ChiTietDNTT.`, count: rowsToDelete.length };
+    const soXoa = _saoLuuVaXoaDong_(sh,
+      r => keySetCanXoa.has(String(r[0] || "").trim() + "|" + utils.standardize(String(r[2] || "").replace(/'/g, "").trim())),
+      "XOA_MO_COI_CHITIET_DNTT");
+    logAction("XOA_MO_COI_CHITIET_DNTT", "-", `Đã xóa ${soXoa} dòng mồ côi khỏi ChiTietDNTT (từ Bảo Trì) - đã sao lưu vào ${SAO_LUU_DONG_XOA_SHEET}.`);
+    return { success: true, message: `✅ Đã xóa ${soXoa} dòng mồ côi khỏi ChiTietDNTT.`, count: soXoa };
   } catch (e) {
     return { success: false, message: "❌ Lỗi: " + e.toString() };
+  } finally {
+    if (lock) lock.releaseLock();
   }
 }
 
 /** Xóa dòng mồ côi khỏi ChiTietUNC - AN TOÀN (chỉ lịch sử). items: mảng
  * {idHeThong} (lấy từ chiTietUncMoCoi). */
 function webXoaMoCoiChiTietUNC(items) {
+  let lock;
   try {
     if (!Array.isArray(items) || !items.length) return { success: false, message: "❌ Không có dòng nào được chọn." };
+    lock = sysLock.acquire();
     const sh = getMainSs_().getSheetByName(CHITIET_UNC_SHEET);
     if (!sh || sh.getLastRow() < 2) return { success: false, message: "⚠️ Sheet ChiTietUNC trống." };
     const idSetCanXoa = new Set(items.map(it => String(it.idHeThong || "").trim()));
-    const data = sh.getRange(2, 1, sh.getLastRow() - 1, 1).getValues();
-    const rowsToDelete = [];
-    data.forEach((r, i) => { if (idSetCanXoa.has(String(r[0] || "").trim())) rowsToDelete.push(i + 2); });
-    rowsToDelete.sort((a, b) => b - a).forEach(rowNum => sh.deleteRow(rowNum));
-    logAction("XOA_MO_COI_CHITIET_UNC", "-", `Đã xóa ${rowsToDelete.length} dòng mồ côi khỏi ChiTietUNC (từ Bảo Trì).`);
-    return { success: true, message: `✅ Đã xóa ${rowsToDelete.length} dòng mồ côi khỏi ChiTietUNC.`, count: rowsToDelete.length };
+    const soXoa = _saoLuuVaXoaDong_(sh, r => idSetCanXoa.has(String(r[0] || "").trim()), "XOA_MO_COI_CHITIET_UNC");
+    logAction("XOA_MO_COI_CHITIET_UNC", "-", `Đã xóa ${soXoa} dòng mồ côi khỏi ChiTietUNC (từ Bảo Trì) - đã sao lưu vào ${SAO_LUU_DONG_XOA_SHEET}.`);
+    return { success: true, message: `✅ Đã xóa ${soXoa} dòng mồ côi khỏi ChiTietUNC.`, count: soXoa };
   } catch (e) {
     return { success: false, message: "❌ Lỗi: " + e.toString() };
+  } finally {
+    if (lock) lock.releaseLock();
   }
 }
 
@@ -7123,14 +7285,11 @@ function webXoaCTMoCoi(items) {
     const shCT = getMainSs_().getSheetByName(CFG.DNTT_CT);
     if (!shCT || shCT.getLastRow() < 2) return { success: false, message: "⚠️ Sheet CT thật trống." };
     const idSetCanXoa = new Set(items.map(it => String(it.idCT || "").trim()));
-    const data = shCT.getRange(2, 1, shCT.getLastRow() - 1, 1).getValues();
-    const rowsToDelete = [];
-    data.forEach((r, i) => { if (idSetCanXoa.has(String(r[0] || "").trim())) rowsToDelete.push(i + 2); });
-    rowsToDelete.sort((a, b) => b - a).forEach(rowNum => shCT.deleteRow(rowNum));
+    const soXoa = _saoLuuVaXoaDong_(shCT, r => idSetCanXoa.has(String(r[0] || "").trim()), "XOA_MO_COI_CT_THAT");
     _invalidateCtSrc112Cache_();
     _invalidateCongNoCache_();
-    logAction("XOA_MO_COI_CT_THAT", "-", `⚠️ Đã xóa ${rowsToDelete.length} dòng CT thật mồ côi (từ Bảo Trì) - ĐỘNG TỚI DỮ LIỆU TÀI CHÍNH ĐÃ CHỐT: ${items.map(it => it.idCT).join(", ")}.`);
-    return { success: true, message: `✅ Đã xóa ${rowsToDelete.length} dòng CT thật mồ côi.`, count: rowsToDelete.length };
+    logAction("XOA_MO_COI_CT_THAT", "-", `⚠️ Đã xóa ${soXoa} dòng CT thật mồ côi (từ Bảo Trì) - ĐỘNG TỚI DỮ LIỆU TÀI CHÍNH ĐÃ CHỐT (đã sao lưu vào ${SAO_LUU_DONG_XOA_SHEET}): ${items.map(it => it.idCT).join(", ")}.`);
+    return { success: true, message: `✅ Đã xóa ${soXoa} dòng CT thật mồ côi.`, count: soXoa };
   } catch (e) {
     return { success: false, message: "❌ Lỗi: " + e.toString() };
   } finally {
@@ -7148,14 +7307,11 @@ function webXoaSrcMoCoi(items) {
     const shSrc = getMainSs_().getSheetByName(CFG.DNTT_SRC);
     if (!shSrc || shSrc.getLastRow() < 2) return { success: false, message: "⚠️ Sheet DNTT_GK_DN thật trống." };
     const idSetCanXoa = new Set(items.map(it => String(it.idSrc || "").trim()));
-    const data = shSrc.getRange(2, 1, shSrc.getLastRow() - 1, 1).getValues();
-    const rowsToDelete = [];
-    data.forEach((r, i) => { if (idSetCanXoa.has(String(r[0] || "").trim())) rowsToDelete.push(i + 2); });
-    rowsToDelete.sort((a, b) => b - a).forEach(rowNum => shSrc.deleteRow(rowNum));
+    const soXoa = _saoLuuVaXoaDong_(shSrc, r => idSetCanXoa.has(String(r[0] || "").trim()), "XOA_MO_COI_SRC_THAT");
     _invalidateCtSrc112Cache_();
     _invalidateCongNoCache_();
-    logAction("XOA_MO_COI_SRC_THAT", "-", `⚠️ Đã xóa ${rowsToDelete.length} dòng DNTT_GK_DN thật mồ côi (từ Bảo Trì) - ĐỘNG TỚI DỮ LIỆU TÀI CHÍNH ĐÃ CHỐT: ${items.map(it => it.idSrc).join(", ")}.`);
-    return { success: true, message: `✅ Đã xóa ${rowsToDelete.length} dòng DNTT_GK_DN thật mồ côi.`, count: rowsToDelete.length };
+    logAction("XOA_MO_COI_SRC_THAT", "-", `⚠️ Đã xóa ${soXoa} dòng DNTT_GK_DN thật mồ côi (từ Bảo Trì) - ĐỘNG TỚI DỮ LIỆU TÀI CHÍNH ĐÃ CHỐT (đã sao lưu vào ${SAO_LUU_DONG_XOA_SHEET}): ${items.map(it => it.idSrc).join(", ")}.`);
+    return { success: true, message: `✅ Đã xóa ${soXoa} dòng DNTT_GK_DN thật mồ côi.`, count: soXoa };
   } catch (e) {
     return { success: false, message: "❌ Lỗi: " + e.toString() };
   } finally {
@@ -7366,21 +7522,22 @@ function runXacNhanDNTT(selectedIds, forceConfirm) {
     if (lastRow < 2) return { success: false, message: "⚠️ File Nháp trống." };
     const data = sh112.getRange(2, 1, lastRow - 1, 24).getValues();
 
-    let count = 0;
     const skippedNotCalculated = [], skippedNoData = [];
     const foundIds = new Set();
-    data.forEach(row => {
+    const dongXacNhan = [];
+    data.forEach((row, i) => {
       const id = String(row[0] || "").trim();
       if (!id || !idSet.has(id)) return;
       foundIds.add(id);
       if (utils.parseNum(row[6]) <= 0) { skippedNotCalculated.push(id); return; }
-      row[COL_TRANG_THAI_DNTT] = "Đang ĐNTT";
-      count++;
+      dongXacNhan.push(i + 2);
     });
     idSet.forEach(id => { if (!foundIds.has(id)) skippedNoData.push(id); });
+    const count = dongXacNhan.length;
 
     if (count > 0) {
-      sh112.getRange(2, 1, data.length, 24).setValues(data);
+      // v2026.6: chỉ ghi đúng ô "Trạng Thái ĐNTT" của các hồ sơ được xác nhận.
+      _ghiCungGiaTri_(sh112, dongXacNhan, COL_TRANG_THAI_DNTT + 1, COL_TRANG_THAI_DNTT + 1, "Đang ĐNTT");
       SpreadsheetApp.flush();
     }
 
@@ -7419,8 +7576,7 @@ function runHuyXacNhanDNTT(idKey) {
     const idx = data.findIndex(r => String(r[0] || "").trim() === id);
     if (idx === -1) return { success: false, message: `❌ Không tìm thấy hồ sơ "${id}" trong Nháp.` };
 
-    data[idx][COL_TRANG_THAI_DNTT] = "";
-    sh112.getRange(idx + 2, 1, 1, 24).setValues([data[idx]]);
+    sh112.getRange(idx + 2, COL_TRANG_THAI_DNTT + 1).setValue("");
     SpreadsheetApp.flush();
 
     logAction("HUY_XAC_NHAN_DNTT", id, `Chuyển hồ sơ "${id}" về "Chờ ĐNTT" để cho phép Sửa/Xóa.`);
@@ -7655,7 +7811,9 @@ function runFillMissingBankOnly() {
     // mục Z: vá dữ liệu LỊCH SỬ có thể thuộc hợp đồng đã "Đã Thanh lý" -> cần dữ liệu ĐẦY ĐỦ.
     const bankMap = buildBankLookupFromHDSTK(true);
 
-    let filledBankCount = 0;
+    // v2026.6: chỉ ghi đúng ô Ngân hàng (cột E) của các dòng đang trống,
+    // không ghi đè lại toàn bộ sheet 112 đã chốt.
+    const capNhatNganHang = [];
     for (let i = 1; i < data112.length; i++) {
       const id = String(data112[i][0]).trim();
       if (!id) continue;
@@ -7667,14 +7825,12 @@ function runFillMissingBankOnly() {
       if (!hdKeyLookup || !stkKeyLookup) continue;
 
       const bankFound = bankMap.get(hdKeyLookup + "|" + stkKeyLookup);
-      if (bankFound) {
-        data112[i][4] = bankFound;
-        filledBankCount++;
-      }
+      if (bankFound) capNhatNganHang.push({ row: i + 1, values: [bankFound] });
     }
+    const filledBankCount = capNhatNganHang.length;
 
     if (filledBankCount > 0) {
-      sh112.getRange(1, 1, data112.length, data112[0].length).setValues(data112);
+      _ghiTheoDong_(sh112, capNhatNganHang, 5);
       SpreadsheetApp.flush();
       logAction("VA_NGAN_HANG_112", "-", `Đã tự động điền Ngân hàng cho ${filledBankCount} dòng đang trống.`);
       _invalidateChunkedCache_("h112_that_data_v1"); // MỚI (rà soát bổ sung): 112 thật vừa thay đổi - xóa cache ngay
