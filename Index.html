@@ -217,7 +217,7 @@
     }
     .badge.ready{background:var(--moss-light); color:var(--moss);}
     .badge.pending{background:var(--timber-light); color:var(--timber);}
-    .badge.wait{background:#dbeafe; color:#1d4ed8;}
+    .badge.wait{background:#E4EAF3; color:#33517A;}
     .badge.dot::before{content:''; width:6px; height:6px; border-radius:50%; background:currentColor;}
 
     .empty{
@@ -369,6 +369,30 @@
 
     .muted{color:var(--ink-soft);}
     .hidden{display:none !important;}
+
+    /* MỚI (theo yêu cầu - "DNTT cho font chữ to lên, đẹp và rõ"): chỉ
+       phóng to font khi đang ở trang Danh Sách ĐNTT/Tạo Mới (class
+       "dntt-lg" gắn vào <body> trong goTo(), xem Index.html) - áp dụng
+       cho CẢ #content (bảng danh sách, wizard) LẪN #modal (chi tiết,
+       sửa, Duyệt) vì các modal này chỉ mở ra từ đúng trang này, KHÔNG
+       đụng tới font cỡ nhỏ mặc định ở Báo Cáo/Công Nợ/Cài Đặt... */
+    body.dntt-lg #content table, body.dntt-lg #modal table{font-size:15.5px;}
+    body.dntt-lg #content thead th, body.dntt-lg #modal thead th{font-size:13px;}
+    body.dntt-lg #content tbody td, body.dntt-lg #modal tbody td{padding:13px 12px;}
+    body.dntt-lg #content label, body.dntt-lg #modal label{font-size:14px;}
+    body.dntt-lg #content input[type=text], body.dntt-lg #content input[type=date],
+    body.dntt-lg #content input[type=number], body.dntt-lg #content select, body.dntt-lg #content textarea,
+    body.dntt-lg #modal input[type=text], body.dntt-lg #modal input[type=date],
+    body.dntt-lg #modal input[type=number], body.dntt-lg #modal select, body.dntt-lg #modal textarea{
+      font-size:15.5px; padding:11px 13px;
+    }
+    body.dntt-lg #content .btn, body.dntt-lg #modal .btn{font-size:14.5px; padding:10px 16px;}
+    body.dntt-lg #content .btn.sm, body.dntt-lg #modal .btn.sm{font-size:13.5px;}
+    body.dntt-lg #content .kv, body.dntt-lg #modal .kv{font-size:15.5px; padding:9px 0;}
+    body.dntt-lg #content .hint-text, body.dntt-lg #modal .hint-text{font-size:13.5px;}
+    body.dntt-lg #content h3, body.dntt-lg #modal h3{font-size:18px;}
+    body.dntt-lg #content .stepper, body.dntt-lg #modal .stepper{font-size:14px;}
+    body.dntt-lg #content .badge, body.dntt-lg #modal .badge{font-size:12.5px;}
   </style>
 </head>
 <body>
@@ -670,6 +694,10 @@ document.getElementById('nav').addEventListener('click', e => {
 function goTo(page){
   state.page = page;
   if (page === 'draft') state.draftView = 'list'; // luôn về danh sách khi bấm nav, không kẹt ở màn Tạo Mới
+  // MỚI (theo yêu cầu - "DNTT cho font chữ to lên"): chỉ trang Danh Sách
+  // ĐNTT/Tạo Mới mới phóng to font (kể cả modal mở ra từ trang này) -
+  // xem CSS ".dntt-lg" ở đầu file.
+  document.body.classList.toggle('dntt-lg', page === 'draft');
   document.querySelectorAll('.nav-item').forEach(el => el.classList.toggle('active', el.dataset.page===page));
   const meta = PAGES[page];
   document.getElementById('page-title').textContent = meta.title;
@@ -1222,7 +1250,7 @@ function renderPcResultsTable(){
   box.innerHTML = `<table><thead><tr><th>Số phiếu cân</th><th>Ngày nhập</th><th>Khách hàng</th><th class="num">KL(kg)</th><th class="num">Đơn giá</th><th class="num">Thành tiền</th><th></th></tr></thead><tbody>
     ${pageList.map(p => `<tr${p.khopTen===false?' style="background:var(--timber-light)"':''}>
       <td class="mono">${esc(p.soPhieuCan)}</td><td>${esc(p.ngayNhap)}</td>
-      <td>${esc(p.khachHang)}${p.khopTen===false?' <span class="badge pending dot" title="Khác tên Chủ rừng đang chọn">⚠️ khác tên</span>':''}</td>
+      <td>${esc(p.khachHang)}${p.khopTen===false?` <span class="badge pending dot" title="Khác tên Chủ rừng đang chọn">⚠️ khác tên</span> <button class="btn sm ghost" onclick='suaTenKhachHangPC(${JSON.stringify(p.soPhieuCan)}, ${JSON.stringify(p.khachHang)})'>✏️ Sửa tên</button>`:''}</td>
       <td class="num">${fmtKl(p.klKg)}</td><td class="num">${fmtMoney(p.donGia)}</td><td class="num">${fmtMoney(p.thanhTien)}</td>
       <td><button class="btn sm ${isChosen(p.soPhieuCan)?'ghost':'primary'}" onclick='addChosenPC(${JSON.stringify(p)})' ${isChosen(p.soPhieuCan)?'disabled':''}>${isChosen(p.soPhieuCan)?'Đã chọn':'+ Chọn'}</button></td>
     </tr>`).join('')}
@@ -1230,6 +1258,30 @@ function renderPcResultsTable(){
   ${renderPager(list.length, state.pcResultsPage, 'goPcResultsPage', PC_PICKER_PAGE_SIZE)}`;
 }
 function goPcResultsPage(p){ state.pcResultsPage = p; renderPcResultsTable(); }
+
+/** MỚI (theo yêu cầu - "cho sửa tên khách hàng để lập DNTT có thể chọn
+ * đúng khách hàng"): sửa NGAY tên khách hàng của 1 phiếu cân đang bị
+ * cảnh báo "khác tên" - dùng chung cho cả Bước 2 "Tạo Mới" (không
+ * truyền idKeyForEdit) và modal "Sửa hồ sơ" (có truyền idKeyForEdit/
+ * chuRungForEdit) để biết tải lại đúng danh sách nào sau khi sửa. */
+function suaTenKhachHangPC(soPhieuCan, tenHienTai, idKeyForEdit, chuRungForEdit){
+  const tenMoi = prompt(`Sửa tên khách hàng cho phiếu cân "${soPhieuCan}":`, tenHienTai || '');
+  if (tenMoi === null) return; // bấm Hủy
+  const clean = tenMoi.trim();
+  if (!clean) { toast('Vui lòng nhập tên khách hàng.', 'warn'); return; }
+  call('webSuaTenKhachHangPhieuCan', [soPhieuCan, clean], 'Đang lưu...').then(res => {
+    if (!handleResult(res)) return;
+    if (idKeyForEdit) {
+      searchPhieuCanForEdit(idKeyForEdit, chuRungForEdit);
+    } else {
+      // đã chọn phiếu cân này từ trước (Bước 2) -> cập nhật luôn tên/cờ
+      // khớp tên trong danh sách ĐÃ CHỌN, khỏi phải tự bỏ chọn rồi chọn lại.
+      const chosen = state.createData.phieuCan.find(p => p.soPhieuCan === soPhieuCan);
+      if (chosen) { chosen.khachHang = clean; chosen.khopTen = true; renderChosenPcDesc(); }
+      searchPhieuCan();
+    }
+  });
+}
 
 function isChosen(soP){ return state.createData.phieuCan.some(p=>p.soPhieuCan===soP); }
 function addChosenPC(p){
@@ -1632,7 +1684,7 @@ function submitCreateUNC(){
       closeModal();
       openModal(`<div class="modal-head"><h3>Tạo File UNC thành công</h3><button class="x" onclick="closeModal()">&times;</button></div>
         <div class="modal-body"><p>Đã tạo file UNC với ${res.count} dòng.</p>
-        ${res.canhBaoTrung ? `<p style="color:#dc2626;font-size:13px">${esc(res.canhBaoTrung)}</p>` : ''}
+        ${res.canhBaoTrung ? `<p style="color:#b00;font-size:13px">${esc(res.canhBaoTrung)}</p>` : ''}
         <a href="${res.url}" target="_blank"><button class="btn primary">Mở file UNC</button></a></div>
         <div class="modal-foot"><button class="btn ghost" onclick="closeModal()">Đóng</button></div>`);
     } else {
@@ -1669,15 +1721,25 @@ function viewDraftDetail(idKey){
         </tbody></table>
         ${editable ? `
         <div class="field" style="margin-top:16px">
-          <label>Thêm 1 Số phiếu cân vào hồ sơ này</label>
+          <label>Thêm phiếu cân vào hồ sơ này</label>
           <div style="display:flex;gap:8px">
-            <input type="text" id="add-pc-input" placeholder="Nhập số phiếu cân...">
-            <button class="btn primary sm" onclick="addPhieuCan('${esc(r.idKey)}')">+ Thêm</button>
+            <input type="text" id="edit-pc-search" placeholder="Nhập số phiếu cân để tìm (để trống xem tất cả khả dụng của Chủ rừng này)...">
+            <button class="btn primary sm" onclick='searchPhieuCanForEdit(${JSON.stringify(r.idKey)}, ${JSON.stringify(r.chuRung)})'>🔍 Tìm</button>
           </div>
+          <div id="edit-pc-results" class="muted" style="font-size:13px;margin-top:8px"></div>
         </div>` : `<div class="hint-text" style="margin-top:16px">Hồ sơ đang ở trạng thái "${r.soTien>0?'Đang ĐNTT':'Chưa ĐNTT'}" - chỉ xem, không thể sửa/xóa phiếu cân. ${r.daXacNhan?'Bấm "Về Chờ ĐNTT" ở danh sách nếu cần sửa.':''}</div>`}
       </div>
       <div class="modal-foot"><button class="btn ghost" onclick="closeModal()">Đóng</button></div>
     `);
+    if (editable) {
+      const inp = document.getElementById('edit-pc-search');
+      if (inp) inp.addEventListener('keydown', e => { if (e.key==='Enter') searchPhieuCanForEdit(r.idKey, r.chuRung); });
+      // MỚI (theo yêu cầu - "sửa phiếu DNTT thêm phiếu cân thì không thấy
+      // phiếu cân cần thêm"): tự tải sẵn danh sách phiếu cân khả dụng của
+      // ĐÚNG Chủ rừng này ngay khi mở modal - giống hệt trải nghiệm Bước 2
+      // "Tạo Mới", khỏi phải mò gõ đúng số phiếu cân mới thấy được.
+      searchPhieuCanForEdit(r.idKey, r.chuRung);
+    }
   });
 }
 
@@ -1689,9 +1751,38 @@ function removePhieuCan(idCT, idKey){
     if (res.recordRemoved) closeModal(); else viewDraftDetail(idKey);
   });
 }
-function addPhieuCan(idKey){
-  const soP = document.getElementById('add-pc-input').value.trim();
-  if (!soP) { toast('Nhập số phiếu cân.', 'warn'); return; }
+
+/** MỚI (theo yêu cầu - "sửa phiếu DNTT thêm phiếu cân thì không thấy
+ * phiếu cân cần thêm, thêm mới thì có"): trước đây modal "Sửa hồ sơ" chỉ
+ * có 1 ô nhập tay số phiếu cân, không có danh sách gợi ý gì cả - khác
+ * hẳn Bước 2 "Tạo Mới" (có danh sách tìm sẵn). Giờ dùng lại ĐÚNG hàm
+ * server getAvailablePhieuCanForChuRung() mà Bước 2 đang dùng, hiện
+ * danh sách phiếu cân khả dụng của đúng Chủ rừng này (kèm cảnh báo
+ * "khác tên" + nút sửa tên y hệt Bước 2) để bấm "+ Thêm" trực tiếp. */
+function searchPhieuCanForEdit(idKey, chuRung){
+  const inp = document.getElementById('edit-pc-search');
+  const q = inp ? inp.value.trim() : '';
+  const box = document.getElementById('edit-pc-results');
+  if (!box) return;
+  box.innerHTML = '<div class="empty" style="padding:14px"><div class="ic">⏳</div>Đang tìm phiếu cân khả dụng...</div>';
+  call('getAvailablePhieuCanForChuRung', [chuRung, q], null).then(list => {
+    box.innerHTML = renderEditPcResultsHtml(list, idKey, chuRung);
+  });
+}
+function renderEditPcResultsHtml(list, idKey, chuRung){
+  if (!list.length) return '<div class="empty" style="padding:14px"><div class="ic">🔎</div>Không tìm thấy phiếu cân khả dụng khớp Chủ rừng này. Gõ số phiếu cân cụ thể để tìm cả phiếu của khách hàng khác.</div>';
+  const MAX_SHOW = 30;
+  const shown = list.slice(0, MAX_SHOW);
+  return `<table><thead><tr><th>Số phiếu cân</th><th>Ngày nhập</th><th>Khách hàng</th><th class="num">KL(kg)</th><th class="num">Thành tiền</th><th></th></tr></thead><tbody>
+    ${shown.map(p => `<tr${p.khopTen===false?' style="background:var(--timber-light)"':''}>
+      <td class="mono">${esc(p.soPhieuCan)}</td><td>${esc(p.ngayNhap)}</td>
+      <td>${esc(p.khachHang)}${p.khopTen===false?` <span class="badge pending dot" title="Khác tên Chủ rừng">⚠️ khác tên</span> <button class="btn sm ghost" onclick='suaTenKhachHangPC(${JSON.stringify(p.soPhieuCan)}, ${JSON.stringify(p.khachHang)}, ${JSON.stringify(idKey)}, ${JSON.stringify(chuRung)})'>✏️ Sửa tên</button>`:''}</td>
+      <td class="num">${fmtKl(p.klKg)}</td><td class="num">${fmtMoney(p.thanhTien)}</td>
+      <td><button class="btn sm primary" onclick='addPhieuCanDirect(${JSON.stringify(idKey)}, ${JSON.stringify(p.soPhieuCan)})'>+ Thêm</button></td>
+    </tr>`).join('')}
+  </tbody></table>${list.length>MAX_SHOW?`<div class="hint-text" style="margin-top:6px">Hiện ${MAX_SHOW}/${list.length} kết quả đầu - gõ số cụ thể để tìm chính xác hơn.</div>`:''}`;
+}
+function addPhieuCanDirect(idKey, soP){
   call('addPhieuCanToDraft', [idKey, soP], 'Đang thêm...').then(res => {
     if (handleResult(res)) { loadDraftList(); viewDraftDetail(idKey); }
   });
@@ -1896,7 +1987,7 @@ function renderMisaResultTable(){
   );
   if (!rows.length) { box.innerHTML = '<div class="empty"><div class="ic">📭</div>Không có dữ liệu MISA trong khoảng ngày/bộ lọc đã chọn.</div>'; return; }
   const tongTien = rows.reduce((s, r) => s + (r.thanhTien || 0), 0);
-  const canhBao = state.misaTruncated ? ` <span style="color:#dc2626">⚠️ Tổng khớp khoảng ngày là ${state.misaTotal} dòng, đã đạt giới hạn 2000 - thu hẹp khoảng ngày để xem/xuất đầy đủ hơn.</span>` : '';
+  const canhBao = state.misaTruncated ? ` <span style="color:#b00">⚠️ Tổng khớp khoảng ngày là ${state.misaTotal} dòng, đã đạt giới hạn 2000 - thu hẹp khoảng ngày để xem/xuất đầy đủ hơn.</span>` : '';
   box.innerHTML = `<div class="hint-text" style="margin-bottom:6px">${rows.length} dòng - Tổng tiền: ${tongTien.toLocaleString('vi-VN')}${canhBao}</div>
   <div style="overflow-x:auto"><table><thead><tr>
     <th>Ngày hạch toán</th><th>Số phiếu cân</th><th>Chủ rừng</th><th>Người thụ hưởng</th><th>Số TK</th><th>Ngân hàng</th><th>Thành tiền</th><th>Số HĐ</th>
@@ -1993,7 +2084,7 @@ function renderChiTietResultTable(){
   );
   if (!rows.length) { box.innerHTML = '<div class="empty"><div class="ic">📭</div>Không có dữ liệu khớp bộ lọc.</div>'; return; }
   const tongTien = rows.reduce((s, r) => s + (r.thanhTien || 0), 0);
-  const canhBaoGioiHan = state.chiTietTruncated ? ` <span style="color:#dc2626">⚠️ Tổng khớp khoảng ngày là ${state.chiTietTotal} dòng, đã đạt giới hạn 2000 - thu hẹp khoảng ngày để xem/xuất đầy đủ hơn.</span>` : '';
+  const canhBaoGioiHan = state.chiTietTruncated ? ` <span style="color:#b00">⚠️ Tổng khớp khoảng ngày là ${state.chiTietTotal} dòng, đã đạt giới hạn 2000 - thu hẹp khoảng ngày để xem/xuất đầy đủ hơn.</span>` : '';
   box.innerHTML = `<div class="hint-text" style="margin-bottom:6px">${rows.length} phiếu cân - Tổng thành tiền: ${tongTien.toLocaleString('vi-VN')}${canhBaoGioiHan}</div>
   <div style="overflow-x:auto"><table><thead><tr>
     <th>Số phiếu cân</th><th>Ngày CK</th><th>Đại lý</th><th>Số HĐ</th><th>Chủ rừng</th><th>Người thụ hưởng</th><th>KL (tấn)</th><th>Đơn giá</th><th>Thành tiền</th><th>Ngân hàng</th><th>Số TK</th>
@@ -2471,7 +2562,7 @@ function renderDebtByCustomerTable(){
         <th>Khách hàng</th><th class="num">KL nhập trong kỳ (tấn)</th><th class="num">Giá trị nhập trong kỳ</th><th class="num">Đã TT trong kỳ</th>
         <th class="num">Giá trị nhập lũy kế</th><th class="num">Đã TT lũy kế</th><th class="num">Công nợ</th>
       </tr></thead><tbody>
-      ${pageRows.map(r => `<tr class="clickable" onclick="openLedgerFor('customer','${esc(r.khachHang).replace(/'/g,"\\'")}')">
+      ${pageRows.map(r => `<tr class="clickable" onclick="openLedgerFor('customer','${esc(r.khachHang)}')">
         <td>${esc(r.khachHang)}</td>
         <td class="num">${fmtKl(r.klNhapTrongKy)}</td><td class="num">${fmtMoney(r.giaTriNhapTrongKy)}</td><td class="num">${fmtMoney(r.daTTTrongKy)}</td>
         <td class="num">${fmtMoney(r.giaTriNhapLuyKe)}</td><td class="num">${fmtMoney(r.daTTLuyKe)}</td>
@@ -2513,7 +2604,7 @@ function renderDebtByContractTable(){
         <th>Số HĐ</th><th>Chủ rừng</th><th>Ngày ký</th><th class="num">SL dự kiến (tấn)</th><th class="num">SL đã thực hiện</th>
         <th class="num">Còn lại/Vượt SL</th><th class="num">Giá trị TT trong kỳ</th><th class="num">Đang chờ TT (công nợ)</th>
       </tr></thead><tbody>
-      ${pageRows.map(r => `<tr class="clickable" onclick="openLedgerFor('contract','${esc(r.soHD).replace(/'/g,"\\'")}')">
+      ${pageRows.map(r => `<tr class="clickable" onclick="openLedgerFor('contract','${esc(r.soHD)}')">
         <td class="mono">${esc(r.soHD)}</td><td>${esc(r.chuRung)}</td><td>${esc(r.ngayKy)}</td>
         <td class="num">${fmtKl(r.slDuKien)}</td><td class="num">${fmtKl(r.klThucHienLuyKe)}</td>
         <td class="num ${r.conLaiSanLuong<0?'debt-neg':''}">${fmtKl(Math.abs(r.conLaiSanLuong))}${r.conLaiSanLuong<0?' (vượt)':''}</td>
@@ -3126,7 +3217,7 @@ function renderHuongDan(){
       <b>🔍 Đối Soát Tên Khách Hàng:</b> so sánh "Chủ rừng" ở CT (bản chính) với "Khách hàng" ở PhieuCan_DN (tra theo Số phiếu cân) - chỉ hiện dòng LỆCH. Đồng bộ = cập nhật lại Phiếu Cân theo đúng tên ở CT (CT đã đối chiếu hợp đồng nên là nguồn đúng). Xuất Excel được danh sách trước khi đồng bộ.<br><br>
       <b>🩺 Bảo Trì - Kiểm Tra Đối Chiếu 4 Sheet:</b> đối chiếu chéo DNTT_GK_DN, DNTT_GK_DN_CT, DNTT_GK_DN_112, PhieuCan_DN - tìm Số phiếu cân không tồn tại, dòng mồ côi, tổng tiền 112 lệch với CT con, tên khách hàng lệch. Chạy định kỳ để phát hiện sớm sai lệch dữ liệu.<br><br>
       <b>🏦 Cập Nhật Ngân Hàng Tài Khoản Khách Hàng:</b> vá thông tin Ngân hàng còn thiếu trong dữ liệu đã chốt, tra theo Số tài khoản từ HD_STK.<br><br>
-      <b>🔓 Mở "Đóng" Thanh Toán:</b> dùng khi CHỐT SAI cần sửa lại - luôn mở NGUYÊN CẢ đợt thanh toán (theo Chủ rừng + Ngày Đóng TT + Lần Thanh Toán, không sửa lẻ từng phiếu cân, để tránh Số tiền ở 112 bị lệch so với các phiếu cân con). Gõ Chủ rừng sẽ có gợi ý tự động kèm sẵn Ngày Đóng TT/Lần TT - bấm chọn để điền đúng luôn cả 3 ô, không cần tự tra tay. Hệ thống sẽ: xóa khỏi bản chính (DNTT_GK_DN + tất cả CT con + 112), copy lại y hệt sang File Nháp (Chờ ĐNTT) để chỉnh sửa, mở khóa lại TẤT CẢ Phiếu Cân liên quan, đổi "Trạng Thái" từ "OK" sang "Test giá" - đồng thời dọn theo cả 3 "bảng con" (ChiTietDNTT, ChiTietUNC, Update_NganHang_DN) vì đây là dữ liệu tính sẵn/lịch sử gắn liền với đợt thanh toán này. <b style="color:#dc2626">Rủi ro cao - đụng dữ liệu tài chính đã chốt, không tự hoàn tác được.</b><br><br>
+      <b>🔓 Mở "Đóng" Thanh Toán:</b> dùng khi CHỐT SAI cần sửa lại - luôn mở NGUYÊN CẢ đợt thanh toán (theo Chủ rừng + Ngày Đóng TT + Lần Thanh Toán, không sửa lẻ từng phiếu cân, để tránh Số tiền ở 112 bị lệch so với các phiếu cân con). Gõ Chủ rừng sẽ có gợi ý tự động kèm sẵn Ngày Đóng TT/Lần TT - bấm chọn để điền đúng luôn cả 3 ô, không cần tự tra tay. Hệ thống sẽ: xóa khỏi bản chính (DNTT_GK_DN + tất cả CT con + 112), copy lại y hệt sang File Nháp (Chờ ĐNTT) để chỉnh sửa, mở khóa lại TẤT CẢ Phiếu Cân liên quan, đổi "Trạng Thái" từ "OK" sang "Test giá" - đồng thời dọn theo cả 3 "bảng con" (ChiTietDNTT, ChiTietUNC, Update_NganHang_DN) vì đây là dữ liệu tính sẵn/lịch sử gắn liền với đợt thanh toán này. <b style="color:#b00">Rủi ro cao - đụng dữ liệu tài chính đã chốt, không tự hoàn tác được.</b><br><br>
       <b>📜 Lịch Sử Sửa Đổi:</b> theo dõi mọi lần Mở Đóng Thanh Toán, Đồng Bộ Tên Khách Hàng và Cập Nhật Ngân Hàng - kèm rõ Gmail người thực hiện, thời gian, chi tiết.<br><br>
 
       <b>🔧 Tạo Lại MISA / Tạo Lại UNC (dự phòng):</b> dùng cho hồ sơ CŨ (chốt trước khi có tính năng tự động) hoặc khi phát hiện lỗi/sai sót cần làm lại - chọn khoảng ngày đã chốt, hệ thống tự xử lý theo lô nhỏ và lặp lại tới khi xong (không lo timeout dù chọn khoảng ngày rộng), tự bỏ qua phần đã có sẵn để không tạo trùng. Việc thường ngày (chuyển tiền, ghi sổ) không cần tới 2 mục này - chỉ dùng khi có sự cố.
@@ -3169,7 +3260,7 @@ function renderHeThong(){
     <div class="card">
       <h3>🔍 Đối Soát Tên Khách Hàng (CT ↔ Phiếu Cân)</h3>
       <p class="muted" style="font-size:13px">So sánh "Chủ rừng" ở CT (bản chính, đã chốt) với "Khách hàng" tương ứng ở PhieuCan_DN (tra theo Số phiếu cân) - chỉ những dòng LỆCH mới hiện ra. Đồng bộ = cập nhật <b>Phiếu Cân</b> theo đúng tên ở CT (CT đã đối chiếu hợp đồng nên là nguồn đúng).</p>
-      <div class="hint-text" style="color:#dc2626">⚠️ Thao tác này ghi trực tiếp vào file PhieuCan_DN gốc (bên ngoài hệ thống này).</div>
+      <div class="hint-text" style="color:#b00">⚠️ Thao tác này ghi trực tiếp vào file PhieuCan_DN gốc (bên ngoài hệ thống này).</div>
       <button class="btn accent" onclick="doDoiSoatTenKhachHang()">🔍 Kiểm Tra Đối Soát</button>
       <div id="doisoat-result" style="margin-top:10px"></div>
     </div>
@@ -3184,16 +3275,16 @@ function renderHeThong(){
       <p class="muted" style="font-size:13px">Vá thông tin Ngân hàng còn thiếu trong dữ liệu chính thức (đã chốt) - tra theo Số tài khoản từ HD_STK.</p>
       <button class="btn accent" onclick="runFillBank()">🏦 Cập Nhật Ngân Hàng Tài Khoản Khách Hàng</button>
     </div>
-    <div class="card" style="border-color:#dc2626">
-      <h3 style="color:#dc2626">🔓 Mở "Đóng" Thanh Toán (theo Chủ rừng + Ngày + Lần TT)</h3>
+    <div class="card" style="border-color:#b00">
+      <h3 style="color:#b00">🔓 Mở "Đóng" Thanh Toán (theo Chủ rừng + Ngày + Lần TT)</h3>
       <p class="muted" style="font-size:13px">Luôn mở lại NGUYÊN CẢ đợt thanh toán (không sửa lẻ từng phiếu cân - để tránh Số tiền ở 112 bị lệch so với các phiếu cân con). Tìm đúng 1 hồ sơ khớp Chủ rừng + Ngày Đóng TT + Lần Thanh Toán - nếu khớp NHIỀU hơn 1, hệ thống sẽ dừng lại, không tự chọn để tránh nhầm. Hệ thống sẽ: xóa TOÀN BỘ DNTT_GK_DN + tất cả CT con + 112 khỏi bản chính, copy lại y hệt sang File Nháp (Chờ ĐNTT), mở khóa TẤT CẢ Phiếu Cân liên quan, đổi "Trạng Thái" từ "OK" sang "Test giá" - <b>đồng thời dọn theo cả 3 "bảng con" của CT: ChiTietDNTT, ChiTietUNC và Update_NganHang_DN</b> (vì đây là dữ liệu tính sẵn/lịch sử của đợt thanh toán này - không dọn sẽ để sót dữ liệu "mồ côi" trông như vẫn đang chốt).</p>
-      <div class="hint-text" style="color:#dc2626">⚠️ RỦI RO CAO - đụng vào dữ liệu tài chính ĐÃ CHỐT, xóa CẢ đợt thanh toán cùng lúc VÀ cả dữ liệu MISA/UNC liên quan. Nếu tiền ĐÃ THỰC SỰ chuyển qua ngân hàng dựa theo Update_NganHang_DN trước khi mở lại, việc xóa dòng đó KHÔNG hoàn tác được giao dịch ngân hàng thật - chỉ xóa bản ghi trong hệ thống. Kiểm tra kỹ trước khi bấm.</div>
+      <div class="hint-text" style="color:#b00">⚠️ RỦI RO CAO - đụng vào dữ liệu tài chính ĐÃ CHỐT, xóa CẢ đợt thanh toán cùng lúc VÀ cả dữ liệu MISA/UNC liên quan. Nếu tiền ĐÃ THỰC SỰ chuyển qua ngân hàng dựa theo Update_NganHang_DN trước khi mở lại, việc xóa dòng đó KHÔNG hoàn tác được giao dịch ngân hàng thật - chỉ xóa bản ghi trong hệ thống. Kiểm tra kỹ trước khi bấm.</div>
       <div class="grid cols-3">
         <div class="field" style="position:relative"><label>Chủ rừng</label><input type="text" id="modong-churung" autocomplete="off" placeholder="Họ tên chủ rừng"><div id="modong-churung-suggest" class="suggest-box hidden"></div></div>
         <div class="field"><label>Ngày Đóng TT</label><input type="date" id="modong-ngaydongtt"></div>
         <div class="field"><label>Lần Thanh Toán (số đơn giản: 1, 2, 3...)</label><input type="text" id="modong-lantt" placeholder="VD: 1 (xem cột &quot;Lần TT&quot; ở Báo Cáo Thanh Toán)"></div>
       </div>
-      <button class="btn" style="background:#dc2626;color:#fff;border-color:#dc2626" onclick="doMoDongThanhToanHoSo()">🔓 Mở Đóng Thanh Toán</button>
+      <button class="btn" style="background:#b00;color:#fff;border-color:#b00" onclick="doMoDongThanhToanHoSo()">🔓 Mở Đóng Thanh Toán</button>
     </div>
     <div class="card">
       <h3>📜 Lịch Sử Sửa Đổi</h3>
@@ -3384,6 +3475,7 @@ function renderSettings(){
           <span id="badge-formatlock" class="badge dot">Đang kiểm tra...</span>
         </div>
         <div id="formatlock-detail" style="margin-top:8px;font-size:13px"></div>
+        <div id="pc-header-warning" style="margin-top:8px"></div>
       </div>
       <div class="card">
         <h3>🔍 Định Dạng THẬT Đang Cài Đặt Trên Google Sheet</h3>
@@ -3491,7 +3583,22 @@ function loadTriggerStatus(){
     const elGio = document.getElementById('trigger15h-gio'), elPhut = document.getElementById('trigger15h-phut');
     if (elGio && document.activeElement !== elGio) elGio.value = s.trigger15hGio;
     if (elPhut && document.activeElement !== elPhut) elPhut.value = s.trigger15hPhut;
+    // MỚI (rà soát QA_REPORT.md mục HIGH-01): cảnh báo nếu cấu trúc cột
+    // PhieuCan_DN có vẻ đã đổi (chèn/xóa/đổi thứ tự cột) so với lần làm
+    // mới trước - không tự đoán đúng/sai, chỉ báo để người dùng tự kiểm
+    // tra tay rồi bấm xác nhận nếu đúng là thay đổi có chủ đích.
+    const wEl = document.getElementById('pc-header-warning');
+    if (wEl) {
+      wEl.innerHTML = s.pcHeaderCanhBao ? `
+        <div class="hint-text" style="color:#b00;border:1px solid var(--danger);border-radius:8px;padding:8px">
+          ⚠️ Cấu trúc cột File Phiếu Cân (PhieuCan_DN) có vẻ đã THAY ĐỔI so với lần làm mới trước (có thể do ai đó chèn/xóa/đổi thứ tự cột) - kiểm tra lại tay trước khi tin số liệu. Nếu đúng là bạn vừa chủ động đổi cấu trúc, bấm nút bên dưới để xác nhận chuẩn mới.
+          <div style="margin-top:6px"><button class="btn sm" onclick="doXacNhanHeaderPhieuCanMoi()">✅ Xác nhận cấu trúc cột hiện tại là đúng</button></div>
+        </div>` : '';
+    }
   });
+}
+function doXacNhanHeaderPhieuCanMoi(){
+  call('webXacNhanHeaderPhieuCanMoi', [], 'Đang lưu chuẩn mới...').then(res => handleResult(res, () => loadTriggerStatus()));
 }
 function loadFormatLockStatus(){
   call('getFormatLockStatusForWeb', [], null).then(s => {
@@ -3505,7 +3612,7 @@ function loadFormatLockStatus(){
     el.innerHTML = Object.keys(bySheet).map(sheetName => {
       const rows = bySheet[sheetName];
       const rowsHtml = rows.map(r => r.col === '-'
-        ? `<div style="color:#dc2626">⚠️ ${esc(r.err || 'Không kiểm tra được')}</div>`
+        ? `<div style="color:#b00">⚠️ ${esc(r.err || 'Không kiểm tra được')}</div>`
         : `<div>${r.ok ? '✅' : '⭕'} Cột ${r.col} (${esc(r.name)})${!r.ok ? ' - định dạng hiện tại: <code>' + esc(r.fmt || '(mặc định)') + '</code>' : ''}</div>`
       ).join('');
       return `<details style="margin-top:4px"><summary style="cursor:pointer;font-weight:600">${esc(sheetName)}</summary><div style="padding:6px 0 6px 16px">${rowsHtml}</div></details>`;
@@ -3710,9 +3817,9 @@ function doKiemTraBaoTri(){
       const nutXoa = del ? `
         <div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           <label style="font-size:12px"><input type="checkbox" checked onchange="document.querySelectorAll('.${sid}-chk').forEach(c=>c.checked=this.checked)"> Chọn tất cả</label>
-          <button class="btn" style="${del.riskLevel==='danger' ? 'background:#dc2626;color:#fff;border-color:#dc2626' : ''}" onclick="doXoaMoCoiBaoTri('${sid}','${dataKey}','${del.fnName}','${del.riskLevel}')">🗑️ Xóa Các Dòng Đã Chọn</button>
+          <button class="btn" style="${del.riskLevel==='danger' ? 'background:#b00;color:#fff;border-color:#b00' : ''}" onclick="doXoaMoCoiBaoTri('${sid}','${dataKey}','${del.fnName}','${del.riskLevel}')">🗑️ Xóa Các Dòng Đã Chọn</button>
         </div>` : '';
-      return `<details style="margin-top:6px" open><summary style="cursor:pointer;color:#dc2626;font-weight:600">⚠️ ${esc(title)}: ${data.total} vấn đề${data.truncated ? ' (hiện 50 đầu tiên)' : ''}</summary>
+      return `<details style="margin-top:6px" open><summary style="cursor:pointer;color:#b00;font-weight:600">⚠️ ${esc(title)}: ${data.total} vấn đề${data.truncated ? ' (hiện 50 đầu tiên)' : ''}</summary>
         <div style="overflow-x:auto;margin-top:6px"><table><thead><tr>${del ? '<th></th>' : ''}${cols.map(c=>`<th>${esc(c.label)}</th>`).join('')}</tr></thead><tbody>${rowsHtml}</tbody></table></div>
         ${nutXoa}
       </details>`;
@@ -3919,7 +4026,7 @@ function doShowWebhookInfo(){
         <p><b>Bước 1:</b> Mở Apps Script Editor của file <b>PhieuCan_DN</b> (và tương tự cho file <b>HD_NCC</b>), dán đoạn code sau vào 1 file .gs mới:</p>
         <textarea readonly style="width:100%;height:110px;font-family:monospace;font-size:12px">${esc(res.script)}</textarea>
         <p><b>Bước 2:</b> Menu bên trái "Trình kích hoạt" (Triggers) → "+ Thêm trình kích hoạt" → chọn hàm <b>onChangeLamMoiCache</b> → Loại sự kiện: <b>"Khi thay đổi trang tính" (On change)</b> → Lưu.</p>
-        <p style="color:#dc2626">⚠️ Lặp lại y hệt ở CẢ file HD_NCC (dùng chung 1 đoạn code này).</p>
+        <p style="color:#b00">⚠️ Lặp lại y hệt ở CẢ file HD_NCC (dùng chung 1 đoạn code này).</p>
         <p class="muted" style="font-size:12px">Dùng "On change" (không phải "On edit") để không gọi quá nhiều lần khi sửa hàng loạt ô cùng lúc.</p>
       </div>
       <div class="modal-foot"><button class="btn ghost" onclick="closeModal()">Đóng</button></div>`);
