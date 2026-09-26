@@ -130,6 +130,7 @@ Quy tắc: màn hình mở thường xuyên đọc snapshot, không quét PhieuC
    - Mỗi lô 500 Số phiếu: chép phần **còn thiếu** (đếm theo Số phiếu ở sheet đích) → `flush` → xóa đúng các Số phiếu đó (đọc lại cột Số phiếu ngay lúc xóa). Bản chép ở sheet đích là bản sao lưu. Dừng sau ~4 phút, chạy lại để làm tiếp; chạy lại không chép trùng.
    - Giữa bước 2 và 3, công nợ hiện tại **dư** (phiếu đã trả còn ở PhieuCan_DN nhưng khoản trả đã sang DATA) → làm bước 3 ngay sau bước 2.
 4. Mở Đóng TT từ chối Ngày Đóng TT thuộc năm đã khóa sổ.
+5. Khóa sổ **chỉ làm ở ĐNTT**: QL_NHAPKHO bỏ “Chốt sổ năm” (người dùng quyết định 26/09/2026), chỉ còn đọc các sheet `PhieuCan_DN_<năm>` do bước 3 tạo.
 
 ### Báo cáo đọc năm đã khóa sổ
 
