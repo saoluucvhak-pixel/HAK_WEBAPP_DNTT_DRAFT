@@ -83,6 +83,54 @@ test('every browser call has a route, and every route points to a function', () 
   });
 });
 
+test('no page calls a function that needs more permission than the page itself', () => {
+  const { run } = setup();
+  const routes = run('API_ROUTES');
+  const LV = { XEM: 0, NGHIEP_VU: 1, QUAN_TRI: 2 };
+  // Split the client script into top-level functions.
+  const fns = {};
+  let cur = null;
+  INDEX.split('\n').forEach(l => {
+    const m = /^(?:async )?function ([A-Za-z0-9_$]+)/.exec(l);
+    if (m) { cur = m[1]; fns[cur] = ''; } else if (/^(const|let|var|\/\*|<\/script>)/.test(l)) cur = null;
+    if (cur) fns[cur] += l + '\n';
+  });
+  const names = Object.keys(fns);
+  const refs = n => names.filter(o => o !== n && new RegExp(`\\b${o.replace(/\$/g, '\\$')}\\b`).test(fns[n]));
+  // A function reachable from a page (directly, via onclick strings or helpers) can run for anyone who may open that page.
+  const level = {};
+  const pages = [...INDEX.matchAll(/render: (\w+), quyen:'(\w+)'/g)];
+  assert.ok(pages.length >= 5, 'PAGES table not found');
+  pages.forEach(([, root, quyen]) => {
+    const stack = [root];
+    const seen = new Set();
+    while (stack.length) {
+      const f = stack.pop();
+      if (seen.has(f)) continue;
+      seen.add(f);
+      level[f] = Math.min(level[f] ?? LV.QUAN_TRI, LV[quyen]);
+      stack.push(...refs(f));
+    }
+  });
+  const tooHigh = [];
+  names.forEach(n => {
+    if (level[n] === undefined) return;
+    for (const c of fns[n].matchAll(/call\('([A-Za-z0-9_]+)'/g)) {
+      if (LV[routes[c[1]].quyen] > level[n]) tooHigh.push(`${n} → ${c[1]} (${routes[c[1]].quyen})`);
+    }
+  });
+  assert.deepEqual(tooHigh, []);
+});
+
+test('accountant can approve and refresh caches from the draft page', () => {
+  const { run, actAs, addUser } = setup();
+  addUser(KE_TOAN, 'KE_TOAN');
+  const phien = openApp(run, actAs, loginThroughGateway(run, actAs, KE_TOAN)).phien;
+  assert.ok(run('api')(phien, 'getRegionInfoForWeb', []).current);
+  assert.equal(typeof run('api')(phien, 'webRefreshPhieuCanCache', []).success, 'boolean');
+  assert.throws(() => run('api')(phien, 'webSetRegion', ['US']), /^Error: \[QUYEN\]/);
+});
+
 test('anonymous visitors are rejected, the script owner is always admin', () => {
   const { run, actAs } = setup();
   actAs('');

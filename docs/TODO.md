@@ -22,17 +22,22 @@ Trạng thái: ✅ xong · 🟡 một phần · ⏳ chưa làm · ⚖️ cần n
 | H-04 | Đồng bộ tên ghi lại cả cột | ✅ 2026.6.0 | |
 | H-05 | Mất số 0 đầu ở cache Phiếu Cân | ✅ 2026.6.0 | |
 | H-06 | STK còn dấu `'` | ✅ 2026.6.0 | |
-| H-07 | XSS qua `onclick` inline | ⏳ | P2 |
+| H-07 | XSS qua `onclick` inline | ✅ 2026.7.4 | Mọi nút mang dữ liệu dùng `hanhDong()`; `onclick` còn lại chỉ chứa hằng/chỉ số (bỏ hẳn ở P4) |
 | H-08 | `ALLOWALL` iframe | ⏳ ⚖️ | |
 | H-09 | PII trong localStorage | ⏳ ⚖️ | |
 | H-10 | PII gửi Gemini | ⏳ ⚖️ | |
 | H-11 | Audit thiếu user thật & before/after | 🟡 2026.7.0 | Đã ghi email thật cho mọi thao tác; before/after mới có ở Đồng bộ tên, Sửa tên KH, Phân quyền |
-| H-12 | Formula injection | ⏳ | Làm cùng Schema (H-01) |
+| H-12 | Formula injection | ✅ 2026.7.4 | `_oAnToan_`/`_dongAnToan_` ở mọi chỗ ghi dữ liệu |
 | H-13 | `showAddPaymentDialog` trỏ file không tồn tại | ⏳ ⚖️ | |
-| H-14 | Test tự động | ✅ 2026.6.0 | 28 test; mở rộng dần mỗi Phase |
+| H-14 | Test tự động | ✅ 2026.6.0 | 68 test (2026.7.4); mở rộng dần mỗi Phase |
 
 ## 🟡 Medium / 🟢 Low
-Xem `REFACTOR_PLAN.md` §5 — tất cả ⏳.
+| ID | Hạng mục | Trạng thái | Ghi chú |
+|---|---|---|---|
+| M-01 | Ngày UTC ở client | ✅ 2026.7.4 | `todayISOVN` / `isoDaysAgoVN` |
+| M-10 | Tên model Gemini cứng | ✅ 2026.7.4 | Cấu hình ở Cài đặt + tự dò qua ListModels |
+| M-13 | Lỗi trả `err.toString()` cho client | ✅ 2026.7.4 | `_loiChoNguoiDung_` + log `LOI_HE_THONG` |
+| M-02..M-09, M-11, M-12, M-14.., L-* | | ⏳ | Xem `REFACTOR_PLAN.md` §5 (M-03, M-04 ⚖️) |
 
 ## ❓ Cần thông tin
 - L-09: “Số điện thoại mất số 0” — file/cột nào? (code hiện không có trường điện thoại)
@@ -46,3 +51,4 @@ Xem `REFACTOR_PLAN.md` §5 — tất cả ⏳.
 - ⏳ Kiểm chứng trên Google thật: đăng nhập qua Cổng (lần đầu Google hỏi quyền xem email), đăng xuất, khóa tài khoản.
 - ⏳ Giao diện “Khôi phục từ SYS_SaoLuuDongXoa” (hoàn tất C-07).
 - ⏳ Kiểm chứng trên Google Sheets thật: `getRangeList().setValue()` và `deleteRows()` với dữ liệu lớn (mock đã kiểm chứng logic).
+- ✅ 2026.7.4: Kế toán không Duyệt được / không bấm được “↻ Làm mới” (route xếp nhầm quyền Quản trị) — thêm test dò quyền theo trang.

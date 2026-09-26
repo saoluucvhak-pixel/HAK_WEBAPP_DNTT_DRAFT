@@ -447,7 +447,7 @@
       <div class="nav-item" data-page="settings"><span class="ic">⚙️</span> Cài đặt / Nháp</div>
     </nav>
     <div class="nguoi-dung-chip" id="nguoi-dung-chip"></div>
-    <div class="sidebar-footer">Hệ thống Quản Lý Thanh Toán · v2026.7</div>
+    <div class="sidebar-footer">Hệ thống Quản Lý Thanh Toán · v2026.7.4</div>
   </aside>
 
   <main class="main">
@@ -491,7 +491,7 @@ const state = {
   createStep: 1,
   createData: {
     hoTenChuRung:'', cccdChuRung:'', cccdOptions:[], prefetchedForCccd:'', nguoiDeNghi:'', chuRungUyQuyen:'Không',
-    soHopDong:'', soHopDongOptions:[], ngayKyHopDong:'', ngayDeNghi: new Date().toISOString().slice(0,10),
+    soHopDong:'', soHopDongOptions:[], ngayKyHopDong:'', ngayDeNghi: todayISOVN(),
     phieuCan:[], nguoiNhanTien:'', nguoiNhanOptions:[], soTKNhanTien:'', nganHang:'', stkOptions:[]
   },
   pcSearchQuery: '',
@@ -515,6 +515,32 @@ const state = {
 function fmtMoney(n){ return (Number(n)||0).toLocaleString('vi-VN'); }
 function fmtKl(n){ return (Number(n)||0).toLocaleString('vi-VN', {minimumFractionDigits:2, maximumFractionDigits:3}); }
 function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+
+/* ---------- Nút/dòng mang dữ liệu ----------
+ * KHÔNG nhúng dữ liệu (tên KH, ID, email, số HĐ...) vào onclick="f('...')":
+ * trình duyệt giải mã &#39; trong thuộc tính TRƯỚC khi chạy JS, nên 1 tên có
+ * dấu ' làm hỏng nút hoặc chạy mã lạ. Thay bằng cách chèn vào thẻ:
+ *   hanhDong(tenHam, thamSo1, thamSo2)                (bấm)
+ *   hanhDongKhi('mousedown', tenHam, thamSo)          (gợi ý tìm kiếm)
+ * Tham số nằm trong data-ts dạng JSON và chỉ được đọc như DỮ LIỆU; chỉ các
+ * hàm có trong HANH_DONG mới được gọi. Ô chọn dùng this.dataset.id. */
+function hanhDongKhi(suKien, ten, ...thamSo){
+  return `data-hd="${esc(ten)}" data-hd-su-kien="${esc(suKien)}" data-ts="${esc(JSON.stringify(thamSo))}"`;
+}
+function hanhDong(ten, ...thamSo){ return hanhDongKhi('click', ten, ...thamSo); }
+const HANH_DONG = {
+  goToLedgerFor, openLedgerFor, pickChuRung, pickModongChuRung,
+  viewDraftDetail, editDraftRecord, confirmDeleteDraft, doHuyXacNhan, saveDraftEdit,
+  removePhieuCan, searchPhieuCanForEdit,
+  toggleShareBox, doSwapLink, doShareLink, doRevokeLink
+};
+['click', 'mousedown'].forEach(loai => document.addEventListener(loai, e => {
+  const el = e.target.closest('[data-hd]');
+  if (!el || el.dataset.hdSuKien !== loai) return;
+  const fn = HANH_DONG[el.dataset.hd];
+  if (!fn) { console.error('Hành động chưa đăng ký:', el.dataset.hd); return; }
+  fn(...JSON.parse(el.dataset.ts));
+}));
 
 /* ============================================================
  * PHÂN TRANG (mục R - tối ưu tốc độ hiển thị)
@@ -557,14 +583,8 @@ function clampDateRange(fromId, toId){
   }
   return false;
 }
-function isoDaysAgo(days){
-  const d = new Date();
-  d.setDate(d.getDate() - days);
-  return d.toISOString().slice(0,10);
-}
-/** MỚI (mục AB): tính ngày theo giờ GMT+7 (khớp múi giờ backend) - dùng
- * riêng cho Công Nợ để khớp đúng snapshot đã tính sẵn theo lịch
- * 7:30/13:00, tránh lệch ngày quanh nửa đêm khiến cache không khớp. */
+/** Ngày theo giờ GMT+7 (khớp múi giờ backend) - dùng cho MỌI ô ngày mặc
+ * định. toISOString() trần là giờ UTC: trước 7h sáng sẽ ra ngày hôm qua. */
 function _vnNow_(){
   const d = new Date();
   d.setTime(d.getTime() + 7 * 3600 * 1000);
@@ -843,7 +863,7 @@ function _renderDashTheoTable_(rows){
 function _renderDashTop5NoTable_(rows){
   if (!rows || !rows.length) return '<div class="empty"><div class="ic">✅</div>Không có khách hàng nào còn nợ.</div>';
   return `<table><thead><tr><th>Khách hàng</th><th class="num">Còn nợ (VNĐ)</th></tr></thead><tbody>
-    ${rows.map(r => `<tr class="clickable" onclick="goToLedgerFor('customer','${esc(r.khachHang)}')"><td>${esc(r.khachHang)}</td><td class="num debt-neg">${fmtMoney(r.congNo)}</td></tr>`).join('')}
+    ${rows.map(r => `<tr class="clickable" ${hanhDong('goToLedgerFor', 'customer', r.khachHang)}><td>${esc(r.khachHang)}</td><td class="num debt-neg">${fmtMoney(r.congNo)}</td></tr>`).join('')}
   </tbody></table>`;
 }
 function renderDashboard(){
@@ -928,7 +948,7 @@ function resetCreateData(){
   state.createStep = 1;
   state.createData = {
     hoTenChuRung:'', cccdChuRung:'', cccdOptions:[], prefetchedForCccd:'', nguoiDeNghi:'', chuRungUyQuyen:'Không',
-    soHopDong:'', soHopDongOptions:[], ngayKyHopDong:'', ngayDeNghi: new Date().toISOString().slice(0,10),
+    soHopDong:'', soHopDongOptions:[], ngayKyHopDong:'', ngayDeNghi: todayISOVN(),
     phieuCan:[], nguoiNhanTien:'', nguoiNhanOptions:[], soTKNhanTien:'', nganHang:'', stkOptions:[]
   };
   state.pcSearchQuery = '';
@@ -1056,7 +1076,7 @@ function searchHoTenSuggest(q){
     list.sort((a,b) => a.localeCompare(b));
     const results = list.slice(0, 30);
     if (!results.length) { box.classList.add('hidden'); return; }
-    box.innerHTML = results.map(n => `<div class="suggest-item" onmousedown='pickChuRung(${JSON.stringify(n)})'>${esc(n)}</div>`).join('');
+    box.innerHTML = results.map(n => `<div class="suggest-item" ${hanhDongKhi('mousedown', 'pickChuRung', n)}>${esc(n)}</div>`).join('');
     box.classList.remove('hidden');
   });
 }
@@ -1675,7 +1695,7 @@ function renderDraftTable(){
       <th class="num">Số phiếu</th><th class="num">KL (kg)</th><th class="num">Số tiền</th><th>Trạng thái</th><th></th>
     </tr></thead><tbody>
     ${list.map(r => `<tr>
-      <td><input type="checkbox" class="chk-row" data-id="${esc(r.idKey)}" ${r.sanSangChot?'':'disabled title="Chưa tính Đề Nghị Thanh Toán"'} onchange="toggleRow('${esc(r.idKey)}', this.checked)"></td>
+      <td><input type="checkbox" class="chk-row" data-id="${esc(r.idKey)}" ${r.sanSangChot?'':'disabled title="Chưa tính Đề Nghị Thanh Toán"'} onchange="toggleRow(this.dataset.id, this.checked)"></td>
       <td>${esc(r.chuRung)}</td>
       <td>${esc(r.nguoiNhan)}</td>
       <td>${esc(r.nganHang)}<br><span class="muted mono" style="font-size:11.5px">${esc(r.stk)}</span></td>
@@ -1694,15 +1714,15 @@ function renderDraftTable(){
  * "Chưa ĐNTT" chỉ Xem. Hồ sơ "Đang ĐNTT" chỉ Xem + "Về Chờ ĐNTT" (để mở
  * khóa Sửa/Xóa nếu cần). */
 function draftRowActionsHtml(r){
-  const xem = `<button class="btn sm ghost" onclick="viewDraftDetail('${esc(r.idKey)}')">Xem</button>`;
+  const xem = `<button class="btn sm ghost" ${hanhDong('viewDraftDetail', r.idKey)}>Xem</button>`;
   if (r.trangThaiKey === 'cho_dntt') {
     return `${xem}
-      <button class="btn sm ghost" onclick="editDraftRecord('${esc(r.idKey)}')">Sửa</button>
-      <button class="btn sm danger" onclick="confirmDeleteDraft('${esc(r.idKey)}')">Xóa</button>`;
+      <button class="btn sm ghost" ${hanhDong('editDraftRecord', r.idKey)}>Sửa</button>
+      <button class="btn sm danger" ${hanhDong('confirmDeleteDraft', r.idKey)}>Xóa</button>`;
   }
   if (r.trangThaiKey === 'dang_dntt') {
     return `${xem}
-      <button class="btn sm ghost" onclick="doHuyXacNhan('${esc(r.idKey)}')">↩️ Về Chờ ĐNTT</button>`;
+      <button class="btn sm ghost" ${hanhDong('doHuyXacNhan', r.idKey)}>↩️ Về Chờ ĐNTT</button>`;
   }
   return xem; // cho_tinh (Chưa ĐNTT) - chỉ Xem
 }
@@ -1801,8 +1821,7 @@ function doInBaoCaoDNTT(){
 function openCreateUNCModal(){
   const ids = Array.from(state.draftSelected);
   if (!ids.length) { toast('Vui lòng chọn ít nhất 1 hồ sơ.', 'warn'); return; }
-  const today = new Date();
-  const iso = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+  const iso = todayISOVN();
   openModal(`
     <div class="modal-head"><h3>Tạo File UNC (${ids.length} hồ sơ)</h3><button class="x" onclick="closeModal()">&times;</button></div>
     <div class="modal-body">
@@ -1866,14 +1885,14 @@ function viewDraftDetail(idKey){
         <h3 style="margin:16px 0 8px 0; font-size:14px">Danh sách phiếu cân (${r.chiTiet.length})</h3>
         <table><thead><tr><th>Số phiếu cân</th><th class="num">KL (Tấn)</th><th class="num">Thành tiền</th>${editable?'<th></th>':''}</tr></thead><tbody>
         ${r.chiTiet.map(d => `<tr><td class="mono">${esc(d.soPhieuCan)}</td><td class="num">${fmtKl(d.klTan)}</td><td class="num">${fmtMoney(d.thanhTien)}</td>
-          ${editable ? `<td><button class="btn sm danger" onclick="removePhieuCan('${esc(d.idCT)}','${esc(r.idKey)}')">Xóa</button></td>` : ''}</tr>`).join('')}
+          ${editable ? `<td><button class="btn sm danger" ${hanhDong('removePhieuCan', d.idCT, r.idKey)}>Xóa</button></td>` : ''}</tr>`).join('')}
         </tbody></table>
         ${editable ? `
         <div class="field" style="margin-top:16px">
           <label>Thêm phiếu cân vào hồ sơ này</label>
           <div style="display:flex;gap:8px">
             <input type="text" id="edit-pc-search" placeholder="Nhập số phiếu cân để tìm (để trống xem tất cả khả dụng của Chủ rừng này)...">
-            <button class="btn primary sm" onclick='searchPhieuCanForEdit(${JSON.stringify(r.idKey)}, ${JSON.stringify(r.chuRung)})'>🔍 Tìm</button>
+            <button class="btn primary sm" ${hanhDong('searchPhieuCanForEdit', r.idKey, r.chuRung)}>🔍 Tìm</button>
           </div>
           <div id="edit-pc-results" class="muted" style="font-size:13px;margin-top:8px"></div>
         </div>` : `<div class="hint-text" style="margin-top:16px">Hồ sơ đang ở trạng thái "${r.soTien>0?'Đang ĐNTT':'Chưa ĐNTT'}" - chỉ xem, không thể sửa/xóa phiếu cân. ${r.daXacNhan?'Bấm "Về Chờ ĐNTT" ở danh sách nếu cần sửa.':''}</div>`}
@@ -1987,7 +2006,7 @@ function editDraftRecord(idKey){
         <div class="hint-text">Số tiền / lũy kế theo hợp đồng do "Đề Nghị Thanh Toán" tự tính, không sửa tay ở đây.</div>
       </div>
       <div class="modal-foot"><button class="btn ghost" onclick="closeModal()">Hủy</button>
-        <button class="btn primary" onclick="saveDraftEdit('${esc(r.idKey)}')">💾 Lưu thay đổi</button></div>
+        <button class="btn primary" ${hanhDong('saveDraftEdit', r.idKey)}>💾 Lưu thay đổi</button></div>
     `);
   });
 }
@@ -2014,8 +2033,7 @@ function confirmDeleteDraft(idKey){
 function openConfirmPaymentModal(){
   const ids = Array.from(state.draftSelected);
   if (!ids.length) return;
-  const today = new Date();
-  const dd = String(today.getDate()).padStart(2,'0'), mm = String(today.getMonth()+1).padStart(2,'0'), yyyy = today.getFullYear();
+  const [yyyy, mm, dd] = todayISOVN().split('-');
   // MỚI (theo yêu cầu - cấu hình vùng lãnh thổ): nhãn + giá trị mặc định
   // của ô "Ngày thanh toán" tự đổi theo vùng đang cấu hình (VN: dd/mm,
   // US: mm/dd) - khớp đúng với cách backend sẽ phân tích chuỗi này.
@@ -2070,14 +2088,12 @@ function renderReport(){
 }
 
 function renderGoKeoTab(){
-  const today = new Date();
-  const toISO = d => d.toISOString().slice(0,10);
   const body = document.getElementById('report-body');
   body.innerHTML = `
     <div class="card">
       <div class="grid cols-3">
-        <div class="field"><label>Từ ngày</label><input type="date" id="rp-from" value="${isoDaysAgo(90)}"></div>
-        <div class="field"><label>Đến ngày</label><input type="date" id="rp-to" value="${toISO(today)}"></div>
+        <div class="field"><label>Từ ngày</label><input type="date" id="rp-from" value="${isoDaysAgoVN(90)}"></div>
+        <div class="field"><label>Đến ngày</label><input type="date" id="rp-to" value="${todayISOVN()}"></div>
         <div class="field" style="display:flex; align-items:flex-end; gap:8px">
           <button class="btn primary" onclick="loadReport()">🔍 Xem báo cáo</button>
         </div>
@@ -2110,8 +2126,8 @@ function renderMisaTab(){
       <h3>🏦 Báo Cáo MISA</h3>
       <p class="muted" style="font-size:13px">Xem/lọc dữ liệu Update_NganHang_DN theo khoảng ngày (Ngày hạch toán) - hồ sơ được <b>tự động ghi vào đây ngay khi Đóng Thanh Toán</b>, không cần bấm tay. Cần tạo lại cho hồ sơ cũ/dự phòng? Xem mục "Hệ Thống".</p>
       <div class="grid cols-3">
-        <div class="field"><label>Từ ngày</label><input type="date" id="misa-from" value="${isoDaysAgo(7)}"></div>
-        <div class="field"><label>Đến ngày</label><input type="date" id="misa-to" value="${new Date().toISOString().slice(0,10)}"></div>
+        <div class="field"><label>Từ ngày</label><input type="date" id="misa-from" value="${isoDaysAgoVN(7)}"></div>
+        <div class="field"><label>Đến ngày</label><input type="date" id="misa-to" value="${todayISOVN()}"></div>
         <div class="field" style="display:flex;align-items:flex-end;gap:8px">
           <button class="btn primary" onclick="loadMisaTab()">🔍 Xem</button>
           <button class="btn accent" onclick="doExportMisaTheoNgay()">📥 Xuất Excel</button>
@@ -2208,8 +2224,8 @@ function renderChiTietTab(){
       <p class="muted" style="font-size:13px">Xem theo TỪNG PHIẾU CÂN - đọc trực tiếp từ dữ liệu đã tính sẵn (ChiTietDNTT), không cần join lại - nhanh hơn tab "Gỗ Keo". Lọc theo "Ngày ghi" (thời điểm Đóng Thanh Toán). <b>Chỉ có dữ liệu từ khi tính năng này được bật</b> - hồ sơ chốt TRƯỚC đó sẽ không hiện ở đây, dùng tab "Gỗ Keo" cho lịch sử đầy đủ.</p>
       <div class="hint-text">Khác với tab "Gỗ Keo": tab đó xuất được file Excel định dạng in ấn đầy đủ (Bảng Đề Xuất + Bảng Kê Chi Tiết) cho TOÀN BỘ lịch sử; tab này chỉ để XEM/LỌC nhanh dữ liệu gần đây, xuất Excel đơn giản hơn.</div>
       <div class="grid cols-3">
-        <div class="field"><label>Từ ngày</label><input type="date" id="chitiet-from" value="${isoDaysAgo(7)}"></div>
-        <div class="field"><label>Đến ngày</label><input type="date" id="chitiet-to" value="${new Date().toISOString().slice(0,10)}"></div>
+        <div class="field"><label>Từ ngày</label><input type="date" id="chitiet-from" value="${isoDaysAgoVN(7)}"></div>
+        <div class="field"><label>Đến ngày</label><input type="date" id="chitiet-to" value="${todayISOVN()}"></div>
         <div class="field" style="display:flex;align-items:flex-end;gap:8px">
           <button class="btn primary" onclick="loadChiTietTab()">🔍 Xem</button>
           <button class="btn accent" onclick="doExportChiTietDNTT()">📥 Xuất Excel</button>
@@ -2303,8 +2319,8 @@ function renderBaoCaoUncTab(){
       <h3>🏦 Báo Cáo UNC</h3>
       <p class="muted" style="font-size:13px">Xem lại và xuất lại các lần đã tạo File UNC - dùng khi quên tải file gốc, hoặc cần gộp nhiều lần tạo trong 1 khoảng ngày thành 1 file duy nhất.</p>
       <div class="grid cols-3">
-        <div class="field"><label>Từ ngày</label><input type="date" id="baocaounc-from" value="${isoDaysAgo(7)}"></div>
-        <div class="field"><label>Đến ngày</label><input type="date" id="baocaounc-to" value="${new Date().toISOString().slice(0,10)}"></div>
+        <div class="field"><label>Từ ngày</label><input type="date" id="baocaounc-from" value="${isoDaysAgoVN(7)}"></div>
+        <div class="field"><label>Đến ngày</label><input type="date" id="baocaounc-to" value="${todayISOVN()}"></div>
         <div class="field" style="display:flex;align-items:flex-end;gap:8px">
           <button class="btn primary" onclick="loadBaoCaoUncTab()">🔍 Xem</button>
           <button class="btn accent" onclick="doExportBaoCaoUnc()">📥 Xuất Excel</button>
@@ -2542,7 +2558,7 @@ function renderReportTable(){
       <th class="num">KL (Tấn)</th><th class="num">Số tiền</th>
     </tr></thead><tbody>
     ${pageRows.map(r => `<tr>
-      <td><input type="checkbox" class="rp-chk-row" data-id="${esc(r.idHeThong)}" ${state.reportSelected.has(r.idHeThong)?'checked':''} onchange="toggleReportRow('${esc(r.idHeThong)}', this.checked)"></td>
+      <td><input type="checkbox" class="rp-chk-row" data-id="${esc(r.idHeThong)}" ${state.reportSelected.has(r.idHeThong)?'checked':''} onchange="toggleReportRow(this.dataset.id, this.checked)"></td>
       <td>${esc(r.ngayDN)}</td><td>${esc(r.soLan)}</td><td>${esc(r.chuRung)}</td><td>${esc(r.nguoiNhan)}</td>
       <td class="mono">${esc(r.soHD)}</td>
       <td>${esc(r.nganHang)}<br><span class="muted mono" style="font-size:11.5px">${esc(r.stk)}</span></td>
@@ -2744,7 +2760,7 @@ function renderDebtByCustomerTable(){
         <th>Khách hàng</th><th class="num">KL nhập trong kỳ (tấn)</th><th class="num">Giá trị nhập trong kỳ</th><th class="num">Đã TT trong kỳ</th>
         <th class="num">Giá trị nhập lũy kế</th><th class="num">Đã TT lũy kế</th><th class="num">Công nợ</th>
       </tr></thead><tbody>
-      ${pageRows.map(r => `<tr class="clickable" onclick="openLedgerFor('customer','${esc(r.khachHang)}')">
+      ${pageRows.map(r => `<tr class="clickable" ${hanhDong('openLedgerFor', 'customer', r.khachHang)}>
         <td>${esc(r.khachHang)}</td>
         <td class="num">${fmtKl(r.klNhapTrongKy)}</td><td class="num">${fmtMoney(r.giaTriNhapTrongKy)}</td><td class="num">${fmtMoney(r.daTTTrongKy)}</td>
         <td class="num">${fmtMoney(r.giaTriNhapLuyKe)}</td><td class="num">${fmtMoney(r.daTTLuyKe)}</td>
@@ -2786,7 +2802,7 @@ function renderDebtByContractTable(){
         <th>Số HĐ</th><th>Chủ rừng</th><th>Ngày ký</th><th class="num">SL dự kiến (tấn)</th><th class="num">SL đã thực hiện</th>
         <th class="num">Còn lại/Vượt SL</th><th class="num">Giá trị TT trong kỳ</th><th class="num">Đang chờ TT (công nợ)</th>
       </tr></thead><tbody>
-      ${pageRows.map(r => `<tr class="clickable" onclick="openLedgerFor('contract','${esc(r.soHD)}')">
+      ${pageRows.map(r => `<tr class="clickable" ${hanhDong('openLedgerFor', 'contract', r.soHD)}>
         <td class="mono">${esc(r.soHD)}</td><td>${esc(r.chuRung)}</td><td>${esc(r.ngayKy)}</td>
         <td class="num">${fmtKl(r.slDuKien)}</td><td class="num">${fmtKl(r.klThucHienLuyKe)}</td>
         <td class="num ${r.conLaiSanLuong<0?'debt-neg':''}">${fmtKl(Math.abs(r.conLaiSanLuong))}${r.conLaiSanLuong<0?' (vượt)':''}</td>
@@ -3472,8 +3488,8 @@ function renderHeThong(){
       <h3>📜 Lịch Sử Sửa Đổi</h3>
       <p class="muted" style="font-size:13px">Theo dõi việc Mở Đóng Thanh Toán, Đồng Bộ Tên Khách Hàng và Cập Nhật Ngân Hàng - kèm người thực hiện (Gmail). Xem theo khoảng ngày, không hiện dồn tất cả.</p>
       <div class="grid cols-3">
-        <div class="field"><label>Từ ngày</label><input type="date" id="lichsu-from" value="${isoDaysAgo(7)}"></div>
-        <div class="field"><label>Đến ngày</label><input type="date" id="lichsu-to" value="${new Date().toISOString().slice(0,10)}"></div>
+        <div class="field"><label>Từ ngày</label><input type="date" id="lichsu-from" value="${isoDaysAgoVN(7)}"></div>
+        <div class="field"><label>Đến ngày</label><input type="date" id="lichsu-to" value="${todayISOVN()}"></div>
         <div class="field" style="display:flex;align-items:flex-end"><button class="btn primary" onclick="loadLichSuSuaDoi()">🔍 Xem</button></div>
       </div>
       <div id="lichsu-result" style="margin-top:10px"></div>
@@ -3488,8 +3504,8 @@ function renderHeThong(){
       <h3>🔧 Tạo Lại MISA (dự phòng, theo khoảng ngày)</h3>
       <p class="muted" style="font-size:13px">Dùng khi: hồ sơ CŨ (chốt trước khi có tính năng tự động ghi MISA), hoặc lần tự động bị lỗi. Chọn khoảng ngày ĐÃ CHỐT cần tạo lại - hệ thống tự quét, tự bỏ qua dòng đã có sẵn (không trùng), tự xử lý theo lô và lặp lại tới khi xong.</p>
       <div class="grid cols-2">
-        <div class="field"><label>Từ ngày (Ngày ĐN đã chốt)</label><input type="date" id="taolaimisa-from" value="${isoDaysAgo(7)}"></div>
-        <div class="field"><label>Đến ngày</label><input type="date" id="taolaimisa-to" value="${new Date().toISOString().slice(0,10)}"></div>
+        <div class="field"><label>Từ ngày (Ngày ĐN đã chốt)</label><input type="date" id="taolaimisa-from" value="${isoDaysAgoVN(7)}"></div>
+        <div class="field"><label>Đến ngày</label><input type="date" id="taolaimisa-to" value="${todayISOVN()}"></div>
       </div>
       <button class="btn" style="background:var(--timber);color:#fff;border-color:var(--timber)" onclick="doTaoLaiMisaTheoNgay()">🔧 Tạo Lại Ngay</button>
       <div id="taolaimisa-result" style="margin-top:10px"></div>
@@ -3498,9 +3514,9 @@ function renderHeThong(){
       <h3>🔧 Tạo Lại UNC (dự phòng, theo khoảng ngày)</h3>
       <p class="muted" style="font-size:13px">Dùng khi UNC bị sai/lỗi/quên tạo cho hồ sơ ĐÃ CHỐT. Chọn khoảng ngày đã chốt cần tạo lại - xử lý theo lô, tự lặp tới khi xong. Với khoảng ngày rộng, mỗi lô sẽ ra 1 file UNC riêng (không gộp).</p>
       <div class="grid cols-3">
-        <div class="field"><label>Từ ngày (Ngày ĐN đã chốt)</label><input type="date" id="taolaiuncht-from" value="${isoDaysAgo(7)}"></div>
-        <div class="field"><label>Đến ngày</label><input type="date" id="taolaiuncht-to" value="${new Date().toISOString().slice(0,10)}"></div>
-        <div class="field"><label>Ngày hiệu lực UNC</label><input type="date" id="taolaiuncht-hieuluc" value="${new Date().toISOString().slice(0,10)}"></div>
+        <div class="field"><label>Từ ngày (Ngày ĐN đã chốt)</label><input type="date" id="taolaiuncht-from" value="${isoDaysAgoVN(7)}"></div>
+        <div class="field"><label>Đến ngày</label><input type="date" id="taolaiuncht-to" value="${todayISOVN()}"></div>
+        <div class="field"><label>Ngày hiệu lực UNC</label><input type="date" id="taolaiuncht-hieuluc" value="${todayISOVN()}"></div>
       </div>
       <div class="grid cols-2">
         <div class="field"><label>Tài khoản trích nợ</label><input type="text" id="taolaiuncht-tktrichno" placeholder="Đang tải mặc định..."></div>
@@ -3535,7 +3551,7 @@ function searchModongChuRung(q){
   if (!q) { box.classList.add('hidden'); return; }
   call('timChuRungDaChot', [q], null).then(results => {
     if (!results || !results.length) { box.classList.add('hidden'); return; }
-    box.innerHTML = results.map(r => `<div class="suggest-item" onmousedown='pickModongChuRung(${JSON.stringify(r)})'>
+    box.innerHTML = results.map(r => `<div class="suggest-item" ${hanhDongKhi('mousedown', 'pickModongChuRung', r)}>
       <b>${esc(r.chuRung)}</b> <span class="muted">- Đóng TT ${esc(r.ngayHienThi)}, Lần ${esc(r.lanTT)}, HĐ ${esc(r.soHD)}</span>
     </div>`).join('');
     box.classList.remove('hidden');
@@ -3585,6 +3601,8 @@ function loadLichSuSuaDoi(){
       XOA_MO_COI_CT_THAT: '⚠️ Xóa Mồ Côi CT Thật',
       XOA_MO_COI_SRC_THAT: '⚠️ Xóa Mồ Côi Nguồn Thật',
       SUA_TEN_KH_PHIEU_CAN: '✏️ Sửa Tên KH Phiếu Cân',
+      LOI_HE_THONG: '🐞 Lỗi hệ thống',
+      CAU_HINH_MODEL_AI: '🤖 Cấu hình model AI',
       PHAN_QUYEN: '👥 Phân Quyền',
       CAU_HINH_DANG_NHAP: '🔐 Cấu Hình Đăng Nhập',
       CANH_BAO_HEADER_PC: '⚠️ Cột Phiếu Cân Thay Đổi',
@@ -3713,6 +3731,11 @@ function renderSettings(){
         <div id="chatbot-status" style="font-size:13px;margin-bottom:6px">Đang kiểm tra...</div>
         <div class="field"><label>API key Gemini</label><input type="password" id="chatbot-apikey" placeholder="Dán API key vào đây"></div>
         <button class="btn accent" onclick="doSaveChatbotApiKey()">💾 Lưu API Key</button>
+        <div class="field" style="margin-top:14px"><label>Model Gemini (thử theo thứ tự từ trái sang, cách nhau dấu phẩy - để trống = mặc định)</label>
+          <input type="text" id="chatbot-models" placeholder="Đang tải..."></div>
+        <div class="hint-text" id="chatbot-model-info" style="margin-bottom:8px"></div>
+        <button class="btn" onclick="doDoModelGemini()">🔍 Dò model khả dụng</button>
+        <button class="btn accent" onclick="doSaveGeminiModels()">💾 Lưu danh sách model</button>
       </div>
       <div class="card">
         <h3>Tiện ích khác</h3>
@@ -4000,7 +4023,22 @@ function loadChatbotSettings(){
     el.innerHTML = s && s.coApiKey
       ? '✅ Đã cấu hình API key - chatbot đang dùng AI.'
       : '⭕ Chưa có API key - chatbot đang ở chế độ dự phòng (không AI).';
+    const o = document.getElementById('chatbot-models');
+    if (o) { o.value = (s.models || []).join(', '); o.placeholder = (s.modelsMacDinh || []).join(', '); }
+    const info = document.getElementById('chatbot-model-info');
+    if (info) info.textContent = s.modelDangDung
+      ? `Đang dùng: ${s.modelDangDung}. Khi mọi model trong danh sách đều lỗi, hệ thống tự dò model còn dùng được.`
+      : 'Khi mọi model trong danh sách đều lỗi, hệ thống tự dò model còn dùng được.';
   });
+}
+function doDoModelGemini(){
+  call('webDoModelGemini', [], 'Đang hỏi Google danh sách model...').then(res => {
+    handleResult(res, () => { document.getElementById('chatbot-models').value = res.models.join(', '); });
+  });
+}
+function doSaveGeminiModels(){
+  const v = document.getElementById('chatbot-models').value;
+  call('webSetGeminiModels', [v], 'Đang lưu...').then(res => handleResult(res, loadChatbotSettings));
 }
 function doSaveChatbotApiKey(){
   const key = document.getElementById('chatbot-apikey').value.trim();
@@ -4157,12 +4195,12 @@ function loadConfigLinks(){
                   ? `<a href="${esc(l.url)}" target="_blank" style="font-size:13px">🔗 ${esc(l.name || 'Mở file')}</a>`
                   : `<span style="font-size:13px;color:var(--timber)">${esc(l.name || 'Chưa cấu hình')}</span>`}
               </div>
-              ${l.shareable ? `<button class="btn" style="font-size:12px" onclick="toggleShareBox('${esc(k)}')">📤 Chia sẻ</button>` : ''}
+              ${l.shareable ? `<button class="btn" style="font-size:12px" ${hanhDong('toggleShareBox', k)}>📤 Chia sẻ</button>` : ''}
             </div>
             ${l.changeable ? `
             <div style="display:flex;gap:6px;margin-top:8px">
               <input type="text" id="swap-${esc(l.key)}" placeholder="Dán URL/ID mới để đổi..." style="flex:1;min-width:160px">
-              <button class="btn" onclick="doSwapLink('${esc(l.key)}','${esc(l.type)}')">Đổi</button>
+              <button class="btn" ${hanhDong('doSwapLink', l.key, l.type)}>Đổi</button>
             </div>` : ''}
             ${l.shareable ? `
             <div id="share-box-${esc(k)}" data-label="${esc(l.label)}" style="display:none;margin-top:8px">
@@ -4172,7 +4210,7 @@ function loadConfigLinks(){
                   <option value="view">Chỉ xem</option>
                   <option value="edit">Chỉnh sửa</option>
                 </select>
-                <button class="btn accent" onclick="doShareLink('${esc(k)}')">Chia sẻ</button>
+                <button class="btn accent" ${hanhDong('doShareLink', k)}>Chia sẻ</button>
               </div>
               <div style="margin-top:8px">
                 <div class="muted" style="font-size:12px;margin-bottom:4px">Đã cấp quyền cho:</div>
@@ -4214,7 +4252,7 @@ function loadSharedUsers(key){
     listEl.innerHTML = res.users.map(u => `
       <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12.5px;padding:4px 0;border-bottom:1px solid var(--border)">
         <span>${esc(u.email)} <span class="muted">(${u.role === 'edit' ? 'Chỉnh sửa' : 'Chỉ xem'})</span></span>
-        <button class="btn" style="font-size:11px;padding:2px 8px" onclick="doRevokeLink('${esc(key)}','${esc(u.email)}')">Thu hồi</button>
+        <button class="btn" style="font-size:11px;padding:2px 8px" ${hanhDong('doRevokeLink', key, u.email)}>Thu hồi</button>
       </div>
     `).join('');
   }).catch(() => { listEl.innerHTML = '<span class="muted" style="font-size:12px">Không tải được danh sách.</span>'; });

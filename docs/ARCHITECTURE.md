@@ -1,4 +1,4 @@
-# ARCHITECTURE — HAK Quản Lý Thanh Toán (v2026.7.0)
+# ARCHITECTURE — HAK Quản Lý Thanh Toán (v2026.7.4)
 
 > Tài liệu sống: cập nhật mỗi khi đổi module, lớp, luồng dữ liệu hoặc schema.
 > Phân tích chi tiết hiện trạng: `docs/PROJECT_ANALYSIS.md`. Kiến trúc đích: `docs/REFACTOR_PLAN.md` §3–§4.
@@ -43,6 +43,7 @@ Quy tắc bắt buộc cho mọi code mới: **không đọc cả sheet rồi gh
 | `_tapKhoaTrongCot_(sh, colKey, colCo)` | Kiểm tra “đã tồn tại / đã chốt” (idempotency) | 1–2 đọc |
 | `_chayTrongKhoa_(fn)` | Đoạn đọc-rồi-ghi-thêm ngoài luồng đã giữ `sysLock` | – |
 | `_giuDangChu_(v)` | Giữ số 0 đầu cho chuỗi số khi ghi | – |
+| `_oAnToan_(v)` / `_dongAnToan_(rows, cotChu)` | **Mọi** ô/dòng dữ liệu trước khi ghi: chữ mở đầu `= + - @` thêm `'` (không thành công thức); `cotChu` giữ số 0 đầu. Các hàm trên đã tự gọi | – |
 
 ### Sao lưu dòng bị xóa — `SYS_SaoLuuDongXoa` (File Chính)
 
@@ -86,10 +87,12 @@ Trình duyệt ─ google.script.run.api(phiên, "tenChucNang", [tham số])
 | Danh tính | `_xacDinhNguoiDung_()`: người của phiên hiện tại, nếu không có thì `Session.getActiveUser()` (chủ script khi tự mở web app; người bấm menu). Người Gmail khác mở web app “execute as me” → rỗng → bị chặn |
 | Chủ script & Quản trị cố định | `Session.getEffectiveUser()` và danh sách `QUAN_TRI_CO_DINH` (trong code) luôn là ADMIN, không đổi/khóa được từ web app |
 | Người dùng | `SYS_NguoiDung`: Email · Họ tên · Vai trò · Trạng thái · Cập nhật lúc · Cập nhật bởi (cache 60 giây) |
-| Cấu hình | Script Properties `SSO_SECRET`, `SSO_GATEWAY_URL` |
+| Cấu hình | Script Properties `SSO_SECRET`, `SSO_GATEWAY_URL` (Trợ lý AI: `GEMINI_API_KEY`, `GEMINI_MODELS`, `GEMINI_MODEL`) |
 | Lỗi | `[AUTH] …` → client hiện màn hình đăng nhập; `[QUYEN] …` → chỉ báo lỗi |
 
-Quy tắc: **thêm chức năng mới gọi từ web** = viết hàm nội bộ `ten_` + thêm 1 dòng vào `API_ROUTES` với quyền phù hợp. Test `auth.test.mjs` sẽ báo lỗi nếu có hàm global mới không kết thúc bằng `_`, hoặc trình duyệt gọi 1 chức năng chưa có route.
+Quy tắc: **thêm chức năng mới gọi từ web** = viết hàm nội bộ `ten_` + thêm 1 dòng vào `API_ROUTES` với quyền phù hợp. Test `auth.test.mjs` sẽ báo lỗi nếu có hàm global mới không kết thúc bằng `_`, trình duyệt gọi 1 chức năng chưa có route, hoặc 1 trang (theo `PAGES[].quyen`) gọi chức năng cần quyền **cao hơn** quyền mở trang đó.
+
+Lỗi: `api()` và các hàm trả `{success:false, message}` dùng `_loiChoNguoiDung_(e)` — lỗi nghiệp vụ (`new Error("…")`) hiện nguyên câu; lỗi lập trình (TypeError…) chỉ hiện mã tra cứu, chi tiết + stack ghi `NhatKyThaoTac` (`LOI_HE_THONG`).
 
 ## 5. Kiểm thử
 
@@ -100,11 +103,12 @@ HAK_CODE_GS=/đường/dẫn/Code.cu.gs node --test "tests/**/*.test.mjs"   # so
 
 | Thư mục | Nội dung |
 |---|---|
-| `tests/gas/mock.mjs` | Mock SpreadsheetApp/Properties/Cache/Lock/Utilities/Session… trong bộ nhớ, ghi lại mọi thao tác ghi (`sheet.writes`) |
+| `tests/gas/mock.mjs` | Mock SpreadsheetApp/Properties/Cache/Lock/Utilities/Session… trong bộ nhớ, ghi lại mọi thao tác ghi (`sheet.writes`); như Google Sheets: `"0123"` không có `'` thành số, chữ mở đầu `= + - @` không có `'` bị đánh dấu `FORMULA_MARK` |
 | `tests/gas/loadCode.mjs` | Nạp `Code.gs` vào V8 context riêng |
 | `tests/gas/fixtures.mjs` | Bộ dữ liệu mẫu File Nháp + File Chính + file ngoài |
-| `tests/unit/` | Hàm thuần & lớp ghi an toàn |
-| `tests/integration/` | Chốt TT, chạy lại, Mở Đóng TT, bảo trì, tách phiếu, vá ngân hàng, xác nhận, cache, đăng nhập & phân quyền |
+| `tests/gas/clientSource.mjs` | Tách 1 hàm của `Index.html` để test không cần trình duyệt |
+| `tests/unit/` | Hàm thuần, lớp ghi an toàn, ngày giờ VN & nút mang dữ liệu ở client |
+| `tests/integration/` | Chốt TT, chạy lại, Mở Đóng TT, bảo trì, tách phiếu, vá ngân hàng, xác nhận, cache, đăng nhập & phân quyền, số 0 đầu, chống công thức, thông điệp lỗi, model Gemini |
 
 File test dùng đuôi `.mjs` để công cụ đồng bộ Apps Script không coi là mã server.
 
@@ -112,7 +116,11 @@ File test dùng đuôi `.mjs` để công cụ đồng bộ Apps Script không c
 
 - Hàm nội bộ kết thúc bằng `_` (không gọi được từ client). Mọi hàm mới đều phải là hàm nội bộ; trình duyệt gọi qua `API_ROUTES` (xem §4b).
 - Email người thao tác: dùng `_emailNguoiThucHien_()`, không gọi `Session.getActiveUser()` trực tiếp.
-- **Số 0 đầu** (CCCD, STK, Số HĐ, Số phiếu cân, ID_112): mọi lần GHI giá trị dạng chữ dùng `_chu_(v)`; ghi lại cả dòng thì dùng `_giuDangChuTheoCot_(rows, COT_CHU.CT|H112|SRC)` hoặc tham số `cotChu` của `_thayVungDuLieu_`. CCCD đọc từ file gốc qua `_chuanHoaCCCD_()`. Không nối `"'" + x` trực tiếp.
+- **Số 0 đầu** (CCCD, STK, Số HĐ, Số phiếu cân, ID_112): mọi lần GHI giá trị dạng chữ dùng `_chu_(v)`; ghi lại cả dòng thì dùng `_dongAnToan_(rows, COT_CHU.CT|H112|SRC)` hoặc tham số `cotChu` của `_thayVungDuLieu_`. CCCD đọc từ file gốc qua `_chuanHoaCCCD_()`. Không nối `"'" + x` trực tiếp.
 - Tên khách hàng chung trên phiếu cân: hằng `TEN_KHACH_CHUNG` (đã chuẩn hóa, gồm cả dạng có dấu).
+- **Ghi dữ liệu vào Sheet**: luôn qua `_dongAnToan_(rows, cotChu)` / `_oAnToan_(v)` hoặc các hàm lớp ghi ở §3 (đã tự áp dụng). Header/tiêu đề cố định trong code thì không cần. Công thức cố ý dùng `setFormula`.
+- **Client — nút mang dữ liệu**: không nhúng dữ liệu vào `onclick="f('…')"`; dùng `${hanhDong('tenHam', thamSo…)}` (hoặc `hanhDongKhi('mousedown', …)`) và đăng ký hàm trong `HANH_DONG`. Ô chọn dùng `data-id` + `this.dataset.id`.
+- **Client — ngày**: ngày mặc định luôn `todayISOVN()` / `isoDaysAgoVN(n)` (giờ Việt Nam), không dùng `new Date().toISOString()`.
+- **Model Gemini**: không viết tên model trong code nghiệp vụ; danh sách mặc định `GEMINI_MODELS_MAC_DINH_`, cấu hình `GEMINI_MODELS` (Script Property, sửa ở Cài đặt), model chạy được gần nhất `GEMINI_MODEL`.
 - Chỉ số cột: ưu tiên hằng (`PC_COL`, `COL_TRANG_THAI_DNTT`, `HDNCC_COL`…); chỉ số trần là nợ kỹ thuật (TODO H-01).
 - Chú thích chỉ giải thích **vì sao**; lịch sử thay đổi ghi ở `CHANGELOG.md`.

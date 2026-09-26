@@ -2,6 +2,25 @@
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/). Phiên bản theo `NĂM.ĐỢT.SỬA`; thay đổi làm đổi hành vi nghiệp vụ (⚖️) sẽ tăng số ĐỢT và ghi rõ đã được người dùng đồng ý.
 
+## [2026.7.4] — Rà soát theo kế hoạch: phân quyền, ngày giờ VN, XSS, công thức, lỗi, model AI
+
+Không đổi nghiệp vụ; chỉ sửa lỗi và bảo mật.
+
+### Fixed
+- **Kế toán bấm “Duyệt” bị báo thiếu quyền**: màn Duyệt cần đọc định dạng vùng (dd/mm hay mm/dd) nhưng quyền đọc này lại xếp vào Quản trị → chuyển thành **Xem** (chỉ đọc). Nút **↻ Làm mới** ở Danh Sách ĐNTT (làm mới cache Phiếu Cân/Hợp đồng) chuyển thành **Kế toán**. Test mới tự dò mọi trang: trang nào gọi chức năng cần quyền cao hơn quyền mở trang sẽ báo lỗi. (Việc đổi, sửa định dạng vùng vẫn chỉ Quản trị.)
+- **M-01 — Ngày mặc định lệch 1 ngày trước 7h sáng**: các ô “Đến ngày”, “Ngày đề nghị”, “Ngày hiệu lực UNC”, “Ngày thanh toán”… lấy ngày theo giờ UTC → trước 7h sáng hiện ngày hôm qua. Nay mọi ô ngày mặc định dùng giờ Việt Nam (`todayISOVN` / `isoDaysAgoVN`); bỏ hàm `isoDaysAgo` theo UTC.
+
+### Security
+- **H-07 — XSS / nút hỏng khi dữ liệu có dấu nháy**: 18 nút/dòng nhúng tên khách hàng, ID, email, số HĐ vào `onclick="f('…')"` (trình duyệt giải mã `&#39;` trước khi chạy → tên như `O'Brien` làm hỏng nút, tên độc hại chạy được mã). Thay bằng `hanhDong(tenHam, …)`: tham số nằm trong `data-ts` (JSON), đọc như dữ liệu; chỉ hàm có trong `HANH_DONG` mới gọi được. Ô chọn dùng `this.dataset.id`. Kiểm tra trên trình duyệt thật với giá trị có `'`, `"`, `<img onerror>`.
+- **H-12 — Chèn công thức (formula injection)**: chữ bắt đầu bằng `=`, `+`, `-`, `@` (vd tên KH `=HYPERLINK(...)`) bị Google Sheets/Excel chạy như công thức — cả khi nhập từ web lẫn khi hệ thống **đọc lại ô chữ rồi ghi lại** (Tổng Hợp 112, Duyệt, Xóa hồ sơ, Mở Đóng TT, mirror, UNC, MISA, Báo Cáo ĐNTT, Nhật ký, Người dùng, Sửa tên KH…). Thêm `_oAnToan_` / `_dongAnToan_` (thay `_giuDangChuTheoCot_`, gộp luôn bảo vệ số 0 đầu) và áp dụng ở lớp ghi dùng chung + mọi chỗ ghi dữ liệu. Chữ hiển thị giữ nguyên; công thức cố ý (`setFormula`) không bị ảnh hưởng.
+- **M-13 — Lỗi hệ thống lộ chi tiết kỹ thuật**: lỗi lập trình (TypeError…) trước đây hiện nguyên văn cho người dùng và không được ghi lại. Nay chỉ hiện “Lỗi hệ thống (mã XXXXXXXX)…”, chi tiết + stack ghi vào Nhật ký thao tác (`LOI_HE_THONG`). Lỗi nghiệp vụ hiện đúng câu tiếng Việt, bỏ tiền tố thừa “Error: ”.
+
+### Changed
+- **M-10 — Model Gemini không còn sửa trong code**: Cài đặt › Trợ Lý AI có ô **danh sách model** (thứ tự ưu tiên) và nút **🔍 Dò model khả dụng** (hỏi Google). Khi mọi model trong danh sách đều lỗi (Google ngừng hỗ trợ), hệ thống **tự dò** model còn dùng được và thử tiếp. Bỏ danh sách “model đã ngừng” viết cứng.
+
+### Tests
+- 68 test (thêm 15): phân quyền theo trang, ngày giờ VN, nút mang dữ liệu, chống công thức trên toàn luồng (mock mô phỏng Google Sheets chạy công thức), thông điệp lỗi, model Gemini. Mỗi test mới đều **thất bại trên bản 2026.7.3**.
+
 ## [2026.7.3] — Diễn giải gọn khi chọn nhiều phiếu cân
 
 ### Changed

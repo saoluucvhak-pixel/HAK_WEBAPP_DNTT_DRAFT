@@ -5,7 +5,7 @@
 | P0 | Nền móng: tài liệu quản trị, bộ test `node:test` + mock GAS | ✅ Hoàn thành | 2026.6.0 |
 | P1 | An toàn dữ liệu: ghi đúng ô, chạy lại an toàn, sao lưu trước khi xóa, khóa bổ sung, giữ số 0 đầu | ✅ Hoàn thành (trừ UI Khôi phục) | 2026.6.0 |
 | P2a | Bảo mật: Router `api` + Cổng đăng nhập Gmail + 3 vai trò, siết `doGet` | ✅ Hoàn thành | 2026.7.0 |
-| P2b | Bảo mật: XSS (bỏ `onclick` inline), PII (localStorage, Gemini), iframe | ⏳ (H-08/H-09/H-10 cần đồng ý ⚖️) | – |
+| P2b | Bảo mật: XSS (bỏ `onclick` inline), PII (localStorage, Gemini), iframe, chèn công thức, lỗi nội bộ | 🟡 XSS H-07, H-12, M-13 xong; còn H-08/H-09/H-10 cần đồng ý ⚖️ | 2026.7.4 |
 | P3 | Phân lớp backend (Schema/Repository/Service), ExportService, Cache + Event bus, JobService — file **phẳng** cho gas-tools | ⏳ | – |
 | P4 | Frontend components, theme, a11y, virtual scroll | ⏳ | – |
 | P5 | Multi-tenant, Notification, Audit UI, Backup/Restore UI, Import/Export, Template, Plugin, Online Update | ⏳ | – |

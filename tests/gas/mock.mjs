@@ -6,6 +6,9 @@ const toBuffer = v => (typeof v === 'string' ? Buffer.from(v, 'utf8') : Buffer.f
 const b64WebSafe = v => toBuffer(v).toString('base64').replace(/\+/g, '-').replace(/\//g, '_');
 const fromB64WebSafe = s => Array.from(Buffer.from(String(s).replace(/-/g, '+').replace(/_/g, '/'), 'base64'));
 
+/** Prefix stored for text that Google Sheets would have turned into a formula. */
+export const FORMULA_MARK = '⚠FORMULA:';
+
 const colToNum = (letters) => letters.split('').reduce((n, ch) => n * 26 + (ch.charCodeAt(0) - 64), 0);
 
 function parseA1(a1) {
@@ -63,6 +66,17 @@ export class MockRange {
   setFontColor() { return this; }
   setHorizontalAlignment() { return this; }
   setWrap() { return this; }
+  setFontSize() { return this; }
+  setFontStyle() { return this; }
+  setFontFamily() { return this; }
+  setBorder() { return this; }
+  setVerticalAlignment() { return this; }
+  setBackgrounds() { return this; }
+  merge() { return this; }
+  setWrapStrategy() { return this; }
+  // Formulas written on purpose (setFormula*) are stored as-is, never flagged.
+  setFormula(f) { this.sheet._record('setFormula', this); this.sheet.data[this.row - 1] = this.sheet.data[this.row - 1] || []; this.sheet.data[this.row - 1][this.col - 1] = f; return this; }
+  setFormulaR1C1(f) { return this.setFormula(f); }
   getRow() { return this.row; }
   getColumn() { return this.col; }
   getNumRows() { return this.numRows; }
@@ -81,11 +95,13 @@ export class MockSheet {
   }
   _set(row, col, value) {
     // Like Google Sheets on an unformatted cell: a leading apostrophe forces text and is
-    // not stored; a numeric-looking string WITHOUT it becomes a number ("0123" -> 123).
+    // not stored; a numeric-looking string WITHOUT it becomes a number ("0123" -> 123);
+    // text starting with = + - @ WITHOUT it is parsed as a formula (flagged, see FORMULA_MARK).
     let v = value;
     if (typeof value === 'string') {
       if (value.startsWith("'")) v = value.slice(1);
       else if (/^-?\d+(\.\d+)?$/.test(value)) v = Number(value);
+      else if (/^[=+\-@]/.test(value)) v = FORMULA_MARK + value;
     }
     while (this.data.length < row) this.data.push([]);
     const line = this.data[row - 1];
@@ -155,6 +171,7 @@ export class MockSheet {
   setColumnWidths() { return this; }
   setColumnWidth() { return this; }
   autoResizeColumns() { return this; }
+  autoResizeRows() { return this; }
   hideSheet() { return this; }
   /** Rows as plain arrays (row 1 = header), padded to the given width. */
   rows(width) {
@@ -255,6 +272,7 @@ export function createGasEnvironment({ activeSpreadsheet, spreadsheets = [], pro
       return ss;
     },
     flush: () => {},
+    WrapStrategy: { WRAP: 'WRAP', CLIP: 'CLIP', OVERFLOW: 'OVERFLOW' },
     getUi: () => {
       if (!identity.uiAvailable) throw new Error('Cannot call SpreadsheetApp.getUi() from this context.');
       return {
