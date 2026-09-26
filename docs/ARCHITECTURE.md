@@ -84,7 +84,7 @@ Trình duyệt ─ google.script.run.api(phiên, "tenChucNang", [tham số])
 | Cửa vào công khai | `doGet`, `onOpen`, `api`, `thongTinDangNhap` (không cần đăng nhập, chỉ trả trạng thái của chính người gọi + link cổng), `dangXuat` |
 | Menu Sheet | 18 hàm công khai, dòng đầu `_yeuCauQuyen_(QUYEN.*)` — email lấy từ `Session.getActiveUser()` (người bấm menu) |
 | Danh tính | `_xacDinhNguoiDung_()`: người của phiên hiện tại, nếu không có thì `Session.getActiveUser()` (chủ script khi tự mở web app; người bấm menu). Người Gmail khác mở web app “execute as me” → rỗng → bị chặn |
-| Chủ script | `Session.getEffectiveUser()` luôn là ADMIN, không thể bị khóa |
+| Chủ script & Quản trị cố định | `Session.getEffectiveUser()` và danh sách `QUAN_TRI_CO_DINH` (trong code) luôn là ADMIN, không đổi/khóa được từ web app |
 | Người dùng | `SYS_NguoiDung`: Email · Họ tên · Vai trò · Trạng thái · Cập nhật lúc · Cập nhật bởi (cache 60 giây) |
 | Cấu hình | Script Properties `SSO_SECRET`, `SSO_GATEWAY_URL` |
 | Lỗi | `[AUTH] …` → client hiện màn hình đăng nhập; `[QUYEN] …` → chỉ báo lỗi |

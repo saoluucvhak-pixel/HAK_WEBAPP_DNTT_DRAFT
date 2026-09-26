@@ -1,6 +1,6 @@
 /**
  * ============================================================
- * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.7.0
+ * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.7.1
  * Lịch sử thay đổi: CHANGELOG.md · Kiến trúc: docs/ARCHITECTURE.md
  * ------------------------------------------------------------
  * *** QUAN TRỌNG - CẦN LÀM TRƯỚC KHI DÙNG BẢN NÀY (chỉ 1 LẦN DUY NHẤT
@@ -178,13 +178,6 @@ function getConfigLinksForSettings_() {
     if (!def.key) return { key: null, label: def.label, name, url, ok, changeable: false, shareable: ok, type: def.type };
     return { key: def.key, label: def.label, name, url, ok, changeable: true, shareable: ok, type: def.type };
   });
-}
-
-/** MỚI (theo yêu cầu - tab MISA riêng): tra thông tin 1 link cụ thể
- * theo key (dùng lại đúng danh sách của getConfigLinksForSettings_()). */
-function getSwappableLinkInfo_(key) {
-  const all = getConfigLinksForSettings_();
-  return all.find(l => l.key === key) || { ok: false };
 }
 
 /** MỚI: đổi 1 link bất kỳ trong danh sách "Link các file liên quan" -
@@ -738,6 +731,9 @@ const QUYEN_THEO_VAI_TRO = {
   KE_TOAN: [QUYEN.XEM, QUYEN.NGHIEP_VU],
   XEM: [QUYEN.XEM]
 };
+// Quản trị cố định (ngoài chủ script): luôn là Quản trị, KHÔNG đổi/khóa được
+// từ web app (tránh tự khóa nhầm mình). Thêm/bớt email trực tiếp tại đây.
+const QUAN_TRI_CO_DINH = ["saoluucvhak@gmail.com", "phuthuy.apple@gmail.com"];
 const TRANG_THAI_NGUOI_DUNG = { HOAT_DONG: "Hoạt động", KHOA: "Khóa" };
 const NGUOI_DUNG_SHEET = "SYS_NguoiDung";
 const NGUOI_DUNG_HEADERS = ["Email", "Họ tên", "Vai trò", "Trạng thái", "Cập nhật lúc", "Cập nhật bởi"];
@@ -810,11 +806,17 @@ function _docDanhSachNguoiDung_() {
   return list;
 }
 
+/** Chủ script hoặc Quản trị cố định - luôn là Quản trị. */
+function _laQuanTriCoDinh_(email) {
+  const e = _chuanHoaEmail_(email);
+  return !!e && (e === _emailChuScript_() || QUAN_TRI_CO_DINH.some(x => _chuanHoaEmail_(x) === e));
+}
+
 /** Vai trò hiệu lực của 1 email, null nếu chưa được cấp quyền / đã khóa. */
 function _vaiTroCua_(email) {
   const e = _chuanHoaEmail_(email);
   if (!e) return null;
-  if (e === _emailChuScript_()) return VAI_TRO.ADMIN;
+  if (_laQuanTriCoDinh_(e)) return VAI_TRO.ADMIN;
   const nd = _docDanhSachNguoiDung_().find(x => x.email === e);
   if (!nd || nd.trangThai !== TRANG_THAI_NGUOI_DUNG.HOAT_DONG || !QUYEN_THEO_VAI_TRO[nd.vaiTro]) return null;
   return nd.vaiTro;
@@ -1094,6 +1096,7 @@ function getDanhSachNguoiDungForWeb_() {
   CacheService.getScriptCache().remove(AUTH_CFG.CACHE_KEY_NGUOI_DUNG);
   return {
     chuScript: _emailChuScript_(),
+    quanTriCoDinh: QUAN_TRI_CO_DINH.map(_chuanHoaEmail_),
     vaiTro: Object.keys(VAI_TRO).map(ma => ({ ma, nhan: VAI_TRO_NHAN[ma] })),
     trangThai: Object.values(TRANG_THAI_NGUOI_DUNG),
     nguoiDung: _docDanhSachNguoiDung_().map(x => ({ email: x.email, hoTen: x.hoTen, vaiTro: x.vaiTro, trangThai: x.trangThai }))
@@ -1109,7 +1112,7 @@ function webLuuNguoiDung_(duLieu) {
     const hoTen = String((duLieu && duLieu.hoTen) || "").trim();
     if (!MAU_EMAIL.test(email)) return { success: false, message: "❌ Email không hợp lệ." };
     if (!QUYEN_THEO_VAI_TRO[vaiTro]) return { success: false, message: "❌ Vai trò không hợp lệ." };
-    if (email === _emailChuScript_()) return { success: false, message: "⚠️ Chủ script luôn là Quản trị - không cần thêm/không thể đổi." };
+    if (_laQuanTriCoDinh_(email)) return { success: false, message: "⚠️ Email này là Quản trị cố định (chủ script hoặc khai báo trong code) - không cần thêm/không thể đổi từ web app." };
 
     const ketQua = _chayTrongKhoa_(() => {
       const sh = _getNguoiDungSheet_();
@@ -1302,8 +1305,12 @@ function _ghiNhanHeaderPc_(header) {
   const chuKy = _chuKyHeaderPc_(header);
   const chuan = props.getProperty(PC_HEADER_PROP.CHUAN);
   if (!chuan) { props.setProperty(PC_HEADER_PROP.CHUAN, chuKy); return; }
-  if (chuKy === chuan) props.deleteProperty(PC_HEADER_PROP.MOI);
-  else props.setProperty(PC_HEADER_PROP.MOI, chuKy);
+  if (chuKy === chuan) { props.deleteProperty(PC_HEADER_PROP.MOI); return; }
+  // Chỉ ghi nhật ký khi phát hiện 1 thay đổi MỚI (không lặp lại mỗi 10 phút).
+  if (props.getProperty(PC_HEADER_PROP.MOI) !== chuKy) {
+    logAction_("CANH_BAO_HEADER_PC", "-", `Cấu trúc cột PhieuCan_DN khác chuẩn đã xác nhận - kiểm tra có ai chèn/xóa/đổi thứ tự cột không. Chuẩn: ${chuan}. Hiện tại: ${chuKy}.`.slice(0, GIOI_HAN_KY_TU_O_NHAT_KY));
+  }
+  props.setProperty(PC_HEADER_PROP.MOI, chuKy);
 }
 function _pcHeaderDaThayDoi_() {
   return !!PropertiesService.getScriptProperties().getProperty(PC_HEADER_PROP.MOI);
@@ -1396,10 +1403,6 @@ function getReportFolderId_() {
   const id = PropertiesService.getScriptProperties().getProperty('REPORT_FOLDER_ID');
   return id || LINKS.BAOCAO_FOLDER_ID; // chưa từng đổi -> dùng mặc định gốc trong code
 }
-function setReportFolderId_(id) {
-  PropertiesService.getScriptProperties().setProperty('REPORT_FOLDER_ID', id);
-}
-
 // ============================================================
 // MỚI (theo yêu cầu): GIÁ TRỊ MẶC ĐỊNH DÙNG KHI XUẤT BÁO CÁO CHO NGÂN
 // HÀNG/MISA - trước đây "cứng" trong CFG (COMPANY_BANK_ACCOUNT/NAME/
@@ -1504,9 +1507,6 @@ function webSetExportRegion_(region) {
 function getDmNhSsId_() {
   return PropertiesService.getScriptProperties().getProperty('DM_NH_SS_ID') || "1v6MlQaMF4N8BoTUqaraInxJFPUKcA7u3z_zVle8cXw8";
 }
-function setDmNhSsId_(id) {
-  PropertiesService.getScriptProperties().setProperty('DM_NH_SS_ID', id);
-}
 const UNC_DEFAULT_KEYS = ["TK_TRICH_NO", "TK_THU_PHI", "BEN_CHIU_PHI", "LOAI_TIEN", "SHEET_DM_NH"];
 function _getUncDefault_(key, fallback) {
   const v = PropertiesService.getScriptProperties().getProperty('UNC_' + key);
@@ -1576,7 +1576,7 @@ function webSetUncConfig_(values) {
 // LIỆU TÀI CHÍNH ĐÃ CHỐT" khi ghi log nhưng trước đây KHÔNG hiện ra ở
 // trang audit trail này - vẫn nằm trong sheet log nhưng vô hình với
 // người xem trang "Lịch Sử Sửa Đổi".
-const LICH_SU_SUA_DOI_ACTIONS = new Set(["MO_DONG_THANH_TOAN", "DOI_SOAT_DONG_BO_TEN", "VA_NGAN_HANG_112", "XOA_MO_COI_CHITIET_DNTT", "XOA_MO_COI_CHITIET_UNC", "XOA_MO_COI_CT_THAT", "XOA_MO_COI_SRC_THAT", "SUA_TEN_KH_PHIEU_CAN", "PHAN_QUYEN", "CAU_HINH_DANG_NHAP"]);
+const LICH_SU_SUA_DOI_ACTIONS = new Set(["MO_DONG_THANH_TOAN", "DOI_SOAT_DONG_BO_TEN", "VA_NGAN_HANG_112", "XOA_MO_COI_CHITIET_DNTT", "XOA_MO_COI_CHITIET_UNC", "XOA_MO_COI_CT_THAT", "XOA_MO_COI_SRC_THAT", "SUA_TEN_KH_PHIEU_CAN", "PHAN_QUYEN", "CAU_HINH_DANG_NHAP", "CANH_BAO_HEADER_PC", "XAC_NHAN_HEADER_PHIEU_CAN"]);
 /**
  * SỬA (theo yêu cầu - "cho xem theo ngày, không phải cứ nối dài"): giờ
  * lọc theo khoảng ngày (fDate/tDate, dạng yyyy-MM-dd) thay vì luôn hiện
@@ -2895,32 +2895,6 @@ function _docSheetToiUuTheoNgay_(sh, totalDataRows, numCols, fDate, colNgayIdx0B
   return allRowsNguocLai.reverse();
 }
 
-function getMainTableData_(fDate, tDate) {
-  const sh = getMainSs_().getSheetByName(CFG.DNTT_SRC);
-  if (!sh || sh.getLastRow() < 2) return [];
-  const data = sh.getRange(2, 1, sh.getLastRow() - 1, 18).getValues();
-  const filtered = data.filter(r => {
-    if (utils.isBlank(r[0])) return false;
-    let d = r[11];
-    if (!(d instanceof Date)) return false;
-    let iso = Utilities.formatDate(d, "GMT+7", "yyyy-MM-dd");
-    return (!fDate || iso >= fDate) && (!tDate || iso <= tDate);
-  });
-  return filtered.map(r => ({
-    idHeThong: String(r[0] || ""),
-    ngayDN: utils.formatDate(r[11]),
-    ngayISO: Utilities.formatDate(r[11], "GMT+7", "yyyy-MM-dd"),
-    nguoiDN: String(r[5] || ""),
-    chuRung: String(r[3] || ""),
-    nguoiNhan: String(r[7] || ""),
-    stk: String(r[8] || ""),
-    kl: utils.parseNum(r[9]).toFixed(2),
-    soHD: String(r[13] || ""),
-    lapDNTT: String(r[14] || ""),
-    trangThaiTT: String(r[17] || "")
-  })).reverse();
-}
-
 // ============================================================
 // NÚT 6: TẠO BÁO CÁO & SHEET NGÂN HÀNG (giữ nguyên logic gốc - đọc từ
 // dữ liệu CHÍNH THỨC, tức chỉ gồm các hồ sơ ĐÃ CHỐT qua File Nháp)
@@ -4189,6 +4163,13 @@ function runCreate112() {
     });
 
     let count = 0, filledBankCount = 0;
+    // Tra HD_NCC theo Số HĐ 1 lần trước vòng lặp (giữ dòng ĐẦU TIÊN như .find() cũ)
+    // thay vì quét lại cả mirror cho từng hồ sơ.
+    const hdNccTheoSoHD = new Map();
+    _hdNccData_().forEach(r => {
+      const k = utils.standardize(r[HDNCC_COL.SO_HD]);
+      if (k && !hdNccTheoSoHD.has(k)) hdNccTheoSoHD.set(k, r);
+    });
 
     Object.keys(ctGroupedById).forEach(id => {
       const idx = draft112MapIdx.get(id);
@@ -4213,7 +4194,7 @@ function runCreate112() {
       // BAO GIỜ được gán khi tạo hồ sơ - tự bù đắp NẾU ĐANG TRỐNG/BẰNG 0
       // cho các hồ sơ ĐÃ TẠO TỪ TRƯỚC (không ghi đè nếu đã có giá trị).
       if (!row112[17] || utils.parseNum(row112[17]) === 0) {
-        const hdRowChoSL = _hdNccData_().find(r => utils.standardize(r[HDNCC_COL.SO_HD]) === hdKey);
+        const hdRowChoSL = hdNccTheoSoHD.get(hdKey);
         if (hdRowChoSL) row112[17] = utils.parseNum(hdRowChoSL[HDNCC_COL.SL_DU_KIEN]);
       }
       const time112 = (row112[1] instanceof Date) ? row112[1].getTime()
@@ -6457,21 +6438,6 @@ function searchChuRungNames_(query) {
   return results.sort((a, b) => a.localeCompare(b)).slice(0, 30);
 }
 
-/** #2: Danh sách CCCD của 1 Họ tên Chủ rừng, tra trong HD_NCC. */
-function getCccdListByChuRung_(hoTen) {
-  const name = utils.standardize(hoTen);
-  if (!name) return [];
-  const seen = new Set(), out = [];
-  _hdNccActiveData_().forEach(r => {
-    if (utils.standardize(r[HDNCC_COL.HO_TEN]) !== name) return;
-    const cccd = String(r[HDNCC_COL.CCCD] || "").trim();
-    if (!cccd || seen.has(cccd)) return;
-    seen.add(cccd);
-    out.push(cccd);
-  });
-  return out;
-}
-
 /**
  * #3 + #4: Theo Tên + CCCD đã chọn, gợi ý "Người đề nghị" (= Họ và tên
  * người được ủy quyền trong HD_NCC) và "Chủ rừng ủy quyền" (= Ủy quyền
@@ -6602,24 +6568,6 @@ function getNguoiNhanTienOptions_(hoTen, cccd) {
     if (!nguoi || seen.has(nguoi)) return;
     seen.add(nguoi);
     out.push(nguoi);
-  });
-  return out;
-}
-
-/** #7: Số tài khoản khả dụng theo Tên + CCCD + Người nhận, tra trong HD_STK. */
-function getSoTaiKhoanOptions_(hoTen, cccd, nguoiNhan) {
-  const name = utils.standardize(hoTen), cc = String(cccd || "").trim(), nguoi = String(nguoiNhan || "").trim();
-  if (!name || !cc) return [];
-  const seen = new Set(), out = [];
-  _hdStkData_().forEach(r => {
-    if (utils.standardize(r[HDSTK_COL.HO_TEN]) !== name || String(r[HDSTK_COL.CCCD] || "").trim() !== cc) return;
-    if (nguoi && String(r[HDSTK_COL.NGUOI_UQ] || "").trim() !== nguoi) return;
-    const stk = String(r[HDSTK_COL.STK] || "").trim();
-    if (!stk) return;
-    const key = stk + "|" + String(r[HDSTK_COL.NGAN_HANG] || "").trim();
-    if (seen.has(key)) return;
-    seen.add(key);
-    out.push({ stk, nganHang: String(r[HDSTK_COL.NGAN_HANG] || "").trim(), soHD: String(r[HDSTK_COL.SO_HD] || "").trim() });
   });
   return out;
 }
@@ -7108,6 +7056,20 @@ function getDraftBadgeCount_() {
   }
 }
 
+/** Mốc 00:00 GMT+7 ngày 1 của tháng hiện tại và tháng sau (dạng Date). Chỉ
+ * gọi Utilities.formatDate 2 lần để lấy năm/tháng theo GMT+7 (không phụ
+ * thuộc múi giờ project), còn lại là số học Date.UTC. */
+function _mocThangHienTaiGMT7_(now) {
+  const moc = now || new Date();
+  const nam = parseInt(Utilities.formatDate(moc, "GMT+7", "yyyy"), 10);
+  const thang = parseInt(Utilities.formatDate(moc, "GMT+7", "MM"), 10); // 1-12
+  // 00:00 GMT+7 ngày 1 = 17:00 UTC ngày cuối tháng trước -> giờ "-7" để Date.UTC tự lùi ngày.
+  return {
+    dauThangNay: new Date(Date.UTC(nam, thang - 1, 1, -7, 0, 0)),
+    dauThangSau: new Date(Date.UTC(nam, thang, 1, -7, 0, 0))
+  };
+}
+
 function getDashboardStats_() {
   const result = {
     draftSetup: true, // MỚI: File Nháp giờ LÀ chính file đang chạy - luôn sẵn sàng, tự tạo sheet nếu thiếu (xem getDraftSheets_())
@@ -7162,7 +7124,10 @@ function getDashboardStats_() {
   // (_pcData_()/_ctThatDataCache_()) - không tự đọc thẳng sheet, tránh
   // lặp lại đúng vấn đề chậm đã sửa ở trên khi dữ liệu tích lũy nhiều.
   try {
-    const thangHienTai = Utilities.formatDate(new Date(), "GMT+7", "yyyy-MM");
+    // So Date trực tiếp với mốc đầu tháng này / đầu tháng sau (GMT+7) thay
+    // vì Utilities.formatDate() cho từng dòng - kết quả như nhau, nhanh hơn nhiều.
+    const { dauThangNay, dauThangSau } = _mocThangHienTaiGMT7_();
+    const trongThangNay = d => d instanceof Date && d >= dauThangNay && d < dauThangSau;
     // MỚI (theo yêu cầu - "tổng hợp thêm nguồn gốc và đại lý"): gộp luôn
     // vào ĐÚNG lượt quét PC của "Mua Tháng Này" ngay dưới đây (không quét
     // thêm PC lần 2 CHO RIÊNG việc này) - cộng dồn KL/Tiền theo TỪNG
@@ -7173,7 +7138,7 @@ function getDashboardStats_() {
     const ngMap = new Map(), dlMap = new Map();
     _pcData_().forEach(r => {
       const ngayCan = r[PC_COL.NGAY_CAN_1];
-      if (!(ngayCan instanceof Date) || Utilities.formatDate(ngayCan, "GMT+7", "yyyy-MM") !== thangHienTai) return;
+      if (!trongThangNay(ngayCan)) return;
       const kl = utils.parseNum(r[PC_COL.KL_KG]);
       const tien = utils.parseNum(r[PC_COL.THANH_TIEN]);
       result.klMuaThangKg += kl;
@@ -7192,7 +7157,7 @@ function getDashboardStats_() {
 
     _ctThatDataCache_().forEach(r => {
       const ngayTT = r[20]; // "Ngày CK/TT" - xem header CFG.DRAFT_CT_SHEET/DNTT_CT
-      if (!(ngayTT instanceof Date) || Utilities.formatDate(ngayTT, "GMT+7", "yyyy-MM") !== thangHienTai) return;
+      if (!trongThangNay(ngayTT)) return;
       result.klThanhToanThangTan += utils.parseNum(r[12]); // "KL Tấn"
       result.tienThanhToanThang += utils.parseNum(r[16]); // "Thành tiền"
     });

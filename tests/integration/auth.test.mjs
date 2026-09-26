@@ -189,6 +189,17 @@ test('the owner cannot be demoted and invalid input is rejected', () => {
   assert.equal(run('thongTinDangNhap')('').congDangNhapUrl, 'https://script.google.com/macros/s/AKfy_abc-123/exec');
 });
 
+test('fixed admins declared in code are always admin and cannot be changed from the web app', () => {
+  const { run, actAs } = setup();
+  const fixed = run('QUAN_TRI_CO_DINH');
+  assert.ok(fixed.includes('saoluucvhak@gmail.com'));
+  actAs('saoluucvhak@gmail.com');
+  assert.equal(run('thongTinDangNhap')('').vaiTro, 'ADMIN');
+  assert.equal(run('api')('', 'webLuuNguoiDung', [{ email: 'saoluucvhak@gmail.com', vaiTro: 'XEM', trangThai: 'Khóa' }]).success, false);
+  const token = loginThroughGateway(run, actAs, 'saoluucvhak@gmail.com');
+  assert.match(openApp(run, actAs, token).phien, /^[0-9a-f]{64}$/);
+});
+
 test('menu functions check the email of the person using the Sheet', () => {
   const { run, actAs, addUser } = setup();
   actAs('');
@@ -217,7 +228,10 @@ test('changed PhieuCan_DN column layout raises a warning until an admin confirms
   assert.equal(run('api')('', 'getTriggerStatusForWeb', []).pcHeaderCanhBao, false);
   world.pc.getSheetByName('PhieuCan_DN').data[0][11] = 'Tên KH (đã đổi)';
   run('refreshPhieuCanUnpaidCache_')();
+  run('refreshPhieuCanUnpaidCache_')();
   assert.equal(run('api')('', 'getTriggerStatusForWeb', []).pcHeaderCanhBao, true);
+  const canhBao = world.main.getSheetByName('NhatKyThaoTac').rows().filter(r => r[2] === 'CANH_BAO_HEADER_PC');
+  assert.equal(canhBao.length, 1, 'the warning is logged once, not on every refresh');
   assert.equal(run('api')('', 'webXacNhanHeaderPhieuCanMoi', []).success, true);
   assert.equal(run('api')('', 'getTriggerStatusForWeb', []).pcHeaderCanhBao, false);
 });

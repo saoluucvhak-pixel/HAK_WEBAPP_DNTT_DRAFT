@@ -3491,7 +3491,9 @@ function loadLichSuSuaDoi(){
       XOA_MO_COI_SRC_THAT: '⚠️ Xóa Mồ Côi Nguồn Thật',
       SUA_TEN_KH_PHIEU_CAN: '✏️ Sửa Tên KH Phiếu Cân',
       PHAN_QUYEN: '👥 Phân Quyền',
-      CAU_HINH_DANG_NHAP: '🔐 Cấu Hình Đăng Nhập'
+      CAU_HINH_DANG_NHAP: '🔐 Cấu Hình Đăng Nhập',
+      CANH_BAO_HEADER_PC: '⚠️ Cột Phiếu Cân Thay Đổi',
+      XAC_NHAN_HEADER_PHIEU_CAN: '✅ Xác Nhận Cột Phiếu Cân'
     };
     box.innerHTML = `<div class="hint-text" style="margin-bottom:6px">${rows.length} mục${rows.length >= 1000 ? ' (đã đạt giới hạn hiển thị 1000 - thu hẹp khoảng ngày nếu cần xem đầy đủ hơn)' : ''}</div>
     <div style="overflow-x:auto"><table><thead><tr>
@@ -3647,7 +3649,7 @@ function loadNguoiDung(){
     d.vaiTro.forEach(v => { nhan[v.ma] = v.nhan; });
     box.innerHTML = `<h3>👥 Người Dùng & Phân Quyền</h3>
       <p class="muted" style="font-size:13px"><b>Quản trị</b>: toàn quyền, gồm Cài đặt và Hệ thống. <b>Kế toán</b>: tạo, xác nhận, duyệt ĐNTT, UNC, xem và xuất báo cáo. <b>Chỉ xem</b>: xem và xuất báo cáo.
-      Chủ script <b>${esc(d.chuScript)}</b> luôn là Quản trị. Không xóa người dùng - đổi trạng thái sang "Khóa" để chặn truy cập (có hiệu lực trong khoảng 1 phút).</p>
+      Chủ script <b>${esc(d.chuScript)}</b> và Quản trị cố định <b>${d.quanTriCoDinh.map(esc).join(', ')}</b> luôn là Quản trị (đổi trong code). Không xóa người dùng - đổi trạng thái sang "Khóa" để chặn truy cập (có hiệu lực trong khoảng 1 phút).</p>
       <div class="grid cols-4">
         <div class="field"><label>Email Google</label><input type="text" id="nd-email" placeholder="ten@gmail.com"></div>
         <div class="field"><label>Họ tên</label><input type="text" id="nd-hoten"></div>

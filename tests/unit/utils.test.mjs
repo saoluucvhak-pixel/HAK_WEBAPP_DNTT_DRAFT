@@ -43,6 +43,22 @@ test('_parseNgayVN_ parses dd/MM/yyyy as a noon-UTC date (no day/month swap)', (
   assert.equal(d2.getUTCDate(), 25);
 });
 
+test('_mocThangHienTaiGMT7_ matches formatDate(GMT+7, "yyyy-MM") around month/year edges', () => {
+  const moc = run('_mocThangHienTaiGMT7_');
+  const fmt = run('Utilities.formatDate');
+  const nows = ['2026-12-31T16:59:59Z', '2026-12-31T17:00:00Z', '2026-01-31T18:00:00Z', '2026-02-28T16:30:00Z', '2026-09-26T03:00:00Z'];
+  for (const iso of nows) {
+    const now = new Date(iso);
+    const { dauThangNay, dauThangSau } = moc(now);
+    const thang = fmt(now, 'GMT+7', 'yyyy-MM');
+    const probes = [-1, 0, 1].flatMap(d => [dauThangNay.getTime() + d, dauThangSau.getTime() + d]).map(t => new Date(t));
+    for (let i = 0; i < 400; i++) probes.push(new Date(now.getTime() + (i - 200) * 3.7 * 3600 * 1000));
+    for (const p of probes) {
+      assert.equal(p >= dauThangNay && p < dauThangSau, fmt(p, 'GMT+7', 'yyyy-MM') === thang, `${iso} vs ${p.toISOString()}`);
+    }
+  }
+});
+
 test('_isRecordEditable_ only allows "Chờ ĐNTT" (amount > 0 and not confirmed)', () => {
   const editable = run('_isRecordEditable_');
   const row = new Array(24).fill('');
