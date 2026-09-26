@@ -1,6 +1,6 @@
 /**
  * ============================================================
- * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.1
+ * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.2
  * Lịch sử thay đổi: CHANGELOG.md · Kiến trúc: docs/ARCHITECTURE.md
  * ------------------------------------------------------------
  * *** QUAN TRỌNG - CẦN LÀM TRƯỚC KHI DÙNG BẢN NÀY (chỉ 1 LẦN DUY NHẤT
@@ -4127,11 +4127,15 @@ function _gomChiTietChuyenKhoan_(filteredRows) {
   // khi Đóng/Mở Thanh Toán - xem _invalidateCtSrc112Cache_()) - AN TOÀN
   // vì lúc xuất báo cáo, hồ sơ đã ở trạng thái "đã chốt" từ TRƯỚC đó
   // (không phải vừa chốt trong CÙNG lượt xuất), nên dữ liệu luôn đúng.
-  const ctData = _ctThatDataCache_();
+  // Hồ sơ thuộc năm đã khóa sổ (xuất lại báo cáo cũ): đọc thêm sổ lưu trữ
+  // của đúng các năm đó; hồ sơ năm đang mở thì chỉ đọc sổ đang mở như cũ.
+  const ngayTT = filteredRows.map(r => r.ngayISO).filter(Boolean).sort();
+  const tuNgay = ngayTT[0], denNgay = ngayTT[ngayTT.length - 1];
+  const ctData = tuNgay ? _ctGopLuuTru_(tuNgay, denNgay) : _ctThatDataCache_();
 
   // SỬA (tối ưu tốc độ): dùng cache chung _pcData_()/_hdNccFullData_()
   // thay vì đọc trực tiếp không cache mỗi lần.
-  const pcDataNoHeader = _pcData_();
+  const pcDataNoHeader = tuNgay ? _pcGopLuuTru_(tuNgay, denNgay) : _pcData_();
   const hdDataNoHeader = _hdNccFullData_();
   const mapPC = utils.buildIndexMap(pcDataNoHeader, PC_COL.SO_CT, true);
   const mapHD = utils.buildIndexMap(hdDataNoHeader, 2, true);

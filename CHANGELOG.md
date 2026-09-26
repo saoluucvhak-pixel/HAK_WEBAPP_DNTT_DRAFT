@@ -2,6 +2,14 @@
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/). Phiên bản theo `NĂM.ĐỢT.SỬA`; thay đổi làm đổi hành vi nghiệp vụ (⚖️) sẽ tăng số ĐỢT và ghi rõ đã được người dùng đồng ý.
 
+## [2026.9.2] — Xuất lại Báo cáo Thanh toán của năm đã khóa sổ
+
+### Fixed
+- Xuất Báo cáo Thanh toán (và Tạo lại MISA theo ngày) cho hồ sơ của năm đã khóa sổ: sheet “Bảng Kê Chi Tiết CK” bị trống vì chỉ đọc sổ đang mở. Nay đọc thêm file DATA của đúng các năm có hồ sơ được chọn.
+
+### Tests
+- 92 test (thêm 1; thất bại trên 2026.9.1).
+
 ## [2026.9.1] — Khóa sổ năm thành 1 thao tác (người dùng yêu cầu 26/09/2026)
 
 ### Changed

@@ -1,4 +1,4 @@
-# ARCHITECTURE — HAK Quản Lý Thanh Toán (v2026.9.1)
+# ARCHITECTURE — HAK Quản Lý Thanh Toán (v2026.9.2)
 
 > Tài liệu sống: cập nhật mỗi khi đổi module, lớp, luồng dữ liệu hoặc schema.
 > Phân tích chi tiết hiện trạng: `docs/PROJECT_ANALYSIS.md`. Kiến trúc đích: `docs/REFACTOR_PLAN.md` §3–§4.
@@ -143,7 +143,7 @@ Chỉ khi khoảng ngày **chạm năm đã đăng ký**; báo cáo năm đang m
 | `_h112GopLuuTru_(f, t)` / `_docLuuTruTrongKhoang_(sheet, soCot, f, t)` | tương tự cho 112, ChiTietDNTT, ChiTietUNC |
 | `_pcGopLuuTru_(f, t)` | PhieuCan_DN + dòng ở `PhieuCan_DN_<năm>` có Số phiếu **trả trong** năm khóa sổ ∈ [năm f, năm t] |
 
-- Theo khoảng ngày thanh toán (112, UNC, Chi tiết, MISA, Tình hình TT): `(f, t)`.
+- Theo khoảng ngày thanh toán (112 / Báo cáo Thanh toán, UNC, Chi tiết, MISA, Tình hình TT): `(f, t)`. Xuất Báo cáo Thanh toán / Tạo lại MISA (`_gomChiTietChuyenKhoan_`) lấy khoảng theo Ngày TT của các hồ sơ được chọn.
 - Theo ngày cân / lũy kế đến ngày D (Phân tích, Công nợ KH, Sổ chi tiết KH, Công nợ phiếu cân tại D): `(f hoặc D, "")` — năm khóa sổ **từ** năm đó trở đi; năm khóa sổ trước đó chỉ mang sang phiếu chưa trả (lũy kế tính từ đầu năm của “Từ ngày”, công nợ không đổi).
 - Tiến độ hợp đồng / Công nợ theo HĐ / Sổ chi tiết HĐ: mọi năm `("", "")` (hợp đồng kéo dài nhiều năm).
 

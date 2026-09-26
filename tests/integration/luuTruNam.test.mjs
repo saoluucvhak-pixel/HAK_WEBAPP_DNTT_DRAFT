@@ -193,3 +193,12 @@ test('pointing a year to another archive file checks the sheets and leftover row
   data.deleteSheet(data.getSheetByName('DNTT_GK_DN_112'));
   assert.match(run('webSetLuuTruNam_')(String(Y), data.getUrl()).message, /DNTT_GK_DN_112/);
 });
+
+test('re-exporting a payment report of a closed year still lists its transfers in detail', () => {
+  const { run } = world();
+  run('webKhoaSoNam_')(Y, true);
+  const hoSoNam = run('getReportList_')(`${Y}-01-01`, `${Y}-03-31`);
+  assert.deepEqual(Array.from(hoSoNam, r => r.idHeThong).sort(), [hoSo(`A/${Y}`), hoSo(`D/${Y - 1}`)]);
+  const chiTiet = run('_gomChiTietChuyenKhoan_')(hoSoNam);
+  assert.equal(chiTiet.length, 2, 'detail rows come from the archive file');
+});
