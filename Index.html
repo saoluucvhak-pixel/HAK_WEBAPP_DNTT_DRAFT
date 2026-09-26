@@ -449,7 +449,7 @@
       <div class="nav-item" data-page="settings"><span class="ic">⚙️</span> Cài đặt / Nháp</div>
     </nav>
     <div class="nguoi-dung-chip" id="nguoi-dung-chip"></div>
-    <div class="sidebar-footer">Hệ thống Quản Lý Thanh Toán · v2026.8.1</div>
+    <div class="sidebar-footer">Hệ thống Quản Lý Thanh Toán · v2026.8.2</div>
   </aside>
 
   <main class="main">
@@ -3536,6 +3536,12 @@ function renderHeThong(){
       <button class="btn" style="background:#b00;color:#fff;border-color:#b00" onclick="doMoDongThanhToanHoSo()">🔓 Mở Đóng Thanh Toán</button>
     </div>
     <div class="card">
+      <h3>♻️ Khôi Phục Dữ Liệu Đã Xóa</h3>
+      <p class="muted" style="font-size:13px">Mọi dòng bị xóa (Mở Đóng Thanh Toán, Xóa Mồ Côi) đều được sao lưu. Khôi phục theo <b>từng lần xóa</b>: ghi lại đủ các sheet của lần đó và khóa lại phiếu cân nếu là dữ liệu đã chốt. Hệ thống <b>từ chối</b> khôi phục nếu làm 1 phiếu cân bị trả 2 lần (vd hồ sơ Nháp tạo ra khi Mở Đóng TT vẫn còn - xóa hồ sơ Nháp đó trước).</p>
+      <button class="btn primary" onclick="loadSaoLuuXoa()">🔍 Xem các lần xóa</button>
+      <div id="saoluu-result" style="margin-top:10px"></div>
+    </div>
+    <div class="card">
       <h3>📜 Lịch Sử Sửa Đổi</h3>
       <p class="muted" style="font-size:13px">Theo dõi việc Mở Đóng Thanh Toán, Đồng Bộ Tên Khách Hàng và Cập Nhật Ngân Hàng - kèm người thực hiện (Gmail). Xem theo khoảng ngày, không hiện dồn tất cả.</p>
       <div class="grid cols-3">
@@ -3629,6 +3635,58 @@ function doMoDongThanhToanHoSo(){
     });
   });
 }
+// SỬA LỖI (rà soát phát hiện): nhãn hành động trước đây "cứng" chỉ 3
+// loại (mặc định rơi vào "🏦 Cập Nhật Ngân Hàng" cho MỌI loại khác) -
+// 4 hành động Xóa Mồ Côi mới thêm vào LICH_SU_SUA_DOI_ACTIONS (Code.gs)
+// bị hiển thị NHÃN SAI thành "Cập Nhật Ngân Hàng". Dùng bảng tra đầy
+// đủ, có nhãn dự phòng hiển thị đúng mã hành động nếu phát sinh loại
+// mới sau này mà quên bổ sung nhãn.
+const NHAN_HANH_DONG = {
+  MO_DONG_THANH_TOAN: '🔓 Mở Đóng TT',
+  DOI_SOAT_DONG_BO_TEN: '🔍 Đồng Bộ Tên KH',
+  VA_NGAN_HANG_112: '🏦 Cập Nhật Ngân Hàng',
+  XOA_MO_COI_CHITIET_DNTT: '🧹 Xóa Mồ Côi ChiTietDNTT',
+  XOA_MO_COI_CHITIET_UNC: '🧹 Xóa Mồ Côi ChiTietUNC',
+  XOA_MO_COI_CT_THAT: '⚠️ Xóa Mồ Côi CT Thật',
+  XOA_MO_COI_SRC_THAT: '⚠️ Xóa Mồ Côi Nguồn Thật',
+  SUA_TEN_KH_PHIEU_CAN: '✏️ Sửa Tên KH Phiếu Cân',
+  LOI_HE_THONG: '🐞 Lỗi hệ thống',
+  CHAN_TRA_HAI_LAN: '⛔ Chặn trả 2 lần',
+  CAU_HINH_MODEL_AI: '🤖 Cấu hình model AI',
+  PHAN_QUYEN: '👥 Phân Quyền',
+  CAU_HINH_DANG_NHAP: '🔐 Cấu Hình Đăng Nhập',
+  CANH_BAO_HEADER_PC: '⚠️ Cột Phiếu Cân Thay Đổi',
+  XAC_NHAN_HEADER_PHIEU_CAN: '✅ Xác Nhận Cột Phiếu Cân',
+  KHOI_PHUC_DONG_DA_XOA: '♻️ Khôi Phục Dòng Đã Xóa'
+};
+function loadSaoLuuXoa(){
+  const box = document.getElementById('saoluu-result');
+  box.innerHTML = '<div class="empty"><div class="ic">⏳</div>Đang tải...</div>';
+  call('getDanhSachSaoLuuXoa', [], null).then(ds => {
+    state.saoLuuXoa = ds || [];
+    if (!state.saoLuuXoa.length) { box.innerHTML = '<div class="empty"><div class="ic">📭</div>Chưa có lần xóa nào được sao lưu.</div>'; return; }
+    box.innerHTML = `<div class="bang"><table><thead><tr>
+      <th>Thời gian</th><th>Người thực hiện</th><th>Hành động</th><th>Mã (dòng đầu)</th><th>Số dòng theo sheet</th><th></th>
+    </tr></thead><tbody>
+      ${state.saoLuuXoa.map((g, i) => `<tr>
+        <td class="mono">${esc(g.thoiGian)}</td><td>${esc(g.nguoi)}</td>
+        <td>${esc(NHAN_HANH_DONG[g.hanhDong] || g.hanhDong)}</td>
+        <td class="mono">${esc(g.maDong.join(', '))}</td>
+        <td style="font-size:12px">${g.theoSheet.map(x => `${esc(x.sheet)}: ${x.soDong}`).join('<br>')}</td>
+        <td>${g.daKhoiPhuc >= g.soDong
+          ? '<span class="badge ready">Đã khôi phục</span>'
+          : `<button class="btn sm" onclick="doKhoiPhucSaoLuu(${i})">♻️ Khôi phục${g.daKhoiPhuc ? ` (còn ${g.soDong - g.daKhoiPhuc})` : ''}</button>`}</td>
+      </tr>`).join('')}
+    </tbody></table></div>`;
+  });
+}
+function doKhoiPhucSaoLuu(i){
+  const g = state.saoLuuXoa[i];
+  if (!g) return;
+  const moTa = g.theoSheet.map(x => `${x.sheet}: ${x.soDong} dòng`).join(', ');
+  if (!confirm(`Khôi phục lần "${NHAN_HANH_DONG[g.hanhDong] || g.hanhDong}" lúc ${g.thoiGian}?\n${moTa}\n\nCác dòng sẽ được ghi lại vào cuối sheet gốc.`)) return;
+  call('webKhoiPhucSaoLuuXoa', [g.ma], 'Đang khôi phục...').then(res => handleResult(res, loadSaoLuuXoa));
+}
 function loadLichSuSuaDoi(){
   const box = document.getElementById('lichsu-result');
   if (!box) return;
@@ -3637,29 +3695,6 @@ function loadLichSuSuaDoi(){
   box.innerHTML = '<div class="empty"><div class="ic">⏳</div>Đang tải...</div>';
   call('getLichSuSuaDoi', [f, t], null).then(rows => {
     if (!rows || !rows.length) { box.innerHTML = '<div class="empty"><div class="ic">📭</div>Không có lịch sử nào trong khoảng ngày đã chọn.</div>'; return; }
-    // SỬA LỖI (rà soát phát hiện): nhãn hành động trước đây "cứng" chỉ 3
-    // loại (mặc định rơi vào "🏦 Cập Nhật Ngân Hàng" cho MỌI loại khác) -
-    // 4 hành động Xóa Mồ Côi mới thêm vào LICH_SU_SUA_DOI_ACTIONS (Code.gs)
-    // bị hiển thị NHÃN SAI thành "Cập Nhật Ngân Hàng". Dùng bảng tra đầy
-    // đủ, có nhãn dự phòng hiển thị đúng mã hành động nếu phát sinh loại
-    // mới sau này mà quên bổ sung nhãn.
-    const NHAN_HANH_DONG = {
-      MO_DONG_THANH_TOAN: '🔓 Mở Đóng TT',
-      DOI_SOAT_DONG_BO_TEN: '🔍 Đồng Bộ Tên KH',
-      VA_NGAN_HANG_112: '🏦 Cập Nhật Ngân Hàng',
-      XOA_MO_COI_CHITIET_DNTT: '🧹 Xóa Mồ Côi ChiTietDNTT',
-      XOA_MO_COI_CHITIET_UNC: '🧹 Xóa Mồ Côi ChiTietUNC',
-      XOA_MO_COI_CT_THAT: '⚠️ Xóa Mồ Côi CT Thật',
-      XOA_MO_COI_SRC_THAT: '⚠️ Xóa Mồ Côi Nguồn Thật',
-      SUA_TEN_KH_PHIEU_CAN: '✏️ Sửa Tên KH Phiếu Cân',
-      LOI_HE_THONG: '🐞 Lỗi hệ thống',
-      CHAN_TRA_HAI_LAN: '⛔ Chặn trả 2 lần',
-      CAU_HINH_MODEL_AI: '🤖 Cấu hình model AI',
-      PHAN_QUYEN: '👥 Phân Quyền',
-      CAU_HINH_DANG_NHAP: '🔐 Cấu Hình Đăng Nhập',
-      CANH_BAO_HEADER_PC: '⚠️ Cột Phiếu Cân Thay Đổi',
-      XAC_NHAN_HEADER_PHIEU_CAN: '✅ Xác Nhận Cột Phiếu Cân'
-    };
     box.innerHTML = `<div class="hint-text" style="margin-bottom:6px">${rows.length} mục${rows.length >= 1000 ? ' (đã đạt giới hạn hiển thị 1000 - thu hẹp khoảng ngày nếu cần xem đầy đủ hơn)' : ''}</div>
     <div style="overflow-x:auto"><table><thead><tr>
       <th>Thời gian</th><th>Người thực hiện</th><th>Hành động</th><th>Mã hồ sơ</th><th>Chi tiết</th>

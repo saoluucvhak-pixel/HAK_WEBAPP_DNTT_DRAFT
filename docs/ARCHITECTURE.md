@@ -1,4 +1,4 @@
-# ARCHITECTURE — HAK Quản Lý Thanh Toán (v2026.8.1)
+# ARCHITECTURE — HAK Quản Lý Thanh Toán (v2026.8.2)
 
 > Tài liệu sống: cập nhật mỗi khi đổi module, lớp, luồng dữ liệu hoặc schema.
 > Phân tích chi tiết hiện trạng: `docs/PROJECT_ANALYSIS.md`. Kiến trúc đích: `docs/REFACTOR_PLAN.md` §3–§4.
@@ -53,7 +53,12 @@ Quy tắc bắt buộc cho mọi code mới: **không đọc cả sheet rồi gh
 | Người thực hiện | `Session.getActiveUser()` (có thể `N/A` với USER_DEPLOYING) |
 | Hành động | `MO_DONG_THANH_TOAN`, `XOA_MO_COI_*` |
 | File / Sheet / Dòng gốc | nguồn của dòng |
-| Dữ liệu (JSON) | nguyên dòng (ngày dạng ISO) — dùng để khôi phục thủ công |
+| Dữ liệu (JSON) | nguyên dòng (ngày dạng ISO) |
+| File ID | file chứa sheet gốc (từ 2026.8.2) |
+| Mã thao tác | gom mọi dòng của 1 lần xóa (`_maThaoTacMoi_`; Mở Đóng TT dùng 1 mã cho cả 6 sheet). Bản cũ chưa có mã: gom theo hành động + người + phút |
+| Đã khôi phục | thời điểm + người khôi phục — mỗi dòng chỉ khôi phục 1 lần |
+
+Khôi phục (`webKhoiPhucSaoLuuXoa_`, Hệ Thống › Khôi Phục Dữ Liệu Đã Xóa): ghi lại cuối sheet gốc (`_giaTriKhoiPhuc_`: ISO → Date, chữ giữ dạng chữ); dòng về `DNTT_GK_DN_CT` phải qua kiểm tra chống trả 2 lần (phiếu không có trong sổ chốt / hồ sơ Nháp) rồi `_khoaPhieuCanDaTra_` (dùng chung với Duyệt).
 
 ## 4. Chốt thanh toán — trình tự & tính chạy lại (`runConfirmPayment`)
 

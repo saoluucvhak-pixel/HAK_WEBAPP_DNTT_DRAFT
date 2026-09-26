@@ -2,6 +2,24 @@
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/). Phiên bản theo `NĂM.ĐỢT.SỬA`; thay đổi làm đổi hành vi nghiệp vụ (⚖️) sẽ tăng số ĐỢT và ghi rõ đã được người dùng đồng ý.
 
+## [2026.8.2] — Khôi phục dữ liệu đã xóa (C-07)
+
+### Added
+- Hệ Thống › **♻️ Khôi Phục Dữ Liệu Đã Xóa** (Quản trị): liệt kê từng **lần xóa** đã sao lưu (Mở Đóng TT, Xóa Mồ Côi…) — thời gian, người, hành động, mã hồ sơ, số dòng theo từng sheet — và nút **Khôi phục** cả lần xóa đó.
+  - Ghi lại vào cuối sheet gốc (đúng file theo File ID), giữ số 0 đầu và ngày tháng; dòng về sổ đã chốt thì **khóa lại phiếu cân** như lúc Duyệt.
+  - **Từ chối** nếu làm 1 phiếu cân bị trả 2 lần: phiếu đã có trong sổ đã chốt, hoặc đang nằm trong hồ sơ Nháp (vd hồ sơ Nháp tạo ra khi Mở Đóng TT — xóa hồ sơ Nháp đó trước).
+  - Mỗi dòng chỉ khôi phục được 1 lần (cột “Đã khôi phục”); ghi nhật ký `KHOI_PHUC_DONG_DA_XOA`.
+- `SYS_SaoLuuDongXoa` thêm cột File ID, Mã thao tác (gom mọi dòng của 1 lần xóa), Đã khôi phục; sao lưu từ bản cũ vẫn xem và khôi phục được (gom theo hành động + người + phút).
+
+### Changed
+- Khóa phiếu cân sau khi thanh toán dùng chung 1 hàm cho Duyệt và Khôi phục.
+
+### Decided
+- Không làm sao lưu cả file theo lịch: Google Sheets đã có Lịch sử phiên bản (File › Version history).
+
+### Tests
+- 78 test (thêm 2).
+
 ## [2026.8.1] — Chặn trả tiền 2 lần cho cùng 1 phiếu cân
 
 ### Fixed

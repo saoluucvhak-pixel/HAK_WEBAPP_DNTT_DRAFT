@@ -82,3 +82,54 @@ test('webDongBoTenKhachHang only writes the selected customer cells', () => {
   const log = world.main.getSheetByName('NhatKyThaoTac').rows().slice(1).map(r => r[4]).join('\n');
   assert.match(log, /PC003: "Tran Thi B" → "Tran Thi B \(moi\)"/);
 });
+
+test('restoring a reopened payment: blocked while its draft exists, then restores every sheet and re-locks tickets', () => {
+  const { world, run } = committedWorld();
+  const ct = world.main.getSheetByName('DNTT_GK_DN_CT');
+  ct.data.slice(1).forEach(r => { r[4] = '0481234567'; }); // CCCD có số 0 đầu
+  const ctTruoc = ct.rows(22).slice(1).map(r => r.slice());
+  assert.equal(run('webMoDongThanhToanTheoHoSo_')('Nguyen Van A', '2026-09-26', '1').success, true);
+
+  const ds = run('getDanhSachSaoLuuXoa_')();
+  assert.equal(ds.length, 1, 'one reopen = one restorable group');
+  assert.equal(ds[0].hanhDong, 'MO_DONG_THANH_TOAN');
+  assert.equal(ds[0].soDong, 8);
+
+  // Hồ sơ Nháp tạo ra khi Mở Đóng vẫn còn -> khôi phục sẽ trả 2 lần -> chặn.
+  const chan = run('webKhoiPhucSaoLuuXoa_')(ds[0].ma);
+  assert.equal(chan.success, false);
+  assert.match(chan.message, /PC001.*hồ sơ Nháp/);
+
+  const idNhap = world.draft.getSheetByName('DNTT_GK_DN_CT_DRAFT').rows(22).slice(1).find(r => r[1] !== 'B2')[1];
+  run('runDeleteDraftRecord_')(idNhap);
+  const ok = run('webKhoiPhucSaoLuuXoa_')(ds[0].ma);
+  assert.equal(ok.success, true, ok.message);
+
+  const ctSau = ct.rows(22).slice(1);
+  assert.deepEqual(ctSau.map(r => r[11]).sort(), ['PC001', 'PC002']);
+  assert.equal(ctSau[0][4], '0481234567', 'leading zero kept');
+  assert.ok(ctSau[0][20] instanceof Date, 'dates come back as dates');
+  assert.equal(ctSau[0][20].getTime(), ctTruoc[0][20].getTime());
+  assert.deepEqual(ids(world.main.getSheetByName('DNTT_GK_DN_112'), 0).length, 1);
+  assert.equal(world.main.getSheetByName('ChiTietDNTT').rows().length, 3);
+  assert.equal(world.updateNh.getSheetByName('Update_NganHang_DN').rows().length, 3);
+  const pc = Object.fromEntries(world.pc.getSheetByName('PhieuCan_DN').rows(28).slice(1).map(r => [r[22], r]));
+  ['PC001', 'PC002'].forEach(so => assert.deepEqual([pc[so][24], pc[so][26], pc[so][27]], ['OK', 'Đóng TT', 'Y']));
+
+  assert.equal(run('getDanhSachSaoLuuXoa_')()[0].daKhoiPhuc, 8);
+  const lan2 = run('webKhoiPhucSaoLuuXoa_')(ds[0].ma);
+  assert.equal(lan2.success, false, 'cannot restore twice');
+  assert.equal(ct.rows(22).slice(1).length, 2);
+});
+
+test('backups written by older versions (no group id) are still listed and restorable', () => {
+  const { world, run } = committedWorld();
+  const shBk = world.main.addSheet('SYS_SaoLuuDongXoa', [['Thời gian', 'Người thực hiện', 'Hành động', 'File', 'Sheet', 'Dòng gốc', 'Dữ liệu (JSON)']]);
+  const t = new Date('2026-09-20T03:00:00Z');
+  shBk.data.push([t, 'a@b.c', 'XOA_MO_COI_SRC_THAT', 'File Chính', 'DNTT_GK_DN', 5, JSON.stringify(['OLD9', '2026-09-01T00:00:00.000Z', 'x'])]);
+  const ds = run('getDanhSachSaoLuuXoa_')();
+  assert.equal(ds.length, 1);
+  assert.deepEqual([...ds[0].maDong], ['OLD9']);
+  assert.equal(run('webKhoiPhucSaoLuuXoa_')(ds[0].ma).success, true);
+  assert.ok(ids(world.main.getSheetByName('DNTT_GK_DN'), 0).includes('OLD9'));
+});

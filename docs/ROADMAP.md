@@ -3,7 +3,7 @@
 | Phase | Nội dung | Trạng thái | Phiên bản |
 |---|---|---|---|
 | P0 | Nền móng: tài liệu quản trị, bộ test `node:test` + mock GAS | ✅ Hoàn thành | 2026.6.0 |
-| P1 | An toàn dữ liệu: ghi đúng ô, chạy lại an toàn, sao lưu trước khi xóa, khóa bổ sung, giữ số 0 đầu | ✅ Hoàn thành (trừ UI Khôi phục) | 2026.6.0 |
+| P1 | An toàn dữ liệu: ghi đúng ô, chạy lại an toàn, sao lưu trước khi xóa, khóa bổ sung, giữ số 0 đầu, khôi phục dòng đã xóa, chặn trả 2 lần | ✅ Hoàn thành | 2026.6.0 → 2026.8.2 |
 | P2a | Bảo mật: Router `api` + Cổng đăng nhập Gmail + 3 vai trò, siết `doGet` | ✅ Hoàn thành | 2026.7.0 |
 | P2b | Bảo mật: XSS (bỏ `onclick` inline), PII (localStorage, Gemini), iframe, chèn công thức, lỗi nội bộ | 🟡 H-07, H-12, M-13, H-13 xong; H-08/H-09/H-10 giữ nguyên theo quyết định người dùng | 2026.7.5 |
 | P3 | Phân lớp backend (Schema/Repository/Service), ExportService, Cache + Event bus, JobService — file **phẳng** cho gas-tools | ⏳ | – |
