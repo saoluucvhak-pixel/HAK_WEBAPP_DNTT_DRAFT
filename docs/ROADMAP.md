@@ -10,7 +10,7 @@
 | P4 | Frontend components, theme, a11y, virtual scroll | ⏳ | – |
 | P5 | Multi-tenant, Notification, Audit UI, Backup/Restore UI, Import/Export, Template, Plugin, Online Update | ⏳ | – |
 | – | ⚖️ Công nợ theo CCCD + Tên (M-04) | ✅ Hoàn thành | 2026.8.0 |
-| – | ⚖️ Khóa sổ năm: file DATA<năm>, báo cáo đọc năm đã khóa sổ, chuyển phiếu cân đã khóa sổ | ✅ Hoàn thành | 2026.9.0 |
+| – | ⚖️ Khóa sổ năm 1 thao tác (Phiếu Cân + ĐNTT cùng lúc, file DATA<năm>), báo cáo đọc năm đã khóa sổ | ✅ Hoàn thành | 2026.9.0 → 2026.9.1 |
 | P6 | Dashboard/Report Builder, Print Designer, e-Sign, API, OCR, AI đa provider, Offline/Sync | ⏳ | – |
 
 Quy trình mỗi Phase: backup → deployment thử nghiệm → nghiệm thu Phụ lục C (PROJECT_ANALYSIS) → người dùng duyệt → triển khai → cập nhật ARCHITECTURE / CHANGELOG / TODO / VERSION / ROADMAP.

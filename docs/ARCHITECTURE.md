@@ -1,4 +1,4 @@
-# ARCHITECTURE — HAK Quản Lý Thanh Toán (v2026.9.0)
+# ARCHITECTURE — HAK Quản Lý Thanh Toán (v2026.9.1)
 
 > Tài liệu sống: cập nhật mỗi khi đổi module, lớp, luồng dữ liệu hoặc schema.
 > Phân tích chi tiết hiện trạng: `docs/PROJECT_ANALYSIS.md`. Kiến trúc đích: `docs/REFACTOR_PLAN.md` §3–§4.
@@ -121,16 +121,17 @@ Quy tắc: màn hình mở thường xuyên đọc snapshot, không quét PhieuC
 - Bộ nhớ đệm Phiếu Cân tự giới hạn theo năm (~13.500 phiếu/năm < trần ~16.000).
 - Lưu ý khi khóa sổ: chuyển phiếu đã trả và khóa sổ DNTT_GK_DN **cùng lúc**; không chuyển phiếu đang nằm trong hồ sơ Nháp. Nếu khóa sổ bằng cách **tạo File Chính mới**, phải mang theo sheet `SYS_NguoiDung` (danh sách người dùng) – nếu không chỉ Quản trị cố định đăng nhập được.
 
-### Quy trình khóa sổ năm N (v2026.9.0)
+### Khóa sổ năm N — 1 thao tác (v2026.9.1)
 
-1. **Người dùng**: chuyển toàn bộ dữ liệu ĐNTT năm N (theo **ngày thanh toán**) — `DNTT_GK_DN`, `DNTT_GK_DN_CT`, `DNTT_GK_DN_112`, `ChiTietDNTT`, `ChiTietUNC` — sang file `DATA<N>`, **giữ nguyên tên sheet**, rồi xóa các dòng đó khỏi File Chính.
-2. **Cài đặt › File lưu trữ theo năm** (`webSetLuuTruNam_`, Quản trị): lưu `{N: ID}` vào Script Property `LUU_TRU_NAM`. Từ chối nếu thiếu 3 sheet sổ, là File Chính, hoặc File Chính **còn dòng CT cùng ID_CT** (báo cáo sẽ cộng 2 lần).
-3. **Hệ Thống › Chuyển Phiếu Cân Đã Khóa Sổ** (`webChuyenPhieuCanKhoaSo_`, Quản trị, trong `sysLock`): phiếu còn ở PhieuCan_DN có Số phiếu trong CT của file DATA đã đăng ký và **không** còn trong sổ đang mở → sheet `PhieuCan_DN_<năm NGÀY CÂN>` trong file Phiếu Cân (cùng quy ước `HT_chotSoNam` của QL_NHAPKHO, nên `LT_docPhieuCanGopLuuTru_` của kho vẫn đọc được).
-   - Sổ đã khóa là căn cứ “đã trả” (không cần ID_DNTT = Đóng TT). Mọi dòng cùng Số phiếu đi cùng nhau; thiếu ngày cân / còn trong sổ đang mở → ở lại, liệt kê trong xem trước.
-   - Mỗi lô 500 Số phiếu: chép phần **còn thiếu** (đếm theo Số phiếu ở sheet đích) → `flush` → xóa đúng các Số phiếu đó (đọc lại cột Số phiếu ngay lúc xóa). Bản chép ở sheet đích là bản sao lưu. Dừng sau ~4 phút, chạy lại để làm tiếp; chạy lại không chép trùng.
-   - Giữa bước 2 và 3, công nợ hiện tại **dư** (phiếu đã trả còn ở PhieuCan_DN nhưng khoản trả đã sang DATA) → làm bước 3 ngay sau bước 2.
-4. Mở Đóng TT từ chối Ngày Đóng TT thuộc năm đã khóa sổ.
-5. Khóa sổ **chỉ làm ở ĐNTT**: QL_NHAPKHO bỏ “Chốt sổ năm” (người dùng quyết định 26/09/2026), chỉ còn đọc các sheet `PhieuCan_DN_<năm>` do bước 3 tạo.
+Hệ Thống › **🔒 Khóa Sổ Năm** (`webKhoaSoNam_(nam, chayThat)`, Quản trị, toàn bộ trong `sysLock`) làm **cùng lúc** Phiếu Cân và ĐNTT — không có bước tay nào giữa chừng (bản 2026.9.0 tách 3 bước gây lệch công nợ ở giữa).
+
+1. Hồ sơ năm N = mã hồ sơ (CT cột B) có Ngày CK/TT (CT cột U) thuộc năm N. Từ chối nếu sổ đang mở còn hồ sơ năm < N, hoặc N chưa kết thúc.
+2. Chép các dòng của các hồ sơ đó ở 5 sheet sổ (`_sheetSoKhoaSo_`: DNTT_GK_DN cột A, _CT cột B, _112 cột A, ChiTietDNTT cột A, ChiTietUNC cột A) sang file **DATA<N>** — tự tạo cùng thư mục, múi giờ, locale với File Chính, giữ tên sheet + dòng tiêu đề, định dạng số theo dòng 2 của sheet nguồn, ô chữ giữ là chữ (`_ghiThemGiuNguyen_`). `flush` → xóa khỏi File Chính theo mã hồ sơ (đọc lại cột lúc xóa) → đăng ký `LUU_TRU_NAM[N]`.
+3. Phiếu cân: Số phiếu có trong CT các năm đã khóa sổ (kể cả N) và không còn trong sổ đang mở → `PhieuCan_DN_<năm NGÀY CÂN>` (cùng quy ước QL_NHAPKHO). Sổ đã khóa là căn cứ “đã trả” (không cần ID_DNTT = Đóng TT). Mọi dòng cùng Số phiếu đi cùng nhau; thiếu ngày cân → ở lại, liệt kê. Lô 500 Số phiếu: chép phần còn thiếu → `flush` → xóa.
+4. Chạy lại an toàn: file DATA đang tạo dở lưu ở `KHOA_SO_DANG_LAM` (dùng lại, không tạo file thứ 2); dòng sổ có mã hồ sơ đã ở DATA không chép lại; phiếu đếm theo Số phiếu ở sheet đích. Hết ~4 phút thì dừng, bấm lại để làm tiếp. Chưa xóa xong khỏi File Chính thì **chưa đăng ký** (báo cáo không cộng trùng).
+5. Mở Đóng TT từ chối Ngày Đóng TT thuộc năm đã khóa sổ.
+6. Khóa sổ **chỉ làm ở ĐNTT**: QL_NHAPKHO bỏ “Chốt sổ năm” (người dùng quyết định 26/09/2026), chỉ còn đọc các sheet `PhieuCan_DN_<năm>`.
+7. Cài đặt › File lưu trữ theo năm (`webSetLuuTruNam_`): chỉ xem / trỏ lại file (vd file bị di chuyển); từ chối nếu thiếu sheet sổ, là File Chính, hoặc File Chính còn dòng CT cùng ID_CT.
 
 ### Báo cáo đọc năm đã khóa sổ
 

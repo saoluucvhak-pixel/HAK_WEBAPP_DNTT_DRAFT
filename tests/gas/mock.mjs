@@ -198,11 +198,14 @@ export class MockSpreadsheet {
   getSheetByName(name) { return this.sheets.get(name) || null; }
   insertSheet(name) { return this.addSheet(name || 'Sheet' + (this.sheets.size + 1), []); }
   getSheets() { return Array.from(this.sheets.values()); }
+  deleteSheet(sh) { this.sheets.delete(sh.getName()); }
   getId() { return this.id; }
   getName() { return this.name; }
   getUrl() { return 'https://docs.google.com/spreadsheets/d/' + this.id + '/edit'; }
-  getSpreadsheetLocale() { return 'vi_VN'; }
-  getSpreadsheetTimeZone() { return 'Asia/Ho_Chi_Minh'; }
+  getSpreadsheetLocale() { return this.locale || 'vi_VN'; }
+  getSpreadsheetTimeZone() { return this.timeZone || 'Asia/Ho_Chi_Minh'; }
+  setSpreadsheetLocale(v) { this.locale = v; }
+  setSpreadsheetTimeZone(v) { this.timeZone = v; }
 }
 
 const pad = (n, w = 2) => String(n).padStart(w, '0');
@@ -317,7 +320,7 @@ export function createGasEnvironment({ activeSpreadsheet, spreadsheets = [], pro
     },
     DriveApp: {
       getFolderById: () => ({ addFile() {}, createFile() { return {}; } }),
-      getFileById: () => ({ getId: () => 'file', getUrl: () => 'url', moveTo() {} }),
+      getFileById: () => ({ getId: () => 'file', getUrl: () => 'url', moveTo() {}, getParents: () => ({ hasNext: () => false }) }),
       getRootFolder: () => ({ removeFile() {} })
     },
     ScriptApp: { getProjectTriggers: () => [], newTrigger: () => ({ timeBased: () => ({}) }), deleteTrigger() {}, getService: () => ({ getUrl: () => serviceUrl }) },

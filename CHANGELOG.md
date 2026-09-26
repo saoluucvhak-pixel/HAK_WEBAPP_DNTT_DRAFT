@@ -2,6 +2,20 @@
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/). Phiên bản theo `NĂM.ĐỢT.SỬA`; thay đổi làm đổi hành vi nghiệp vụ (⚖️) sẽ tăng số ĐỢT và ghi rõ đã được người dùng đồng ý.
 
+## [2026.9.1] — Khóa sổ năm thành 1 thao tác (người dùng yêu cầu 26/09/2026)
+
+### Changed
+- **Hệ Thống › 🔒 Khóa Sổ Năm** thay cho quy trình 3 bước của 2026.9.0 (tự chuyển sổ ĐNTT → đăng ký file → bấm chuyển phiếu cân), vì làm riêng từng bên thì giữa các bước sổ ĐNTT và Phiếu Cân **lệch nhau** (công nợ tính dư). Nay 1 lần bấm, trong khóa hệ thống:
+  - tự tạo file **DATA<năm>** (cùng thư mục File Chính), chuyển các hồ sơ thanh toán trong năm ở DNTT_GK_DN, _CT, _112, ChiTietDNTT, ChiTietUNC sang, xóa khỏi File Chính, tự đăng ký;
+  - chuyển phiếu cân đã trả sang `PhieuCan_DN_<năm ngày cân>`.
+  - Xem trước số dòng từng sheet; chép xong mới xóa; bị dừng giữa chừng thì bấm lại, dùng lại đúng file DATA, không chép trùng; chưa xóa xong khỏi File Chính thì chưa đăng ký (báo cáo không cộng trùng).
+  - Từ chối năm chưa kết thúc và khi sổ đang mở còn hồ sơ của năm trước đó.
+- Cài đặt › File lưu trữ theo năm: chỉ xem / trỏ lại file. Nhật ký `KHOA_SO_NAM` thay `CHUYEN_PHIEU_CAN_KHOA_SO`.
+- QL_NHAPKHO bỏ “Chốt sổ năm” (người dùng quyết định) — khóa sổ chỉ làm ở ĐNTT.
+
+### Tests
+- 91 test; `luuTruNam` viết lại theo luồng 1 thao tác (xem trước, khóa sổ, báo cáo năm đóng không đổi + năm mở không mở file DATA, bị dừng 2 lần rồi làm tiếp không trùng, chặn năm trước còn mở, chặn Mở Đóng TT, trỏ lại file).
+
 ## [2026.9.0] — ⚖️ Khóa sổ năm (người dùng đồng ý 26/09/2026)
 
 ### Added

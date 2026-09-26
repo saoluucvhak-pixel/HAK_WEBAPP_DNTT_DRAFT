@@ -449,7 +449,7 @@
       <div class="nav-item" data-page="settings"><span class="ic">⚙️</span> Cài đặt / Nháp</div>
     </nav>
     <div class="nguoi-dung-chip" id="nguoi-dung-chip"></div>
-    <div class="sidebar-footer">Hệ thống Quản Lý Thanh Toán · v2026.9.0</div>
+    <div class="sidebar-footer">Hệ thống Quản Lý Thanh Toán · v2026.9.1</div>
   </aside>
 
   <main class="main">
@@ -3488,7 +3488,7 @@ function renderHuongDan(){
       <b>Giá Trị Mặc Định MISA</b> (Số TK/Ngân hàng/Mã NH công ty) và <b>Cấu Hình UNC</b> (TK Trích Nợ/Thu Phí, Bên Chịu Phí, Loại Tiền, tên sheet Danh Mục Ngân Hàng) - sửa được ngay, không cần sửa code.<br><br>
       <b>🤖 Trợ Lý AI (Chatbot):</b> dán API key Gemini (miễn phí tại Google AI Studio) để bật chatbot - có nút 🤖 nổi góc màn hình ở mọi trang, hỏi được về cách dùng webapp, số liệu tổng quan THẬT hiện tại (số hồ sơ theo trạng thái, tổng tiền đang chờ - tự tra trước khi trả lời, không tự bịa số), hoặc câu hỏi bất kỳ. Câu hỏi cần chi tiết hơn (tên khách hàng cụ thể, số liệu Báo Cáo Công Nợ...) sẽ được hướng dẫn vào đúng trang xem. Không cần API key vẫn dùng được (chế độ dự phòng, không AI). Nút 🔄 trong khung chat để xóa ngữ cảnh, hỏi câu hoàn toàn mới.<br><br>
       <b>Tạo/Cập Nhật Sheet Thông Số:</b> tạo 1 sheet tóm tắt toàn bộ cấu hình hệ thống hiện tại - hữu ích khi cần bàn giao/kiểm tra nhanh.<br><br>
-      <b>🗄️ Khóa sổ năm:</b> (1) chuyển dữ liệu ĐNTT của năm (theo ngày thanh toán) sang file DATA&lt;năm&gt;, giữ nguyên tên sheet, xóa khỏi File Chính; (2) Cài đặt › File lưu trữ theo năm: đăng ký file đó; (3) Hệ Thống › Chuyển Phiếu Cân Đã Khóa Sổ: xem trước rồi chuyển. Phiếu chưa trả ở lại làm công nợ đầu năm mới. Báo cáo chọn ngày thuộc năm đã khóa sổ tự đọc file DATA.
+      <b>🔒 Khóa sổ năm:</b> Hệ Thống › Khóa Sổ Năm - 1 lần bấm chuyển cùng lúc sổ ĐNTT của năm (theo ngày thanh toán) sang file DATA&lt;năm&gt; và phiếu cân đã trả sang sheet PhieuCan_DN_&lt;năm&gt;. Phiếu chưa trả ở lại làm công nợ đầu năm mới. Báo cáo chọn ngày thuộc năm đã khóa sổ tự đọc file DATA; Cài đặt › File lưu trữ theo năm chỉ để xem/trỏ lại file.
     </div>
   </details>
 
@@ -3541,10 +3541,16 @@ function renderHeThong(){
       <button class="btn" style="background:#b00;color:#fff;border-color:#b00" onclick="doMoDongThanhToanHoSo()">🔓 Mở Đóng Thanh Toán</button>
     </div>
     <div class="card">
-      <h3>🔒 Chuyển Phiếu Cân Đã Khóa Sổ</h3>
-      <p class="muted" style="font-size:13px">Dùng sau khi khóa sổ ĐNTT 1 năm và đăng ký file DATA của năm đó (Cài đặt › File lưu trữ theo năm). Phiếu cân <b>đã trả trong năm đã khóa sổ</b> được chuyển khỏi PhieuCan_DN sang sheet <b>PhieuCan_DN_&lt;năm ngày cân&gt;</b> trong file Phiếu Cân (cùng quy ước QL_NHAPKHO nên báo cáo nhập kho vẫn đọc được). Phiếu <b>chưa trả</b> và phiếu trả ở năm đang mở ở lại - công nợ đầu năm mới chính là các phiếu chưa trả. Công nợ hiện tại chỉ đúng sau bước này. Luôn xem trước; chạy lại nhiều lần vẫn an toàn (không chép trùng).</p>
-      <button class="btn primary" onclick="doChuyenPcKhoaSo(false)">🔍 Xem trước</button>
-      <div id="chuyenpc-result" style="margin-top:10px"></div>
+      <h3>🔒 Khóa Sổ Năm</h3>
+      <p class="muted" style="font-size:13px">Làm <b>1 lần, cùng lúc</b> cho cả Phiếu Cân và ĐNTT của 1 năm đã kết thúc (tính theo <b>ngày thanh toán</b>):
+        (1) các hồ sơ đã thanh toán trong năm - ở DNTT_GK_DN, DNTT_GK_DN_CT, DNTT_GK_DN_112, ChiTietDNTT, ChiTietUNC - chuyển sang file mới <b>DATA&lt;năm&gt;</b> (cùng thư mục File Chính, giữ nguyên tên sheet) và xóa khỏi File Chính;
+        (2) phiếu cân đã trả trong năm đó chuyển sang sheet <b>PhieuCan_DN_&lt;năm ngày cân&gt;</b> trong file Phiếu Cân.
+        Phiếu cân chưa trả và hồ sơ trả sang năm sau ở lại - đó là công nợ mang sang. Báo cáo chọn ngày thuộc năm đã khóa sổ tự đọc file DATA. Chép xong mới xóa; nếu bị dừng giữa chừng, bấm lại để làm tiếp (không chép trùng).</p>
+      <div class="grid cols-3">
+        <div class="field"><label>Năm khóa sổ</label><input type="number" id="khoaso-nam" min="2000" max="2100" value="${new Date().getFullYear() - 1}"></div>
+        <div class="field" style="display:flex;align-items:flex-end"><button class="btn primary" onclick="doKhoaSoNam(false)">🔍 Xem trước</button></div>
+      </div>
+      <div id="khoaso-result" style="margin-top:10px"></div>
     </div>
     <div class="card">
       <h3>♻️ Khôi Phục Dữ Liệu Đã Xóa</h3>
@@ -3670,23 +3676,25 @@ const NHAN_HANH_DONG = {
   XAC_NHAN_HEADER_PHIEU_CAN: '✅ Xác Nhận Cột Phiếu Cân',
   KHOI_PHUC_DONG_DA_XOA: '♻️ Khôi Phục Dòng Đã Xóa',
   CAU_HINH_LUU_TRU_NAM: '🗄️ File Lưu Trữ Theo Năm',
-  CHUYEN_PHIEU_CAN_KHOA_SO: '🔒 Chuyển Phiếu Cân Đã Khóa Sổ'
+  KHOA_SO_NAM: '🔒 Khóa Sổ Năm'
 };
-function doChuyenPcKhoaSo(chayThat){
-  const box = document.getElementById('chuyenpc-result');
-  if (!box) return;
-  if (chayThat && !confirm('Chuyển các phiếu cân trong danh sách xem trước sang sheet lưu trữ?')) return;
-  call('webChuyenPhieuCanKhoaSo', [chayThat], chayThat ? 'Đang chuyển phiếu cân...' : 'Đang kiểm tra...').then(res => {
+function doKhoaSoNam(chayThat){
+  const box = document.getElementById('khoaso-result');
+  const nam = (document.getElementById('khoaso-nam') || {}).value;
+  if (!box || !nam) return;
+  if (chayThat && !confirm(`Khóa sổ năm ${nam}?\nSổ ĐNTT của năm chuyển sang file DATA${nam} và xóa khỏi File Chính; phiếu cân đã trả chuyển sang sheet lưu trữ.`)) return;
+  call('webKhoaSoNam', [nam, chayThat], chayThat ? `Đang khóa sổ năm ${nam}...` : 'Đang kiểm tra...').then(res => {
     if (!res || !res.success) { handleResult(res); return; }
     if (chayThat) toast(res.message, res.conLai ? 'warn' : null);
     const bang = (tieuDe, rows) => rows.length ? `<div class="bang" style="margin-top:8px"><table><thead><tr><th>${tieuDe}</th><th>Số dòng</th></tr></thead><tbody>
       ${rows.map(x => `<tr><td>${esc(x[0])}</td><td>${fmtMoney(x[1])}</td></tr>`).join('')}</tbody></table></div>` : '';
-    const nutChay = res.xemTruoc ? res.tongDong : res.conLai;
+    const nutChay = res.xemTruoc ? res.canLam : res.conLai > 0;
     box.innerHTML = `<div class="hint-text">${esc(res.message)}</div>
-      ${bang('Sheet đích (năm ngày cân)', res.theoSheet.map(x => [x.tenSheet, x.soDong]))}
-      ${res.xemTruoc ? bang('Trả trong năm đã khóa sổ', res.theoNamTra.map(x => [x.nam, x.soDong])) : ''}
-      ${res.soBoQua ? `<div class="hint-text" style="color:#b45309">⚠️ ${res.soBoQua} phiếu không chuyển (sửa dữ liệu rồi chạy lại):<br>${res.boQua.map(x => `${esc(x.soPhieu)} - ${esc(x.lyDo)}`).join('<br>')}</div>` : ''}
-      ${nutChay ? `<button class="btn accent" style="margin-top:8px" onclick="doChuyenPcKhoaSo(true)">🔒 Chuyển ${fmtMoney(nutChay)} dòng</button>` : ''}`;
+      ${res.fileData ? `<div class="hint-text">File lưu trữ: <a href="${esc(res.fileData.url)}" target="_blank">${esc(res.fileData.ten)}</a></div>` : ''}
+      ${res.xemTruoc ? bang('Sổ ĐNTT chuyển sang file DATA', res.soSach.map(x => [x.ten, x.soDong])) : ''}
+      ${bang('Phiếu cân đã trả → sheet lưu trữ', res.theoSheet.map(x => [x.tenSheet, x.soDong]))}
+      ${res.soBoQua ? `<div class="hint-text" style="color:#b45309">⚠️ ${res.soBoQua} phiếu cân không chuyển (sửa dữ liệu rồi bấm lại):<br>${res.boQua.map(x => `${esc(x.soPhieu)} - ${esc(x.lyDo)}`).join('<br>')}</div>` : ''}
+      ${nutChay ? `<button class="btn accent" style="margin-top:8px" onclick="doKhoaSoNam(true)">🔒 ${res.xemTruoc ? 'Khóa sổ năm' : 'Làm tiếp khóa sổ năm'} ${esc(String(res.nam))}</button>` : ''}`;
   });
 }
 function loadSaoLuuXoa(){
@@ -3971,7 +3979,7 @@ function loadLuuTruNam(){
   call('getLuuTruNamForWeb', [], null).then(ds => {
     state.luuTruNam = ds || [];
     el.innerHTML = `<h3>🗄️ File lưu trữ theo năm</h3>
-      <p class="muted" style="font-size:13px">Khóa sổ năm: chuyển toàn bộ dữ liệu ĐNTT của năm (DNTT_GK_DN, DNTT_GK_DN_CT, DNTT_GK_DN_112, ChiTietDNTT, ChiTietUNC) sang 1 file riêng (vd DATA2026), <b>giữ nguyên tên sheet</b>, xóa các dòng đó khỏi File Chính rồi đăng ký file ở đây. Báo cáo có khoảng ngày chạm năm đã khóa sổ tự đọc file này; báo cáo năm đang mở không đọc thêm. Bước tiếp theo: Hệ Thống › Chuyển Phiếu Cân Đã Khóa Sổ.</p>
+      <p class="muted" style="font-size:13px">Các năm đã khóa sổ và file DATA của từng năm. <b>Hệ Thống › Khóa Sổ Năm</b> tự tạo và đăng ký file - mục này chỉ dùng khi cần trỏ lại file (vd file DATA bị di chuyển hoặc sao chép sang file khác).</p>
       ${state.luuTruNam.length ? `<div class="bang"><table><thead><tr><th>Năm</th><th>File</th><th></th></tr></thead><tbody>
         ${state.luuTruNam.map((x, i) => `<tr><td><b>${esc(x.nam)}</b></td>
           <td>${x.ok ? `<a href="${esc(x.url)}" target="_blank">${esc(x.ten)}</a>` : `<span style="color:#b00">⚠️ Không mở được: ${esc(x.loi || '')}</span>`}</td>
@@ -3980,7 +3988,7 @@ function loadLuuTruNam(){
       <div class="grid cols-3" style="margin-top:10px">
         <div class="field"><label>Năm</label><input type="number" id="luutru-nam" min="2000" max="2100" placeholder="VD: 2026"></div>
         <div class="field"><label>URL hoặc ID file DATA</label><input type="text" id="luutru-link" placeholder="https://docs.google.com/spreadsheets/d/..."></div>
-        <div class="field" style="display:flex;align-items:flex-end"><button class="btn primary" onclick="doDangKyLuuTruNam()">💾 Đăng ký</button></div>
+        <div class="field" style="display:flex;align-items:flex-end"><button class="btn" onclick="doDangKyLuuTruNam()">🔗 Trỏ lại file</button></div>
       </div>`;
   });
 }

@@ -1,6 +1,6 @@
 /**
  * ============================================================
- * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.0
+ * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.1
  * Lịch sử thay đổi: CHANGELOG.md · Kiến trúc: docs/ARCHITECTURE.md
  * ------------------------------------------------------------
  * *** QUAN TRỌNG - CẦN LÀM TRƯỚC KHI DÙNG BẢN NÀY (chỉ 1 LẦN DUY NHẤT
@@ -1273,7 +1273,7 @@ const API_ROUTES = (() => {
     webSetMainSsId: r(webSetMainSsId_, Q),
     getLuuTruNamForWeb: r(getLuuTruNamForWeb_, Q),
     webSetLuuTruNam: r(webSetLuuTruNam_, Q),
-    webChuyenPhieuCanKhoaSo: r(webChuyenPhieuCanKhoaSo_, Q),
+    webKhoaSoNam: r(webKhoaSoNam_, Q),
     setupDraftSpreadsheet: r(setupDraftSpreadsheet_, Q),
     getConfigLinksForSettings: r(getConfigLinksForSettings_, Q),
     webSetSwappableLink: r(webSetSwappableLink_, Q),
@@ -1491,10 +1491,16 @@ const LUU_TRU_NAM_PROP = "LUU_TRU_NAM";   // {"2026": "<ID file DATA2026>"}
 const LUU_TRU_CACHE_TTL = 21600;          // dữ liệu đã khóa sổ không đổi - giữ 6 giờ
 const PC_SHEET_LUU_TRU_RE = /^PhieuCan_DN_(\d{4})$/;
 
-/** {năm: ID file DATA<năm>} đã đăng ký ở Cài đặt. */
-function _fileLuuTruTheoNam_() {
-  try { return JSON.parse(PropertiesService.getScriptProperties().getProperty(LUU_TRU_NAM_PROP) || "{}"); }
+function _docJsonProp_(ten) {
+  try { return JSON.parse(PropertiesService.getScriptProperties().getProperty(ten) || "{}"); }
   catch (e) { return {}; }
+}
+function _ghiJsonProp_(ten, giaTri) {
+  PropertiesService.getScriptProperties().setProperty(ten, JSON.stringify(giaTri));
+}
+/** {năm: ID file DATA<năm>} đã khóa sổ (tự đăng ký khi Khóa sổ năm, hoặc trỏ lại ở Cài đặt). */
+function _fileLuuTruTheoNam_() {
+  return _docJsonProp_(LUU_TRU_NAM_PROP);
 }
 /** Năm đã khóa sổ (có file DATA) thuộc [fDate, tDate] ("yyyy-MM-dd", rỗng = không giới hạn), tăng dần. */
 function _namLuuTruTrongKhoang_(fDate, tDate) {
@@ -1560,18 +1566,18 @@ function getLuuTruNamForWeb_() {
     catch (e) { return { nam, ten: "", url: "", ok: false, loi: _loiChoNguoiDung_(e) }; }
   });
 }
-/** #Web (Quản trị): đăng ký (hoặc bỏ, khi link rỗng) file DATA<năm>. Kiểm tra
+/** #Web (Quản trị): trỏ lại (hoặc bỏ, khi link rỗng) file DATA<năm> - dùng khi file
+ * lưu trữ bị di chuyển/sao chép; bình thường Khóa sổ năm tự đăng ký. Kiểm tra
  * file có đủ các sheet sổ đã chốt trước khi lưu. */
 function webSetLuuTruNam_(nam, link) {
   try {
     const n = Number(nam);
     if (!/^\d{4}$/.test(String(nam)) || n < 2000 || n > 2100) return { success: false, message: "❌ Năm không hợp lệ." };
-    const props = PropertiesService.getScriptProperties();
     const ds = _fileLuuTruTheoNam_();
     const clean = String(link || "").trim();
     if (!clean) {
       delete ds[n];
-      props.setProperty(LUU_TRU_NAM_PROP, JSON.stringify(ds));
+      _ghiJsonProp_(LUU_TRU_NAM_PROP, ds);
       logAction_("CAU_HINH_LUU_TRU_NAM", String(n), "Bỏ đăng ký file lưu trữ năm " + n);
       return { success: true, message: `✅ Đã bỏ file lưu trữ năm ${n}.` };
     }
@@ -1587,36 +1593,117 @@ function webSetLuuTruNam_(nam, link) {
     const conTrongFileChinh = _ctThatDocThang_().filter(r => idLuuTru.has(String(r[0]).trim()));
     if (conTrongFileChinh.length) return { success: false, message: `❌ File Chính vẫn còn ${conTrongFileChinh.length} dòng ${CFG.DNTT_CT} có trong "${ss.getName()}" (vd ID ${conTrongFileChinh[0][0]}). Xóa các dòng năm ${n} khỏi File Chính rồi đăng ký lại - tránh báo cáo cộng trùng.` };
     ds[n] = id;
-    props.setProperty(LUU_TRU_NAM_PROP, JSON.stringify(ds));
+    _ghiJsonProp_(LUU_TRU_NAM_PROP, ds);
     logAction_("CAU_HINH_LUU_TRU_NAM", String(n), `Đăng ký file lưu trữ năm ${n}: ${ss.getName()} (${id})`);
-    return { success: true, message: `✅ Đã đăng ký "${ss.getName()}" là dữ liệu lưu trữ năm ${n}. Bước tiếp: Hệ Thống › Chuyển phiếu cân đã khóa sổ - công nợ hiện tại chỉ đúng sau bước này.` };
+    return { success: true, message: `✅ Đã trỏ năm ${n} tới "${ss.getName()}".` };
   } catch (e) {
     return { success: false, message: "❌ Không mở được file - kiểm tra lại link và quyền truy cập: " + _loiChoNguoiDung_(e) };
   }
 }
 
 // ------------------------------------------------------------
-// CHUYỂN PHIẾU CÂN ĐÃ KHÓA SỔ: phiếu còn ở PhieuCan_DN nhưng đã TRẢ trong
-// năm đã khóa sổ (Số phiếu có trong CT của file DATA<năm>, không còn trong
-// sổ đang mở) -> sheet PhieuCan_DN_<năm NGÀY CÂN> trong file Phiếu Cân (cùng
-// quy ước QL_NHAPKHO nên báo cáo nhập kho vẫn đọc được). Phiếu chưa trả ở lại.
+// KHÓA SỔ NĂM N - 1 thao tác, trong khóa hệ thống, Phiếu Cân và ĐNTT cùng lúc:
+//  1. Hồ sơ của năm = hồ sơ có Ngày CK/TT (CT cột U) thuộc năm N.
+//  2. Các dòng của những hồ sơ đó ở 5 sheet sổ (DNTT_GK_DN, _CT, _112,
+//     ChiTietDNTT, ChiTietUNC) chép sang file DATA<N> (tự tạo cùng thư mục
+//     File Chính, giữ nguyên tên sheet) -> xóa khỏi File Chính -> đăng ký file.
+//  3. Phiếu cân đã trả trong năm đã khóa sổ -> PhieuCan_DN_<năm NGÀY CÂN>
+//     trong file Phiếu Cân. Phiếu chưa trả ở lại = công nợ mang sang năm mới.
+// Chép xong mới xóa; dòng đã có ở đích không chép lại -> bị dừng giữa chừng
+// thì bấm lại để làm tiếp.
 // ------------------------------------------------------------
-const CHUYEN_PC_LO = 500;               // số phiếu mỗi lượt chép + xóa
-const CHUYEN_PC_GIOI_HAN_MS = 240000;   // dừng an toàn trước giới hạn 6 phút; chạy lại để làm tiếp
+const KHOA_SO_DANG_LAM_PROP = "KHOA_SO_DANG_LAM"; // {"2026": "<ID file DATA2026 tạo ở lần chạy chưa xong>"}
+const KHOA_SO_GIOI_HAN_MS = 240000;               // dừng an toàn trước giới hạn 6 phút của Apps Script
+const CHUYEN_PC_LO = 500;                         // số phiếu mỗi lượt chép + xóa
 
-/** Chọn phiếu cần chuyển - sổ đã khóa là căn cứ "đã trả". Mọi dòng cùng Số
- * phiếu đi cùng nhau: 1 dòng không đủ điều kiện thì cả số phiếu đó ở lại
- * (xóa theo Số phiếu không xóa nhầm). */
-function _phieuCanCanChuyenLuuTru_(shPC) {
-  const namTra = new Map(); // Số phiếu -> năm khóa sổ đã trả
-  Object.keys(_fileLuuTruTheoNam_()).forEach(nam => _docSheetLuuTru_(nam, CFG.DNTT_CT, 22).forEach(r => {
-    const so = utils.standardize(r[11]); if (so) namTra.set(so, nam);
-  }));
-  const conMo = new Set(_ctThatDocThang_().map(r => utils.standardize(r[11])).filter(Boolean));
-  const soCot = Math.max(shPC.getLastColumn(), PC_MIRROR_COLS);
-  const lr = shPC.getLastRow();
+/** 5 sheet sổ chuyển sang file DATA: tên, số cột tối thiểu, cột (0-based) mã hồ sơ. */
+function _sheetSoKhoaSo_() {
+  return [
+    { ten: CFG.DNTT_SRC, soCot: 18, cotHoSo: 0 },
+    { ten: CFG.DNTT_CT, soCot: 22, cotHoSo: 1 },
+    { ten: CFG.DNTT_112, soCot: 23, cotHoSo: 0 },
+    { ten: CHITIET_DNTT_SHEET, soCot: CHITIET_DNTT_HEADERS.length, cotHoSo: 0 },
+    { ten: CHITIET_UNC_SHEET, soCot: CHITIET_UNC_HEADERS.length, cotHoSo: 0 }
+  ];
+}
+function _maHoSo_(v) { return String(v == null ? "" : v).trim(); }
+
+/** Toàn bộ dòng (từ dòng 2) với đủ số cột thật của sheet. */
+function _docHetDong_(sh, soCotToiThieu) {
+  const soCot = Math.max(sh.getLastColumn(), soCotToiThieu);
+  const lr = sh.getLastRow();
+  return { soCot, rows: lr > 1 ? sh.getRange(2, 1, lr - 1, soCot).getValues() : [] };
+}
+/** Sheet `ten` trong file đích; tạo mới với dòng tiêu đề của sheet nguồn. */
+function _sheetDichCungTieuDe_(ssDich, ten, shNguon, soCot) {
+  let sh = ssDich.getSheetByName(ten);
+  if (!sh) {
+    sh = ssDich.insertSheet(ten);
+    sh.getRange(1, 1, 1, soCot).setValues(shNguon.getRange(1, 1, 1, soCot).getValues()).setFontWeight("bold");
+    sh.setFrozenRows(1);
+  }
+  return sh;
+}
+/** Ghi thêm dòng vào cuối sheet, GIỮ NGUYÊN giá trị: định dạng số theo dòng 2 của
+ * sheet nguồn; ô chữ vẫn là chữ (không mất số 0 đầu, không thành công thức). */
+function _ghiThemGiuNguyen_(shDich, rows, soCot, shNguon) {
+  if (!rows.length) return;
+  const vung = shDich.getRange(shDich.getLastRow() + 1, 1, rows.length, soCot);
+  if (shNguon.getLastRow() > 1) {
+    const dinhDang = shNguon.getRange(2, 1, 1, soCot).getNumberFormats()[0];
+    vung.setNumberFormats(rows.map(() => dinhDang));
+  }
+  vung.setValues(_dongAnToan_(rows, Array.from({ length: soCot }, (_, i) => i)));
+}
+/** Tập giá trị (đã chuẩn hóa) của cột `cot` (0-based) từ dòng 2. */
+function _tapGiaTriCot_(sh, cot, chuanHoa) {
+  const lr = sh.getLastRow();
+  return new Set(lr > 1 ? sh.getRange(2, cot + 1, lr - 1, 1).getValues().map(r => chuanHoa(r[0])).filter(Boolean) : []);
+}
+/** Xóa mọi dòng có cột `cot` (0-based, sau chuẩn hóa) thuộc tapKhoa - đọc lại cột ngay lúc xóa. */
+function _xoaDongTheoKhoa_(sh, cot, tapKhoa, chuanHoa) {
+  const lr = sh.getLastRow();
+  if (lr < 2 || !tapKhoa.size) return 0;
+  const dong = [];
+  sh.getRange(2, cot + 1, lr - 1, 1).getValues().forEach((r, i) => { if (tapKhoa.has(chuanHoa(r[0]))) dong.push(i + 2); });
+  _nhomDongLienTiep_(dong).reverse().forEach(([a, b]) => sh.deleteRows(a, b - a + 1));
+  return dong.length;
+}
+
+/** Mã hồ sơ năm `nam`: trong sổ đang mở (Ngày CK/TT thuộc năm) + đã chép sang
+ * file DATA ở lần chạy trước. cuHon: hồ sơ các năm trước còn trong sổ đang mở. */
+function _hoSoCuaNam_(ctMo, ssData, nam) {
+  const K = new Set(), cuHon = new Set();
+  ctMo.forEach(r => {
+    const ma = _maHoSo_(r[1]);
+    if (!ma || !(r[20] instanceof Date)) return;
+    const y = Number(Utilities.formatDate(r[20], "GMT+7", "yyyy"));
+    if (y === nam) K.add(ma); else if (y < nam) cuHon.add(ma);
+  });
+  const shCT = ssData && ssData.getSheetByName(CFG.DNTT_CT);
+  if (shCT) _tapGiaTriCot_(shCT, 1, _maHoSo_).forEach(ma => K.add(ma));
+  return { K, cuHon };
+}
+/** File DATA<nam> mới, cùng thư mục + múi giờ/locale với File Chính. */
+function _taoFileData_(nam, ssMain) {
+  const ss = SpreadsheetApp.create("DATA" + nam);
+  ss.setSpreadsheetTimeZone(ssMain.getSpreadsheetTimeZone());
+  ss.setSpreadsheetLocale(ssMain.getSpreadsheetLocale());
+  const cha = DriveApp.getFileById(ssMain.getId()).getParents();
+  if (cha.hasNext()) DriveApp.getFileById(ss.getId()).moveTo(cha.next());
+  const dangLam = _docJsonProp_(KHOA_SO_DANG_LAM_PROP);
+  dangLam[nam] = ss.getId();
+  _ghiJsonProp_(KHOA_SO_DANG_LAM_PROP, dangLam);
+  return ss;
+}
+
+/** Phiếu cần chuyển - sổ đã khóa là căn cứ "đã trả". namTra: Số phiếu -> năm
+ * khóa sổ đã trả; conMo: Số phiếu còn trong sổ đang mở. Mọi dòng cùng Số phiếu
+ * đi cùng nhau: 1 dòng không đủ điều kiện thì cả số phiếu ở lại. */
+function _phieuCanCanChuyenLuuTru_(shPC, namTra, conMo) {
+  const { soCot, rows } = _docHetDong_(shPC, PC_MIRROR_COLS);
   const theoSo = new Map();
-  (lr > 1 ? shPC.getRange(2, 1, lr - 1, soCot).getValues() : []).forEach(r => {
+  rows.forEach(r => {
     const so = utils.standardize(r[PC_COL.SO_CT]);
     if (!so || !namTra.has(so)) return;
     if (!theoSo.has(so)) theoSo.set(so, []);
@@ -1624,112 +1711,146 @@ function _phieuCanCanChuyenLuuTru_(shPC) {
   });
   const chuyen = [], boQua = [];
   theoSo.forEach((dong, so) => {
-    const soHienThi = String(dong[0][PC_COL.SO_CT]).replace(/^'/, "");
     const lyDo = conMo.has(so) ? "Vẫn còn trong sổ ĐNTT đang mở"
       : dong.some(r => !(r[PC_COL.NGAY_CAN_1] instanceof Date)) ? "Không có ngày cân (không biết chuyển sang sheet năm nào)"
       : "";
-    if (lyDo) { boQua.push({ soPhieu: soHienThi, lyDo }); return; }
-    dong.forEach(r => chuyen.push({ so, values: r, nam: Number(Utilities.formatDate(r[PC_COL.NGAY_CAN_1], "GMT+7", "yyyy")), namTra: namTra.get(so) }));
+    if (lyDo) { boQua.push({ soPhieu: String(dong[0][PC_COL.SO_CT]).replace(/^'/, ""), lyDo }); return; }
+    dong.forEach(r => chuyen.push({ so, values: r, nam: Number(Utilities.formatDate(r[PC_COL.NGAY_CAN_1], "GMT+7", "yyyy")) }));
   });
   return { chuyen, boQua, soCot };
 }
-/** Sheet PhieuCan_DN_<nam> (tạo mới với dòng tiêu đề của sheet đang dùng). */
-function _sheetPcLuuTru_(shPC, nam, soCot) {
-  const ss = shPC.getParent();
-  const ten = "PhieuCan_DN_" + nam;
-  let sh = ss.getSheetByName(ten);
-  if (!sh) {
-    sh = ss.insertSheet(ten);
-    sh.getRange(1, 1, 1, soCot).setValues(shPC.getRange(1, 1, 1, soCot).getValues()).setFontWeight("bold");
-    sh.setFrozenRows(1);
-  }
-  return sh;
-}
-/** Số dòng theo Số phiếu (đã chuẩn hóa) đang có trong sheet. */
-function _demSoPhieuTrongSheet_(sh) {
-  const dem = new Map();
-  const lr = sh.getLastRow();
-  if (lr > 1) sh.getRange(2, PC_COL.SO_CT + 1, lr - 1, 1).getValues().forEach(r => {
-    const so = utils.standardize(r[0]); if (so) dem.set(so, (dem.get(so) || 0) + 1);
-  });
-  return dem;
-}
-/** Xóa khỏi sheet mọi dòng có Số phiếu thuộc soSet - đọc lại cột Số phiếu ngay lúc xóa. */
-function _xoaDongTheoSoPhieu_(sh, soSet) {
-  const lr = sh.getLastRow();
-  if (lr < 2 || !soSet.size) return 0;
-  const dong = [];
-  sh.getRange(2, PC_COL.SO_CT + 1, lr - 1, 1).getValues().forEach((r, i) => { if (soSet.has(utils.standardize(r[0]))) dong.push(i + 2); });
-  _nhomDongLienTiep_(dong).reverse().forEach(([a, b]) => sh.deleteRows(a, b - a + 1));
-  return dong.length;
-}
-
-/** #Web (Quản trị): chuyển phiếu cân đã khóa sổ. chayThat = false -> chỉ xem trước.
- * Mỗi lô: chép vào sheet lưu trữ (chỉ phần còn thiếu - chạy lại không chép
- * trùng), rồi mới xóa đúng các Số phiếu đó khỏi PhieuCan_DN. */
-function webChuyenPhieuCanKhoaSo_(chayThat) {
-  try {
-    if (!Object.keys(_fileLuuTruTheoNam_()).length) return { success: false, message: "❌ Chưa đăng ký file lưu trữ năm nào (Cài đặt › File lưu trữ theo năm)." };
-    return _chayTrongKhoa_(() => {
-      const batDau = Date.now();
-      const shPC = openExternalSheet_(CFG.PC_SS_ID, CFG.PC_SHEET, "Phiếu Cân");
-      const { chuyen, boQua, soCot } = _phieuCanCanChuyenLuuTru_(shPC);
-      const nhom = (ds, khoa) => ds.reduce((m, x) => m.set(x[khoa], (m.get(x[khoa]) || 0) + 1), new Map());
-      const tomTat = ds => Array.from(nhom(ds, "nam")).sort((a, b) => a[0] - b[0]).map(([nam, soDong]) => ({ tenSheet: "PhieuCan_DN_" + nam, soDong }));
-      const ketQua = {
-        success: true, tongDong: chuyen.length, theoSheet: tomTat(chuyen),
-        theoNamTra: Array.from(nhom(chuyen, "namTra")).sort().map(([nam, soDong]) => ({ nam, soDong })),
-        boQua: boQua.slice(0, 50), soBoQua: boQua.length
-      };
-      if (!chayThat || !chuyen.length) {
-        ketQua.xemTruoc = true;
-        ketQua.message = chuyen.length ? `Sẽ chuyển ${chuyen.length} dòng phiếu cân đã trả trong năm đã khóa sổ.` : "Không có phiếu cân nào cần chuyển.";
-        return ketQua;
-      }
-
-      const dinhDang = shPC.getRange(2, 1, 1, soCot).getNumberFormats()[0];
-      const theoSo = new Map();
-      chuyen.forEach(x => { if (!theoSo.has(x.so)) theoSo.set(x.so, []); theoSo.get(x.so).push(x); });
-      const dsSo = Array.from(theoSo.keys());
-      const maThaoTac = _maThaoTacMoi_("CHUYEN_PC_KHOA_SO");
-      const daChuyen = [];
-      const sheetLT = new Map(); // năm -> { sh, dem: Số phiếu -> số dòng đã có }
-      for (let i = 0; i < dsSo.length && Date.now() - batDau <= CHUYEN_PC_GIOI_HAN_MS; i += CHUYEN_PC_LO) {
-        const soLo = dsSo.slice(i, i + CHUYEN_PC_LO);
-        const dongLo = soLo.flatMap(so => theoSo.get(so));
-        Array.from(new Set(dongLo.map(x => x.nam))).forEach(nam => {
-          if (!sheetLT.has(nam)) { const sh = _sheetPcLuuTru_(shPC, nam, soCot); sheetLT.set(nam, { sh, dem: _demSoPhieuTrongSheet_(sh) }); }
-          const { sh, dem } = sheetLT.get(nam);
-          const cuaNam = dongLo.filter(x => x.nam === nam);
-          const ghi = [];
-          nhom(cuaNam, "so").forEach((can, so) => {
-            const thieu = can - (dem.get(so) || 0);
-            if (thieu > 0) ghi.push(...cuaNam.filter(x => x.so === so).slice(-thieu));
-          });
-          if (!ghi.length) return;
-          const vung = sh.getRange(sh.getLastRow() + 1, 1, ghi.length, soCot);
-          vung.setNumberFormats(ghi.map(() => dinhDang));
-          vung.setValues(_dongAnToan_(ghi.map(x => x.values), [PC_COL.SO_PHIEU, PC_COL.SO_CT]));
-          ghi.forEach(x => dem.set(x.so, (dem.get(x.so) || 0) + 1));
-        });
-        SpreadsheetApp.flush(); // chép xong hẳn rồi mới xóa
-        _xoaDongTheoSoPhieu_(shPC, new Set(soLo));
-        daChuyen.push(...dongLo);
-      }
-
-      _invalidatePcCache_();
-      sheetLT.forEach((v, nam) => _invalidateChunkedCache_(_khoaCachePcLuuTru_(nam)));
-      const conLai = chuyen.length - daChuyen.length;
-      const chiTiet = tomTat(daChuyen).map(x => `${x.tenSheet}: ${x.soDong}`).join(", ");
-      logAction_("CHUYEN_PHIEU_CAN_KHOA_SO", maThaoTac, `Chuyển ${daChuyen.length} dòng phiếu cân đã khóa sổ (${chiTiet})` + (conLai ? `, còn ${conLai} dòng chưa chuyển` : ""));
-      ketQua.daChuyen = daChuyen.length;
-      ketQua.conLai = conLai;
-      ketQua.message = `✅ Đã chuyển ${daChuyen.length} dòng (${chiTiet}).` + (conLai ? ` ⏳ Còn ${conLai} dòng - bấm chạy lại để chuyển tiếp.` : "");
-      return ketQua;
+/** Chuyển theo lô CHUYEN_PC_LO Số phiếu: chép phần còn thiếu (đếm theo Số phiếu
+ * ở sheet đích) -> flush -> xóa đúng các Số phiếu đó. Dừng khi hết giờ. */
+function _chuyenPhieuCanLuuTru_(shPC, pc, batDau) {
+  const theoSo = new Map();
+  pc.chuyen.forEach(x => { if (!theoSo.has(x.so)) theoSo.set(x.so, []); theoSo.get(x.so).push(x); });
+  const dsSo = Array.from(theoSo.keys());
+  const daChuyen = [];
+  const sheetLT = new Map(); // năm -> { sh, dem: Số phiếu -> số dòng đã có }
+  const demTheoSo = sh => {
+    const dem = new Map();
+    const lr = sh.getLastRow();
+    if (lr > 1) sh.getRange(2, PC_COL.SO_CT + 1, lr - 1, 1).getValues().forEach(r => { const so = utils.standardize(r[0]); if (so) dem.set(so, (dem.get(so) || 0) + 1); });
+    return dem;
+  };
+  for (let i = 0; i < dsSo.length && Date.now() - batDau <= KHOA_SO_GIOI_HAN_MS; i += CHUYEN_PC_LO) {
+    const soLo = dsSo.slice(i, i + CHUYEN_PC_LO);
+    const dongLo = soLo.flatMap(so => theoSo.get(so));
+    Array.from(new Set(dongLo.map(x => x.nam))).forEach(nam => {
+      if (!sheetLT.has(nam)) { const sh = _sheetDichCungTieuDe_(shPC.getParent(), "PhieuCan_DN_" + nam, shPC, pc.soCot); sheetLT.set(nam, { sh, dem: demTheoSo(sh) }); }
+      const { sh, dem } = sheetLT.get(nam);
+      const cuaNam = dongLo.filter(x => x.nam === nam);
+      const ghi = [];
+      cuaNam.reduce((m, x) => m.set(x.so, (m.get(x.so) || 0) + 1), new Map()).forEach((can, so) => {
+        const thieu = can - (dem.get(so) || 0);
+        if (thieu > 0) ghi.push(...cuaNam.filter(x => x.so === so).slice(-thieu));
+      });
+      _ghiThemGiuNguyen_(sh, ghi.map(x => x.values), pc.soCot, shPC);
+      ghi.forEach(x => dem.set(x.so, (dem.get(x.so) || 0) + 1));
     });
+    SpreadsheetApp.flush(); // chép xong hẳn rồi mới xóa
+    _xoaDongTheoKhoa_(shPC, PC_COL.SO_CT, new Set(soLo), v => utils.standardize(v));
+    daChuyen.push(...dongLo);
+  }
+  _invalidatePcCache_();
+  sheetLT.forEach((v, nam) => _invalidateChunkedCache_(_khoaCachePcLuuTru_(nam)));
+  return daChuyen;
+}
+function _demTheoSheetPc_(ds) {
+  return Array.from(ds.reduce((m, x) => m.set(x.nam, (m.get(x.nam) || 0) + 1), new Map()))
+    .sort((a, b) => a[0] - b[0]).map(([nam, soDong]) => ({ tenSheet: "PhieuCan_DN_" + nam, soDong }));
+}
+
+/** #Web (Quản trị): Khóa sổ năm `nam`. chayThat = false -> chỉ xem trước. */
+function webKhoaSoNam_(namInput, chayThat) {
+  try {
+    const nam = Number(namInput);
+    const namNay = Number(Utilities.formatDate(new Date(), "GMT+7", "yyyy"));
+    if (!/^\d{4}$/.test(String(namInput).trim()) || nam < 2000 || nam >= namNay) return { success: false, message: `❌ Chỉ khóa sổ được năm đã kết thúc (trước năm ${namNay}).` };
+    return _chayTrongKhoa_(() => _khoaSoNamNoLock_(nam, !!chayThat, Date.now()));
   } catch (e) {
     return { success: false, message: "❌ " + _loiChoNguoiDung_(e) };
   }
+}
+function _khoaSoNamNoLock_(nam, chayThat, batDau) {
+  const ssMain = getMainSs_();
+  const idData = _fileLuuTruTheoNam_()[nam] || _docJsonProp_(KHOA_SO_DANG_LAM_PROP)[nam] || "";
+  let ssData = idData ? SpreadsheetApp.openById(idData) : null;
+  const ctMo = _ctThatDocThang_();
+  const { K, cuHon } = _hoSoCuaNam_(ctMo, ssData, nam);
+  if (cuHon.size) return { success: false, message: `❌ Sổ đang mở còn ${cuHon.size} hồ sơ thanh toán trước năm ${nam} - khóa sổ các năm đó trước.` };
+
+  const soSach = _sheetSoKhoaSo_().map(d => {
+    const sh = ssMain.getSheetByName(d.ten);
+    const doc = sh ? _docHetDong_(sh, d.soCot) : { soCot: d.soCot, rows: [] };
+    return Object.assign({}, d, { sh, soCot: doc.soCot, dong: doc.rows.filter(r => K.has(_maHoSo_(r[d.cotHoSo]))) });
+  });
+
+  // Số phiếu -> năm khóa sổ đã trả: các năm đã đăng ký khác + CT năm này (còn ở sổ + đã chép lần trước).
+  const namTra = new Map();
+  Object.keys(_fileLuuTruTheoNam_()).filter(n => Number(n) !== nam)
+    .forEach(n => _docSheetLuuTru_(n, CFG.DNTT_CT, 22).forEach(r => { const so = utils.standardize(r[11]); if (so) namTra.set(so, n); }));
+  const shCTData = ssData && ssData.getSheetByName(CFG.DNTT_CT);
+  soSach.find(d => d.ten === CFG.DNTT_CT).dong.concat(shCTData ? _docHetDong_(shCTData, 22).rows : [])
+    .forEach(r => { const so = utils.standardize(r[11]); if (so) namTra.set(so, String(nam)); });
+  const conMo = new Set(ctMo.filter(r => !K.has(_maHoSo_(r[1]))).map(r => utils.standardize(r[11])).filter(Boolean));
+  const shPC = openExternalSheet_(CFG.PC_SS_ID, CFG.PC_SHEET, "Phiếu Cân");
+  const pc = _phieuCanCanChuyenLuuTru_(shPC, namTra, conMo);
+
+  const ketQua = {
+    success: true, nam, soHoSo: K.size,
+    soSach: soSach.map(d => ({ ten: d.ten, soDong: d.dong.length })),
+    tongPhieu: pc.chuyen.length, theoSheet: _demTheoSheetPc_(pc.chuyen),
+    boQua: pc.boQua.slice(0, 50), soBoQua: pc.boQua.length,
+    fileData: ssData ? { ten: ssData.getName(), url: ssData.getUrl() } : null
+  };
+  const conSoSach = soSach.some(d => d.dong.length);
+  if (!chayThat || (!conSoSach && !pc.chuyen.length && _fileLuuTruTheoNam_()[nam])) {
+    ketQua.xemTruoc = true;
+    ketQua.canLam = conSoSach || pc.chuyen.length > 0;
+    ketQua.message = !K.size ? `Không có hồ sơ thanh toán nào của năm ${nam}.`
+      : ketQua.canLam ? `Khóa sổ năm ${nam}: ${K.size} hồ sơ, ${pc.chuyen.length} dòng phiếu cân đã trả sẽ chuyển.`
+      : `Năm ${nam} đã khóa sổ xong.`;
+    return ketQua;
+  }
+  if (!K.size) return Object.assign(ketQua, { success: false, message: `❌ Không có hồ sơ thanh toán nào của năm ${nam}.` });
+
+  // 1. Sổ ĐNTT -> file DATA<nam> (đủ 5 sheet, kể cả sheet không có dòng nào của năm).
+  const taoMoi = !ssData;
+  if (taoMoi) ssData = _taoFileData_(nam, ssMain);
+  soSach.forEach(d => {
+    if (!d.sh) return;
+    const shD = _sheetDichCungTieuDe_(ssData, d.ten, d.sh, d.soCot);
+    const daCo = _tapGiaTriCot_(shD, d.cotHoSo, _maHoSo_);
+    _ghiThemGiuNguyen_(shD, d.dong.filter(r => !daCo.has(_maHoSo_(r[d.cotHoSo]))), d.soCot, d.sh);
+  });
+  if (taoMoi) {
+    const tenSo = new Set(soSach.map(d => d.ten));
+    ssData.getSheets().filter(sh => !tenSo.has(sh.getName())).forEach(sh => ssData.deleteSheet(sh)); // sheet trống mặc định
+  }
+  SpreadsheetApp.flush(); // chép xong hẳn rồi mới xóa khỏi File Chính
+  soSach.forEach(d => { if (d.sh) _xoaDongTheoKhoa_(d.sh, d.cotHoSo, K, _maHoSo_); });
+  _invalidateCtSrc112Cache_();
+
+  // 2. Đăng ký file DATA - từ đây báo cáo của năm này đọc file DATA.
+  const ds = _fileLuuTruTheoNam_();
+  ds[nam] = ssData.getId();
+  _ghiJsonProp_(LUU_TRU_NAM_PROP, ds);
+  const dangLam = _docJsonProp_(KHOA_SO_DANG_LAM_PROP);
+  delete dangLam[nam];
+  _ghiJsonProp_(KHOA_SO_DANG_LAM_PROP, dangLam);
+
+  // 3. Phiếu cân đã trả -> PhieuCan_DN_<năm cân>.
+  const daChuyen = _chuyenPhieuCanLuuTru_(shPC, pc, batDau);
+  const conLai = pc.chuyen.length - daChuyen.length;
+  const chiTietSo = soSach.map(d => `${d.ten}: ${d.dong.length}`).join(", ");
+  const chiTietPc = _demTheoSheetPc_(daChuyen).map(x => `${x.tenSheet}: ${x.soDong}`).join(", ");
+  logAction_("KHOA_SO_NAM", String(nam), `Khóa sổ năm ${nam} -> ${ssData.getName()} (${ssData.getId()}): ${K.size} hồ sơ (${chiTietSo}); chuyển ${daChuyen.length} dòng phiếu cân (${chiTietPc || "không có"})` + (conLai ? `, còn ${conLai} dòng chưa chuyển` : ""));
+  return Object.assign(ketQua, {
+    daChuyen: daChuyen.length, conLai, fileData: { ten: ssData.getName(), url: ssData.getUrl() },
+    message: `✅ Đã khóa sổ năm ${nam}: ${K.size} hồ sơ sang "${ssData.getName()}", ${daChuyen.length} dòng phiếu cân đã trả sang sheet lưu trữ.`
+      + (conLai ? ` ⏳ Còn ${conLai} dòng phiếu cân - bấm Khóa sổ lần nữa để chuyển tiếp (công nợ chỉ đúng khi chuyển hết).` : "")
+  });
 }
 
 /** #Web: kiểm tra đã cấu hình File Chính chưa - dùng cho trang Cài Đặt. */
@@ -2053,7 +2174,7 @@ function webSetUncConfig_(values) {
 // LIỆU TÀI CHÍNH ĐÃ CHỐT" khi ghi log nhưng trước đây KHÔNG hiện ra ở
 // trang audit trail này - vẫn nằm trong sheet log nhưng vô hình với
 // người xem trang "Lịch Sử Sửa Đổi".
-const LICH_SU_SUA_DOI_ACTIONS = new Set(["MO_DONG_THANH_TOAN", "DOI_SOAT_DONG_BO_TEN", "VA_NGAN_HANG_112", "XOA_MO_COI_CHITIET_DNTT", "XOA_MO_COI_CHITIET_UNC", "XOA_MO_COI_CT_THAT", "XOA_MO_COI_SRC_THAT", "SUA_TEN_KH_PHIEU_CAN", "PHAN_QUYEN", "CAU_HINH_DANG_NHAP", "CANH_BAO_HEADER_PC", "XAC_NHAN_HEADER_PHIEU_CAN", "CHAN_TRA_HAI_LAN", "KHOI_PHUC_DONG_DA_XOA", "CAU_HINH_LUU_TRU_NAM", "CHUYEN_PHIEU_CAN_KHOA_SO"]);
+const LICH_SU_SUA_DOI_ACTIONS = new Set(["MO_DONG_THANH_TOAN", "DOI_SOAT_DONG_BO_TEN", "VA_NGAN_HANG_112", "XOA_MO_COI_CHITIET_DNTT", "XOA_MO_COI_CHITIET_UNC", "XOA_MO_COI_CT_THAT", "XOA_MO_COI_SRC_THAT", "SUA_TEN_KH_PHIEU_CAN", "PHAN_QUYEN", "CAU_HINH_DANG_NHAP", "CANH_BAO_HEADER_PC", "XAC_NHAN_HEADER_PHIEU_CAN", "CHAN_TRA_HAI_LAN", "KHOI_PHUC_DONG_DA_XOA", "CAU_HINH_LUU_TRU_NAM", "KHOA_SO_NAM"]);
 /**
  * SỬA (theo yêu cầu - "cho xem theo ngày, không phải cứ nối dài"): giờ
  * lọc theo khoảng ngày (fDate/tDate, dạng yyyy-MM-dd) thay vì luôn hiện
