@@ -2,6 +2,22 @@
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/). Phiên bản theo `NĂM.ĐỢT.SỬA`; thay đổi làm đổi hành vi nghiệp vụ (⚖️) sẽ tăng số ĐỢT và ghi rõ đã được người dùng đồng ý.
 
+## [2026.8.3] — Trang chủ dùng số tổng hợp 15h (người dùng đồng ý 26/09/2026)
+
+### Changed
+- **Trang chủ không còn quét cả file Phiếu Cân mỗi lần mở**: “Mua / Thanh toán tháng này” và “Mua theo Nguồn gốc / Đại lý” lấy từ **PhanTichNhapTT_DRAFT** (trigger 15h tổng hợp, cùng quy tắc tính). Ngày chưa có trong bảng (vd hôm nay trước 15h) được tính bù 1 lần rồi dùng lại. Số liệu giống hệt cách tính cũ (test đối chiếu).
+- Trang chủ ghi rõ thời điểm tổng hợp gần nhất, kèm nút **🔄 Cập nhật ngay** (chạy nội dung trigger 15h).
+- Báo cáo Phân tích Nhập/TT và Trang chủ dùng chung 1 hàm đọc + tính bù ngày thiếu.
+
+### Fixed
+- Trigger 15h ngày 1 hằng tháng chỉ tổng hợp tháng mới → **phiếu cân / thanh toán sau 15h ngày cuối tháng trước không bao giờ vào báo cáo Phân tích**. Nay ngày 1 tổng hợp từ hôm qua.
+
+### Decided
+- Không “gọn bộ nhớ đệm Phiếu Cân”: màn hay dùng đã đọc sheet tổng hợp. Không ghi nhật ký STK trước/sau khi sửa hồ sơ.
+
+### Tests
+- 80 test (thêm 3; test “Trang chủ không đọc PhieuCan_DN” thất bại trên bản 2026.8.2, test đối chiếu số liệu chạy qua trên cả 2 bản).
+
 ## [2026.8.2] — Khôi phục dữ liệu đã xóa (C-07)
 
 ### Added

@@ -449,7 +449,7 @@
       <div class="nav-item" data-page="settings"><span class="ic">⚙️</span> Cài đặt / Nháp</div>
     </nav>
     <div class="nguoi-dung-chip" id="nguoi-dung-chip"></div>
-    <div class="sidebar-footer">Hệ thống Quản Lý Thanh Toán · v2026.8.2</div>
+    <div class="sidebar-footer">Hệ thống Quản Lý Thanh Toán · v2026.8.3</div>
   </aside>
 
   <main class="main">
@@ -885,6 +885,7 @@ function renderDashboard(){
     <div class="stat"><div class="label">KL Thanh Toán Tháng Này</div><div class="value timber" id="s-kl-tt">–</div><div class="hint">tấn (theo ngày CK/TT)</div></div>
     <div class="stat"><div class="label">Tiền Thanh Toán Tháng Này</div><div class="value timber" id="s-tien-tt">–</div><div class="hint">VNĐ (theo ngày CK/TT)</div></div>
   </div>
+  <div class="hint-text" id="s-thang-cap-nhat" style="margin-top:6px"></div>
   <div class="grid cols-2" style="margin-top:14px">
     <div class="card">
       <h3>Tổng Nợ Tiền Gỗ Keo</h3>
@@ -928,6 +929,9 @@ function renderDashboard(){
     document.getElementById('s-tien-tt').textContent = fmtMoney(s.tienThanhToanThang);
     document.getElementById('dash-theo-ng').innerHTML = _renderDashTheoTable_(s.muaTheoNguonGoc);
     document.getElementById('dash-theo-dl').innerHTML = _renderDashTheoTable_(s.muaTheoDaiLy);
+    document.getElementById('s-thang-cap-nhat').innerHTML = 'Số liệu "tháng này" (mua, thanh toán, theo Nguồn gốc/Đại lý) tổng hợp lúc 15h hằng ngày'
+      + (s.thangNayCapNhatLuc ? ` - lần gần nhất: ${esc(s.thangNayCapNhatLuc)}` : '')
+      + '. <button class="btn sm ghost" onclick="doCapNhatThangNay()">🔄 Cập nhật ngay</button>';
     document.getElementById('s-tong-no').textContent = fmtMoney(s.tongNoGoKeo);
     document.getElementById('dash-top5-no').innerHTML = _renderDashTop5NoTable_(s.top5KhachHangNo);
     if (!s.draftSetup) {
@@ -4399,6 +4403,9 @@ function doRunDaily15hNow(){
  * NG-ĐL, Chi Tiết Công Nợ theo Phiếu Cân) - làm y hệt doRunDaily15hNow()
  * nhưng tự tải lại ĐÚNG tab đang xem sau khi xong, khỏi phải qua Cài Đặt
  * rồi quay lại bấm "Xem" lần nữa. */
+function doCapNhatThangNay(){
+  call('webRunDaily15hRefreshNow', [], 'Đang cập nhật số liệu tháng này...').then(res => handleResult(res, renderDashboard));
+}
 function doDongBoNgayBaoCao(tab){
   call('webRunDaily15hRefreshNow', [], 'Đang đồng bộ ngay...').then(res => {
     handleResult(res, () => { if (tab === 'ctcn') loadCtcnTab(); else loadDebtTab(); });

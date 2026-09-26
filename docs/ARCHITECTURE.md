@@ -1,4 +1,4 @@
-# ARCHITECTURE — HAK Quản Lý Thanh Toán (v2026.8.2)
+# ARCHITECTURE — HAK Quản Lý Thanh Toán (v2026.8.3)
 
 > Tài liệu sống: cập nhật mỗi khi đổi module, lớp, luồng dữ liệu hoặc schema.
 > Phân tích chi tiết hiện trạng: `docs/PROJECT_ANALYSIS.md`. Kiến trúc đích: `docs/REFACTOR_PLAN.md` §3–§4.
@@ -102,6 +102,16 @@ Trình duyệt ─ google.script.run.api(phiên, "tenChucNang", [tham số])
 Quy tắc: **thêm chức năng mới gọi từ web** = viết hàm nội bộ `ten_` + thêm 1 dòng vào `API_ROUTES` với quyền phù hợp. Test `auth.test.mjs` sẽ báo lỗi nếu có hàm global mới không kết thúc bằng `_`, trình duyệt gọi 1 chức năng chưa có route, hoặc 1 trang (theo `PAGES[].quyen`) gọi chức năng cần quyền **cao hơn** quyền mở trang đó.
 
 Lỗi: `api()` và các hàm trả `{success:false, message}` dùng `_loiChoNguoiDung_(e)` — lỗi nghiệp vụ (`new Error("…")`) hiện nguyên câu; lỗi lập trình (TypeError…) chỉ hiện mã tra cứu, chi tiết + stack ghi `NhatKyThaoTac` (`LOI_HE_THONG`).
+
+## 4d. Sheet tổng hợp (snapshot) trong File Nháp
+
+| Sheet | Trigger ghi | Màn hình đọc |
+|---|---|---|
+| `PhanTichNhapTT_DRAFT` | 15h (`daily15hRefresh_`: từ đầu tháng, ngày 1 thì từ hôm qua) | Báo cáo Phân tích Nhập/TT, **Trang chủ “tháng này”** (`_docPhanTichTheoKhoang_`, ngày thiếu tự tính bù) |
+| `CongNoKhachHang_DRAFT` | 7:30 / 13:00 (`dailyRefreshAllCaches_`, 90 ngày) | Công nợ theo KH (khoảng mặc định), Trang chủ (tổng nợ, top 5), Trợ lý AI |
+| `ChiTietCongNoPhieuCan_DRAFT` | 15h (ngày hôm qua) | Chi tiết công nợ theo phiếu cân (ngày hôm qua), Trợ lý AI |
+
+Quy tắc: màn hình mở thường xuyên đọc snapshot, không quét PhieuCan_DN. `_pcData_()` (bộ nhớ đệm 90 giây, tối đa 3,6 MB) chỉ dùng khi tính snapshot, khi chọn khoảng ngày khác mặc định, sổ chi tiết, đối soát/bảo trì và các bước cần chi tiết vài phiếu (Duyệt, Báo cáo ĐNTT, Mở Đóng TT).
 
 ## 4c. Công nợ theo khách hàng (v2026.8.0)
 

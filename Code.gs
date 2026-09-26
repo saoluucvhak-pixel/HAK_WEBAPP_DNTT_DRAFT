@@ -1,6 +1,6 @@
 /**
  * ============================================================
- * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.8.2
+ * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.8.3
  * Lịch sử thay đổi: CHANGELOG.md · Kiến trúc: docs/ARCHITECTURE.md
  * ------------------------------------------------------------
  * *** QUAN TRỌNG - CẦN LÀM TRƯỚC KHI DÙNG BẢN NÀY (chỉ 1 LẦN DUY NHẤT
@@ -5101,7 +5101,10 @@ function _refreshPhanTichNhapTTChoDanhSachNgayNoLock_(ngayList) {
 
 /** Đọc + PIVOT dữ liệu đã tổng hợp trong khoảng [fDate,tDate] thành 4
  * bảng: Nhập theo NG, Nhập theo ĐL, Thanh Toán theo NG, Thanh Toán theo ĐL. */
-function getPhanTichNhapTTReport_(fDate, tDate) {
+/** Dòng PhanTichNhapTT_DRAFT trong [fDate, tDate]; ngày nào chưa từng tổng
+ * hợp thì tính bù (1 lượt quét) rồi đọc lại. Dùng cho báo cáo Phân tích và
+ * "tháng này" ở Trang chủ. */
+function _docPhanTichTheoKhoang_(fDate, tDate) {
   const sh = getPhanTichCacheSheet_();
   let lastRow = sh.getLastRow();
   let all = lastRow > 1 ? sh.getRange(2, 1, lastRow - 1, PHANTICH_HEADERS.length).getValues() : [];
@@ -5141,7 +5144,11 @@ function getPhanTichNhapTTReport_(fDate, tDate) {
     const ngay = _ngayCellToStr_(r[0]);
     return ngay >= fDate && ngay <= tDate;
   });
+  return inRange;
+}
 
+function getPhanTichNhapTTReport_(fDate, tDate) {
+  const inRange = _docPhanTichTheoKhoang_(fDate, tDate);
   const ngayList = Array.from(new Set(inRange.map(r => _ngayCellToStr_(r[0])))).sort();
 
   function buildPivot(loai, phanLoai) {
@@ -5670,6 +5677,14 @@ function showResetPhanTichDialog() {
  * lượt quét CT thật - không chậm dù nhiều ngày. Chi Tiết Công Nợ theo
  * Phiếu Cân vẫn giữ nguyên snapshot 1 ngày (hôm qua) như cũ.
  */
+const PHANTICH_CAP_NHAT_LUC_PROP = "PHANTICH_CAP_NHAT_LUC";
+/** Ngày bắt đầu tổng hợp lúc 15h: đầu tháng, nhưng ngày 1 thì lùi về hôm
+ * qua - phiếu cân nhập sau 15h ngày cuối tháng trước vẫn được tính. */
+function _tuNgayTongHop15h_(ngayHomQua, homNay) {
+  const dauThang = homNay.slice(0, 8) + "01";
+  return ngayHomQua < dauThang ? ngayHomQua : dauThang;
+}
+
 function daily15hRefresh_() {
   const now = new Date();
   // SỬA THÊM (an toàn hơn với múi giờ Project): trước đây dùng
@@ -5681,15 +5696,13 @@ function daily15hRefresh_() {
   const homQua = new Date(now.getTime() - 24 * 3600 * 1000);
   const ngayHomQua = Utilities.formatDate(homQua, "GMT+7", "yyyy-MM-dd");
   const homNay = Utilities.formatDate(now, "GMT+7", "yyyy-MM-dd");
-  // "Đầu tháng" lấy trực tiếp bằng cách cắt chuỗi từ homNay (đã format
-  // đúng GMT+7 ở trên) - hoàn toàn không qua Date constructor nào nữa,
-  // nên không còn phụ thuộc múi giờ Project chút nào.
-  const dauThang = homNay.slice(0, 8) + "01";
+  const tuNgay = _tuNgayTongHop15h_(ngayHomQua, homNay);
 
-  const r1 = refreshPhanTichNhapTTChoKhoang_(dauThang, homNay);
+  const r1 = refreshPhanTichNhapTTChoKhoang_(tuNgay, homNay);
+  PropertiesService.getScriptProperties().setProperty(PHANTICH_CAP_NHAT_LUC_PROP, Utilities.formatDate(now, "GMT+7", "HH:mm dd/MM/yyyy"));
   const n2 = refreshChiTietCongNoPhieuCanChoNgay_(ngayHomQua);
-  logAction_("DAILY_15H_REFRESH", "-", `Phân tích NG/ĐL: ${dauThang} - ${homNay} (${r1.soNgay} ngày, ${r1.soDong} dòng) · Chi tiết công nợ phiếu cân (ngày ${ngayHomQua}): ${n2} dòng.`);
-  return { dauThang, homNay, r1, ngayHomQua, n2 };
+  logAction_("DAILY_15H_REFRESH", "-", `Phân tích NG/ĐL: ${tuNgay} - ${homNay} (${r1.soNgay} ngày, ${r1.soDong} dòng) · Chi tiết công nợ phiếu cân (ngày ${ngayHomQua}): ${n2} dòng.`);
+  return { tuNgay, homNay, r1, ngayHomQua, n2 };
 }
 
 /** MỚI (theo yêu cầu - "nút đồng bộ song song với trigger 15h"): chạy
@@ -5701,7 +5714,7 @@ function daily15hRefresh_() {
 function webRunDaily15hRefreshNow_() {
   try {
     const r = daily15hRefresh_();
-    return `✅ Đã đồng bộ xong: Phân tích NG/ĐL ${r.dauThang} → ${r.homNay} (${r.r1.soNgay} ngày, ${r.r1.soDong} dòng) · Chi tiết công nợ phiếu cân ngày ${r.ngayHomQua} (${r.n2} dòng).`;
+    return `✅ Đã đồng bộ xong: Phân tích NG/ĐL ${r.tuNgay} → ${r.homNay} (${r.r1.soNgay} ngày, ${r.r1.soDong} dòng) · Chi tiết công nợ phiếu cân ngày ${r.ngayHomQua} (${r.n2} dòng).`;
   } catch (e) {
     return "❌ Đồng bộ lỗi: " + _loiChoNguoiDung_(e);
   }
@@ -7430,20 +7443,6 @@ function getDraftBadgeCount_() {
   }
 }
 
-/** Mốc 00:00 GMT+7 ngày 1 của tháng hiện tại và tháng sau (dạng Date). Chỉ
- * gọi Utilities.formatDate 2 lần để lấy năm/tháng theo GMT+7 (không phụ
- * thuộc múi giờ project), còn lại là số học Date.UTC. */
-function _mocThangHienTaiGMT7_(now) {
-  const moc = now || new Date();
-  const nam = parseInt(Utilities.formatDate(moc, "GMT+7", "yyyy"), 10);
-  const thang = parseInt(Utilities.formatDate(moc, "GMT+7", "MM"), 10); // 1-12
-  // 00:00 GMT+7 ngày 1 = 17:00 UTC ngày cuối tháng trước -> giờ "-7" để Date.UTC tự lùi ngày.
-  return {
-    dauThangNay: new Date(Date.UTC(nam, thang - 1, 1, -7, 0, 0)),
-    dauThangSau: new Date(Date.UTC(nam, thang, 1, -7, 0, 0))
-  };
-}
-
 function getDashboardStats_() {
   const result = {
     draftSetup: true, // MỚI: File Nháp giờ LÀ chính file đang chạy - luôn sẵn sàng, tự tạo sheet nếu thiếu (xem getDraftSheets_())
@@ -7490,51 +7489,34 @@ function getDashboardStats_() {
     result.top5KhachHangNo = dangNo.slice(0, 5).map(r => ({ khachHang: r.khachHang, khoa: r.khoa, congNo: r.congNo }));
   } catch (e) {}
 
-  // MỚI (theo yêu cầu - "thêm tổng khối lượng mua trong tháng, tổng khối
-  // lượng thanh toán"): "Mua" = tính theo NGÀY CÂN thật của Phiếu Cân
-  // (thời điểm nhập hàng), "Thanh Toán" = tính theo NGÀY CK/TT của CT
-  // thật (thời điểm ĐÃ chuyển tiền, sheet CT thật chỉ chứa hồ sơ đã Đóng
-  // Thanh Toán). Cả 2 đều dùng lại cache dùng chung đã có sẵn
-  // (_pcData_()/_ctThatDataCache_()) - không tự đọc thẳng sheet, tránh
-  // lặp lại đúng vấn đề chậm đã sửa ở trên khi dữ liệu tích lũy nhiều.
+  // "Tháng này" (mua, thanh toán, theo Nguồn gốc / Đại lý) lấy từ
+  // PhanTichNhapTT_DRAFT do trigger 15h tổng hợp (cùng quy tắc: mua theo
+  // ngày cân, thanh toán theo ngày CK, tên NG qua DM_NG) - Trang chủ không
+  // quét PhieuCan_DN mỗi lần mở. Ngày chưa có trong bảng (vd hôm nay trước
+  // 15h) được tính bù 1 lần rồi dùng lại.
   try {
-    // So Date trực tiếp với mốc đầu tháng này / đầu tháng sau (GMT+7) thay
-    // vì Utilities.formatDate() cho từng dòng - kết quả như nhau, nhanh hơn nhiều.
-    const { dauThangNay, dauThangSau } = _mocThangHienTaiGMT7_();
-    const trongThangNay = d => d instanceof Date && d >= dauThangNay && d < dauThangSau;
-    // MỚI (theo yêu cầu - "tổng hợp thêm nguồn gốc và đại lý"): gộp luôn
-    // vào ĐÚNG lượt quét PC của "Mua Tháng Này" ngay dưới đây (không quét
-    // thêm PC lần 2 CHO RIÊNG việc này) - cộng dồn KL/Tiền theo TỪNG
-    // Nguồn Gốc và TỪNG Đại Lý riêng, dùng đúng cách tra tên NG như
-    // _refreshPhanTichNhapTTChoDanhSachNgayNoLock_() đang dùng cho báo
-    // cáo "Phân Tích Nhập/TT theo NG-ĐL" (đồng bộ tên gọi giữa 2 nơi).
-    const dmNgMap = _getDmNgMap_();
-    const ngMap = new Map(), dlMap = new Map();
-    _pcData_().forEach(r => {
-      const ngayCan = r[PC_COL.NGAY_CAN_1];
-      if (!trongThangNay(ngayCan)) return;
-      const kl = utils.parseNum(r[PC_COL.KL_KG]);
-      const tien = utils.parseNum(r[PC_COL.THANH_TIEN]);
-      result.klMuaThangKg += kl;
-      result.tienMuaThang += tien;
-
-      const tenNG = _tenNguonGoc_(r[PC_COL.NGUON_GOC], dmNgMap);
-      const ng = ngMap.get(tenNG) || { ten: tenNG, klKg: 0, tien: 0 };
-      ng.klKg += kl; ng.tien += tien; ngMap.set(tenNG, ng);
-
-      const tenDL = String(r[PC_COL.DAI_LY] || "").trim() || "(Chưa rõ ĐL)";
-      const dl = dlMap.get(tenDL) || { ten: tenDL, klKg: 0, tien: 0 };
-      dl.klKg += kl; dl.tien += tien; dlMap.set(tenDL, dl);
-    });
-    result.muaTheoNguonGoc = Array.from(ngMap.values()).sort((a, b) => b.klKg - a.klKg);
-    result.muaTheoDaiLy = Array.from(dlMap.values()).sort((a, b) => b.klKg - a.klKg);
-
-    _ctThatDataCache_().forEach(r => {
-      const ngayTT = r[20]; // "Ngày CK/TT" - xem header CFG.DRAFT_CT_SHEET/DNTT_CT
-      if (!trongThangNay(ngayTT)) return;
-      result.klThanhToanThangTan += utils.parseNum(r[12]); // "KL Tấn"
-      result.tienThanhToanThang += utils.parseNum(r[16]); // "Thành tiền"
-    });
+    const homNay = Utilities.formatDate(new Date(), "GMT+7", "yyyy-MM-dd");
+    const dong = _docPhanTichTheoKhoang_(homNay.slice(0, 8) + "01", homNay);
+    const gom = (loai, phanLoai) => {
+      const m = new Map();
+      dong.forEach(r => {
+        if (String(r[1]) !== loai || String(r[2]) !== phanLoai) return;
+        const ten = String(r[3]);
+        const o = m.get(ten) || { ten, klKg: 0, tien: 0 };
+        o.klKg += utils.parseNum(r[4]); o.tien += utils.parseNum(r[5]);
+        m.set(ten, o);
+      });
+      return Array.from(m.values()).sort((a, b) => b.klKg - a.klKg);
+    };
+    const tong = loai => gom(loai, "TONG").reduce((s, o) => ({ klKg: s.klKg + o.klKg, tien: s.tien + o.tien }), { klKg: 0, tien: 0 });
+    const nhap = tong("NHAP"), tt = tong("THANHTOAN");
+    result.klMuaThangKg = nhap.klKg;
+    result.tienMuaThang = nhap.tien;
+    result.klThanhToanThangTan = tt.klKg; // phần Thanh toán lưu KL theo tấn (cột "KL Tấn" của CT)
+    result.tienThanhToanThang = tt.tien;
+    result.muaTheoNguonGoc = gom("NHAP", "NG");
+    result.muaTheoDaiLy = gom("NHAP", "DL");
+    result.thangNayCapNhatLuc = PropertiesService.getScriptProperties().getProperty(PHANTICH_CAP_NHAT_LUC_PROP) || "";
   } catch (e) {}
 
   return result;
