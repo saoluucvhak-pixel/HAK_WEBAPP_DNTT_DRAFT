@@ -402,6 +402,15 @@
     .dien-giai td, .dien-giai th{padding:7px 10px;}
     .dien-giai td.mono{font-size:15px;}
     .dien-giai .tong{font-size:15.5px; font-weight:700; margin-top:8px;}
+    .dien-giai .tong-dau{font-size:15.5px; font-weight:700; margin:-2px 0 10px; color:var(--ink);}
+    .dien-giai .tong-dau span{color:var(--accent);}
+    /* Nhiều phiếu: bảng cuộn bên trong (~8 dòng), tiêu đề cột và dòng tổng luôn hiện. */
+    .dien-giai .bang{max-height:400px; overflow:auto; border:1px solid var(--line); border-radius:8px;}
+    .dien-giai .bang thead th{position:sticky; top:0; z-index:1; background:var(--white);}
+    .dien-giai .bang tfoot td{position:sticky; bottom:0; background:var(--timber-light); font-weight:700; border-top:2px solid var(--line);}
+    .dien-giai .bang tbody td, body.dntt-lg #content .dien-giai .bang tbody td,
+    .dien-giai .bang tfoot td, body.dntt-lg #content .dien-giai .bang tfoot td{padding:6px 10px;}
+    .dien-giai .bang .btn, body.dntt-lg #content .dien-giai .bang .btn{padding:1px 8px; font-size:13px;}
     .dien-giai .dong{font-size:15px; line-height:1.7; padding:3px 0; border-bottom:1px dashed var(--line);}
     .dien-giai .dong:last-child{border-bottom:none;}
     .dien-giai .dong b{display:inline-block; min-width:150px; color:var(--ink-soft); font-weight:600;}
@@ -1431,16 +1440,19 @@ function renderChosenPcDesc(){
   const tongTien = list.reduce((s,p)=>s+(Number(p.thanhTien)||0),0);
   const soKhac = list.filter(p => p.khopTen === false).length;
   el.innerHTML = `<div class="dien-giai">
-    <div class="tieu-de">Diễn giải phiếu cân đã chọn (${list.length} phiếu)</div>
-    <div style="overflow-x:auto"><table><thead><tr><th>Số phiếu cân</th><th>Khách hàng</th><th class="num">KL (kg)</th><th class="num">Đơn giá (đ)</th><th class="num">Thành tiền (đ)</th><th></th></tr></thead><tbody>
+    <div class="tieu-de">Diễn giải phiếu cân đã chọn</div>
+    <div class="tong-dau"><span>${list.length} phiếu</span> · Tổng KL: ${fmtKl(tongKl)} kg · Tổng tiền (tạm tính): ${fmtMoney(tongTien)} đ</div>
+    ${soKhac?`<div style="color:var(--timber);margin:-4px 0 8px;font-size:14px">⚠️ ${soKhac} phiếu khác tên Chủ rừng (dòng tô vàng)</div>`:''}
+    <div class="bang"><table><thead><tr><th class="num">STT</th><th>Số phiếu cân</th><th>Khách hàng</th><th class="num">KL (kg)</th><th class="num">Đơn giá (đ)</th><th class="num">Thành tiền (đ)</th><th></th></tr></thead><tbody>
       ${list.map((p, i) => `<tr${p.khopTen===false?' style="background:var(--timber-light)"':''}>
+        <td class="num">${i + 1}</td>
         <td class="mono">${esc(p.soPhieuCan)}${p.khopTen===false?' ⚠️':''}</td><td>${esc(p.khachHang)}</td>
         <td class="num mono">${fmtKl(p.klKg)}</td><td class="num mono">${fmtMoney(p.donGia)}</td><td class="num mono">${fmtMoney(p.thanhTien)}</td>
         <td><button class="btn sm ghost" title="Bỏ chọn" onclick="boChonPcTheoViTri(${i})">✕</button></td>
       </tr>`).join('')}
-    </tbody></table></div>
-    <div class="tong">Tổng KL: ${fmtKl(tongKl)} kg · Tổng tiền (tạm tính): ${fmtMoney(tongTien)} đ</div>
-    ${soKhac?`<div style="color:var(--timber);margin-top:4px;font-size:14px">⚠️ ${soKhac} phiếu khác tên Chủ rừng</div>`:''}
+    </tbody>
+    <tfoot><tr><td></td><td colspan="2">Tổng cộng (${list.length} phiếu)</td><td class="num mono">${fmtKl(tongKl)}</td><td></td><td class="num mono">${fmtMoney(tongTien)}</td><td></td></tr></tfoot>
+    </table></div>
   </div>`;
 }
 function boChonPcTheoViTri(i){

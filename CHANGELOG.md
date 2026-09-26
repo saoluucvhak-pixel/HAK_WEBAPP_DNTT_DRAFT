@@ -2,6 +2,11 @@
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/). Phiên bản theo `NĂM.ĐỢT.SỬA`; thay đổi làm đổi hành vi nghiệp vụ (⚖️) sẽ tăng số ĐỢT và ghi rõ đã được người dùng đồng ý.
 
+## [2026.7.3] — Diễn giải gọn khi chọn nhiều phiếu cân
+
+### Changed
+- Diễn giải phiếu cân đã chọn (Tạo Mới): tổng số phiếu / Tổng KL / Tổng tiền hiện NGAY dưới tiêu đề; thêm cột STT; dòng gọn hơn (chữ vẫn 15px); nhiều phiếu thì bảng cuộn bên trong (~10 dòng), tiêu đề cột và dòng “Tổng cộng” luôn hiện.
+
 ## [2026.7.2] — Sửa tên KH, thêm phiếu cân khi sửa hồ sơ, Diễn giải, số 0 đầu
 
 ### Fixed
