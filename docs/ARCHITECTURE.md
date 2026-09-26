@@ -113,6 +113,14 @@ Lỗi: `api()` và các hàm trả `{success:false, message}` dùng `_loiChoNguo
 
 Quy tắc: màn hình mở thường xuyên đọc snapshot, không quét PhieuCan_DN. `_pcData_()` (bộ nhớ đệm 90 giây, tối đa 3,6 MB) chỉ dùng khi tính snapshot, khi chọn khoảng ngày khác mặc định, sổ chi tiết, đối soát/bảo trì và các bước cần chi tiết vài phiếu (Duyệt, Báo cáo ĐNTT, Mở Đóng TT).
 
+## 4e. Khóa sổ năm (quy trình của người dùng, 26/09/2026)
+
+- PhieuCan_DN chỉ chứa năm hiện tại: cuối năm, phiếu **đã trả** chuyển sang sheet lưu trữ, phiếu **chưa trả giữ lại** (mang sang năm mới).
+- DNTT_GK_DN khóa sổ theo năm (sổ đã chốt chỉ còn khoản trả của năm hiện tại).
+- Công nợ = Σ phiếu cân − Σ đã trả ⇒ sau khóa sổ đúng bằng **các phiếu cân chưa trả** (số dư đầu năm mang sang tự đúng, không cần bút toán số dư). Test `khoaSoNam.test.mjs`.
+- Bộ nhớ đệm Phiếu Cân tự giới hạn theo năm (~13.500 phiếu/năm < trần ~16.000).
+- Lưu ý khi khóa sổ: chuyển phiếu đã trả (Chọn TT = Y / ID_DNTT = Đóng TT) và khóa sổ DNTT_GK_DN **cùng lúc**; không chuyển phiếu đang nằm trong hồ sơ Nháp. Nếu khóa sổ bằng cách **tạo File Chính mới**, phải mang theo sheet `SYS_NguoiDung` (danh sách người dùng) – nếu không chỉ Quản trị cố định đăng nhập được.
+
 ## 4c. Công nợ theo khách hàng (v2026.8.0)
 
 Khách hàng = **CCCD + Tên**, khóa `CCCD|TÊN_CHUẨN_HÓA` (`_khoaCongNo_`); trùng tên chưa rõ người: `TRUNG_TEN|TÊN`.
