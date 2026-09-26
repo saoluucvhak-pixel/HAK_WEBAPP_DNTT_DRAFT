@@ -1,6 +1,6 @@
 /**
  * ============================================================
- * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.7.5
+ * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.8.0
  * Lịch sử thay đổi: CHANGELOG.md · Kiến trúc: docs/ARCHITECTURE.md
  * ------------------------------------------------------------
  * *** QUAN TRỌNG - CẦN LÀM TRƯỚC KHI DÙNG BẢN NÀY (chỉ 1 LẦN DUY NHẤT
@@ -1065,6 +1065,7 @@ const API_ROUTES = (() => {
     getDebtByCustomer: r(getDebtByCustomer_, X),
     getDebtByContract: r(getDebtByContract_, X),
     getDebtLedgerDetail: r(getDebtLedgerDetail_, X),
+    getDoiChieuCongNoCccd: r(getDoiChieuCongNoCccd_, X),
     getPaymentAnalysis: r(getPaymentAnalysis_, X),
     getPhanTichNhapTTReport: r(getPhanTichNhapTTReport_, X),
     exportPhanTichNhapTTBaoCao: r(exportPhanTichNhapTTBaoCao_, X),
@@ -6078,50 +6079,142 @@ function _clampReportRange_(fDate, tDate) {
 /** #1 + #3: Công nợ theo Khách hàng mua gỗ keo, trong khoảng ngày - TÍNH
  * TRỰC TIẾP (không qua cache). Dùng nội bộ bởi getDebtByCustomer_() (mục
  * AB) và bởi refreshCongNoCache_() (chạy nền định kỳ). */
-function _computeDebtByCustomerLive_(fDate, tDate) {
+// ------------------------------------------------------------
+// NHẬN DIỆN KHÁCH HÀNG CÔNG NỢ (M-04 - người dùng đồng ý 26/09/2026)
+// Khách hàng = CCCD + Tên. PhieuCan_DN KHÔNG có cột CCCD nên mỗi phiếu
+// cân được gán CCCD theo thứ tự:
+//   1. Phiếu đã nằm trong hồ sơ ĐNTT (CT thật hoặc Nháp): CCCD + tên của
+//      hồ sơ đó (Nợ và Có của phiếu luôn cùng 1 khách hàng).
+//   2. Chưa vào hồ sơ: tên phiếu tra HD_NCC - đúng 1 CCCD thì dùng; từ 2
+//      CCCD trở lên thì xếp riêng "trùng tên - chưa rõ CCCD"; không có
+//      thì để trống CCCD.
+// ------------------------------------------------------------
+const CONG_NO_TRUNG_TEN = "TRUNG_TEN";
+
+/** Khóa 1 khách hàng công nợ (dùng cho gom nhóm + mở Sổ chi tiết). */
+function _khoaCongNo_(cccd, ten) {
+  return String(cccd || "") + "|" + utils.standardize(ten);
+}
+
+/** Bộ nhận diện theo CCCD + Tên. Trả 2 hàm: choPhieu(dòng PhieuCan_DN) và
+ * choThanhToan(dòng CT thật) -> { khoa, ten, cccd, trungTen }. */
+function _nhanDienKhachCongNo_() {
+  const theoPhieu = new Map();
+  const ghiPhieu = r => {
+    const so = utils.standardize(r[11]);
+    if (so && !theoPhieu.has(so)) theoPhieu.set(so, { cccd: _chuanHoaCCCD_(r[4]), ten: String(r[3] || "").trim() });
+  };
+  try { _ctThatDataCache_().forEach(ghiPhieu); } catch (e) { /* chưa kết nối File Chính */ }
+  try {
+    const { shCT } = getDraftSheets_();
+    const lr = shCT.getLastRow();
+    if (lr > 1) shCT.getRange(2, 1, lr - 1, 22).getValues().forEach(ghiPhieu);
+  } catch (e) { /* File Nháp chưa thiết lập */ }
+
+  const cccdTheoTen = new Map();
+  try {
+    _hdNccFullData_().forEach(r => {
+      const t = utils.standardize(r[HDNCC_SRC_COL.HO_TEN]), c = _chuanHoaCCCD_(r[HDNCC_SRC_COL.CCCD]);
+      if (!t || !c) return;
+      if (!cccdTheoTen.has(t)) cccdTheoTen.set(t, new Set());
+      cccdTheoTen.get(t).add(c);
+    });
+  } catch (e) { /* không đọc được HD_NCC -> các phiếu chưa vào hồ sơ để trống CCCD */ }
+
+  const ket = (cccd, ten, trungTen) => ({ khoa: trungTen ? CONG_NO_TRUNG_TEN + "|" + utils.standardize(ten) : _khoaCongNo_(cccd, ten), ten, cccd: trungTen ? "" : cccd, trungTen });
+  return {
+    choPhieu(r) {
+      const daVaoHoSo = theoPhieu.get(utils.standardize(r[PC_COL.SO_CT]));
+      if (daVaoHoSo && (daVaoHoSo.cccd || daVaoHoSo.ten)) return ket(daVaoHoSo.cccd, daVaoHoSo.ten || String(r[PC_COL.KHACH_HANG] || "").trim(), false);
+      const ten = String(r[PC_COL.KHACH_HANG] || "").trim();
+      const ds = cccdTheoTen.get(utils.standardize(ten));
+      if (ds && ds.size > 1) return ket("", ten, true);
+      return ket(ds ? Array.from(ds)[0] : "", ten, false);
+    },
+    choThanhToan(r) {
+      return ket(_chuanHoaCCCD_(r[4]), String(r[3] || "").trim(), false);
+    }
+  };
+}
+
+/** Cách gom CŨ (trước 2026.7.5 - chỉ theo tên), giữ lại để đối chiếu số liệu. */
+function _nhanDienKhachTheoTen_() {
+  const ket = ten => ({ khoa: utils.standardize(ten), ten, cccd: "", trungTen: false });
+  return {
+    choPhieu: r => ket(String(r[PC_COL.KHACH_HANG] || "").trim()),
+    choThanhToan: r => ket(String(r[3] || "").trim())
+  };
+}
+
+/** #1: Công nợ theo Khách hàng - TÍNH TRỰC TIẾP (không qua cache). Dùng
+ * bởi getDebtByCustomer_() và refreshCongNoCache_(). nhanDien mặc định là
+ * CCCD + Tên; truyền _nhanDienKhachTheoTen_() để ra số liệu theo cách cũ. */
+function _computeDebtByCustomerLive_(fDate, tDate, nhanDien) {
   fDate = _clampReportRange_(fDate, tDate); // mục R - xem ghi chú tại _clampReportRange_
+  const nd = nhanDien || _nhanDienKhachCongNo_();
   const byCustomer = new Map();
+  const nhom = kh => {
+    if (!byCustomer.has(kh.khoa)) byCustomer.set(kh.khoa, { kh, klTrongKy:0, giaTriTrongKy:0, klLuyKe:0, giaTriLuyKe:0, daTTTrongKy:0, daTTLuyKe:0 });
+    return byCustomer.get(kh.khoa);
+  };
 
   _pcData_().forEach(r => {
-    const ten = String(r[PC_COL.KHACH_HANG] || "").trim();
-    if (!ten) return;
     const thanhTien = utils.parseNum(r[PC_COL.THANH_TIEN]);
     if (thanhTien <= 0) return;
+    const kh = nd.choPhieu(r);
+    if (!kh.ten) return;
     const ngay = r[PC_COL.NGAY_CAN_1];
     const kl = utils.parseNum(r[PC_COL.KL_KG]) / 1000;
-    const key = utils.standardize(ten);
-    if (!byCustomer.has(key)) byCustomer.set(key, { ten, klTrongKy:0, giaTriTrongKy:0, klLuyKe:0, giaTriLuyKe:0, daTTTrongKy:0, daTTLuyKe:0 });
-    const o = byCustomer.get(key);
+    const o = nhom(kh);
     if (_onOrBefore_(ngay, tDate)) { o.klLuyKe += kl; o.giaTriLuyKe += thanhTien; }
     if (_inDateRange_(ngay, fDate, tDate)) { o.klTrongKy += kl; o.giaTriTrongKy += thanhTien; }
   });
 
   try {
-    const shCTReal = getMainSs_().getSheetByName(CFG.DNTT_CT);
-    if (shCTReal && shCTReal.getLastRow() > 1) {
-      shCTReal.getRange(2, 1, shCTReal.getLastRow() - 1, 22).getValues().forEach(r => {
-        const ten = String(r[3] || "").trim();
-        if (!ten) return;
-        const key = utils.standardize(ten);
-        const thanhTien = utils.parseNum(r[16]);
-        const ngayCK = r[20];
-        if (!byCustomer.has(key)) byCustomer.set(key, { ten, klTrongKy:0, giaTriTrongKy:0, klLuyKe:0, giaTriLuyKe:0, daTTTrongKy:0, daTTLuyKe:0 });
-        const o = byCustomer.get(key);
-        if (_onOrBefore_(ngayCK, tDate)) o.daTTLuyKe += thanhTien;
-        if (_inDateRange_(ngayCK, fDate, tDate)) o.daTTTrongKy += thanhTien;
-      });
-    }
+    _ctThatDataCache_().forEach(r => {
+      const kh = nd.choThanhToan(r);
+      if (!kh.ten) return;
+      const thanhTien = utils.parseNum(r[16]);
+      const ngayCK = r[20];
+      const o = nhom(kh);
+      if (_onOrBefore_(ngayCK, tDate)) o.daTTLuyKe += thanhTien;
+      if (_inDateRange_(ngayCK, fDate, tDate)) o.daTTTrongKy += thanhTien;
+    });
   } catch (e) {}
 
   return Array.from(byCustomer.values())
     .map(o => ({
-      khachHang: o.ten,
+      khachHang: o.kh.ten, cccd: o.kh.cccd, trungTen: o.kh.trungTen, khoa: o.kh.khoa,
       klNhapTrongKy: o.klTrongKy, giaTriNhapTrongKy: o.giaTriTrongKy, daTTTrongKy: o.daTTTrongKy,
       klNhapLuyKe: o.klLuyKe, giaTriNhapLuyKe: o.giaTriLuyKe, daTTLuyKe: o.daTTLuyKe,
       congNo: o.giaTriLuyKe - o.daTTLuyKe
     }))
     .filter(o => o.giaTriNhapTrongKy > 0 || o.daTTTrongKy > 0 || Math.abs(o.congNo) > 0.01)
     .sort((a, b) => b.congNo - a.congNo);
+}
+
+/** #Web: đối chiếu Công nợ theo cách cũ (chỉ theo tên) với cách mới (CCCD +
+ * Tên) cho cùng khoảng ngày - chỉ trả các tên có khác biệt. Chỉ đọc. */
+function getDoiChieuCongNoCccd_(fDate, tDate) {
+  const moi = _computeDebtByCustomerLive_(fDate, tDate);
+  const cu = _computeDebtByCustomerLive_(fDate, tDate, _nhanDienKhachTheoTen_());
+  const theoTen = new Map();
+  const lay = ten => {
+    const k = utils.standardize(ten);
+    if (!theoTen.has(k)) theoTen.set(k, { ten, congNoCu: 0, congNoMoi: 0, dongMoi: [] });
+    return theoTen.get(k);
+  };
+  cu.forEach(r => { lay(r.khachHang).congNoCu += r.congNo; });
+  moi.forEach(r => { const o = lay(r.khachHang); o.congNoMoi += r.congNo; o.dongMoi.push({ cccd: r.cccd, trungTen: r.trungTen, khoa: r.khoa, congNo: r.congNo }); });
+  const khacBiet = Array.from(theoTen.values())
+    .filter(o => Math.abs(o.congNoCu - o.congNoMoi) > 0.01 || o.dongMoi.length > 1 || o.dongMoi.some(d => d.trungTen))
+    .sort((a, b) => Math.abs(b.congNoCu - b.congNoMoi) - Math.abs(a.congNoCu - a.congNoMoi) || b.dongMoi.length - a.dongMoi.length);
+  return {
+    tongCu: cu.reduce((s, r) => s + r.congNo, 0),
+    tongMoi: moi.reduce((s, r) => s + r.congNo, 0),
+    soKhachCu: cu.length, soKhachMoi: moi.length,
+    khacBiet
+  };
 }
 
 /** #2: Công nợ theo Hợp đồng mua gỗ keo - TÍNH TRỰC TIẾP (không qua
@@ -6191,7 +6284,8 @@ function _computeDebtByContractLive_(fDate, tDate) {
 // xem kế tiếp (kể cả nếu người khác đang xem khoảng mặc định - lần sau
 // họ mở lại sẽ tự tính lại đúng vì fDate/tDate không khớp cache nữa).
 // ============================================================
-const CONGNO_KH_HEADERS = ["khachHang", "klNhapTrongKy", "giaTriNhapTrongKy", "daTTTrongKy", "klNhapLuyKe", "giaTriNhapLuyKe", "daTTLuyKe", "congNo"];
+const CONGNO_KH_HEADERS = ["khachHang", "klNhapTrongKy", "giaTriNhapTrongKy", "daTTTrongKy", "klNhapLuyKe", "giaTriNhapLuyKe", "daTTLuyKe", "congNo", "cccd", "trungTen", "khoa"];
+const CONGNO_KH_COT_CHU = [CONGNO_KH_HEADERS.indexOf("cccd"), CONGNO_KH_HEADERS.indexOf("khoa")];
 
 function _defaultCongNoRange_() {
   const t = new Date();
@@ -6251,14 +6345,20 @@ function getCongNoKhCacheSheet_() {
 }
 
 function _writeCongNoKhSheet_(rows) {
-  _ghiLaiMirror_(getCongNoKhCacheSheet_(), CONGNO_KH_HEADERS, rows.map(o => CONGNO_KH_HEADERS.map(k => o[k])));
+  const dong = _dongAnToan_(rows.map(o => CONGNO_KH_HEADERS.map(k => o[k])), CONGNO_KH_COT_CHU);
+  _ghiLaiMirror_(getCongNoKhCacheSheet_(), CONGNO_KH_HEADERS, dong, CONGNO_KH_COT_CHU.map(i => i + 1));
 }
 function _readCongNoKhSheet_() {
   const sh = getCongNoKhCacheSheet_();
   const lr = sh.getLastRow();
+  const header = sh.getRange(1, 1, 1, CONGNO_KH_HEADERS.length).getValues()[0];
+  // Snapshot tạo bởi bản cũ (chưa có CCCD/khóa) -> báo lỗi để nơi gọi tính lại.
+  if (header.join("|") !== CONGNO_KH_HEADERS.join("|")) throw new Error("Snapshot Công Nợ theo định dạng cũ.");
   if (lr < 2) return [];
   return sh.getRange(2, 1, lr - 1, CONGNO_KH_HEADERS.length).getValues().map(r => {
-    const o = {}; CONGNO_KH_HEADERS.forEach((k, i) => o[k] = r[i]); return o;
+    const o = {}; CONGNO_KH_HEADERS.forEach((k, i) => o[k] = r[i]);
+    o.cccd = String(o.cccd || ""); o.khoa = String(o.khoa || ""); o.trungTen = o.trungTen === true;
+    return o;
   });
 }
 
@@ -6394,9 +6494,14 @@ function getDebtLedgerDetail_(type, key, tDate) {
   }
 
   if (type === 'customer') {
+    // key = khóa "CCCD|TÊN" (từ 2026.7.5); key cũ chỉ có tên vẫn mở được theo cách gom cũ.
+    const nd = String(key).indexOf("|") >= 0 ? _nhanDienKhachCongNo_() : _nhanDienKhachTheoTen_();
+    const khoa = String(key).indexOf("|") >= 0 ? String(key) : keyStd;
+    let tenHienThi = "", cccd = "";
+    const cuaKhach = kh => { if (kh.khoa !== khoa) return false; tenHienThi = tenHienThi || kh.ten; cccd = cccd || kh.cccd; return true; };
     const entries = [];
     _pcData_().forEach(r => {
-      if (utils.standardize(r[PC_COL.KHACH_HANG]) !== keyStd) return;
+      if (!cuaKhach(nd.choPhieu(r))) return;
       const tien = utils.parseNum(r[PC_COL.THANH_TIEN]);
       if (tien <= 0) return;
       const ngay = r[PC_COL.NGAY_CAN_1];
@@ -6404,18 +6509,15 @@ function getDebtLedgerDetail_(type, key, tDate) {
       entries.push({ ngay, dienGiai: `Nhập gỗ - Phiếu cân ${String(r[PC_COL.SO_CT] || "").trim()}`, no: tien, co: 0 });
     });
     try {
-      const shCTReal = getMainSs_().getSheetByName(CFG.DNTT_CT);
-      if (shCTReal && shCTReal.getLastRow() > 1) {
-        shCTReal.getRange(2, 1, shCTReal.getLastRow() - 1, 22).getValues().forEach(r => {
-          if (utils.standardize(r[3]) !== keyStd) return;
-          const ngay = r[20];
-          if (!_onOrBefore_(ngay, tDate)) return;
-          entries.push({
-            ngay, dienGiai: `Thanh toán - HĐ ${String(r[19] || "").replace(/'/g, "")} - Phiếu ${String(r[11] || "").replace(/'/g, "")}`,
-            no: 0, co: utils.parseNum(r[16])
-          });
+      _ctThatDataCache_().forEach(r => {
+        if (!cuaKhach(nd.choThanhToan(r))) return;
+        const ngay = r[20];
+        if (!_onOrBefore_(ngay, tDate)) return;
+        entries.push({
+          ngay, dienGiai: `Thanh toán - HĐ ${String(r[19] || "").replace(/'/g, "")} - Phiếu ${String(r[11] || "").replace(/'/g, "")}`,
+          no: 0, co: utils.parseNum(r[16])
         });
-      }
+      });
     } catch (e) {}
 
     entries.sort((a, b) => {
@@ -6431,7 +6533,7 @@ function getDebtLedgerDetail_(type, key, tDate) {
     });
 
     return {
-      success: true, mode: "customer", key, rows,
+      success: true, mode: "customer", key, tenHienThi: tenHienThi || key, cccd, rows,
       tongNo: rows.reduce((s, r) => s + r.no, 0),
       tongCo: rows.reduce((s, r) => s + r.co, 0),
       duCuoiKy: du
@@ -7196,7 +7298,7 @@ function getDashboardStats_() {
     const debtRows = getDebtByCustomer_(range.fDate, range.tDate);
     const dangNo = debtRows.filter(r => r.congNo > 0);
     result.tongNoGoKeo = dangNo.reduce((s, r) => s + r.congNo, 0);
-    result.top5KhachHangNo = dangNo.slice(0, 5).map(r => ({ khachHang: r.khachHang, congNo: r.congNo }));
+    result.top5KhachHangNo = dangNo.slice(0, 5).map(r => ({ khachHang: r.khachHang, khoa: r.khoa, congNo: r.congNo }));
   } catch (e) {}
 
   // MỚI (theo yêu cầu - "thêm tổng khối lượng mua trong tháng, tổng khối

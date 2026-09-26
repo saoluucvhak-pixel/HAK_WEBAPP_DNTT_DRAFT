@@ -38,7 +38,7 @@ Trạng thái: ✅ xong · 🟡 một phần · ⏳ chưa làm · ⚖️ cần n
 | M-10 | Tên model Gemini cứng | ✅ 2026.7.4 | Cấu hình ở Cài đặt + tự dò qua ListModels |
 | M-13 | Lỗi trả `err.toString()` cho client | ✅ 2026.7.4 | `_loiChoNguoiDung_` + log `LOI_HE_THONG` |
 | M-03 | Hồ sơ chọn tồn tại qua các tab | ✅ 2026.7.5 | Cách B: giữ chọn + cảnh báo “N hồ sơ ở tab khác” |
-| M-04 | Công nợ gom theo tên | ❓ | Người dùng chọn “gom theo CCCD và tên”; PhieuCan_DN không có cột CCCD → chờ chọn cách lấy CCCD cho phiếu chưa thanh toán |
+| M-04 | Công nợ gom theo tên | ✅ 2026.8.0 ⚖️ | CCCD + Tên; phiếu cân gán CCCD theo hồ sơ, rồi theo HD_NCC; có bảng đối chiếu cũ/mới |
 | M-02, M-05..M-09, M-11, M-12, M-14.., L-* | | ⏳ | Xem `REFACTOR_PLAN.md` §5 |
 
 ## Đã bỏ theo yêu cầu người dùng

@@ -2,6 +2,24 @@
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/). Phiên bản theo `NĂM.ĐỢT.SỬA`; thay đổi làm đổi hành vi nghiệp vụ (⚖️) sẽ tăng số ĐỢT và ghi rõ đã được người dùng đồng ý.
 
+## [2026.8.0] — ⚖️ Công nợ theo khách hàng gom theo CCCD + Tên (M-04, người dùng đồng ý 26/09/2026)
+
+Đổi số liệu báo cáo Công nợ theo Khách hàng (đúng hơn); tổng công nợ toàn bộ không đổi.
+
+### Changed
+- **Mỗi dòng Công nợ = 1 khách hàng theo CCCD + Tên** (trước đây chỉ theo tên → 2 người trùng tên bị cộng chung; 1 người gõ tên khác nhau giữa phiếu cân và hồ sơ bị tách làm 2, 1 dòng nợ + 1 dòng âm).
+- PhieuCan_DN không có cột CCCD nên phiếu cân được gán CCCD theo quy tắc đã thống nhất:
+  1. Phiếu đã nằm trong hồ sơ ĐNTT (đã chốt hoặc Nháp) → CCCD + tên của hồ sơ.
+  2. Phiếu chưa vào hồ sơ → tra tên trong HD_NCC: đúng 1 CCCD thì dùng; từ 2 CCCD trở lên → dòng “⚠️ Trùng tên – chưa rõ CCCD”; không có hợp đồng → CCCD trống.
+- Bảng Công nợ có thêm cột **CCCD**; Sổ chi tiết chọn/mở theo CCCD + Tên (2 người trùng tên là 2 lựa chọn); Top 5 ở Trang chủ mở đúng người.
+- Snapshot `CongNoKhachHang_DRAFT` thêm cột CCCD (giữ số 0 đầu), khóa; snapshot định dạng cũ tự tính lại.
+
+### Added
+- Nút **🔎 So sánh với cách tính cũ (theo tên)** ở tab Công nợ theo Khách hàng: tổng cũ/mới, số khách hàng cũ/mới, danh sách tên có thay đổi kèm chênh lệch và cách tách theo CCCD (chỉ đọc).
+
+### Tests
+- 74 test (thêm 4 cho M-04, đều thất bại trên bản 2026.7.5).
+
 ## [2026.7.5] — Menu “Thêm Mới” mở Web App, cảnh báo hồ sơ chọn ở tab khác (⚖️ người dùng đồng ý 26/09/2026)
 
 ### Fixed

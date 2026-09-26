@@ -449,7 +449,7 @@
       <div class="nav-item" data-page="settings"><span class="ic">⚙️</span> Cài đặt / Nháp</div>
     </nav>
     <div class="nguoi-dung-chip" id="nguoi-dung-chip"></div>
-    <div class="sidebar-footer">Hệ thống Quản Lý Thanh Toán · v2026.7.5</div>
+    <div class="sidebar-footer">Hệ thống Quản Lý Thanh Toán · v2026.8.0</div>
   </aside>
 
   <main class="main">
@@ -868,7 +868,7 @@ function _renderDashTheoTable_(rows){
 function _renderDashTop5NoTable_(rows){
   if (!rows || !rows.length) return '<div class="empty"><div class="ic">✅</div>Không có khách hàng nào còn nợ.</div>';
   return `<table><thead><tr><th>Khách hàng</th><th class="num">Còn nợ (VNĐ)</th></tr></thead><tbody>
-    ${rows.map(r => `<tr class="clickable" ${hanhDong('goToLedgerFor', 'customer', r.khachHang)}><td>${esc(r.khachHang)}</td><td class="num debt-neg">${fmtMoney(r.congNo)}</td></tr>`).join('')}
+    ${rows.map(r => `<tr class="clickable" ${hanhDong('goToLedgerFor', 'customer', r.khoa || r.khachHang)}><td>${esc(r.khachHang)}</td><td class="num debt-neg">${fmtMoney(r.congNo)}</td></tr>`).join('')}
   </tbody></table>`;
 }
 function renderDashboard(){
@@ -2780,12 +2780,15 @@ function renderDebtByCustomerTable(){
     </div>
     <div class="card" style="margin-top:16px">
       <h3>Công nợ theo Khách hàng (đến hết ${esc(state.debtTo)}) — bấm 1 dòng để xem Sổ chi tiết</h3>
+      <div class="hint-text" style="margin-bottom:8px">Mỗi dòng = 1 khách hàng theo <b>CCCD + Tên</b>. Phiếu cân đã vào hồ sơ ĐNTT lấy CCCD của hồ sơ; phiếu chưa vào hồ sơ lấy CCCD theo tên trong Hợp đồng (HD_NCC).
+        <button class="btn sm ghost" onclick="loadDoiChieuCongNo()">🔎 So sánh với cách tính cũ (theo tên)</button></div>
+      <div id="doichieu-congno"></div>
       <table><thead><tr>
-        <th>Khách hàng</th><th class="num">KL nhập trong kỳ (tấn)</th><th class="num">Giá trị nhập trong kỳ</th><th class="num">Đã TT trong kỳ</th>
+        <th>Khách hàng</th><th>CCCD</th><th class="num">KL nhập trong kỳ (tấn)</th><th class="num">Giá trị nhập trong kỳ</th><th class="num">Đã TT trong kỳ</th>
         <th class="num">Giá trị nhập lũy kế</th><th class="num">Đã TT lũy kế</th><th class="num">Công nợ</th>
       </tr></thead><tbody>
-      ${pageRows.map(r => `<tr class="clickable" ${hanhDong('openLedgerFor', 'customer', r.khachHang)}>
-        <td>${esc(r.khachHang)}</td>
+      ${pageRows.map(r => `<tr class="clickable" ${hanhDong('openLedgerFor', 'customer', r.khoa || r.khachHang)}>
+        <td>${esc(r.khachHang)}</td><td class="mono">${_oCccdCongNo_(r)}</td>
         <td class="num">${fmtKl(r.klNhapTrongKy)}</td><td class="num">${fmtMoney(r.giaTriNhapTrongKy)}</td><td class="num">${fmtMoney(r.daTTTrongKy)}</td>
         <td class="num">${fmtMoney(r.giaTriNhapLuyKe)}</td><td class="num">${fmtMoney(r.daTTLuyKe)}</td>
         <td class="num ${r.congNo>0?'debt-neg':'debt-pos'}">${fmtMoney(r.congNo)}</td>
@@ -2795,6 +2798,29 @@ function renderDebtByCustomerTable(){
     </div>`;
 }
 function goDebtCustomerPage(p){ state.debtCustomerPage = p; renderDebtByCustomerTable(); }
+/** Ô CCCD của 1 dòng công nợ: CCCD, hoặc cảnh báo trùng tên / chưa có CCCD. */
+function _oCccdCongNo_(r){
+  if (r.trungTen) return '<span class="badge wait" title="Tên này có từ 2 CCCD trong Hợp đồng - phiếu cân chưa vào hồ sơ nên chưa rõ của ai">⚠️ Trùng tên – chưa rõ CCCD</span>';
+  return r.cccd ? esc(r.cccd) : '<span class="muted">(chưa có)</span>';
+}
+/** Bảng đối chiếu số cũ (gom theo tên) với số mới (CCCD + Tên) - chỉ các tên có khác biệt. */
+function loadDoiChieuCongNo(){
+  const box = document.getElementById('doichieu-congno');
+  box.innerHTML = '<div class="empty"><div class="ic">⏳</div>Đang đối chiếu...</div>';
+  call('getDoiChieuCongNoCccd', [state.debtFrom, state.debtTo], 'Đang đối chiếu cách tính cũ và mới...').then(d => {
+    const dong = d.khacBiet.map(o => `<tr>
+      <td>${esc(o.ten)}</td><td class="num">${fmtMoney(o.congNoCu)}</td><td class="num">${fmtMoney(o.congNoMoi)}</td>
+      <td class="num ${Math.abs(o.congNoCu - o.congNoMoi) > 0.01 ? 'debt-neg' : ''}">${fmtMoney(o.congNoMoi - o.congNoCu)}</td>
+      <td>${o.dongMoi.map(x => `<div>${_oCccdCongNo_(x)}: ${fmtMoney(x.congNo)}</div>`).join('')}</td></tr>`).join('');
+    box.innerHTML = `<div class="card" style="margin:8px 0 16px;background:#fbfaf6">
+      <h3>Đối chiếu: cũ (theo tên) ↔ mới (CCCD + Tên)</h3>
+      <p style="font-size:13px">Tổng công nợ cũ <b>${fmtMoney(d.tongCu)}</b> · mới <b>${fmtMoney(d.tongMoi)}</b> ·
+        Số khách hàng cũ <b>${d.soKhachCu}</b> → mới <b>${d.soKhachMoi}</b> · <b>${d.khacBiet.length}</b> tên có thay đổi.</p>
+      ${d.khacBiet.length ? `<div class="bang"><table><thead><tr><th>Tên</th><th class="num">Công nợ cũ</th><th class="num">Công nợ mới</th><th class="num">Chênh lệch</th><th>Tách theo CCCD (mới)</th></tr></thead>
+        <tbody>${dong}</tbody></table></div>` : '<div class="empty"><div class="ic">✅</div>Không có khác biệt.</div>'}
+    </div>`;
+  });
+}
 
 /* ---------- Tab 2: Công nợ theo Hợp đồng ---------- */
 function loadDebtByContract(){
@@ -2862,8 +2888,9 @@ function renderDebtLedgerTab(){
   const type = state.debtLedgerType || 'customer';
   const key = state.debtLedgerKey || '';
 
-  const custOptions = (state.debtCustomerRows || []).map(r => r.khachHang);
-  const hdOptions = (state.debtContractRows || []).map(r => r.soHD);
+  // [giá trị, nhãn] - khách hàng chọn theo khóa CCCD + Tên (2 người trùng tên là 2 lựa chọn).
+  const custOptions = (state.debtCustomerRows || []).map(r => [r.khoa || r.khachHang, r.khachHang + (r.trungTen ? ' (trùng tên – chưa rõ CCCD)' : r.cccd ? ' – ' + r.cccd : '')]);
+  const hdOptions = (state.debtContractRows || []).map(r => [r.soHD, r.soHD]);
 
   body.innerHTML = `
     <div class="card">
@@ -2877,7 +2904,7 @@ function renderDebtLedgerTab(){
         <div class="field"><label>Đối tượng</label>
           <select id="ledger-key">
             <option value="">-- Chọn --</option>
-            ${(type==='customer'?custOptions:hdOptions).map(v=>`<option value="${esc(v)}" ${v===key?'selected':''}>${esc(v)}</option>`).join('')}
+            ${(type==='customer'?custOptions:hdOptions).map(([v, nhan])=>`<option value="${esc(v)}" ${v===key?'selected':''}>${esc(nhan)}</option>`).join('')}
           </select>
         </div>
         <div class="field" style="display:flex; align-items:flex-end"><button class="btn primary" onclick="loadLedgerDetail()">🔍 Xem sổ chi tiết</button></div>
@@ -2927,7 +2954,7 @@ function renderLedgerDetailTable(){
         <div class="stat"><div class="label">Số dư cuối kỳ (còn nợ)</div><div class="value ${res.duCuoiKy>0?'debt-neg':'debt-pos'}">${fmtMoney(res.duCuoiKy)}</div></div>
       </div>
       <div class="card" style="margin-top:16px">
-        <h3>Sổ chi tiết công nợ - ${esc(res.key)}</h3>
+        <h3>Sổ chi tiết công nợ - ${esc(res.tenHienThi || res.key)}${res.cccd ? ' – CCCD ' + esc(res.cccd) : ''}</h3>
         <table><thead><tr><th>Ngày</th><th>Diễn giải</th><th class="num">Phát sinh Nợ</th><th class="num">Phát sinh Có</th><th class="num">Số dư</th></tr></thead><tbody>
           ${pageRows.map(r => `<tr><td>${esc(r.ngay)}</td><td>${esc(r.dienGiai)}</td>
             <td class="num">${r.no?fmtMoney(r.no):''}</td><td class="num">${r.co?fmtMoney(r.co):''}</td>

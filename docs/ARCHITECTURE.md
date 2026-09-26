@@ -1,4 +1,4 @@
-# ARCHITECTURE — HAK Quản Lý Thanh Toán (v2026.7.5)
+# ARCHITECTURE — HAK Quản Lý Thanh Toán (v2026.8.0)
 
 > Tài liệu sống: cập nhật mỗi khi đổi module, lớp, luồng dữ liệu hoặc schema.
 > Phân tích chi tiết hiện trạng: `docs/PROJECT_ANALYSIS.md`. Kiến trúc đích: `docs/REFACTOR_PLAN.md` §3–§4.
@@ -95,6 +95,17 @@ Trình duyệt ─ google.script.run.api(phiên, "tenChucNang", [tham số])
 Quy tắc: **thêm chức năng mới gọi từ web** = viết hàm nội bộ `ten_` + thêm 1 dòng vào `API_ROUTES` với quyền phù hợp. Test `auth.test.mjs` sẽ báo lỗi nếu có hàm global mới không kết thúc bằng `_`, trình duyệt gọi 1 chức năng chưa có route, hoặc 1 trang (theo `PAGES[].quyen`) gọi chức năng cần quyền **cao hơn** quyền mở trang đó.
 
 Lỗi: `api()` và các hàm trả `{success:false, message}` dùng `_loiChoNguoiDung_(e)` — lỗi nghiệp vụ (`new Error("…")`) hiện nguyên câu; lỗi lập trình (TypeError…) chỉ hiện mã tra cứu, chi tiết + stack ghi `NhatKyThaoTac` (`LOI_HE_THONG`).
+
+## 4c. Công nợ theo khách hàng (v2026.8.0)
+
+Khách hàng = **CCCD + Tên**, khóa `CCCD|TÊN_CHUẨN_HÓA` (`_khoaCongNo_`); trùng tên chưa rõ người: `TRUNG_TEN|TÊN`.
+
+| Phía | Nguồn | Nhận diện (`_nhanDienKhachCongNo_`) |
+|---|---|---|
+| Nợ | PhieuCan_DN (không có CCCD) | Phiếu có trong CT thật/Nháp → CCCD + tên của hồ sơ; không → tên tra HD_NCC (1 CCCD / trùng tên / trống) |
+| Có | DNTT_GK_DN_CT | CCCD + tên của dòng CT |
+
+`_computeDebtByCustomerLive_(f, t, nhanDien)` và Sổ chi tiết dùng CHUNG bộ nhận diện; `_nhanDienKhachTheoTen_()` là cách gom cũ, chỉ dùng cho `getDoiChieuCongNoCccd_` (đối chiếu) và mở Sổ chi tiết bằng khóa cũ (chỉ có tên).
 
 ## 5. Kiểm thử
 
