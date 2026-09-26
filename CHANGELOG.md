@@ -2,6 +2,19 @@
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/). Phiên bản theo `NĂM.ĐỢT.SỬA`; thay đổi làm đổi hành vi nghiệp vụ (⚖️) sẽ tăng số ĐỢT và ghi rõ đã được người dùng đồng ý.
 
+## [2026.7.5] — Menu “Thêm Mới” mở Web App, cảnh báo hồ sơ chọn ở tab khác (⚖️ người dùng đồng ý 26/09/2026)
+
+### Fixed
+- **H-13 — Menu Sheet “4. Thêm Mới Đề Nghị Thanh Toán” báo lỗi** (mở màn hình `AddPaymentDialog` không tồn tại). Nay mở hộp thoại có nút **➕ Mở màn Tạo Mới** → Web App mở thẳng màn Tạo Mới (`?trang=taoMoi`). Nếu phải đăng nhập, Cổng đăng nhập chuyển tiếp tham số này để vào đúng màn Tạo Mới (cần dán lại mã Cổng đăng nhập mới ở Cài đặt; Cổng cũ vẫn chạy, chỉ vào Trang chủ).
+- **M-03 — Hồ sơ đã chọn “biến mất” khi đổi tab**: chuyển tab ở Danh Sách ĐNTT, hồ sơ đã tích vẫn được chọn (và vẫn bị Xác nhận/In/UNC/Duyệt) nhưng ô tích hiện trống. Nay ô tích hiện đúng; thanh hành động báo rõ “⚠️ trong đó N hồ sơ ở tab khác” kèm nút **Bỏ chọn N hồ sơ này**; tab trống vẫn hiện thanh hành động nếu còn hồ sơ đang chọn.
+- Lỗi JS khi rời Danh Sách ĐNTT (vd bấm ➕ Tạo Mới) trước khi danh sách tải xong.
+
+### Decided (không sửa)
+- **H-08** giữ cho phép nhúng web app (đang nhúng vào trang chủ). **H-10** giữ gửi số liệu hồ sơ cho Trợ lý AI.
+
+### Tests
+- 70 test (thêm: menu Thêm Mới + chuyển tiếp `?trang=` qua Cổng đăng nhập + chặn giá trị lạ; đếm hồ sơ chọn ở tab khác).
+
 ## [2026.7.4] — Rà soát theo kế hoạch: phân quyền, ngày giờ VN, XSS, công thức, lỗi, model AI
 
 Không đổi nghiệp vụ; chỉ sửa lỗi và bảo mật.

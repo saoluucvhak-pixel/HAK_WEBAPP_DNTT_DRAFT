@@ -34,3 +34,16 @@ test('values with quotes and markup reach the handler unchanged', () => {
     .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
   assert.deepEqual(JSON.parse(ts), ['customer', tricky]);
 });
+
+test('records selected in another tab are counted so the action bar can warn about them', () => {
+  const ctx = vm.createContext({});
+  vm.runInContext(clientFunction('_hoSoChonOTabKhac_'), ctx);
+  ctx.state = {
+    draftStatusFilter: 'dang_dntt',
+    draftSelected: new Set(['A1', 'B2']),
+    draftList: [{ idKey: 'A1', trangThaiKey: 'dang_dntt' }, { idKey: 'B2', trangThaiKey: 'cho_dntt' }, { idKey: 'C3', trangThaiKey: 'cho_dntt' }]
+  };
+  assert.deepEqual(vm.runInContext('_hoSoChonOTabKhac_().map(r => r.idKey)', ctx), ['B2']);
+  ctx.state.draftStatusFilter = 'all';
+  assert.equal(vm.runInContext('_hoSoChonOTabKhac_().length', ctx), 0);
+});

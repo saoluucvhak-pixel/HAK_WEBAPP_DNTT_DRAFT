@@ -278,7 +278,7 @@ export function createGasEnvironment({ activeSpreadsheet, spreadsheets = [], pro
       return {
         alert: () => 'OK',
         prompt: () => ({ getSelectedButton: () => 'CANCEL', getResponseText: () => '' }),
-        showModalDialog: () => {},
+        showModalDialog: (html, title) => { identity.lastDialog = { title, content: html.getContent() }; },
         createMenu: () => ({ addItem() { return this; }, addSeparator() { return this; }, addToUi() {} }),
         Button: { OK: 'OK', YES: 'YES', CANCEL: 'CANCEL' },
         ButtonSet: { OK: 'OK', OK_CANCEL: 'OK_CANCEL', YES_NO: 'YES_NO' }

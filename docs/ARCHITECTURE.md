@@ -1,4 +1,4 @@
-# ARCHITECTURE — HAK Quản Lý Thanh Toán (v2026.7.4)
+# ARCHITECTURE — HAK Quản Lý Thanh Toán (v2026.7.5)
 
 > Tài liệu sống: cập nhật mỗi khi đổi module, lớp, luồng dữ liệu hoặc schema.
 > Phân tích chi tiết hiện trạng: `docs/PROJECT_ANALYSIS.md`. Kiến trúc đích: `docs/REFACTOR_PLAN.md` §3–§4.
@@ -89,6 +89,8 @@ Trình duyệt ─ google.script.run.api(phiên, "tenChucNang", [tham số])
 | Người dùng | `SYS_NguoiDung`: Email · Họ tên · Vai trò · Trạng thái · Cập nhật lúc · Cập nhật bởi (cache 60 giây) |
 | Cấu hình | Script Properties `SSO_SECRET`, `SSO_GATEWAY_URL` (Trợ lý AI: `GEMINI_API_KEY`, `GEMINI_MODELS`, `GEMINI_MODEL`) |
 | Lỗi | `[AUTH] …` → client hiện màn hình đăng nhập; `[QUYEN] …` → chỉ báo lỗi |
+| Mở thẳng 1 màn hình | `?trang=` chỉ nhận giá trị trong `TRANG_MO_THANG` (server) ↔ `MO_THANG` (client, kèm quyền). Link đăng nhập gắn thêm `trang`, Cổng đăng nhập (mã sinh từ 2026.7.5) chuyển tiếp lại. Dùng cho menu Sheet “Thêm Mới” |
+| Nhúng iframe | `ALLOWALL` — giữ theo quyết định người dùng (web app nhúng vào trang chủ, H-08) |
 
 Quy tắc: **thêm chức năng mới gọi từ web** = viết hàm nội bộ `ten_` + thêm 1 dòng vào `API_ROUTES` với quyền phù hợp. Test `auth.test.mjs` sẽ báo lỗi nếu có hàm global mới không kết thúc bằng `_`, trình duyệt gọi 1 chức năng chưa có route, hoặc 1 trang (theo `PAGES[].quyen`) gọi chức năng cần quyền **cao hơn** quyền mở trang đó.
 

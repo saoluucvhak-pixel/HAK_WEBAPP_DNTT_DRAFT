@@ -37,13 +37,13 @@ function setup() {
 }
 
 /** Runs the generated gateway source as `email` and returns the sso token it links to. */
-function loginThroughGateway(run, actAs, email) {
+function loginThroughGateway(run, actAs, email, parameter) {
   actAs(OWNER);
   const cfg = run('api')('', 'getCauHinhDangNhapForWeb', []);
   const gwEnv = createGasEnvironment({ owner: 'admin-gateway@hak.test', activeUser: email });
   const ctx = vm.createContext({ ...gwEnv });
   vm.runInContext(cfg.maNguon, ctx);
-  const page = vm.runInContext('doGet()', ctx).getContent();
+  const page = vm.runInContext(parameter ? `doGet(${JSON.stringify({ parameter })})` : 'doGet()', ctx).getContent();
   const m = /\?sso=([^"]+)"/.exec(page);
   assert.ok(m, 'gateway page must link back with ?sso=');
   return decodeURIComponent(m[1]);
@@ -297,4 +297,26 @@ test('webSuaTenKhachHangPhieuCan renames one weigh ticket in the source and the 
   assert.equal(src[11], 'Ten Moi');
   const mirror = world.draft.getSheetByName('PhieuCan_DN_CHUA_TT_DRAFT').rows(28).find(r => r[22] === 'PC777');
   assert.equal(mirror[11], 'Ten Moi');
+});
+
+test('Sheet menu "Thêm Mới" opens the web app straight on the create screen, even through login', () => {
+  const { env, run, actAs, addUser } = setup();
+  addUser(KE_TOAN, 'KE_TOAN');
+  actAs(KE_TOAN);
+  env._identity.uiAvailable = true;
+  run('showAddPaymentDialog')();
+  assert.match(env._identity.lastDialog.content, /href="https:\/\/script\.google\.com\/macros\/s\/MAIN\/exec\?trang=taoMoi"/);
+
+  actAs('');
+  assert.equal(run('doGet')({ parameter: { trang: 'taoMoi' } }).templateVars.trangDau, 'taoMoi');
+  assert.equal(run('doGet')({ parameter: { trang: '"><script>' } }).templateVars.trangDau, '', 'only whitelisted screens');
+
+  // The gateway keeps ?trang= when it sends the user back with the login token.
+  const token = loginThroughGateway(run, actAs, KE_TOAN, { trang: 'taoMoi' });
+  assert.match(token, /&trang=taoMoi$/);
+  const [sso, trang] = token.split('&trang=');
+  actAs('');
+  const vars = run('doGet')({ parameter: { sso, trang } }).templateVars;
+  assert.equal(vars.trangDau, 'taoMoi');
+  assert.match(vars.phien, /^[0-9a-f]{64}$/);
 });

@@ -20,7 +20,7 @@ Phiên bản hiện tại: xem `VERSION` · Lịch sử thay đổi: `CHANGELOG.
 2. Menu **🚀 QUẢN LÝ HAK › 🔗 Kết Nối File Chính** (hoặc Cài Đặt trên web app) → dán URL/ID File Chính.
 3. Deploy › Web app (Execute as: **Me**, Who has access: **Anyone with Google account**). Trong Cài Đặt: bật các Trigger, khóa định dạng TEXT, cấu hình MISA/UNC.
 4. **Đăng nhập & phân quyền** (từ v2026.7): mở web app bằng tài khoản chủ script (luôn là Quản trị) → Cài đặt:
-   - *Cổng Đăng Nhập Gmail*: tạo dự án mới tại script.new, dán mã nguồn được sinh sẵn, Deploy (Execute as: **User accessing the web app**, Who has access: **Anyone with Google account**), dán link Web app vào ô “Link Cổng đăng nhập”.
+   - *Cổng Đăng Nhập Gmail*: tạo dự án mới tại script.new, dán mã nguồn được sinh sẵn, Deploy (Execute as: **User accessing the web app**, Who has access: **Anyone with Google account**), dán link Web app vào ô “Link Cổng đăng nhập”. (Từ 2026.7.5: dán lại mã Cổng mới để menu Sheet “Thêm Mới” vào thẳng màn Tạo Mới sau khi đăng nhập — không bắt buộc.)
    - *Người Dùng & Phân Quyền*: thêm email Google của từng người với vai trò Quản trị / Kế toán / Chỉ xem.
 
    Người dùng mở link web app chính → bấm “Đăng nhập bằng Google”. Chưa thêm vào danh sách thì không vào được (kể cả menu trong Sheet).

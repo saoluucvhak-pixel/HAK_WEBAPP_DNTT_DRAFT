@@ -1,6 +1,6 @@
 /**
  * ============================================================
- * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.7.4
+ * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.7.5
  * Lịch sử thay đổi: CHANGELOG.md · Kiến trúc: docs/ARCHITECTURE.md
  * ------------------------------------------------------------
  * *** QUAN TRỌNG - CẦN LÀM TRƯỚC KHI DÙNG BẢN NÀY (chỉ 1 LẦN DUY NHẤT
@@ -968,15 +968,16 @@ var APP_URL = ${JSON.stringify(appUrl)};
 var SSO_SECRET = ${JSON.stringify(secret)};
 var SSO_HIEU_LUC_MS = ${AUTH_CFG.SSO_HIEU_LUC_MS};
 
-function doGet() {
+function doGet(e) {
   var email = String(Session.getActiveUser().getEmail() || "").trim().toLowerCase();
+  var trang = String((e && e.parameter && e.parameter.trang) || "");
   if (!email) {
     return HtmlService.createHtmlOutput('<p style="font-family:Arial;padding:24px">Không xác định được tài khoản Google. Hãy đăng nhập Google rồi mở lại link này.</p>');
   }
   var payload = JSON.stringify({ email: email, exp: Date.now() + SSO_HIEU_LUC_MS, n: Utilities.getUuid() });
   var p64 = Utilities.base64EncodeWebSafe(payload, Utilities.Charset.UTF_8);
   var sig = Utilities.base64EncodeWebSafe(Utilities.computeHmacSha256Signature(p64, SSO_SECRET));
-  var url = APP_URL + "?sso=" + encodeURIComponent(p64 + "." + sig);
+  var url = APP_URL + "?sso=" + encodeURIComponent(p64 + "." + sig) + (/^[A-Za-z]{1,30}$/.test(trang) ? "&trang=" + trang : "");
   var emailHtml = email.replace(/[&<>"']/g, function (c) { return "&#" + c.charCodeAt(0) + ";"; });
   var html = '<div style="font-family:Arial,sans-serif;padding:32px;text-align:center">'
     + '<h2 style="margin:0 0 8px">Hệ Thống Quản Lý Thanh Toán HAK</h2>'
@@ -987,6 +988,9 @@ function doGet() {
 }
 `;
 }
+
+/** Màn hình web app mở thẳng được qua ?trang= (menu Sheet; Cổng đăng nhập chuyển tiếp tham số này). */
+const TRANG_MO_THANG = ["taoMoi"];
 
 /** CÔNG KHAI (không cần đăng nhập): trạng thái đăng nhập + link Cổng đăng nhập. */
 function thongTinDangNhap(phien) {
@@ -1256,6 +1260,7 @@ function doGet(e) {
   const tpl = HtmlService.createTemplateFromFile('Index');
   tpl.phien = "";
   tpl.loiDangNhap = "";
+  tpl.trangDau = TRANG_MO_THANG.indexOf(String(thamSo.trang || "")) !== -1 ? String(thamSo.trang) : "";
   if (thamSo.sso) {
     try {
       const email = _xacMinhSso_(thamSo.sso);
@@ -8432,11 +8437,25 @@ function showPayDialog() {
 }
 
 // Mở hộp thoại "Thêm Mới Đề Nghị Thanh Toán" ngay trong Google Sheet.
+// Tạo Mới ĐNTT làm trên Web App (đủ bước chọn phiếu cân, hợp đồng, kiểm tra
+// trùng) - menu chỉ mở thẳng màn Tạo Mới, không có form riêng trong Sheet.
 function showAddPaymentDialog() {
   _yeuCauQuyen_(QUYEN.NGHIEP_VU);
-  var html = HtmlService.createHtmlOutputFromFile('AddPaymentDialog')
-      .setWidth(560).setHeight(640);
-  SpreadsheetApp.getUi().showModalDialog(html, 'Thêm Mới Đề Nghị Thanh Toán');
+  const ui = SpreadsheetApp.getUi();
+  const webAppUrl = ScriptApp.getService().getUrl();
+  if (!webAppUrl) {
+    ui.alert("⚠️ Chưa triển khai Web App (Deploy > New deployment > Web app) nên chưa mở được màn Tạo Mới.");
+    return;
+  }
+  const url = _escHtml_(webAppUrl + "?trang=taoMoi");
+  const html = HtmlService.createHtmlOutput(
+    `<div style="font-family:Arial;padding:12px;line-height:1.6;font-size:14px;text-align:center">
+      <p>Tạo Mới Đề Nghị Thanh Toán được thực hiện trên <b>Web App</b>.</p>
+      <a href="${url}" target="_blank" onclick="google.script.host.close()"
+         style="display:inline-block;margin-top:8px;padding:10px 22px;background:#1f6f43;color:#fff;border-radius:8px;text-decoration:none;font-weight:600">➕ Mở màn Tạo Mới</a>
+    </div>`
+  ).setWidth(420).setHeight(170);
+  ui.showModalDialog(html, "Thêm Mới Đề Nghị Thanh Toán");
 }
 
 // ============================================================

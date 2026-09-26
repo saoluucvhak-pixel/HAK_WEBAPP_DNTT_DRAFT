@@ -415,6 +415,8 @@
     .dien-giai .dong:last-child{border-bottom:none;}
     .dien-giai .dong b{display:inline-block; min-width:150px; color:var(--ink-soft); font-weight:600;}
 
+    /* Hồ sơ đang chọn ở tab khác (Danh Sách ĐNTT) */
+    .chon-tab-khac{margin-left:8px;padding:3px 8px;border-radius:6px;background:#fff4e5;color:#8a4b00;font-size:12.5px;white-space:nowrap}
     /* Đăng nhập & người dùng (v2026.7) */
     body.chua-dang-nhap #nav, body.chua-dang-nhap #chatbotNut, body.chua-dang-nhap #chatbotHop{display:none;}
     .nguoi-dung-chip{font-size:12px; line-height:1.5; padding:10px 10px 4px; border-top:1px solid rgba(255,255,255,.12); margin-top:auto; color:#e5e7eb; word-break:break-all;}
@@ -424,7 +426,7 @@
     .nguoi-dung-chip .dang-xuat:hover{background:rgba(255,255,255,.08);}
   </style>
 </head>
-<body data-phien="<?= phien ?>" data-loi-dang-nhap="<?= loiDangNhap ?>" class="chua-dang-nhap">
+<body data-phien="<?= phien ?>" data-loi-dang-nhap="<?= loiDangNhap ?>" data-trang-dau="<?= trangDau ?>" class="chua-dang-nhap">
 
   <aside class="sidebar">
     <div class="brand">
@@ -447,7 +449,7 @@
       <div class="nav-item" data-page="settings"><span class="ic">⚙️</span> Cài đặt / Nháp</div>
     </nav>
     <div class="nguoi-dung-chip" id="nguoi-dung-chip"></div>
-    <div class="sidebar-footer">Hệ thống Quản Lý Thanh Toán · v2026.7.4</div>
+    <div class="sidebar-footer">Hệ thống Quản Lý Thanh Toán · v2026.7.5</div>
   </aside>
 
   <main class="main">
@@ -730,7 +732,10 @@ function hienManHinhDangNhap(loi){
   document.getElementById('page-title').textContent = 'Đăng nhập';
   document.getElementById('page-desc').textContent = 'Hệ thống Quản Lý Thanh Toán HAK';
   document.getElementById('topbar-actions').innerHTML = '';
-  const url = (state.nguoiDung && state.nguoiDung.congDangNhapUrl) || '';
+  const cong = (state.nguoiDung && state.nguoiDung.congDangNhapUrl) || '';
+  // Giữ màn hình cần mở (vd ?trang=taoMoi từ menu Sheet) qua bước đăng nhập.
+  const trangDau = document.body.dataset.trangDau || '';
+  const url = cong && trangDau ? cong + (cong.indexOf('?') >= 0 ? '&' : '?') + 'trang=' + encodeURIComponent(trangDau) : cong;
   document.getElementById('content').innerHTML = `
     <div class="card" style="max-width:520px;margin:40px auto;text-align:center">
       <h3>🔐 Đăng nhập</h3>
@@ -1644,7 +1649,9 @@ function loadDraftList(){
     renderDraftTable();
     refreshBadge();
   }).catch(()=>{
-    document.getElementById('draft-table-wrap').innerHTML = `
+    const wrap = document.getElementById('draft-table-wrap');
+    if (!wrap) return;
+    wrap.innerHTML = `
       <div class="empty"><div class="ic">⚠️</div><h4>Chưa thiết lập File Nháp</h4>
       <p class="muted">Vào mục Cài đặt / File Nháp để khởi tạo.</p>
       <button class="btn accent" onclick="goTo('settings')">Đi tới Cài đặt</button></div>`;
@@ -1675,6 +1682,7 @@ function renderDraftTable(){
     el.classList.toggle('active', el.dataset.f === state.draftStatusFilter);
   });
   const wrap = document.getElementById('draft-table-wrap');
+  if (!wrap) return; // đã rời danh sách (vd bấm Tạo Mới) trước khi tải xong
   const fullList = state.draftList;
   const list = fullList.filter(r => state.draftStatusFilter === 'all' || r.trangThaiKey === state.draftStatusFilter);
   if (!fullList.length) {
@@ -1686,16 +1694,18 @@ function renderDraftTable(){
   }
   if (!list.length) {
     wrap.innerHTML = `<div class="empty"><div class="ic">📭</div>Không có hồ sơ nào ở trạng thái này.</div>`;
-    document.getElementById('draft-actionbar').classList.add('hidden');
+    updateDraftActionbar(); // vẫn báo hồ sơ đang chọn ở tab khác
     return;
   }
+  const chonDuoc = list.filter(r => r.sanSangChot);
+  const daChonHet = chonDuoc.length > 0 && chonDuoc.every(r => state.draftSelected.has(r.idKey));
   wrap.innerHTML = `<table><thead><tr>
-      <th><input type="checkbox" id="chk-all" onchange="toggleAll(this)"></th>
+      <th><input type="checkbox" id="chk-all" ${daChonHet ? 'checked' : ''} onchange="toggleAll(this)"></th>
       <th>Chủ rừng</th><th>Người nhận</th><th>Ngân hàng / STK</th><th>Số HĐ</th>
       <th class="num">Số phiếu</th><th class="num">KL (kg)</th><th class="num">Số tiền</th><th>Trạng thái</th><th></th>
     </tr></thead><tbody>
     ${list.map(r => `<tr>
-      <td><input type="checkbox" class="chk-row" data-id="${esc(r.idKey)}" ${r.sanSangChot?'':'disabled title="Chưa tính Đề Nghị Thanh Toán"'} onchange="toggleRow(this.dataset.id, this.checked)"></td>
+      <td><input type="checkbox" class="chk-row" data-id="${esc(r.idKey)}" ${state.draftSelected.has(r.idKey)?'checked':''} ${r.sanSangChot?'':'disabled title="Chưa tính Đề Nghị Thanh Toán"'} onchange="toggleRow(this.dataset.id, this.checked)"></td>
       <td>${esc(r.chuRung)}</td>
       <td>${esc(r.nguoiNhan)}</td>
       <td>${esc(r.nganHang)}<br><span class="muted mono" style="font-size:11.5px">${esc(r.stk)}</span></td>
@@ -1739,13 +1749,27 @@ function toggleRow(id, checked){
   if (checked) state.draftSelected.add(id); else state.draftSelected.delete(id);
   updateDraftActionbar();
 }
+/** Hồ sơ đang chọn nhưng KHÔNG hiện ở tab đang xem - vẫn bị Xác nhận /
+ * In / UNC / Duyệt cùng lúc, nên phải báo rõ trên thanh hành động. */
+function _hoSoChonOTabKhac_(){
+  const f = state.draftStatusFilter;
+  return state.draftList.filter(r => state.draftSelected.has(r.idKey) && f !== 'all' && r.trangThaiKey !== f);
+}
+function boChonHoSoTabKhac(){
+  _hoSoChonOTabKhac_().forEach(r => state.draftSelected.delete(r.idKey));
+  renderDraftTable();
+}
 function updateDraftActionbar(){
   const bar = document.getElementById('draft-actionbar');
   const n = state.draftSelected.size;
   if (n > 0) {
     bar.classList.remove('hidden');
     const total = state.draftList.filter(r=>state.draftSelected.has(r.idKey)).reduce((s,r)=>s+r.soTien,0);
-    document.getElementById('draft-selected-info').textContent = `Đã chọn ${n} hồ sơ · Tổng ${fmtMoney(total)} đ`;
+    const an = _hoSoChonOTabKhac_().length;
+    const info = document.getElementById('draft-selected-info');
+    info.innerHTML = `Đã chọn <b>${n}</b> hồ sơ · Tổng ${fmtMoney(total)} đ`
+      + (an ? ` <span class="chon-tab-khac">⚠️ trong đó <b>${an}</b> hồ sơ ở tab khác (không hiện ở đây)
+          <button class="btn sm ghost" onclick="boChonHoSoTabKhac()">Bỏ chọn ${an} hồ sơ này</button></span>` : '');
     document.getElementById('draft-action-buttons').innerHTML = getDraftActionButtonsHtml();
   } else {
     bar.classList.add('hidden');
@@ -4435,9 +4459,17 @@ function chatbotGuiCauHoi(){
 // này - Trang chủ chỉ còn tính ĐÚNG 1 lần khi thật sự cần hiển thị.
 // v2026.7: xác định người dùng trước (thongTinDangNhap không cần đăng
 // nhập) - chưa đăng nhập thì hiện màn hình đăng nhập, không gọi gì thêm.
+/** Màn hình mở thẳng qua ?trang= (khớp TRANG_MO_THANG phía server). */
+const MO_THANG = {
+  taoMoi: { quyen: 'NGHIEP_VU', mo: () => { goTo('draft'); startCreateFlow(); } }
+};
 function _moTrangDauTien_(){
   call('getAppSetupStatus', [], null).then(stats => {
-    if (stats.mainSetup) { goTo('dashboard'); return; }
+    if (stats.mainSetup) {
+      const t = MO_THANG[document.body.dataset.trangDau];
+      if (t && coQuyen(t.quyen)) t.mo(); else goTo('dashboard');
+      return;
+    }
     if (coQuyen('QUAN_TRI')) { goTo('settings'); return; }
     document.getElementById('content').innerHTML = '<div class="card"><div class="empty"><div class="ic">⚙️</div>Hệ thống chưa được Quản trị kết nối File Chính - vui lòng liên hệ Quản trị.</div></div>';
   }).catch(() => {});

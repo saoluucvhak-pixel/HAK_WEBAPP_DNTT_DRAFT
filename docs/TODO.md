@@ -23,12 +23,12 @@ Trạng thái: ✅ xong · 🟡 một phần · ⏳ chưa làm · ⚖️ cần n
 | H-05 | Mất số 0 đầu ở cache Phiếu Cân | ✅ 2026.6.0 | |
 | H-06 | STK còn dấu `'` | ✅ 2026.6.0 | |
 | H-07 | XSS qua `onclick` inline | ✅ 2026.7.4 | Mọi nút mang dữ liệu dùng `hanhDong()`; `onclick` còn lại chỉ chứa hằng/chỉ số (bỏ hẳn ở P4) |
-| H-08 | `ALLOWALL` iframe | ⏳ ⚖️ | |
-| H-09 | PII trong localStorage | ⏳ ⚖️ | |
-| H-10 | PII gửi Gemini | ⏳ ⚖️ | |
+| H-08 | `ALLOWALL` iframe | 🚫 Giữ nguyên | Người dùng quyết định 26/09/2026: web app đang nhúng vào trang chủ |
+| H-09 | PII trong localStorage | ⏳ ⚖️ | Đã giải thích (bảo mật, không tăng tốc) — chờ người dùng quyết định |
+| H-10 | PII gửi Gemini | 🚫 Giữ nguyên | Người dùng quyết định 26/09/2026: không sửa |
 | H-11 | Audit thiếu user thật & before/after | 🟡 2026.7.0 | Đã ghi email thật cho mọi thao tác; before/after mới có ở Đồng bộ tên, Sửa tên KH, Phân quyền |
 | H-12 | Formula injection | ✅ 2026.7.4 | `_oAnToan_`/`_dongAnToan_` ở mọi chỗ ghi dữ liệu |
-| H-13 | `showAddPaymentDialog` trỏ file không tồn tại | ⏳ ⚖️ | |
+| H-13 | `showAddPaymentDialog` trỏ file không tồn tại | ✅ 2026.7.5 | Cách B: mở Web App màn Tạo Mới (`?trang=taoMoi`) |
 | H-14 | Test tự động | ✅ 2026.6.0 | 68 test (2026.7.4); mở rộng dần mỗi Phase |
 
 ## 🟡 Medium / 🟢 Low
@@ -37,7 +37,9 @@ Trạng thái: ✅ xong · 🟡 một phần · ⏳ chưa làm · ⚖️ cần n
 | M-01 | Ngày UTC ở client | ✅ 2026.7.4 | `todayISOVN` / `isoDaysAgoVN` |
 | M-10 | Tên model Gemini cứng | ✅ 2026.7.4 | Cấu hình ở Cài đặt + tự dò qua ListModels |
 | M-13 | Lỗi trả `err.toString()` cho client | ✅ 2026.7.4 | `_loiChoNguoiDung_` + log `LOI_HE_THONG` |
-| M-02..M-09, M-11, M-12, M-14.., L-* | | ⏳ | Xem `REFACTOR_PLAN.md` §5 (M-03, M-04 ⚖️) |
+| M-03 | Hồ sơ chọn tồn tại qua các tab | ✅ 2026.7.5 | Cách B: giữ chọn + cảnh báo “N hồ sơ ở tab khác” |
+| M-04 | Công nợ gom theo tên | ❓ | Người dùng chọn “gom theo CCCD và tên”; PhieuCan_DN không có cột CCCD → chờ chọn cách lấy CCCD cho phiếu chưa thanh toán |
+| M-02, M-05..M-09, M-11, M-12, M-14.., L-* | | ⏳ | Xem `REFACTOR_PLAN.md` §5 |
 
 ## Đã bỏ theo yêu cầu người dùng
 - L-09: “Số điện thoại mất số 0” — người dùng quyết định **không rà nữa** (26/09/2026).
