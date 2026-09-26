@@ -39,13 +39,15 @@ Trạng thái: ✅ xong · 🟡 một phần · ⏳ chưa làm · ⚖️ cần n
 | M-13 | Lỗi trả `err.toString()` cho client | ✅ 2026.7.4 | `_loiChoNguoiDung_` + log `LOI_HE_THONG` |
 | M-02..M-09, M-11, M-12, M-14.., L-* | | ⏳ | Xem `REFACTOR_PLAN.md` §5 (M-03, M-04 ⚖️) |
 
-## ❓ Cần thông tin
-- L-09: “Số điện thoại mất số 0” — file/cột nào? (code hiện không có trường điện thoại)
+## Đã bỏ theo yêu cầu người dùng
+- L-09: “Số điện thoại mất số 0” — người dùng quyết định **không rà nữa** (26/09/2026).
 
 ## Quyết định đã có (REFACTOR_PLAN §9)
 - §9.1: giữ **gas-tools** → P3 tách code thành nhiều file **phẳng** (không thư mục).
 - §9.3: **Cổng đăng nhập Gmail**, Admin = saoluucvhak@gmail.com (chủ script), vai trò Quản trị / Kế toán / Chỉ xem.
 - §9.4: không có hệ thống ngoài gọi `?action=` → đã bỏ.
+- Quản trị cố định giữ nguyên: saoluucvhak@gmail.com và **phuthuy.apple@gmail.com** (người dùng xác nhận 26/09/2026).
+- Không mở PR gộp vào `main`; làm tiếp trên nhánh `claude/check-fix-code-bugs-lb2uuf`.
 
 ## Việc kỹ thuật phát sinh
 - ⏳ Kiểm chứng trên Google thật: đăng nhập qua Cổng (lần đầu Google hỏi quyền xem email), đăng xuất, khóa tài khoản.

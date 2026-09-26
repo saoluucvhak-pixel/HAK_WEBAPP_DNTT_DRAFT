@@ -210,7 +210,7 @@ Cột “⚖️” = cần người dùng đồng ý vì thay đổi hành vi.
 | L-06 | README 2 dòng | Hướng dẫn cài đặt/triển khai/cấu hình |
 | L-07 | `oauthScopes` chưa khai báo | Liệt kê scope tối thiểu trong manifest |
 | L-08 | Magic number UI | `constants/Limits` |
-| L-09 | Hiển thị “Số điện thoại mất số 0” (người dùng báo) | **Chưa xác định vị trí** — code hiện không có trường điện thoại; cần người dùng chỉ file/cột phát sinh |
+| L-09 | Hiển thị “Số điện thoại mất số 0” (người dùng báo) | **Bỏ** — người dùng quyết định không rà nữa (26/09/2026) |
 
 ---
 
