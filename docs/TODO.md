@@ -16,7 +16,7 @@ Trạng thái: ✅ xong · 🟡 một phần · ⏳ chưa làm · ⚖️ cần n
 ## 🟠 High
 | ID | Hạng mục | Trạng thái | Ghi chú |
 |---|---|---|---|
-| H-01 | Chỉ số cột cứng → Schema/Repository | ⏳ | P3 (cần quyết định clasp §9.1) |
+| H-01 | Chỉ số cột cứng → Schema/Repository | 🚫 Không làm | Người dùng quyết định 26/09/2026: cột file nguồn cố định, không ai sửa trực tiếp trên Google Sheet; đã có cảnh báo khi tiêu đề PhieuCan_DN thay đổi (v2026.7.1) |
 | H-02 | clearContent + setValues trên Nháp/mirror | ✅ 2026.6.0 | |
 | H-03 | Thiếu khóa ở hàm ghi | ✅ 2026.6.0 | Refresh mirror không khóa (tránh khóa lồng) nhưng không còn lúc trống |
 | H-04 | Đồng bộ tên ghi lại cả cột | ✅ 2026.6.0 | |
@@ -45,6 +45,7 @@ Trạng thái: ✅ xong · 🟡 một phần · ⏳ chưa làm · ⚖️ cần n
 - L-09: “Số điện thoại mất số 0” — người dùng quyết định **không rà nữa** (26/09/2026).
 
 ## Quyết định đã có (REFACTOR_PLAN §9)
+- Hệ thống **dùng nội bộ** (26/09/2026): bỏ P5/P6, chỉ lấy Sao lưu/Khôi phục và Nhật ký trước/sau.
 - §9.1: giữ **gas-tools** → P3 tách code thành nhiều file **phẳng** (không thư mục).
 - §9.3: **Cổng đăng nhập Gmail**, Admin = saoluucvhak@gmail.com (chủ script), vai trò Quản trị / Kế toán / Chỉ xem.
 - §9.4: không có hệ thống ngoài gọi `?action=` → đã bỏ.
