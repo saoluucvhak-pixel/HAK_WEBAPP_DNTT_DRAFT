@@ -1,6 +1,6 @@
 /**
  * ============================================================
- * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.8.3
+ * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.8.4
  * Lịch sử thay đổi: CHANGELOG.md · Kiến trúc: docs/ARCHITECTURE.md
  * ------------------------------------------------------------
  * *** QUAN TRỌNG - CẦN LÀM TRƯỚC KHI DÙNG BẢN NÀY (chỉ 1 LẦN DUY NHẤT
@@ -2002,7 +2002,7 @@ function webMoDongThanhToanTheoHoSo_(chuRungInput, ngayDongTTInput, lanTTInput) 
     new112Row[22] = id112Moi;
     shDraft112.appendRow(_dongAnToan_([new112Row], COT_CHU.H112)[0]);
 
-    const pcMap = utils.buildIndexMap(_pcData_(), 22, true);
+    const pcMap = utils.buildIndexMap(_pcData_(), PC_COL.SO_CT, true);
     const dsPhieuCanGoc = [];
     const soPhieuCanLienQuan = [];
     const draftCtRowsMoi = [];
@@ -3015,11 +3015,11 @@ function buildDraftCtRow_(idKey, stt, soP, srcInfo, pcMap) {
   row[11] = _chu_(soP);
 
   if (pcRow) {
-    row[12] = utils.parseNum(pcRow[9]) / 1000;
-    row[13] = utils.parseNum(pcRow[19]);
-    row[14] = utils.parseNum(pcRow[17]);
+    row[12] = utils.parseNum(pcRow[PC_COL.KL_KG]) / 1000;
+    row[13] = utils.parseNum(pcRow[PC_COL.DON_GIA_AD]);
+    row[14] = utils.parseNum(pcRow[PC_COL.GIAM_GIA]);
     row[15] = row[13] + row[14];
-    row[16] = utils.parseNum(pcRow[25]);
+    row[16] = utils.parseNum(pcRow[PC_COL.THANH_TIEN]);
     row[17] = "Đã lấy giá từ Phiếu Cân";
   }
 
@@ -3268,7 +3268,7 @@ function _resolveNguoiNhanTien_(override, hd) {
  * với tiền đã chuyển thật. Thiếu layThongTinNhanTien hoặc hồ sơ không
  * tra được (gọi hàm cũ không truyền) vẫn dùng mặc định HD_NCC như cũ. */
 function _xayChiTietDNTTRows_(ctRowsDaLoc, layLanTT, layThongTinNhanTien) {
-  const pcMap = utils.buildIndexMap(_pcData_(), 22, true);
+  const pcMap = utils.buildIndexMap(_pcData_(), PC_COL.SO_CT, true);
   const hdMap = utils.buildIndexMap(_hdNccFullData_(), 2, true);
   const now = new Date();
   return ctRowsDaLoc.map(ctRow => {
@@ -3280,11 +3280,11 @@ function _xayChiTietDNTTRows_(ctRowsDaLoc, layLanTT, layThongTinNhanTien) {
     const tt112 = (layThongTinNhanTien && layThongTinNhanTien(idHeThong)) || null;
     const { tenThuHuong, nganHangThat, stkThat } = _resolveNguoiNhanTien_(tt112, hd);
     return [
-      idHeThong, layLanTT(idHeThong) || "", _chu_(soP), _formatNgayXuat_(ctRow[20]), _formatNgayXuat_(pc[1]),
-      pc[13], _chu_(soHD), pc[5], ctRow[3], _chu_(_chuanHoaCCCD_(hd[6])), tenThuHuong, _chu_(_chuanHoaCCCD_(hd[11])),
-      hd[5], hd[18], pc[2], pc[4], utils.parseNum(pc[7]), utils.parseNum(pc[8]),
-      utils.parseNum(pc[9]), utils.parseNum(pc[9]) / 1000, utils.parseNum(pc[23]),
-      utils.parseNum(pc[25]), pc[14], nganHangThat, _chu_(stkThat), ctRow[2],
+      idHeThong, layLanTT(idHeThong) || "", _chu_(soP), _formatNgayXuat_(ctRow[20]), _formatNgayXuat_(pc[PC_COL.NGAY_CAN_1]),
+      pc[PC_COL.DAI_LY], _chu_(soHD), pc[PC_COL.BIEN_SO_1], ctRow[3], _chu_(_chuanHoaCCCD_(hd[6])), tenThuHuong, _chu_(_chuanHoaCCCD_(hd[11])),
+      hd[5], hd[18], pc[PC_COL.GIO_CAN_1], pc[PC_COL.GIO_CAN_2], utils.parseNum(pc[PC_COL.CAN_LAN_1]), utils.parseNum(pc[PC_COL.CAN_LAN_2]),
+      utils.parseNum(pc[PC_COL.KL_KG]), utils.parseNum(pc[PC_COL.KL_KG]) / 1000, utils.parseNum(pc[PC_COL.DON_GIA_TC]),
+      utils.parseNum(pc[PC_COL.THANH_TIEN]), pc[PC_COL.NGUON_GOC], nganHangThat, _chu_(stkThat), ctRow[2],
       "N", now
     ];
   });
@@ -3752,7 +3752,7 @@ function _gomChiTietChuyenKhoan_(filteredRows) {
   // thay vì đọc trực tiếp không cache mỗi lần.
   const pcDataNoHeader = _pcData_();
   const hdDataNoHeader = _hdNccFullData_();
-  const mapPC = utils.buildIndexMap(pcDataNoHeader, 22, true);
+  const mapPC = utils.buildIndexMap(pcDataNoHeader, PC_COL.SO_CT, true);
   const mapHD = utils.buildIndexMap(hdDataNoHeader, 2, true);
 
   let tempRows = [];
@@ -3775,11 +3775,11 @@ function _gomChiTietChuyenKhoan_(filteredRows) {
 
       tempRows.push({
         data: [
-          0, parentInfo?.soLan, _chu_(ctRow[11]), _formatNgayXuat_(ctRow[20]), _formatNgayXuat_(pc[1]),
-          pc[13], _chu_(ctRow[19]), pc[5], ctRow[3], _chu_(_chuanHoaCCCD_(hd[6])), tenThuHuong, _chu_(_chuanHoaCCCD_(hd[11])),
-          hd[5], hd[18], pc[2], pc[4], utils.parseNum(pc[7]), utils.parseNum(pc[8]),
-          utils.parseNum(pc[9]), utils.parseNum(pc[9])/1000, utils.parseNum(pc[23]),
-          utils.parseNum(pc[25]), pc[14], nganHangThat, _chu_(stkThat), ctRow[2]
+          0, parentInfo?.soLan, _chu_(ctRow[11]), _formatNgayXuat_(ctRow[20]), _formatNgayXuat_(pc[PC_COL.NGAY_CAN_1]),
+          pc[PC_COL.DAI_LY], _chu_(ctRow[19]), pc[PC_COL.BIEN_SO_1], ctRow[3], _chu_(_chuanHoaCCCD_(hd[6])), tenThuHuong, _chu_(_chuanHoaCCCD_(hd[11])),
+          hd[5], hd[18], pc[PC_COL.GIO_CAN_1], pc[PC_COL.GIO_CAN_2], utils.parseNum(pc[PC_COL.CAN_LAN_1]), utils.parseNum(pc[PC_COL.CAN_LAN_2]),
+          utils.parseNum(pc[PC_COL.KL_KG]), utils.parseNum(pc[PC_COL.KL_KG])/1000, utils.parseNum(pc[PC_COL.DON_GIA_TC]),
+          utils.parseNum(pc[PC_COL.THANH_TIEN]), pc[PC_COL.NGUON_GOC], nganHangThat, _chu_(stkThat), ctRow[2]
         ],
         bank: { ngayCK: _formatNgayXuat_(ctRow[20]), soPhieuCan: ctRow[11], noiDung: parentInfo?.noiDungCK, thanhTien: ctRow[16], soHD: ctRow[19], hd: hd, tenThuHuong: tenThuHuong, nganHang: nganHangThat, stk: stkThat }
       });
@@ -3846,7 +3846,7 @@ function renderSheet2DetailFromDraft_(sheet, filteredRows, dateRange) {
   const pcDataNoHeader = _pcData_();
   const hdDataNoHeader = _hdNccFullData_();
 
-  const mapPC = utils.buildIndexMap(pcDataNoHeader, 22, true);
+  const mapPC = utils.buildIndexMap(pcDataNoHeader, PC_COL.SO_CT, true);
   const mapHD = utils.buildIndexMap(hdDataNoHeader, 2, true);
 
   sheet.clear();
@@ -3875,11 +3875,11 @@ function renderSheet2DetailFromDraft_(sheet, filteredRows, dateRange) {
       const { tenThuHuong, nganHangThat, stkThat } = _resolveNguoiNhanTien_(parentInfo, hd);
 
       tempRows.push([
-        0, parentInfo && parentInfo.soLan, _chu_(ctRow[11]), _formatNgayXuat_(ctRow[20]), _formatNgayXuat_(pc[1]),
-        pc[13], _chu_(ctRow[19]), pc[5], ctRow[3], _chu_(_chuanHoaCCCD_(hd[6])), tenThuHuong, _chu_(_chuanHoaCCCD_(hd[11])),
-        hd[5], hd[18], pc[2], pc[4], utils.parseNum(pc[7]), utils.parseNum(pc[8]),
-        utils.parseNum(pc[9]), utils.parseNum(pc[9])/1000, utils.parseNum(pc[23]),
-        utils.parseNum(pc[25]), pc[14], nganHangThat, _chu_(stkThat), ctRow[2]
+        0, parentInfo && parentInfo.soLan, _chu_(ctRow[11]), _formatNgayXuat_(ctRow[20]), _formatNgayXuat_(pc[PC_COL.NGAY_CAN_1]),
+        pc[PC_COL.DAI_LY], _chu_(ctRow[19]), pc[PC_COL.BIEN_SO_1], ctRow[3], _chu_(_chuanHoaCCCD_(hd[6])), tenThuHuong, _chu_(_chuanHoaCCCD_(hd[11])),
+        hd[5], hd[18], pc[PC_COL.GIO_CAN_1], pc[PC_COL.GIO_CAN_2], utils.parseNum(pc[PC_COL.CAN_LAN_1]), utils.parseNum(pc[PC_COL.CAN_LAN_2]),
+        utils.parseNum(pc[PC_COL.KL_KG]), utils.parseNum(pc[PC_COL.KL_KG])/1000, utils.parseNum(pc[PC_COL.DON_GIA_TC]),
+        utils.parseNum(pc[PC_COL.THANH_TIEN]), pc[PC_COL.NGUON_GOC], nganHangThat, _chu_(stkThat), ctRow[2]
       ]);
     }
   });
@@ -4210,7 +4210,7 @@ function runProcessDetail() {
     const srcData = shSrc.getDataRange().getValues();
     // SỬA (mục P - tối ưu tốc độ): pcMap chỉ cần tra cứu phiếu cân CHƯA
     // thanh toán (đúng đối tượng được phép tách) -> dùng cache nhỏ, nhanh.
-    const pcMap = utils.buildIndexMap(_pcUnpaidData_(), 22, true);
+    const pcMap = utils.buildIndexMap(_pcUnpaidData_(), PC_COL.SO_CT, true);
 
     // Hồ sơ đã có trong Draft CT -> đã tách rồi, bỏ qua (tránh tạo
     // trùng / đè lên dòng có thể đã bị sửa tay). Cũng lấy luôn danh sách
@@ -4563,10 +4563,12 @@ const HDSTK_MIRROR_HEADER = ["Họ Tên", "CCCD", "Người Được Ủy Quyề
 // J=KL hàng/KL_KG(9). Mặt hàng/Khách hàng/Đại lý/Nguồn gốc vẫn theo vị
 // trí cũ (11,12,13,14 - Đại lý/Nguồn gốc đã xác nhận đúng qua báo cáo
 // đang chạy tốt; Mặt hàng/Khách hàng CHƯA xác nhận, báo tôi nếu sai).
+// Chỉ khai báo cột code THẬT SỰ dùng: hệ thống chỉ đọc các cột này (xem
+// PC_COT_CAN_DOC) - dùng cột mới thì thêm vào đây, không viết số cột trần.
 const PC_COL = {
-  SO_PHIEU: 0, NGAY_CAN_1: 1, GIO_CAN_1: 2, NGAY_CAN_2: 3, GIO_CAN_2: 4,
-  BIEN_SO_1: 5, BIEN_SO_2: 6, CAN_LAN_1: 7, CAN_LAN_2: 8, KL_KG: 9, MAT_HANG: 12,
-  KHACH_HANG: 11, DAI_LY: 13, NGUON_GOC: 14,
+  SO_PHIEU: 0, NGAY_CAN_1: 1, GIO_CAN_1: 2, GIO_CAN_2: 4,
+  BIEN_SO_1: 5, CAN_LAN_1: 7, CAN_LAN_2: 8, KL_KG: 9, MAT_HANG: 12,
+  KHACH_HANG: 11, DAI_LY: 13, NGUON_GOC: 14, GIAM_GIA: 17, DON_GIA_AD: 19,
   SO_CT: 22, DON_GIA_TC: 23, TRANG_THAI: 24, THANH_TIEN: 25, ID_DNTT: 26, CHON_TT: 27
 };
 
@@ -4581,6 +4583,8 @@ const PC_COL = {
 // standardize() giữ nguyên dấu tiếng Việt ("Khách lẻ" -> "KHÁCHLẺ") nên phải có cả dạng có dấu.
 const TEN_KHACH_CHUNG = new Set(["KH", "KL", "KHACHLE", "KHÁCHLẺ"]);
 const PC_MIRROR_COLS = 28;    // 0..27 (PC_COL.CHON_TT)
+// Cột PhieuCan_DN được đọc (0-based, tăng dần); cột không dùng để trống.
+const PC_COT_CAN_DOC = Array.from(new Set(Object.values(PC_COL))).sort((a, b) => a - b);
 
 // ============================================================
 // MỚI (mục N - tối ưu tốc độ): LỚP CACHE cho 3 sheet tham chiếu
@@ -5969,12 +5973,29 @@ function _tenNguonGoc_(maNG, dmNgMap) {
   return map[utils.standardize(ma)] || ma;
 }
 
-function _pcData_() {
-  return _getCachedRefData_("pc_data_v1", () => {
-    const sh = openExternalSheet_(CFG.PC_SS_ID, CFG.PC_SHEET, "Phiếu Cân");
-    const lr = sh.getLastRow();
-    return lr > 1 ? sh.getRange(2, 1, lr - 1, sh.getLastColumn()).getValues() : [];
+/** Đọc (từ dòng 2) CHỈ các cột `cot` (0-based, tăng dần) của sheet, trả về
+ * dòng đủ `rong` cột - cột không đọc để "". Các cột cách nhau không quá 2
+ * cột được gộp vào 1 lần đọc (ít lệnh gọi hơn, chỉ thêm vài ô). */
+function _docCacCot_(sh, cot, rong) {
+  const lr = sh.getLastRow();
+  if (lr < 2) return [];
+  const soDong = lr - 1;
+  const doan = [];
+  cot.forEach(c => { const d = doan[doan.length - 1]; if (d && c - d[1] <= 2) d[1] = c; else doan.push([c, c]); });
+  const rows = [];
+  for (let i = 0; i < soDong; i++) rows.push(new Array(rong).fill(""));
+  doan.forEach(([dau, cuoi]) => {
+    const cotTrongDoan = cot.filter(c => c >= dau && c <= cuoi);
+    sh.getRange(2, dau + 1, soDong, cuoi - dau + 1).getValues().forEach((v, i) => {
+      cotTrongDoan.forEach(c => { rows[i][c] = v[c - dau]; });
+    });
   });
+  return rows;
+}
+
+function _pcData_() {
+  return _getCachedRefData_("pc_data_v1", () =>
+    _docCacCot_(openExternalSheet_(CFG.PC_SS_ID, CFG.PC_SHEET, "Phiếu Cân"), PC_COT_CAN_DOC, PC_MIRROR_COLS));
 }
 
 // ============================================================
@@ -6007,9 +6028,6 @@ function _pcData_() {
 // làm mới định kỳ) - đúng yêu cầu "đóng thanh toán xong thì xóa khỏi
 // Nháp".
 // ============================================================
-const PC_COL_SO_CT_IDX = 22;
-const PC_COL_ID_DNTT_IDX = 26;
-const PC_COL_CHON_TT_IDX = 27;
 
 function getPcCacheSheet_() {
   const { ss } = getDraftSheets_(); // vẫn yêu cầu File Nháp (CT/112) đã thiết lập
@@ -6023,18 +6041,18 @@ function getPcCacheSheet_() {
 function refreshPhieuCanUnpaidCache_() {
   const shSrcPC = openExternalSheet_(CFG.PC_SS_ID, CFG.PC_SHEET, "Phiếu Cân");
   const lastRow = shSrcPC.getLastRow();
-  // SỬA (mục AH): chỉ mirror đúng số cột thật sự cần dùng (PC_MIRROR_COLS)
-  // thay vì toàn bộ cột của sheet nguồn - đỡ tải/lưu dư thừa.
+  // Chỉ đọc các cột code dùng (PC_COT_CAN_DOC); dòng tiêu đề đọc đủ để giữ
+  // nguyên bố cục cột của bản sao.
   const lastCol = Math.min(shSrcPC.getLastColumn(), PC_MIRROR_COLS);
   const header = lastRow >= 1 ? shSrcPC.getRange(1, 1, 1, lastCol).getValues()[0] : [];
-  const all = lastRow > 1 ? shSrcPC.getRange(2, 1, lastRow - 1, lastCol).getValues() : [];
+  const all = _docCacCot_(shSrcPC, PC_COT_CAN_DOC, lastCol);
   _ghiNhanHeaderPc_(header);
 
   const unpaid = all.filter(r => {
-    const soP = String(r[PC_COL_SO_CT_IDX] || "").trim();
+    const soP = String(r[PC_COL.SO_CT] || "").trim();
     if (!soP) return false;
-    const idDNTT = String(r[PC_COL_ID_DNTT_IDX] || "").trim();
-    const chonTT = String(r[PC_COL_CHON_TT_IDX] || "").trim().toUpperCase();
+    const idDNTT = String(r[PC_COL.ID_DNTT] || "").trim();
+    const chonTT = String(r[PC_COL.CHON_TT] || "").trim().toUpperCase();
     return !idDNTT && chonTT !== "Y" && chonTT !== "N";
   });
 
@@ -6043,7 +6061,7 @@ function refreshPhieuCanUnpaidCache_() {
   // trắng mirror trước khi ghi.
   unpaid.forEach(r => {
     r[PC_COL.SO_PHIEU] = _giuDangChu_(r[PC_COL.SO_PHIEU]);
-    if (PC_COL_SO_CT_IDX < r.length) r[PC_COL_SO_CT_IDX] = _giuDangChu_(r[PC_COL_SO_CT_IDX]);
+    if (PC_COL.SO_CT < r.length) r[PC_COL.SO_CT] = _giuDangChu_(r[PC_COL.SO_CT]);
   });
   _ghiLaiMirror_(getPcCacheSheet_(), header, unpaid);
   _invalidateChunkedCache_("pc_unpaid_data_v1"); // SỬA: dùng helper xóa hết các mảnh (dữ liệu có thể đã bị chia mảnh nếu lớn)
@@ -6077,9 +6095,9 @@ function _removeFromPcUnpaidCache_(soCTKeySet) {
     if (lastRow < 2) return;
     const lastCol = sh.getLastColumn();
     const all = sh.getRange(2, 1, lastRow - 1, lastCol).getValues();
-    const kept = all.filter(r => !soCTKeySet.has(utils.standardize(r[PC_COL_SO_CT_IDX])));
+    const kept = all.filter(r => !soCTKeySet.has(utils.standardize(r[PC_COL.SO_CT])));
     if (kept.length === all.length) return; // không có gì cần xóa
-    _thayVungDuLieu_(sh, 2, lastCol, all.length, kept, [PC_COL.SO_PHIEU, PC_COL_SO_CT_IDX]);
+    _thayVungDuLieu_(sh, 2, lastCol, all.length, kept, [PC_COL.SO_PHIEU, PC_COL.SO_CT]);
     _invalidateChunkedCache_("pc_unpaid_data_v1"); // SỬA: dùng helper xóa hết các mảnh (dữ liệu có thể đã bị chia mảnh nếu lớn)
   } catch (e) {
     // Không chặn luồng chính nếu dọn cache lỗi - lần làm mới định kỳ kế
@@ -7147,7 +7165,7 @@ function createNewPaymentRequest_(payload) {
 
     // SỬA (mục P - tối ưu tốc độ): chỉ cần tra cứu trong các phiếu cân
     // CHƯA thanh toán (đúng đối tượng được phép chọn) -> dùng cache nhỏ.
-    const pcMap = utils.buildIndexMap(_pcUnpaidData_(), 22, true);
+    const pcMap = utils.buildIndexMap(_pcUnpaidData_(), PC_COL.SO_CT, true);
 
     const heldByDraft = new Set();
     const draftLastRow = shDraftCT.getLastRow();
@@ -7164,15 +7182,15 @@ function createNewPaymentRequest_(payload) {
       const key = utils.standardize(soP);
       const pcRow = pcMap.get(key);
       if (!pcRow) throw new Error(`Số phiếu cân "${soP}" không tồn tại trong hệ thống Phiếu Cân.`);
-      const trangThai = String(pcRow[26] || "").trim();
-      const daKhoa = String(pcRow[27] || "").trim().toUpperCase();
+      const trangThai = String(pcRow[PC_COL.ID_DNTT] || "").trim();
+      const daKhoa = String(pcRow[PC_COL.CHON_TT] || "").trim().toUpperCase();
       if (trangThai || daKhoa === "Y" || daKhoa === "N") {
         throw new Error(`Số phiếu cân "${soP}" đã được sử dụng cho một đề nghị thanh toán CHÍNH THỨC khác.`);
       }
       if (heldByDraft.has(key)) {
         throw new Error(`Số phiếu cân "${soP}" đang được giữ tạm bởi 1 hồ sơ NHÁP khác chưa chốt.`);
       }
-      tongKLKg += utils.parseNum(pcRow[9]);
+      tongKLKg += utils.parseNum(pcRow[PC_COL.KL_KG]);
     }
 
     // 2. Tính Lần thanh toán + Ngày dự kiến TT
@@ -7724,11 +7742,11 @@ function addPhieuCanToDraft_(idKey, soPhieuCan) {
     _chanPhieuCanDaTra_([soP]);
 
     // SỬA (mục P - tối ưu tốc độ): dùng cache "chưa thanh toán" (nhỏ, nhanh).
-    const pcMap = utils.buildIndexMap(_pcUnpaidData_(), 22, true);
+    const pcMap = utils.buildIndexMap(_pcUnpaidData_(), PC_COL.SO_CT, true);
     const pcRow = pcMap.get(key);
     if (!pcRow) throw new Error(`Số phiếu cân "${soP}" không tồn tại trong hệ thống Phiếu Cân (hoặc đã được thanh toán).`);
-    const trangThai = String(pcRow[26] || "").trim();
-    const daKhoa = String(pcRow[27] || "").trim().toUpperCase();
+    const trangThai = String(pcRow[PC_COL.ID_DNTT] || "").trim();
+    const daKhoa = String(pcRow[PC_COL.CHON_TT] || "").trim().toUpperCase();
     if (trangThai || daKhoa === "Y" || daKhoa === "N") throw new Error(`Số phiếu cân "${soP}" đã được sử dụng CHÍNH THỨC.`);
 
     const own = ctAll.filter(r => String(r[1] || "").trim() === id);
@@ -7840,7 +7858,7 @@ function getDoiSoatTenKhachHang_() {
     // mới nhất để ghi, không phụ thuộc cache này).
     const ctAll = _ctThatDataCache_();
     if (!ctAll.length) return [];
-    const pcMap = utils.buildIndexMap(_pcData_(), 22, true);
+    const pcMap = utils.buildIndexMap(_pcData_(), PC_COL.SO_CT, true);
 
     const mismatches = [];
     ctAll.forEach((row, idx) => {
@@ -8122,7 +8140,7 @@ function getKiemTraDoiChieuBaoTri_() {
   const ctAll = _ctThatDataCache_();
   const h112All = _h112ThatDataCache_();
   const pcData = _pcData_();
-  const pcMap = utils.buildIndexMap(pcData, 22, true);
+  const pcMap = utils.buildIndexMap(pcData, PC_COL.SO_CT, true);
 
   const srcById = new Map(); srcAll.forEach(r => { const id = String(r[0] || "").trim(); if (id) srcById.set(id, r); });
   const h112ById = new Map(); h112All.forEach(r => { const id = String(r[0] || "").trim(); if (id) h112ById.set(id, r); }); // SỬA (theo xác nhận): khớp với cột A (ID_KEY) của 112, KHÔNG phải cột cuối "ID_112" (mã khác, sinh riêng)
@@ -8257,7 +8275,7 @@ function _timPhieuCanKhacTenChuRung_(idSet) {
   if (lastRow < 2) return [];
   const ctAll = shCT.getRange(2, 1, lastRow - 1, 22).getValues();
 
-  const pcMap = utils.buildIndexMap(_pcData_(), 22, true); // đầy đủ lịch sử, đủ để tra Khách hàng
+  const pcMap = utils.buildIndexMap(_pcData_(), PC_COL.SO_CT, true); // đầy đủ lịch sử, đủ để tra Khách hàng
   const mismatches = [];
   ctAll.forEach(row => {
     const idCha = String(row[1] || "").trim();

@@ -2,6 +2,17 @@
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/). Phiên bản theo `NĂM.ĐỢT.SỬA`; thay đổi làm đổi hành vi nghiệp vụ (⚖️) sẽ tăng số ĐỢT và ghi rõ đã được người dùng đồng ý.
 
+## [2026.8.4] — Chỉ đọc các cột Phiếu Cân cần dùng
+
+### Changed
+- Đọc PhieuCan_DN **chỉ 20/28 cột hệ thống dùng** (3 lần đọc A:O, R:T, W:AB); bộ nhớ đệm và bản sao “phiếu cân chưa TT” chỉ giữ 20 cột này. 8 cột không dùng: Ngày cân 2, Biển số 2, mã Nguồn gốc ghép, Hình ảnh, Mã ĐG, Timestamp, Picture, ID_PC.
+- Bộ nhớ đệm Phiếu Cân nhỏ hơn ~22%/dòng → chứa được ~16.000 phiếu (trước ~12.500, ước tính).
+- Mọi chỗ dùng cột Phiếu Cân gọi theo tên (`PC_COL`), thêm `GIAM_GIA` (R) và `DON_GIA_AD` (T); bỏ các hằng số cột trùng (`PC_COL_*_IDX`) và 2 khóa không dùng. Danh sách cột cần đọc tự lấy từ `PC_COL`.
+- Kết quả không đổi: đối chiếu toàn bộ đầu ra (sổ đã chốt, ChiTietDNTT, Báo cáo ĐNTT, UNC, MISA, công nợ) giữa bản 2026.8.3 và bản này giống hệt; chỉ bản sao “chưa TT” để trống các cột không dùng.
+
+### Tests
+- 83 test (thêm 3: chỉ đọc đúng cột, cột không dùng không lọt vào báo cáo/sổ, không còn số cột trần).
+
 ## [2026.8.3] — Trang chủ dùng số tổng hợp 15h (người dùng đồng ý 26/09/2026)
 
 ### Changed

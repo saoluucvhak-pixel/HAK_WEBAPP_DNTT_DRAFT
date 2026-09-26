@@ -1,4 +1,4 @@
-# ARCHITECTURE — HAK Quản Lý Thanh Toán (v2026.8.3)
+# ARCHITECTURE — HAK Quản Lý Thanh Toán (v2026.8.4)
 
 > Tài liệu sống: cập nhật mỗi khi đổi module, lớp, luồng dữ liệu hoặc schema.
 > Phân tích chi tiết hiện trạng: `docs/PROJECT_ANALYSIS.md`. Kiến trúc đích: `docs/REFACTOR_PLAN.md` §3–§4.
@@ -152,5 +152,5 @@ File test dùng đuôi `.mjs` để công cụ đồng bộ Apps Script không c
 - **Client — nút mang dữ liệu**: không nhúng dữ liệu vào `onclick="f('…')"`; dùng `${hanhDong('tenHam', thamSo…)}` (hoặc `hanhDongKhi('mousedown', …)`) và đăng ký hàm trong `HANH_DONG`. Ô chọn dùng `data-id` + `this.dataset.id`.
 - **Client — ngày**: ngày mặc định luôn `todayISOVN()` / `isoDaysAgoVN(n)` (giờ Việt Nam), không dùng `new Date().toISOString()`.
 - **Model Gemini**: không viết tên model trong code nghiệp vụ; danh sách mặc định `GEMINI_MODELS_MAC_DINH_`, cấu hình `GEMINI_MODELS` (Script Property, sửa ở Cài đặt), model chạy được gần nhất `GEMINI_MODEL`.
-- Chỉ số cột: ưu tiên hằng (`PC_COL`, `COL_TRANG_THAI_DNTT`, `HDNCC_COL`…); chỉ số trần là nợ kỹ thuật (TODO H-01).
+- Chỉ số cột: ưu tiên hằng (`PC_COL`, `COL_TRANG_THAI_DNTT`, `HDNCC_COL`…). **Phiếu Cân bắt buộc dùng `PC_COL`** (test chặn `pc[số]`): hệ thống chỉ đọc các cột có trong `PC_COL` (`PC_COT_CAN_DOC`, `_docCacCot_`), cột khác để trống.
 - Chú thích chỉ giải thích **vì sao**; lịch sử thay đổi ghi ở `CHANGELOG.md`.
