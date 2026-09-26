@@ -393,9 +393,17 @@
     body.dntt-lg #content h3, body.dntt-lg #modal h3{font-size:18px;}
     body.dntt-lg #content .stepper, body.dntt-lg #modal .stepper{font-size:14px;}
     body.dntt-lg #content .badge, body.dntt-lg #modal .badge{font-size:12.5px;}
+
+    /* Đăng nhập & người dùng (v2026.7) */
+    body.chua-dang-nhap #nav, body.chua-dang-nhap #chatbotNut, body.chua-dang-nhap #chatbotHop{display:none;}
+    .nguoi-dung-chip{font-size:12px; line-height:1.5; padding:10px 10px 4px; border-top:1px solid rgba(255,255,255,.12); margin-top:auto; color:#e5e7eb; word-break:break-all;}
+    .nguoi-dung-chip:empty{display:none;}
+    .nguoi-dung-chip .vai-tro{display:inline-block; font-size:11px; font-weight:600; padding:1px 8px; border-radius:10px; background:var(--timber-light); color:var(--timber); margin-top:2px;}
+    .nguoi-dung-chip .dang-xuat{margin-top:6px; background:transparent; color:#e5e7eb; border:1px solid rgba(255,255,255,.3); border-radius:6px; padding:3px 10px; font-size:12px; cursor:pointer;}
+    .nguoi-dung-chip .dang-xuat:hover{background:rgba(255,255,255,.08);}
   </style>
 </head>
-<body>
+<body data-phien="<?= phien ?>" data-loi-dang-nhap="<?= loiDangNhap ?>" class="chua-dang-nhap">
 
   <aside class="sidebar">
     <div class="brand">
@@ -417,7 +425,8 @@
       <div class="nav-item" data-page="hethong"><span class="ic">🩺</span> Hệ Thống</div>
       <div class="nav-item" data-page="settings"><span class="ic">⚙️</span> Cài đặt / Nháp</div>
     </nav>
-    <div class="sidebar-footer">Hệ thống Quản Lý Thanh Toán · v2026.6</div>
+    <div class="nguoi-dung-chip" id="nguoi-dung-chip"></div>
+    <div class="sidebar-footer">Hệ thống Quản Lý Thanh Toán · v2026.7</div>
   </aside>
 
   <main class="main">
@@ -645,7 +654,75 @@ function handleResult(res, onSuccess){
   return ok;
 }
 
-/** Gọi google.script.run có Promise hóa + loading overlay. */
+/* ============================================================
+ * ĐĂNG NHẬP & PHÂN QUYỀN (v2026.7)
+ * Mọi lời gọi server đi qua api(PHIEN, tên chức năng, tham số) - server
+ * kiểm tra phiên + quyền. PHIEN do server cấp sau khi đăng nhập qua Cổng
+ * đăng nhập Gmail, giữ trong sessionStorage (mất khi đóng tab).
+ * ============================================================ */
+const PHIEN_STORAGE_KEY = 'hak_phien';
+const LOI_DANG_NHAP = '[AUTH] ';
+const LOI_QUYEN = '[QUYEN] ';
+let PHIEN = '';
+
+function _khoiTaoPhien_(){
+  const tuServer = document.body.dataset.phien || '';
+  if (tuServer) {
+    PHIEN = tuServer;
+    try { sessionStorage.setItem(PHIEN_STORAGE_KEY, PHIEN); } catch(e) {}
+  } else {
+    try { PHIEN = sessionStorage.getItem(PHIEN_STORAGE_KEY) || ''; } catch(e) { PHIEN = ''; }
+  }
+}
+function coQuyen(quyen){
+  return !!(state.nguoiDung && state.nguoiDung.quyen && state.nguoiDung.quyen.indexOf(quyen) >= 0);
+}
+function _phanSauTienTo_(msg, tienTo){
+  const i = msg.indexOf(tienTo);
+  return i >= 0 ? msg.slice(i + tienTo.length) : '';
+}
+function hienManHinhDangNhap(loi){
+  PHIEN = '';
+  try { sessionStorage.removeItem(PHIEN_STORAGE_KEY); } catch(e) {}
+  document.body.classList.add('chua-dang-nhap');
+  document.getElementById('nguoi-dung-chip').innerHTML = '';
+  document.getElementById('page-title').textContent = 'Đăng nhập';
+  document.getElementById('page-desc').textContent = 'Hệ thống Quản Lý Thanh Toán HAK';
+  document.getElementById('topbar-actions').innerHTML = '';
+  const url = (state.nguoiDung && state.nguoiDung.congDangNhapUrl) || '';
+  document.getElementById('content').innerHTML = `
+    <div class="card" style="max-width:520px;margin:40px auto;text-align:center">
+      <h3>🔐 Đăng nhập</h3>
+      <p class="muted" style="font-size:13px">Dùng tài khoản Google (Gmail) đã được Quản trị cấp quyền.</p>
+      ${loi ? `<div class="hint-text" style="color:#b00;margin-bottom:12px">${esc(loi)}</div>` : ''}
+      ${url
+        ? `<a class="btn primary" href="${esc(url)}" target="_top">Đăng nhập bằng Google</a>`
+        : `<div class="hint-text">Quản trị chưa cấu hình Cổng đăng nhập. Chủ hệ thống hãy mở web app bằng tài khoản chủ để cấu hình ở mục Cài đặt.</div>`}
+    </div>`;
+}
+function _veNguoiDungChip_(){
+  const nd = state.nguoiDung;
+  const el = document.getElementById('nguoi-dung-chip');
+  if (!nd || !nd.daDangNhap) { el.innerHTML = ''; return; }
+  el.innerHTML = `<div>👤 ${esc(nd.email)}</div><span class="vai-tro">${esc(nd.vaiTroNhan)}</span>
+    ${nd.quaPhien ? '<div><button class="dang-xuat" onclick="dangXuatWeb()">Đăng xuất</button></div>' : ''}`;
+}
+function apDungQuyenGiaoDien(){
+  document.body.classList.remove('chua-dang-nhap');
+  document.querySelectorAll('#nav .nav-item').forEach(el => {
+    const meta = PAGES[el.dataset.page];
+    el.style.display = (meta && coQuyen(meta.quyen)) ? '' : 'none';
+  });
+  _veNguoiDungChip_();
+}
+function dangXuatWeb(){
+  const phien = PHIEN;
+  google.script.run.withSuccessHandler(() => {}).withFailureHandler(() => {}).dangXuat(phien);
+  state.nguoiDung = Object.assign({}, state.nguoiDung, { daDangNhap: false, quyen: [] });
+  hienManHinhDangNhap('Đã đăng xuất.');
+}
+
+/** Gọi server qua cửa api (kèm phiên) - Promise hóa + loading overlay. */
 function call(fnName, args, loadingMsg){
   return new Promise((resolve, reject) => {
     // SỬA LỖI (theo yêu cầu - "hay bị load khi đổi menu, không biết sao"):
@@ -660,8 +737,16 @@ function call(fnName, args, loadingMsg){
     if (loadingMsg) showLoading(loadingMsg);
     google.script.run
       .withSuccessHandler(res => { if (loadingMsg) hideLoading(); resolve(res); })
-      .withFailureHandler(err => { if (loadingMsg) hideLoading(); toast('❌ Lỗi hệ thống: ' + (err.message||err), 'err'); reject(err); })
-      [fnName](...(args||[]));
+      .withFailureHandler(err => {
+        if (loadingMsg) hideLoading();
+        const msg = String((err && err.message) || err);
+        const loiDangNhap = _phanSauTienTo_(msg, LOI_DANG_NHAP);
+        const loiQuyen = _phanSauTienTo_(msg, LOI_QUYEN);
+        if (loiDangNhap) hienManHinhDangNhap(loiDangNhap);
+        else toast('❌ ' + (loiQuyen || ('Lỗi hệ thống: ' + msg)), 'err');
+        reject(err);
+      })
+      .api(PHIEN, fnName, args || []);
   });
 }
 
@@ -675,14 +760,15 @@ document.getElementById('modal-bg').addEventListener('click', e => { if(e.target
 /* ============================================================
  * NAVIGATION
  * ============================================================ */
+// quyen: quyền tối thiểu để thấy trang (khớp QUYEN phía server).
 const PAGES = {
-  dashboard: {title:'Trang chủ', desc:'Tổng quan quy trình đề nghị thanh toán', render: renderDashboard},
-  draft:     {title:'Danh Sách ĐNTT (chờ duyệt)', desc:'Tạo mới, xem, duyệt, tính tiền và Đóng Thanh Toán các Đề Nghị Thanh Toán đang chờ xử lý (Nháp)', render: renderDraft},
-  report:    {title:'Báo Cáo Thanh Toán', desc:'Danh sách hồ sơ đã chốt thanh toán chính thức', render: renderReport},
-  debt:      {title:'Báo Cáo Công Nợ Khách Hàng Gỗ Keo', desc:'Công nợ theo khách hàng / hợp đồng, sổ chi tiết, phân tích tình hình thanh toán', render: renderDebt},
-  huongdan:  {title:'Hướng Dẫn Sử Dụng', desc:'Quy trình thực hiện thủ tục thanh toán và hướng dẫn từng màn hình', render: renderHuongDan},
-  hethong:   {title:'Hệ Thống', desc:'Đối soát tên khách hàng và bảo trì kiểm tra đối chiếu dữ liệu', render: renderHeThong},
-  settings:  {title:'Cài đặt / File Nháp', desc:'Khởi tạo và quản lý File Nháp', render: renderSettings}
+  dashboard: {title:'Trang chủ', desc:'Tổng quan quy trình đề nghị thanh toán', render: renderDashboard, quyen:'XEM'},
+  draft:     {title:'Danh Sách ĐNTT (chờ duyệt)', desc:'Tạo mới, xem, duyệt, tính tiền và Đóng Thanh Toán các Đề Nghị Thanh Toán đang chờ xử lý (Nháp)', render: renderDraft, quyen:'NGHIEP_VU'},
+  report:    {title:'Báo Cáo Thanh Toán', desc:'Danh sách hồ sơ đã chốt thanh toán chính thức', render: renderReport, quyen:'XEM'},
+  debt:      {title:'Báo Cáo Công Nợ Khách Hàng Gỗ Keo', desc:'Công nợ theo khách hàng / hợp đồng, sổ chi tiết, phân tích tình hình thanh toán', render: renderDebt, quyen:'XEM'},
+  huongdan:  {title:'Hướng Dẫn Sử Dụng', desc:'Quy trình thực hiện thủ tục thanh toán và hướng dẫn từng màn hình', render: renderHuongDan, quyen:'XEM'},
+  hethong:   {title:'Hệ Thống', desc:'Đối soát tên khách hàng và bảo trì kiểm tra đối chiếu dữ liệu', render: renderHeThong, quyen:'QUAN_TRI'},
+  settings:  {title:'Cài đặt / File Nháp', desc:'Khởi tạo và quản lý File Nháp, người dùng & đăng nhập', render: renderSettings, quyen:'QUAN_TRI'}
 };
 
 document.getElementById('nav').addEventListener('click', e => {
@@ -692,6 +778,7 @@ document.getElementById('nav').addEventListener('click', e => {
 });
 
 function goTo(page){
+  if (!PAGES[page] || !coQuyen(PAGES[page].quyen)) { toast('❌ Tài khoản của bạn không có quyền mở trang này.', 'err'); return; }
   state.page = page;
   if (page === 'draft') state.draftView = 'list'; // luôn về danh sách khi bấm nav, không kẹt ở màn Tạo Mới
   // MỚI (theo yêu cầu - "DNTT cho font chữ to lên"): chỉ trang Danh Sách
@@ -3401,7 +3488,10 @@ function loadLichSuSuaDoi(){
       XOA_MO_COI_CHITIET_DNTT: '🧹 Xóa Mồ Côi ChiTietDNTT',
       XOA_MO_COI_CHITIET_UNC: '🧹 Xóa Mồ Côi ChiTietUNC',
       XOA_MO_COI_CT_THAT: '⚠️ Xóa Mồ Côi CT Thật',
-      XOA_MO_COI_SRC_THAT: '⚠️ Xóa Mồ Côi Nguồn Thật'
+      XOA_MO_COI_SRC_THAT: '⚠️ Xóa Mồ Côi Nguồn Thật',
+      SUA_TEN_KH_PHIEU_CAN: '✏️ Sửa Tên KH Phiếu Cân',
+      PHAN_QUYEN: '👥 Phân Quyền',
+      CAU_HINH_DANG_NHAP: '🔐 Cấu Hình Đăng Nhập'
     };
     box.innerHTML = `<div class="hint-text" style="margin-bottom:6px">${rows.length} mục${rows.length >= 1000 ? ' (đã đạt giới hạn hiển thị 1000 - thu hẹp khoảng ngày nếu cần xem đầy đủ hơn)' : ''}</div>
     <div style="overflow-x:auto"><table><thead><tr>
@@ -3445,6 +3535,8 @@ function renderSettings(){
         <button class="btn primary" onclick="openDraftFileLink()">📂 Mở File Nháp</button>
         <div class="hint-text">Muốn đổi File Chính? Xem mục "Link các file liên quan" bên dưới.</div>
       </div>
+      <div class="card" id="nguoidung-card"><div class="empty"><div class="ic">⏳</div>Đang tải danh sách người dùng...</div></div>
+      <div class="card" id="dangnhap-card"><div class="empty"><div class="ic">⏳</div>Đang tải cấu hình đăng nhập...</div></div>
       <div class="card" id="config-links-card"><div class="empty"><div class="ic">⏳</div>Đang tải danh sách link...</div></div>
       <div class="card">
         <h3>Tốc độ tải dữ liệu</h3>
@@ -3529,6 +3621,8 @@ function renderSettings(){
         <h3>Tiện ích khác</h3>
         <button class="btn" onclick="doGenerateThongSo()">📋 Tạo/Cập Nhật Sheet Thông Số</button>
       </div>`;
+      loadNguoiDung();
+      loadCauHinhDangNhap();
       loadChatbotSettings();
       loadConfigLinks();
       loadSheetLocaleInfo();
@@ -3541,6 +3635,94 @@ function renderSettings(){
       loadFormatLockStatus();
     }
   });
+}
+
+/* ---------- Người dùng & Phân quyền (Quản trị) ---------- */
+function loadNguoiDung(){
+  call('getDanhSachNguoiDungForWeb', [], null).then(d => {
+    state.nguoiDungDs = d;
+    const box = document.getElementById('nguoidung-card');
+    if (!box) return;
+    const nhan = {};
+    d.vaiTro.forEach(v => { nhan[v.ma] = v.nhan; });
+    box.innerHTML = `<h3>👥 Người Dùng & Phân Quyền</h3>
+      <p class="muted" style="font-size:13px"><b>Quản trị</b>: toàn quyền, gồm Cài đặt và Hệ thống. <b>Kế toán</b>: tạo, xác nhận, duyệt ĐNTT, UNC, xem và xuất báo cáo. <b>Chỉ xem</b>: xem và xuất báo cáo.
+      Chủ script <b>${esc(d.chuScript)}</b> luôn là Quản trị. Không xóa người dùng - đổi trạng thái sang "Khóa" để chặn truy cập (có hiệu lực trong khoảng 1 phút).</p>
+      <div class="grid cols-4">
+        <div class="field"><label>Email Google</label><input type="text" id="nd-email" placeholder="ten@gmail.com"></div>
+        <div class="field"><label>Họ tên</label><input type="text" id="nd-hoten"></div>
+        <div class="field"><label>Vai trò</label><select id="nd-vaitro">${d.vaiTro.map(v => `<option value="${esc(v.ma)}">${esc(v.nhan)}</option>`).join('')}</select></div>
+        <div class="field"><label>Trạng thái</label><select id="nd-trangthai">${d.trangThai.map(t => `<option value="${esc(t)}">${esc(t)}</option>`).join('')}</select></div>
+      </div>
+      <button class="btn accent" onclick="luuNguoiDung()">💾 Lưu người dùng</button>
+      <div style="overflow-x:auto;margin-top:12px"><table><thead><tr><th>Email</th><th>Họ tên</th><th>Vai trò</th><th>Trạng thái</th><th></th></tr></thead><tbody>
+        ${d.nguoiDung.length
+          ? d.nguoiDung.map((u, i) => `<tr><td>${esc(u.email)}</td><td>${esc(u.hoTen)}</td><td>${esc(nhan[u.vaiTro] || u.vaiTro)}</td><td>${esc(u.trangThai)}</td>
+              <td><button class="btn ghost sm" onclick="chonSuaNguoiDung(${i})">Sửa</button></td></tr>`).join('')
+          : '<tr><td colspan="5" class="muted">Chưa có người dùng nào (ngoài chủ script).</td></tr>'}
+      </tbody></table></div>`;
+    document.getElementById('nd-vaitro').value = 'XEM'; // mặc định quyền thấp nhất
+  }).catch(() => {});
+}
+function chonSuaNguoiDung(i){
+  const u = state.nguoiDungDs && state.nguoiDungDs.nguoiDung[i];
+  if (!u) return;
+  document.getElementById('nd-email').value = u.email;
+  document.getElementById('nd-hoten').value = u.hoTen;
+  document.getElementById('nd-vaitro').value = u.vaiTro;
+  document.getElementById('nd-trangthai').value = u.trangThai;
+}
+function luuNguoiDung(){
+  const duLieu = {
+    email: document.getElementById('nd-email').value.trim(),
+    hoTen: document.getElementById('nd-hoten').value.trim(),
+    vaiTro: document.getElementById('nd-vaitro').value,
+    trangThai: document.getElementById('nd-trangthai').value
+  };
+  if (!duLieu.email) { toast('Vui lòng nhập email.', 'warn'); return; }
+  call('webLuuNguoiDung', [duLieu], 'Đang lưu người dùng...').then(res => handleResult(res, () => loadNguoiDung()));
+}
+
+/* ---------- Cổng đăng nhập Gmail (Quản trị) ---------- */
+function loadCauHinhDangNhap(){
+  call('getCauHinhDangNhapForWeb', [], null).then(c => {
+    const box = document.getElementById('dangnhap-card');
+    if (!box) return;
+    box.innerHTML = `<h3>🔐 Cổng Đăng Nhập Gmail</h3>
+      <p class="muted" style="font-size:13px">Người dùng đăng nhập bằng tài khoản Google qua 1 dự án Apps Script nhỏ riêng (Cổng đăng nhập) - người dùng KHÔNG cần được chia sẻ các file Google Sheet. Chỉ cần thiết lập 1 lần:</p>
+      <ol style="font-size:13px;line-height:1.7;padding-left:20px">
+        <li>Mở <a href="https://script.new" target="_blank">script.new</a> bằng tài khoản Quản trị → xóa code mẫu → dán TOÀN BỘ mã bên dưới → Lưu.</li>
+        <li><b>Deploy › New deployment › Web app</b>: Execute as <b>User accessing the web app</b>, Who has access <b>Anyone with Google account</b> → Deploy → cho phép quyền → sao chép <b>Web app URL</b>.</li>
+        <li>Dán URL đó vào ô bên dưới → Lưu. Từ đó người dùng mở link web app này sẽ thấy nút "Đăng nhập bằng Google".</li>
+      </ol>
+      <div class="hint-text" style="color:#b00">⚠️ Mã nguồn có chứa mã bí mật - không gửi cho người khác. Nếu nghi bị lộ, bấm "Tạo lại mã bí mật" rồi dán lại mã mới vào Cổng đăng nhập (Deploy › Manage deployments › Edit › New version).</div>
+      <div class="field" style="margin-top:8px"><label>Mã nguồn Cổng đăng nhập</label>
+        <textarea readonly id="dn-manguon" style="width:100%;height:160px;font-family:monospace;font-size:12px">${esc(c.maNguon)}</textarea></div>
+      <button class="btn" onclick="saoChepMaNguonDangNhap()">📋 Sao chép mã nguồn</button>
+      <div class="field" style="margin-top:12px"><label>Link Cổng đăng nhập (Web app URL)</label>
+        <input type="text" id="dn-url" value="${esc(c.congDangNhapUrl)}" placeholder="https://script.google.com/macros/s/.../exec"></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn accent" onclick="luuCongDangNhap()">💾 Lưu link</button>
+        <button class="btn" onclick="taoLaiSsoSecret()">🔁 Tạo lại mã bí mật</button>
+      </div>
+      <div class="hint-text" style="margin-top:8px">Link web app chính (gửi cho người dùng): <span class="mono">${esc(c.appUrl || '(chưa Deploy)')}</span></div>`;
+  }).catch(() => {});
+}
+function saoChepMaNguonDangNhap(){
+  const el = document.getElementById('dn-manguon');
+  el.select();
+  try { document.execCommand('copy'); toast('Đã sao chép mã nguồn.'); }
+  catch(e) { toast('Hãy bấm vào ô mã nguồn và sao chép thủ công (Ctrl+A, Ctrl+C).', 'warn'); }
+}
+function luuCongDangNhap(){
+  const url = document.getElementById('dn-url').value.trim();
+  call('webSetCongDangNhapUrl', [url], 'Đang lưu...').then(res => handleResult(res, () => {
+    if (state.nguoiDung) state.nguoiDung.congDangNhapUrl = url;
+  }));
+}
+function taoLaiSsoSecret(){
+  if (!confirm('Tạo mã bí mật mới? Cổng đăng nhập hiện tại sẽ NGỪNG hoạt động cho tới khi bạn dán lại mã nguồn mới vào dự án Cổng đăng nhập và Deploy lại.')) return;
+  call('webTaoLaiSsoSecret', [], 'Đang tạo mã mới...').then(res => handleResult(res, () => loadCauHinhDangNhap()));
 }
 
 function doConnectMainSs(){
@@ -4094,9 +4276,12 @@ function chatbotGuiCauHoi(){
       }
     })
     .withFailureHandler(function (err) {
-      elDangTra.textContent = '❌ Lỗi hệ thống: ' + (err.message || err);
+      const msg = String((err && err.message) || err);
+      const loiDangNhap = _phanSauTienTo_(msg, LOI_DANG_NHAP);
+      elDangTra.textContent = '❌ ' + (loiDangNhap || _phanSauTienTo_(msg, LOI_QUYEN) || ('Lỗi hệ thống: ' + msg));
+      if (loiDangNhap) hienManHinhDangNhap(loiDangNhap);
     })
-    .TRA_LOI_CHATBOT(cauHoi, chatbotLichSu_);
+    .api(PHIEN, 'TRA_LOI_CHATBOT', [cauHoi, chatbotLichSu_]);
 }
 
 /* ============================================================
@@ -4113,9 +4298,30 @@ function chatbotGuiCauHoi(){
 // dư TOÀN BỘ Trang chủ trước khi trang kịp hiện ra. Giờ dùng
 // getAppSetupStatus() (không đọc sheet nào) cho đúng bước điều hướng
 // này - Trang chủ chỉ còn tính ĐÚNG 1 lần khi thật sự cần hiển thị.
-call('getAppSetupStatus', [], null).then(stats => {
-  goTo(stats.mainSetup ? 'dashboard' : 'settings');
-}).catch(() => goTo('settings'));
+// v2026.7: xác định người dùng trước (thongTinDangNhap không cần đăng
+// nhập) - chưa đăng nhập thì hiện màn hình đăng nhập, không gọi gì thêm.
+function _moTrangDauTien_(){
+  call('getAppSetupStatus', [], null).then(stats => {
+    if (stats.mainSetup) { goTo('dashboard'); return; }
+    if (coQuyen('QUAN_TRI')) { goTo('settings'); return; }
+    document.getElementById('content').innerHTML = '<div class="card"><div class="empty"><div class="ic">⚙️</div>Hệ thống chưa được Quản trị kết nối File Chính - vui lòng liên hệ Quản trị.</div></div>';
+  }).catch(() => {});
+}
+_khoiTaoPhien_();
+google.script.run
+  .withSuccessHandler(info => {
+    state.nguoiDung = info;
+    if (!info.daDangNhap) {
+      const loi = document.body.dataset.loiDangNhap
+        || (info.email ? `Tài khoản ${info.email} chưa được cấp quyền hoặc đã bị khóa - liên hệ Quản trị.` : '');
+      hienManHinhDangNhap(loi);
+      return;
+    }
+    apDungQuyenGiaoDien();
+    _moTrangDauTien_();
+  })
+  .withFailureHandler(err => hienManHinhDangNhap(String((err && err.message) || err)))
+  .thongTinDangNhap(PHIEN);
 </script>
 </body>
 </html>

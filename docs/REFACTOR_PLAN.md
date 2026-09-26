@@ -1,7 +1,7 @@
 # REFACTOR_PLAN — Nâng cấp HAK lên Commercial Edition
 
 > Dựa trên `docs/PROJECT_ANALYSIS.md` (commit `1ece58f`).
-> **Trạng thái:** P0 + P1 đã thực hiện ở v2026.6.0 (người dùng duyệt “tiếp tục”, theo khuyến nghị §9.2). Các Phase còn lại chờ quyết định §9. Tiến độ từng mục: `docs/TODO.md`.
+> **Trạng thái:** P0 + P1 xong ở v2026.6.0; P2a (đăng nhập Gmail + phân quyền) xong ở v2026.7.0. Quyết định đã có: giữ gas-tools (§9.1 → cấu trúc đích §3 sẽ dùng tên file phẳng, vd `Service_Payment.gs`, thay cho thư mục), Cổng đăng nhập Gmail với Admin saoluucvhak@gmail.com (§9.3), bỏ `?action=` (§9.4). Tiến độ từng mục: `docs/TODO.md`.
 > Hạng mục có ký hiệu **⚖️** làm **thay đổi hành vi nghiệp vụ** → cần người dùng đồng ý riêng.
 
 ---

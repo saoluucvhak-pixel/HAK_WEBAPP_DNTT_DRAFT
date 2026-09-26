@@ -1,6 +1,10 @@
 // In-memory mock of the Apps Script services used by Code.gs.
 // Every write is recorded in sheet.writes so tests can assert which cells were touched.
-import { randomUUID } from 'node:crypto';
+import { randomUUID, createHmac } from 'node:crypto';
+
+const toBuffer = v => (typeof v === 'string' ? Buffer.from(v, 'utf8') : Buffer.from(v.map(b => b & 0xff)));
+const b64WebSafe = v => toBuffer(v).toString('base64').replace(/\+/g, '-').replace(/\//g, '_');
+const fromB64WebSafe = s => Array.from(Buffer.from(String(s).replace(/-/g, '+').replace(/_/g, '/'), 'base64'));
 
 const colToNum = (letters) => letters.split('').reduce((n, ch) => n * 26 + (ch.charCodeAt(0) - 64), 0);
 
@@ -215,8 +219,13 @@ function makeCache() {
   };
 }
 
-/** Builds a fresh GAS-like global environment. */
-export function createGasEnvironment({ activeSpreadsheet, spreadsheets = [], properties = {}, user = 'tester@example.com' } = {}) {
+/**
+ * Builds a fresh GAS-like global environment.
+ * owner = script owner (Session.getEffectiveUser); activeUser = who Google says is
+ * calling (owner by default; '' simulates another Gmail user of an "execute as me" web app).
+ */
+export function createGasEnvironment({ activeSpreadsheet, spreadsheets = [], properties = {}, owner = 'owner@hak.test', activeUser, serviceUrl = 'https://script.google.com/macros/s/MAIN/exec', uiAvailable = false } = {}) {
+  const identity = { owner, activeUser: activeUser === undefined ? owner : activeUser, uiAvailable };
   const registry = new Map();
   spreadsheets.forEach(ss => registry.set(ss.id, ss));
   const active = activeSpreadsheet || new MockSpreadsheet('ACTIVE', 'File Nháp');
@@ -241,7 +250,22 @@ export function createGasEnvironment({ activeSpreadsheet, spreadsheets = [], pro
       return ss;
     },
     flush: () => {},
-    getUi: () => { throw new Error('Mock: no UI'); }
+    getUi: () => {
+      if (!identity.uiAvailable) throw new Error('Cannot call SpreadsheetApp.getUi() from this context.');
+      return {
+        alert: () => 'OK',
+        prompt: () => ({ getSelectedButton: () => 'CANCEL', getResponseText: () => '' }),
+        showModalDialog: () => {},
+        createMenu: () => ({ addItem() { return this; }, addSeparator() { return this; }, addToUi() {} }),
+        Button: { OK: 'OK', YES: 'YES', CANCEL: 'CANCEL' },
+        ButtonSet: { OK: 'OK', OK_CANCEL: 'OK_CANCEL', YES_NO: 'YES_NO' }
+      };
+    }
+  };
+
+  const htmlOutput = (content) => {
+    const out = { content, title: '', setTitle(t) { this.title = t; return this; }, addMetaTag() { return this; }, setXFrameOptionsMode(m) { this.xframe = m; return this; }, setWidth() { return this; }, setHeight() { return this; }, getContent() { return this.content; } };
+    return out;
   };
 
   const env = {
@@ -253,15 +277,18 @@ export function createGasEnvironment({ activeSpreadsheet, spreadsheets = [], pro
       formatDate,
       getUuid: () => randomUUID(),
       sleep: () => {},
-      newBlob: (s) => ({ getDataAsString: () => String(s), getBytes: () => Buffer.from(String(s)) }),
+      newBlob: (s) => ({ getDataAsString: () => toBuffer(typeof s === 'string' ? s : s).toString('utf8'), getBytes: () => Array.from(toBuffer(s)) }),
       computeDigest: () => [],
-      base64Encode: s => Buffer.from(String(s)).toString('base64'),
+      computeHmacSha256Signature: (value, key) => Array.from(createHmac('sha256', toBuffer(key)).update(toBuffer(value)).digest()).map(b => (b > 127 ? b - 256 : b)),
+      base64Encode: s => toBuffer(s).toString('base64'),
+      base64EncodeWebSafe: s => b64WebSafe(s),
+      base64DecodeWebSafe: s => fromB64WebSafe(s),
       DigestAlgorithm: { SHA_256: 'SHA_256' },
       Charset: { UTF_8: 'UTF_8' }
     },
     Session: {
-      getActiveUser: () => ({ getEmail: () => user }),
-      getEffectiveUser: () => ({ getEmail: () => user }),
+      getActiveUser: () => ({ getEmail: () => identity.activeUser }),
+      getEffectiveUser: () => ({ getEmail: () => identity.owner }),
       getScriptTimeZone: () => 'Asia/Ho_Chi_Minh'
     },
     DriveApp: {
@@ -269,13 +296,22 @@ export function createGasEnvironment({ activeSpreadsheet, spreadsheets = [], pro
       getFileById: () => ({ getId: () => 'file', getUrl: () => 'url', moveTo() {} }),
       getRootFolder: () => ({ removeFile() {} })
     },
-    ScriptApp: { getProjectTriggers: () => [], newTrigger: () => ({ timeBased: () => ({}) }), deleteTrigger() {}, getService: () => ({ getUrl: () => 'https://script.google.com/mock/exec' }) },
-    HtmlService: { createTemplateFromFile: () => ({ evaluate: () => ({}) }), createHtmlOutput: () => ({}), createHtmlOutputFromFile: () => ({}), XFrameOptionsMode: { ALLOWALL: 'ALLOWALL', DEFAULT: 'DEFAULT' } },
+    ScriptApp: { getProjectTriggers: () => [], newTrigger: () => ({ timeBased: () => ({}) }), deleteTrigger() {}, getService: () => ({ getUrl: () => serviceUrl }) },
+    HtmlService: {
+      createTemplateFromFile: (name) => {
+        const tpl = { file: name, evaluate() { const out = htmlOutput(''); out.templateVars = { ...tpl }; return out; } };
+        return tpl;
+      },
+      createHtmlOutput: (content) => htmlOutput(content),
+      createHtmlOutputFromFile: (name) => htmlOutput(name),
+      XFrameOptionsMode: { ALLOWALL: 'ALLOWALL', DEFAULT: 'DEFAULT' }
+    },
     ContentService: { createTextOutput: s => ({ text: s, setMimeType() { return this; } }), MimeType: { JSON: 'JSON' } },
     UrlFetchApp: { fetch: () => { throw new Error('Mock: network disabled'); } },
     Logger: { log: () => {} },
     console: { log: () => {}, warn: () => {}, error: () => {}, info: () => {} },
     _registry: registry,
+    _identity: identity,
     _lock: lock,
     _props: scriptProps,
     _cache: scriptCache

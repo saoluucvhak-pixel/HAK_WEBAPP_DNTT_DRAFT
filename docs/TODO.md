@@ -9,8 +9,8 @@ Trạng thái: ✅ xong · 🟡 một phần · ⏳ chưa làm · ⚖️ cần n
 | C-02 | Ghi đè toàn bộ PhieuCan_DN | ✅ 2026.6.0 | RangeList đúng ô |
 | C-03 | Ghi đè toàn bộ DNTT_GK_DN / 112 | ✅ 2026.6.0 | runConfirmPayment, runProcessDetail, runFillMissingBankOnly |
 | C-04 | Mở Đóng TT xóa theo vị trí dòng cũ, không sao lưu | ✅ 2026.6.0 | Xóa theo ID đọc lại + sao lưu |
-| C-05 | `doGet?action=` không xác thực | ⏳ ⚖️ | Chờ trả lời câu hỏi §9.4 |
-| C-06 | Không xác thực/phân quyền | ⏳ ⚖️ | Chờ chọn mô hình §9.3 |
+| C-05 | `doGet?action=` không xác thực | ✅ 2026.7.0 ⚖️ | Bỏ 4 action; giữ webhook có mã bí mật |
+| C-06 | Không xác thực/phân quyền | ✅ 2026.7.0 ⚖️ | Cổng đăng nhập Gmail + 3 vai trò + API_ROUTES |
 | C-07 | Sao lưu trước thao tác nguy hiểm | 🟡 2026.6.0 | Đã sao lưu mọi dòng bị xóa; còn thiếu giao diện Khôi phục |
 
 ## 🟠 High
@@ -26,7 +26,7 @@ Trạng thái: ✅ xong · 🟡 một phần · ⏳ chưa làm · ⚖️ cần n
 | H-08 | `ALLOWALL` iframe | ⏳ ⚖️ | |
 | H-09 | PII trong localStorage | ⏳ ⚖️ | |
 | H-10 | PII gửi Gemini | ⏳ ⚖️ | |
-| H-11 | Audit thiếu user thật & before/after | 🟡 | Đồng bộ tên đã ghi cũ→mới; phần còn lại P2 |
+| H-11 | Audit thiếu user thật & before/after | 🟡 2026.7.0 | Đã ghi email thật cho mọi thao tác; before/after mới có ở Đồng bộ tên, Sửa tên KH, Phân quyền |
 | H-12 | Formula injection | ⏳ | Làm cùng Schema (H-01) |
 | H-13 | `showAddPaymentDialog` trỏ file không tồn tại | ⏳ ⚖️ | |
 | H-14 | Test tự động | ✅ 2026.6.0 | 28 test; mở rộng dần mỗi Phase |
@@ -37,6 +37,12 @@ Xem `REFACTOR_PLAN.md` §5 — tất cả ⏳.
 ## ❓ Cần thông tin
 - L-09: “Số điện thoại mất số 0” — file/cột nào? (code hiện không có trường điện thoại)
 
+## Quyết định đã có (REFACTOR_PLAN §9)
+- §9.1: giữ **gas-tools** → P3 tách code thành nhiều file **phẳng** (không thư mục).
+- §9.3: **Cổng đăng nhập Gmail**, Admin = saoluucvhak@gmail.com (chủ script), vai trò Quản trị / Kế toán / Chỉ xem.
+- §9.4: không có hệ thống ngoài gọi `?action=` → đã bỏ.
+
 ## Việc kỹ thuật phát sinh
+- ⏳ Kiểm chứng trên Google thật: đăng nhập qua Cổng (lần đầu Google hỏi quyền xem email), đăng xuất, khóa tài khoản.
 - ⏳ Giao diện “Khôi phục từ SYS_SaoLuuDongXoa” (hoàn tất C-07).
 - ⏳ Kiểm chứng trên Google Sheets thật: `getRangeList().setValue()` và `deleteRows()` với dữ liệu lớn (mock đã kiểm chứng logic).

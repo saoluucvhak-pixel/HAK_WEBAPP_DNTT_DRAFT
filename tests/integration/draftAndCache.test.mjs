@@ -59,13 +59,13 @@ test('runXacNhanDNTT / runHuyXacNhanDNTT only touch the status cell', () => {
   const world = buildWorld();
   const h112 = world.draft.getSheetByName('DNTT_GK_DN_112_DRAFT');
   const { run } = loadCode(world.options);
-  const res = run('runXacNhanDNTT')(['B2'], true);
+  const res = run('runXacNhanDNTT_')(['B2'], true);
   assert.equal(res.success, true, res.message);
   assert.equal(h112.rows(24)[2][23], 'Đang ĐNTT');
   assert.equal(rowWasWritten(h112, 2), false);
   assert.ok(h112.writes.every(w => w.col === 24 && w.numCols === 1));
 
-  const undo = run('runHuyXacNhanDNTT')('B2');
+  const undo = run('runHuyXacNhanDNTT_')('B2');
   assert.equal(undo.success, true, undo.message);
   assert.equal(h112.rows(24)[2][23], '');
   assert.ok(h112.writes.every(w => w.col === 24 && w.numCols === 1));
@@ -75,7 +75,7 @@ test('runDeleteDraftRecord removes only the chosen draft record', () => {
   const world = buildWorld();
   const { run } = loadCode(world.options);
   // B2 is "Chờ ĐNTT" (amount > 0, not confirmed) so it can be deleted.
-  const res = run('runDeleteDraftRecord')('B2');
+  const res = run('runDeleteDraftRecord_')('B2');
   const ok = typeof res === 'string' ? /^✅/.test(res) : res && res.success;
   assert.ok(ok, JSON.stringify(res));
   const ctIds = world.draft.getSheetByName('DNTT_GK_DN_CT_DRAFT').rows().slice(1).map(r => r[1]);

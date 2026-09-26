@@ -18,7 +18,12 @@ Phiên bản hiện tại: xem `VERSION` · Lịch sử thay đổi: `CHANGELOG.
 
 1. Mở Google Sheet dùng làm **File Nháp** → Extensions › Apps Script → dán `Code.gs`, `Index.html`, `appsscript.json`.
 2. Menu **🚀 QUẢN LÝ HAK › 🔗 Kết Nối File Chính** (hoặc Cài Đặt trên web app) → dán URL/ID File Chính.
-3. Deploy › Web app. Trong Cài Đặt: bật các Trigger, khóa định dạng TEXT, cấu hình MISA/UNC.
+3. Deploy › Web app (Execute as: **Me**, Who has access: **Anyone with Google account**). Trong Cài Đặt: bật các Trigger, khóa định dạng TEXT, cấu hình MISA/UNC.
+4. **Đăng nhập & phân quyền** (từ v2026.7): mở web app bằng tài khoản chủ script (luôn là Quản trị) → Cài đặt:
+   - *Cổng Đăng Nhập Gmail*: tạo dự án mới tại script.new, dán mã nguồn được sinh sẵn, Deploy (Execute as: **User accessing the web app**, Who has access: **Anyone with Google account**), dán link Web app vào ô “Link Cổng đăng nhập”.
+   - *Người Dùng & Phân Quyền*: thêm email Google của từng người với vai trò Quản trị / Kế toán / Chỉ xem.
+
+   Người dùng mở link web app chính → bấm “Đăng nhập bằng Google”. Chưa thêm vào danh sách thì không vào được (kể cả menu trong Sheet).
 
 ## Kiểm thử
 

@@ -13,7 +13,7 @@ const idsIn = (sheet, col) => sheet.rows().slice(1).map(r => String(r[col]).trim
 
 test('runConfirmPayment commits the selected record end-to-end', () => {
   const { world, run } = setup();
-  const msg = run('runConfirmPayment')(['A1'], '26/09/2026');
+  const msg = run('runConfirmPayment_')(['A1'], '26/09/2026');
   assert.match(msg, /^✅/, msg);
 
   const ct = world.main.getSheetByName('DNTT_GK_DN_CT').rows(22).slice(1);
@@ -59,7 +59,7 @@ test('runConfirmPayment never rewrites unrelated rows of external/main sheets', 
   const pcSheet = world.pc.getSheetByName('PhieuCan_DN');
   const srcSheet = world.main.getSheetByName('DNTT_GK_DN');
   const chiTietSheet = world.main.getSheetByName('ChiTietDNTT');
-  const msg = run('runConfirmPayment')(['A1'], '26/09/2026');
+  const msg = run('runConfirmPayment_')(['A1'], '26/09/2026');
   assert.match(msg, /^✅/, msg);
 
   assert.equal(rowWasWritten(pcSheet, 1), false, 'PhieuCan header must not be rewritten');
@@ -77,11 +77,11 @@ test('runConfirmPayment re-run after an interrupted commit does not duplicate da
   const draftNames = ['DNTT_GK_DN_CT_DRAFT', 'DNTT_GK_DN_112_DRAFT', 'DNTT_GK_DN_DRAFT'];
   const snapshot = draftNames.map(n => world.draft.getSheetByName(n).data.map(r => r.slice()));
 
-  assert.match(run('runConfirmPayment')(['A1'], '26/09/2026'), /^✅/);
+  assert.match(run('runConfirmPayment_')(['A1'], '26/09/2026'), /^✅/);
   // Simulate a crash that happened before the draft clean-up: drafts still hold A1.
   draftNames.forEach((n, i) => { world.draft.getSheetByName(n).data = snapshot[i].map(r => r.slice()); });
   // Re-running also has to cope with ChiTietDNTT already being "Y".
-  const msg = run('runConfirmPayment')(['A1'], '26/09/2026');
+  const msg = run('runConfirmPayment_')(['A1'], '26/09/2026');
   assert.match(msg, /^✅/, msg);
 
   assert.equal(idsIn(world.main.getSheetByName('DNTT_GK_DN_CT'), 1).filter(id => id === 'A1').length, 2);
@@ -98,10 +98,10 @@ test('re-run is also safe when ChiTietDNTT had to be compensated (report never p
   const draftNames = ['DNTT_GK_DN_CT_DRAFT', 'DNTT_GK_DN_112_DRAFT', 'DNTT_GK_DN_DRAFT'];
   const snapshot = draftNames.map(n => world.draft.getSheetByName(n).data.map(r => r.slice()));
 
-  assert.match(run('runConfirmPayment')(['A1'], '26/09/2026'), /^✅/);
+  assert.match(run('runConfirmPayment_')(['A1'], '26/09/2026'), /^✅/);
   assert.equal(world.main.getSheetByName('ChiTietDNTT').rows().length - 1, 2);
   draftNames.forEach((n, i) => { world.draft.getSheetByName(n).data = snapshot[i].map(r => r.slice()); });
-  assert.match(run('runConfirmPayment')(['A1'], '26/09/2026'), /^✅/);
+  assert.match(run('runConfirmPayment_')(['A1'], '26/09/2026'), /^✅/);
 
   assert.equal(world.main.getSheetByName('ChiTietDNTT').rows().length - 1, 2);
   assert.equal(world.updateNh.getSheetByName('Update_NganHang_DN').rows().length - 1, 2);
@@ -109,7 +109,7 @@ test('re-run is also safe when ChiTietDNTT had to be compensated (report never p
 
 test('runConfirmPayment skips records that are not confirmed yet', () => {
   const { world, run } = setup();
-  const msg = run('runConfirmPayment')(['B2'], '26/09/2026');
+  const msg = run('runConfirmPayment_')(['B2'], '26/09/2026');
   assert.match(msg, /Chưa "Xác Nhận"/);
   assert.equal(world.main.getSheetByName('DNTT_GK_DN_CT').rows().length, 1);
 });

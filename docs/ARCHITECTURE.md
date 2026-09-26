@@ -1,4 +1,4 @@
-# ARCHITECTURE — HAK Quản Lý Thanh Toán (v2026.6.0)
+# ARCHITECTURE — HAK Quản Lý Thanh Toán (v2026.7.0)
 
 > Tài liệu sống: cập nhật mỗi khi đổi module, lớp, luồng dữ liệu hoặc schema.
 > Phân tích chi tiết hiện trạng: `docs/PROJECT_ANALYSIS.md`. Kiến trúc đích: `docs/REFACTOR_PLAN.md` §3–§4.
@@ -9,7 +9,8 @@
 |---|---|
 | Runtime | Google Apps Script V8, web app (`executeAs: USER_DEPLOYING`, `access: ANYONE`), múi giờ `Asia/Ho_Chi_Minh` |
 | Script gắn với | **File Nháp** (`SpreadsheetApp.getActive()`) |
-| File Chính | Script Property `MAIN_SS_ID` — DNTT_GK_DN, DNTT_GK_DN_CT, DNTT_GK_DN_112, NhatKyThaoTac, ChiTietDNTT, ChiTietUNC, **SYS_SaoLuuDongXoa** |
+| File Chính | Script Property `MAIN_SS_ID` — DNTT_GK_DN, DNTT_GK_DN_CT, DNTT_GK_DN_112, NhatKyThaoTac, ChiTietDNTT, ChiTietUNC, **SYS_SaoLuuDongXoa**, **SYS_NguoiDung** |
+| Cổng đăng nhập | Dự án Apps Script **riêng** (Execute as: User accessing, Anyone with Google account) — mã nguồn sinh từ `_maNguonCongDangNhap_()`, dán qua Cài đặt |
 | File ngoài | PhieuCan_DN, HD_NCC/HD_STK/DM_NG, Update_NganHang_DN, Danh Mục NH (ID trong `LINKS` + Script Properties) |
 | Mã nguồn | `Code.gs` (backend), `Index.html` (frontend), `appsscript.json` |
 | Kiểm thử | `tests/` — chạy ngoài Apps Script bằng Node (xem §5) |
@@ -65,6 +66,31 @@ Quy tắc bắt buộc cho mọi code mới: **không đọc cả sheet rồi gh
 
 Lỗi ở bất kỳ bước nào → log `LOI_CHOT_THANH_TOAN`, người dùng bấm Duyệt lại cùng hồ sơ để hoàn tất (không trùng dữ liệu).
 
+## 4b. Xác thực & phân quyền (v2026.7)
+
+```
+Người dùng ──► Cổng đăng nhập (chạy dưới quyền NGƯỜI DÙNG)
+                 email + exp(5') + nonce ─HMAC-SHA256(SSO_SECRET)─► ?sso=token
+          ──► Web app chính doGet(sso): xác minh chữ ký, hạn, nonce chưa dùng,
+                 email có trong SYS_NguoiDung (Hoạt động) → cấp mã phiên 64 hex (CacheService 6h)
+Trình duyệt ─ google.script.run.api(phiên, "tenChucNang", [tham số])
+          ──► api(): phiên → email → vai trò → API_ROUTES[tenChucNang].quyen → gọi hàm nội bộ
+```
+
+| Thành phần | Vị trí |
+|---|---|
+| Vai trò → quyền | `VAI_TRO`, `QUYEN`, `QUYEN_THEO_VAI_TRO` — ADMIN ⊇ KE_TOAN ⊇ XEM |
+| Bảng phân quyền | `API_ROUTES` (tên chức năng → hàm nội bộ + quyền). Không có trong bảng = không gọi được |
+| Cửa vào công khai | `doGet`, `onOpen`, `api`, `thongTinDangNhap` (không cần đăng nhập, chỉ trả trạng thái của chính người gọi + link cổng), `dangXuat` |
+| Menu Sheet | 18 hàm công khai, dòng đầu `_yeuCauQuyen_(QUYEN.*)` — email lấy từ `Session.getActiveUser()` (người bấm menu) |
+| Danh tính | `_xacDinhNguoiDung_()`: người của phiên hiện tại, nếu không có thì `Session.getActiveUser()` (chủ script khi tự mở web app; người bấm menu). Người Gmail khác mở web app “execute as me” → rỗng → bị chặn |
+| Chủ script | `Session.getEffectiveUser()` luôn là ADMIN, không thể bị khóa |
+| Người dùng | `SYS_NguoiDung`: Email · Họ tên · Vai trò · Trạng thái · Cập nhật lúc · Cập nhật bởi (cache 60 giây) |
+| Cấu hình | Script Properties `SSO_SECRET`, `SSO_GATEWAY_URL` |
+| Lỗi | `[AUTH] …` → client hiện màn hình đăng nhập; `[QUYEN] …` → chỉ báo lỗi |
+
+Quy tắc: **thêm chức năng mới gọi từ web** = viết hàm nội bộ `ten_` + thêm 1 dòng vào `API_ROUTES` với quyền phù hợp. Test `auth.test.mjs` sẽ báo lỗi nếu có hàm global mới không kết thúc bằng `_`, hoặc trình duyệt gọi 1 chức năng chưa có route.
+
 ## 5. Kiểm thử
 
 ```bash
@@ -78,12 +104,13 @@ HAK_CODE_GS=/đường/dẫn/Code.cu.gs node --test "tests/**/*.test.mjs"   # so
 | `tests/gas/loadCode.mjs` | Nạp `Code.gs` vào V8 context riêng |
 | `tests/gas/fixtures.mjs` | Bộ dữ liệu mẫu File Nháp + File Chính + file ngoài |
 | `tests/unit/` | Hàm thuần & lớp ghi an toàn |
-| `tests/integration/` | Chốt TT, chạy lại, Mở Đóng TT, bảo trì, tách phiếu, vá ngân hàng, xác nhận, cache |
+| `tests/integration/` | Chốt TT, chạy lại, Mở Đóng TT, bảo trì, tách phiếu, vá ngân hàng, xác nhận, cache, đăng nhập & phân quyền |
 
 File test dùng đuôi `.mjs` để công cụ đồng bộ Apps Script không coi là mã server.
 
 ## 6. Quy ước
 
-- Hàm nội bộ kết thúc bằng `_` (không gọi được từ client).
+- Hàm nội bộ kết thúc bằng `_` (không gọi được từ client). Mọi hàm mới đều phải là hàm nội bộ; trình duyệt gọi qua `API_ROUTES` (xem §4b).
+- Email người thao tác: dùng `_emailNguoiThucHien_()`, không gọi `Session.getActiveUser()` trực tiếp.
 - Chỉ số cột: ưu tiên hằng (`PC_COL`, `COL_TRANG_THAI_DNTT`, `HDNCC_COL`…); chỉ số trần là nợ kỹ thuật (TODO H-01).
 - Chú thích chỉ giải thích **vì sao**; lịch sử thay đổi ghi ở `CHANGELOG.md`.

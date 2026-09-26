@@ -6,7 +6,7 @@ import { buildWorld, rowWasWritten } from '../gas/fixtures.mjs';
 function committedWorld() {
   const world = buildWorld();
   const { run } = loadCode(world.options);
-  const msg = run('runConfirmPayment')(['A1'], '26/09/2026');
+  const msg = run('runConfirmPayment_')(['A1'], '26/09/2026');
   assert.match(msg, /^✅/, msg);
   Object.values(world).forEach(ss => ss && ss.sheets && ss.sheets.forEach(sh => { sh.writes = []; }));
   return { world, run };
@@ -16,7 +16,7 @@ const ids = (sheet, col) => sheet.rows().slice(1).map(r => String(r[col]).trim()
 
 test('webMoDongThanhToanTheoHoSo moves the record back to draft, backs up every deleted row', () => {
   const { world, run } = committedWorld();
-  const res = run('webMoDongThanhToanTheoHoSo')('Nguyen Van A', '2026-09-26', '1');
+  const res = run('webMoDongThanhToanTheoHoSo_')('Nguyen Van A', '2026-09-26', '1');
   assert.equal(res.success, true, res.message);
 
   assert.deepEqual(ids(world.main.getSheetByName('DNTT_GK_DN_CT'), 1), []);
@@ -51,7 +51,7 @@ test('webXoaCTMoCoi backs up the row before deleting and deletes by ID only', ()
   const { world, run } = committedWorld();
   const ctSheet = world.main.getSheetByName('DNTT_GK_DN_CT');
   const target = ctSheet.rows(22)[1][0];
-  const res = run('webXoaCTMoCoi')([{ idCT: target }]);
+  const res = run('webXoaCTMoCoi_')([{ idCT: target }]);
   assert.equal(res.success, true, res.message);
   assert.equal(res.count, 1);
   assert.equal(ids(ctSheet, 0).includes(target), false);
@@ -63,7 +63,7 @@ test('webXoaCTMoCoi backs up the row before deleting and deletes by ID only', ()
 
 test('webXoaMoCoiChiTietDNTT backs up through the shared delete path', () => {
   const { world, run } = committedWorld();
-  const res = run('webXoaMoCoiChiTietDNTT')([{ idHeThong: 'A1', soPhieuCan: 'PC001' }]);
+  const res = run('webXoaMoCoiChiTietDNTT_')([{ idHeThong: 'A1', soPhieuCan: 'PC001' }]);
   assert.equal(res.success, true, res.message);
   assert.equal(res.count, 1);
   assert.equal(world.main.getSheetByName('ChiTietDNTT').rows().length - 1, 1);
@@ -73,7 +73,7 @@ test('webXoaMoCoiChiTietDNTT backs up through the shared delete path', () => {
 test('webDongBoTenKhachHang only writes the selected customer cells', () => {
   const { world, run } = committedWorld();
   const pcSheet = world.pc.getSheetByName('PhieuCan_DN');
-  const res = run('webDongBoTenKhachHang')([{ soPhieuCan: 'PC003', chuRungCT: 'Tran Thi B (moi)' }]);
+  const res = run('webDongBoTenKhachHang_')([{ soPhieuCan: 'PC003', chuRungCT: 'Tran Thi B (moi)' }]);
   assert.equal(res.success, true, res.message);
   assert.equal(pcSheet.rows(28)[4][11], 'Tran Thi B (moi)');
   assert.equal(pcSheet.rows(28)[2][11], '=HYPERLINK("x")');

@@ -1,6 +1,6 @@
 /**
  * ============================================================
- * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.6.0
+ * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.7.0
  * Lịch sử thay đổi: CHANGELOG.md · Kiến trúc: docs/ARCHITECTURE.md
  * ------------------------------------------------------------
  * *** QUAN TRỌNG - CẦN LÀM TRƯỚC KHI DÙNG BẢN NÀY (chỉ 1 LẦN DUY NHẤT
@@ -55,7 +55,7 @@
  *      ĐANG XUẤT HIỆN trong DRAFT CT. Vì vậy: xóa dòng khỏi Draft CT
  *      (qua menu xóa, hoặc xóa tay trực tiếp trong Google Sheet) sẽ TỰ
  *      ĐỘNG giải phóng Số phiếu cân đó, không cần bước mở khóa riêng.
- *      findAvailablePhieuCan() và createNewPaymentRequest() đều kiểm
+ *      findAvailablePhieuCan_() và createNewPaymentRequest_() đều kiểm
  *      tra thêm điều kiện này trước khi cho phép chọn 1 phiếu cân.
  *    - Nút 3 "Chốt Thanh Toán": đọc các hồ sơ đã chọn TỪ FILE NHÁP (chỉ
  *      chốt được hồ sơ đã có Số tiền > 0 trong Draft 112, tức đã chạy
@@ -118,8 +118,8 @@ function _driveFolderUrl_(id) { return id ? `https://drive.google.com/drive/fold
 
 /** Danh sách khai báo MỌI link (Sheet/Thư mục Drive) hiện ở "Link các
  * file liên quan" (Cài Đặt) - CHỖ DUY NHẤT, dùng chung cho
- * getConfigLinksForSettings() (hiển thị), webSetSwappableLink() (đổi
- * link) và webShareConfigLink() (chia sẻ cho email khác) để 3 hàm này
+ * getConfigLinksForSettings_() (hiển thị), webSetSwappableLink_() (đổi
+ * link) và webShareConfigLink_() (chia sẻ cho email khác) để 3 hàm này
  * không bao giờ lệch danh sách/ID nhau. */
 function _swappableLinkDefs_() {
   return [
@@ -140,8 +140,8 @@ function _resolveLinkId_(def) {
   return PropertiesService.getScriptProperties().getProperty(def.key) || def.fallback;
 }
 /** Mở đối tượng thật (Spreadsheet hoặc Drive Folder) của 1 def - dùng
- * chung cho webShareConfigLink()/getSharedUsersForLink()/
- * webRevokeConfigLinkAccess() để không lặp lại nhánh if(type==="folder")
+ * chung cho webShareConfigLink_()/getSharedUsersForLink_()/
+ * webRevokeConfigLinkAccess_() để không lặp lại nhánh if(type==="folder")
  * ở nhiều nơi. */
 function _openLinkHandle_(def, id) {
   return def.type === "folder" ? DriveApp.getFolderById(id) : SpreadsheetApp.openById(id);
@@ -150,12 +150,12 @@ function _openLinkHandle_(def, id) {
 /**
  * SỬA (theo yêu cầu - "hiện định dạng cấu hình + cho chọn Google Sheet
  * thay thế để thực hiện ở đơn vị khác"): giờ trả về ĐẦY ĐỦ thông tin
- * cho từng link - key (để đổi qua webSetSwappableLink), có đổi được
+ * cho từng link - key (để đổi qua webSetSwappableLink_), có đổi được
  * không, và trạng thái mở file có thành công không - để giao diện vẽ
  * ngay ô "Đổi" cho MỌI link (trừ File Nháp - vì đó chính là file code
  * đang chạy, không đổi qua ID được).
  */
-function getConfigLinksForSettings() {
+function getConfigLinksForSettings_() {
   return _swappableLinkDefs_().map(def => {
     let name = "", url = "", ok = false;
     try {
@@ -181,16 +181,16 @@ function getConfigLinksForSettings() {
 }
 
 /** MỚI (theo yêu cầu - tab MISA riêng): tra thông tin 1 link cụ thể
- * theo key (dùng lại đúng danh sách của getConfigLinksForSettings()). */
-function getSwappableLinkInfo(key) {
-  const all = getConfigLinksForSettings();
+ * theo key (dùng lại đúng danh sách của getConfigLinksForSettings_()). */
+function getSwappableLinkInfo_(key) {
+  const all = getConfigLinksForSettings_();
   return all.find(l => l.key === key) || { ok: false };
 }
 
 /** MỚI: đổi 1 link bất kỳ trong danh sách "Link các file liên quan" -
  * dùng CHUNG 1 hàm cho mọi loại (Sheet hoặc Thư mục Drive) để "thực hiện
  * ở đơn vị khác" chỉ cần đổi đúng link tương ứng, không cần sửa code. */
-function webSetSwappableLink(key, idOrUrl, type) {
+function webSetSwappableLink_(key, idOrUrl, type) {
   try {
     const clean = String(idOrUrl || "").trim();
     if (!clean) return { success: false, message: "❌ Vui lòng nhập ID hoặc URL." };
@@ -207,12 +207,12 @@ function webSetSwappableLink(key, idOrUrl, type) {
 /** MỚI (theo yêu cầu - "nút chia sẻ Google Sheet cho mail khác"): chia
  * sẻ 1 link bất kỳ trong "Link các file liên quan" (Cài Đặt) cho 1 email
  * khác - quyền "view" (Chỉ xem) hoặc "edit" (Chỉnh sửa). Dùng CHUNG danh
- * sách _swappableLinkDefs_() với getConfigLinksForSettings()/
- * webSetSwappableLink() để không bao giờ chia sẻ nhầm file. Đây là thao
+ * sách _swappableLinkDefs_() với getConfigLinksForSettings_()/
+ * webSetSwappableLink_() để không bao giờ chia sẻ nhầm file. Đây là thao
  * tác CẤP QUYỀN TRUY CẬP dữ liệu (kể cả File Chính - dữ liệu tài chính
  * đã chốt) nên luôn ghi log (người thực hiện, chia sẻ file gì, cho ai,
  * quyền gì) để tra cứu lại khi cần. */
-function webShareConfigLink(key, email, role) {
+function webShareConfigLink_(key, email, role) {
   try {
     const cleanEmail = String(email || "").trim();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
@@ -228,7 +228,7 @@ function webShareConfigLink(key, email, role) {
     if (quyenEdit) obj.addEditor(cleanEmail); else obj.addViewer(cleanEmail);
     const name = obj.getName();
     const nhanQuyen = quyenEdit ? "Chỉnh sửa" : "Chỉ xem";
-    logAction("CHIA_SE_FILE", "-", `Đã chia sẻ "${def.label}" (${name}) cho ${cleanEmail} - quyền: ${nhanQuyen}.`);
+    logAction_("CHIA_SE_FILE", "-", `Đã chia sẻ "${def.label}" (${name}) cho ${cleanEmail} - quyền: ${nhanQuyen}.`);
     return { success: true, message: `✅ Đã chia sẻ "${name}" cho ${cleanEmail} (quyền: ${nhanQuyen}).` };
   } catch (e) {
     return { success: false, message: "❌ Không chia sẻ được - kiểm tra lại email và quyền quản trị của bạn trên file này: " + e.toString() };
@@ -238,9 +238,9 @@ function webShareConfigLink(key, email, role) {
 /** MỚI (theo yêu cầu - "xem những mail đã được cấp quyền?"): liệt kê
  * TOÀN BỘ email đang có quyền truy cập trực tiếp (Xem/Chỉnh sửa) 1 link
  * trong "Link các file liên quan" - để biết đã lỡ chia sẻ cho ai, phục
- * vụ thu hồi qua webRevokeConfigLinkAccess(). Bỏ qua chủ sở hữu file
+ * vụ thu hồi qua webRevokeConfigLinkAccess_(). Bỏ qua chủ sở hữu file
  * (không hiện, không cho thu hồi qua đây). */
-function getSharedUsersForLink(key) {
+function getSharedUsersForLink_(key) {
   try {
     const def = _swappableLinkDefs_().find(d => d.key === (key || null));
     if (!def) return { success: false, message: "❌ Không tìm thấy link tương ứng." };
@@ -265,7 +265,7 @@ function getSharedUsersForLink(key) {
  * danh sách Editor/Viewer của 1 link (gọi cả 2 removeEditor/removeViewer
  * vì không rõ email đang ở quyền nào - lệnh nào không áp dụng thì Google
  * tự bỏ qua, không lỗi). Không cho thu hồi quyền của chủ sở hữu file. */
-function webRevokeConfigLinkAccess(key, email) {
+function webRevokeConfigLinkAccess_(key, email) {
   try {
     const cleanEmail = String(email || "").trim();
     if (!cleanEmail) return { success: false, message: "❌ Thiếu email cần thu hồi." };
@@ -283,7 +283,7 @@ function webRevokeConfigLinkAccess(key, email) {
     try { obj.removeEditor(cleanEmail); } catch (e) {}
     try { obj.removeViewer(cleanEmail); } catch (e) {}
     const name = obj.getName();
-    logAction("THU_HOI_QUYEN_FILE", "-", `Đã thu hồi quyền truy cập "${def.label}" (${name}) của ${cleanEmail}.`);
+    logAction_("THU_HOI_QUYEN_FILE", "-", `Đã thu hồi quyền truy cập "${def.label}" (${name}) của ${cleanEmail}.`);
     return { success: true, message: `✅ Đã thu hồi quyền của ${cleanEmail} trên "${name}".` };
   } catch (e) {
     return { success: false, message: "❌ Không thu hồi được - kiểm tra quyền quản trị của bạn trên file này: " + e.toString() };
@@ -297,7 +297,7 @@ function webRevokeConfigLinkAccess(key, email) {
 // menu "🚀 QUẢN LÝ HAK" > "📋 Tạo/Cập Nhật Sheet Thông Số" (chạy lại bất
 // cứ lúc nào để đồng bộ nếu CFG có thay đổi).
 // ============================================================
-function generateThongSoSheet() {
+function generateThongSoSheet_() {
   const ss = getMainSs_();
   let sh = ss.getSheetByName("Thông Số");
   if (!sh) sh = ss.insertSheet("Thông Số");
@@ -379,14 +379,15 @@ function generateThongSoSheet() {
 
   sh.setColumnWidths(1, 4, 260);
   sh.setFrozenRows(0);
-  logAction("TAO_SHEET_THONG_SO", "-", "Đã tạo/cập nhật sheet Thông Số.");
+  logAction_("TAO_SHEET_THONG_SO", "-", "Đã tạo/cập nhật sheet Thông Số.");
   return "✅ Đã tạo/cập nhật sheet \"Thông Số\".";
 }
 
 function showGenerateThongSoDialog() {
+  _yeuCauQuyen_(QUYEN.QUAN_TRI);
   const ui = SpreadsheetApp.getUi();
   try {
-    ui.alert(generateThongSoSheet());
+    ui.alert(generateThongSoSheet_());
   } catch (e) {
     ui.alert("❌ Lỗi: " + e.toString());
   }
@@ -493,7 +494,7 @@ const COL_TRANG_THAI_DNTT = 23;
 /** MỚI (mục W): CHỈ cho phép Sửa/Xóa hồ sơ khi đang ở "Chờ ĐNTT" - tức
  * ĐÃ tính tiền (Số tiền > 0) NHƯNG CHƯA Xác Nhận ("Đang ĐNTT"). Hồ sơ
  * "Chưa ĐNTT" (chưa tính tiền) và "Đang ĐNTT" (đã Xác Nhận) đều bị khóa
- * Sửa/Xóa - phải "Về Chờ ĐNTT" (runHuyXacNhanDNTT) trước nếu cần sửa. */
+ * Sửa/Xóa - phải "Về Chờ ĐNTT" (runHuyXacNhanDNTT_) trước nếu cần sửa. */
 function _isRecordEditable_(row112) {
   return utils.parseNum(row112[6]) > 0 && String(row112[COL_TRANG_THAI_DNTT] || "").trim() !== "Đang ĐNTT";
 }
@@ -677,8 +678,7 @@ function _saoLuuDong_(hanhDong, sh, items) {
     shBk.getRange(1, 1, 1, SAO_LUU_DONG_XOA_HEADERS.length).setValues([SAO_LUU_DONG_XOA_HEADERS]).setFontWeight("bold").setBackground("#d9d9d9");
     shBk.setFrozenRows(1);
   }
-  let user = "N/A";
-  try { user = Session.getActiveUser().getEmail() || "N/A"; } catch (e) {}
+  const user = _emailNguoiThucHien_() || "N/A";
   const now = new Date();
   const tenFile = sh.getParent() ? sh.getParent().getName() : "";
   const rows = items.map(it => [now, user, hanhDong, tenFile, sh.getName(), it.row, JSON.stringify(it.values)]);
@@ -701,7 +701,7 @@ function _saoLuuVaXoaDong_(sh, laDongCanXoa, hanhDong) {
   return items.length;
 }
 
-function logAction(actionType, refId, detail) {
+function logAction_(actionType, refId, detail) {
   try {
     const ss = getMainSs_();
     let sh = ss.getSheetByName(CFG.LOG_SHEET);
@@ -711,30 +711,460 @@ function logAction(actionType, refId, detail) {
       sh.getRange(1, 1, 1, 5).setFontWeight("bold").setBackground("#d9d9d9");
       sh.setColumnWidths(1, 5, 180);
     }
-    let user = "N/A";
-    try { user = Session.getActiveUser().getEmail() || "N/A"; } catch (e) {}
-    sh.appendRow([new Date(), user, actionType, refId, detail]);
+    sh.appendRow([new Date(), _emailNguoiThucHien_() || "N/A", actionType, refId, detail]);
   } catch (e) {
     // Không chặn luồng chính nếu ghi log lỗi
   }
 }
 
+// ============================================================
+// XÁC THỰC & PHÂN QUYỀN (v2026.7 - P2)
+// ------------------------------------------------------------
+// Web app chạy dưới quyền chủ script (USER_DEPLOYING) nên Google KHÔNG cho
+// script biết email của người dùng Gmail khác. Danh tính được xác minh qua
+// "Cổng đăng nhập": 1 dự án Apps Script RIÊNG chạy dưới quyền NGƯỜI DÙNG,
+// ký HMAC (email + hạn dùng + mã dùng 1 lần) rồi chuyển về web app này qua
+// ?sso=... Web app cấp mã phiên (CacheService). Mọi lời gọi từ trình duyệt
+// đi qua api(phien, tenHam, thamSo) và bị kiểm tra quyền theo API_ROUTES;
+// các hàm nghiệp vụ đều là hàm nội bộ (tên kết thúc "_") nên không gọi
+// thẳng được. Menu trong Sheet dùng email thật của người bấm menu.
+// Chủ script luôn là Quản trị (không thể tự khóa mình ra ngoài).
+// ============================================================
+const VAI_TRO = { ADMIN: "ADMIN", KE_TOAN: "KE_TOAN", XEM: "XEM" };
+const VAI_TRO_NHAN = { ADMIN: "Quản trị", KE_TOAN: "Kế toán", XEM: "Chỉ xem" };
+const QUYEN = { XEM: "XEM", NGHIEP_VU: "NGHIEP_VU", QUAN_TRI: "QUAN_TRI" };
+const QUYEN_THEO_VAI_TRO = {
+  ADMIN: [QUYEN.XEM, QUYEN.NGHIEP_VU, QUYEN.QUAN_TRI],
+  KE_TOAN: [QUYEN.XEM, QUYEN.NGHIEP_VU],
+  XEM: [QUYEN.XEM]
+};
+const TRANG_THAI_NGUOI_DUNG = { HOAT_DONG: "Hoạt động", KHOA: "Khóa" };
+const NGUOI_DUNG_SHEET = "SYS_NguoiDung";
+const NGUOI_DUNG_HEADERS = ["Email", "Họ tên", "Vai trò", "Trạng thái", "Cập nhật lúc", "Cập nhật bởi"];
+const AUTH_CFG = {
+  PHIEN_TTL_GIAY: 21600,            // tối đa cho phép của CacheService (6 giờ)
+  SSO_HIEU_LUC_MS: 5 * 60 * 1000,   // link từ Cổng đăng nhập chỉ dùng được trong 5 phút
+  SSO_NONCE_TTL_GIAY: 900,          // nhớ mã dùng-1-lần lâu hơn hạn link để chặn dùng lại
+  CACHE_NGUOI_DUNG_GIAY: 60,        // đổi vai trò/khóa tài khoản có hiệu lực trong ≤ 60 giây
+  PROP_SSO_SECRET: "SSO_SECRET",
+  PROP_CONG_DANG_NHAP_URL: "SSO_GATEWAY_URL",
+  CACHE_KEY_NGUOI_DUNG: "sys_nguoi_dung_v1",
+  TIEN_TO_PHIEN: "phien_",
+  TIEN_TO_NONCE: "sso_n_",
+  LOI_DANG_NHAP: "[AUTH] ",         // client hiện màn hình đăng nhập
+  LOI_QUYEN: "[QUYEN] "             // client chỉ báo lỗi, không đăng xuất
+};
+const MAU_MA_PHIEN = /^[0-9a-f]{64}$/;
+const MAU_EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+const MAU_URL_CONG_DANG_NHAP = /^https:\/\/script\.google\.com\/(a\/[^/]+\/)?macros\/s\/[\w-]+\/exec$/;
+
+// Người dùng của lượt gọi hiện tại (mỗi lượt gọi Apps Script là 1 lần chạy riêng).
+let _nguoiDungHienTai_ = null;
+
+function _chuanHoaEmail_(v) {
+  return String(v || "").trim().toLowerCase();
+}
+function _emailChuScript_() {
+  try { return _chuanHoaEmail_(Session.getEffectiveUser().getEmail()); } catch (e) { return ""; }
+}
+/** Email người đang thao tác: người đã đăng nhập qua phiên, hoặc người bấm
+ * menu trong Sheet. Rỗng nếu không xác định được. */
+function _emailNguoiThucHien_() {
+  const nd = _xacDinhNguoiDung_();
+  return nd ? nd.email : "";
+}
+
+function _getNguoiDungSheet_() {
+  const ss = getMainSs_();
+  let sh = ss.getSheetByName(NGUOI_DUNG_SHEET);
+  if (!sh) {
+    sh = ss.insertSheet(NGUOI_DUNG_SHEET);
+    sh.getRange(1, 1, 1, NGUOI_DUNG_HEADERS.length).setValues([NGUOI_DUNG_HEADERS]).setFontWeight("bold").setBackground("#d9d9d9");
+    sh.setFrozenRows(1);
+  }
+  return sh;
+}
+
+/** Danh sách người dùng (cache ngắn). File Chính chưa cấu hình -> rỗng
+ * (khi đó chỉ chủ script vào được). */
+function _docDanhSachNguoiDung_() {
+  const cache = CacheService.getScriptCache();
+  const raw = cache.get(AUTH_CFG.CACHE_KEY_NGUOI_DUNG);
+  if (raw) return JSON.parse(raw);
+  let list = [];
+  try {
+    const sh = getMainSs_().getSheetByName(NGUOI_DUNG_SHEET);
+    if (sh && sh.getLastRow() > 1) {
+      list = sh.getRange(2, 1, sh.getLastRow() - 1, NGUOI_DUNG_HEADERS.length).getValues()
+        .map((r, i) => ({
+          dong: i + 2,
+          email: _chuanHoaEmail_(r[0]),
+          hoTen: String(r[1] || "").trim(),
+          vaiTro: String(r[2] || "").trim().toUpperCase(),
+          trangThai: String(r[3] || "").trim()
+        }))
+        .filter(x => x.email);
+    }
+  } catch (e) { /* chưa kết nối File Chính */ }
+  cache.put(AUTH_CFG.CACHE_KEY_NGUOI_DUNG, JSON.stringify(list), AUTH_CFG.CACHE_NGUOI_DUNG_GIAY);
+  return list;
+}
+
+/** Vai trò hiệu lực của 1 email, null nếu chưa được cấp quyền / đã khóa. */
+function _vaiTroCua_(email) {
+  const e = _chuanHoaEmail_(email);
+  if (!e) return null;
+  if (e === _emailChuScript_()) return VAI_TRO.ADMIN;
+  const nd = _docDanhSachNguoiDung_().find(x => x.email === e);
+  if (!nd || nd.trangThai !== TRANG_THAI_NGUOI_DUNG.HOAT_DONG || !QUYEN_THEO_VAI_TRO[nd.vaiTro]) return null;
+  return nd.vaiTro;
+}
+
+function _xacDinhNguoiDung_() {
+  if (_nguoiDungHienTai_) return _nguoiDungHienTai_;
+  let email = "";
+  try { email = _chuanHoaEmail_(Session.getActiveUser().getEmail()); } catch (e) {}
+  return email ? { email, vaiTro: _vaiTroCua_(email) } : null;
+}
+
+/** Chặn nếu người thao tác không có quyền `quyen` (QUYEN.*). */
+function _yeuCauQuyen_(quyen) {
+  const nd = _xacDinhNguoiDung_();
+  if (!nd) throw new Error(AUTH_CFG.LOI_DANG_NHAP + "Chưa đăng nhập - vui lòng đăng nhập bằng tài khoản Google đã được cấp quyền.");
+  if (!nd.vaiTro) throw new Error(AUTH_CFG.LOI_DANG_NHAP + `Tài khoản ${nd.email} chưa được cấp quyền hoặc đã bị khóa - liên hệ Quản trị.`);
+  if (QUYEN_THEO_VAI_TRO[nd.vaiTro].indexOf(quyen) === -1) {
+    throw new Error(AUTH_CFG.LOI_QUYEN + `Tài khoản ${nd.email} (${VAI_TRO_NHAN[nd.vaiTro]}) không có quyền thực hiện thao tác này.`);
+  }
+  return nd;
+}
+
+function _taoMaNgauNhien_() {
+  return (Utilities.getUuid() + Utilities.getUuid()).replace(/-/g, "").toLowerCase();
+}
+function _taoPhien_(email) {
+  const phien = _taoMaNgauNhien_();
+  CacheService.getScriptCache().put(AUTH_CFG.TIEN_TO_PHIEN + phien, JSON.stringify({ email, taoLuc: Date.now() }), AUTH_CFG.PHIEN_TTL_GIAY);
+  return phien;
+}
+function _docPhien_(phien) {
+  if (!MAU_MA_PHIEN.test(String(phien || ""))) return "";
+  const raw = CacheService.getScriptCache().get(AUTH_CFG.TIEN_TO_PHIEN + phien);
+  if (!raw) return "";
+  try { return _chuanHoaEmail_(JSON.parse(raw).email); } catch (e) { return ""; }
+}
+
+function _laySsoSecret_() {
+  const props = PropertiesService.getScriptProperties();
+  let secret = props.getProperty(AUTH_CFG.PROP_SSO_SECRET);
+  if (!secret) {
+    secret = _taoMaNgauNhien_();
+    props.setProperty(AUTH_CFG.PROP_SSO_SECRET, secret);
+  }
+  return secret;
+}
+function _kyHmac_(data, secret) {
+  return Utilities.base64EncodeWebSafe(Utilities.computeHmacSha256Signature(data, secret));
+}
+function _soSanhAnToan_(a, b) {
+  if (a.length !== b.length) return false;
+  let khac = 0;
+  for (let i = 0; i < a.length; i++) khac |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return khac === 0;
+}
+
+/** Xác minh mã từ Cổng đăng nhập: đúng chữ ký, còn hạn, chưa dùng. Trả về email. */
+function _xacMinhSso_(token) {
+  const secret = PropertiesService.getScriptProperties().getProperty(AUTH_CFG.PROP_SSO_SECRET);
+  if (!secret) throw new Error("Cổng đăng nhập chưa được cấu hình.");
+  const parts = String(token || "").split(".");
+  if (parts.length !== 2 || !parts[0] || !parts[1]) throw new Error("Mã đăng nhập không hợp lệ.");
+  if (!_soSanhAnToan_(_kyHmac_(parts[0], secret), parts[1])) throw new Error("Mã đăng nhập không hợp lệ (sai chữ ký).");
+  let payload;
+  try {
+    payload = JSON.parse(Utilities.newBlob(Utilities.base64DecodeWebSafe(parts[0])).getDataAsString("UTF-8"));
+  } catch (e) {
+    throw new Error("Mã đăng nhập không đọc được.");
+  }
+  if (!payload || typeof payload.exp !== "number" || payload.exp < Date.now()) throw new Error("Link đăng nhập đã hết hạn - vui lòng đăng nhập lại.");
+  const nonce = String(payload.n || "");
+  const cache = CacheService.getScriptCache();
+  if (!nonce || cache.get(AUTH_CFG.TIEN_TO_NONCE + nonce)) throw new Error("Link đăng nhập đã được dùng - vui lòng đăng nhập lại.");
+  cache.put(AUTH_CFG.TIEN_TO_NONCE + nonce, "1", AUTH_CFG.SSO_NONCE_TTL_GIAY);
+  const email = _chuanHoaEmail_(payload.email);
+  if (!MAU_EMAIL.test(email)) throw new Error("Mã đăng nhập không có email hợp lệ.");
+  return email;
+}
+
+/** Mã nguồn Cổng đăng nhập (dán vào 1 dự án Apps Script riêng). */
+function _maNguonCongDangNhap_(appUrl, secret) {
+  const soPhut = AUTH_CFG.SSO_HIEU_LUC_MS / 60000;
+  return `// CỔNG ĐĂNG NHẬP - HỆ THỐNG QUẢN LÝ THANH TOÁN HAK
+// Dán vào 1 dự án Apps Script MỚI (https://script.new), rồi Deploy > New deployment > Web app:
+//   Execute as: User accessing the web app  ·  Who has access: Anyone with Google account
+// Mã bí mật bên dưới phải KHỚP với web app chính - không chia sẻ file này cho người khác.
+var APP_URL = ${JSON.stringify(appUrl)};
+var SSO_SECRET = ${JSON.stringify(secret)};
+var SSO_HIEU_LUC_MS = ${AUTH_CFG.SSO_HIEU_LUC_MS};
+
+function doGet() {
+  var email = String(Session.getActiveUser().getEmail() || "").trim().toLowerCase();
+  if (!email) {
+    return HtmlService.createHtmlOutput('<p style="font-family:Arial;padding:24px">Không xác định được tài khoản Google. Hãy đăng nhập Google rồi mở lại link này.</p>');
+  }
+  var payload = JSON.stringify({ email: email, exp: Date.now() + SSO_HIEU_LUC_MS, n: Utilities.getUuid() });
+  var p64 = Utilities.base64EncodeWebSafe(payload, Utilities.Charset.UTF_8);
+  var sig = Utilities.base64EncodeWebSafe(Utilities.computeHmacSha256Signature(p64, SSO_SECRET));
+  var url = APP_URL + "?sso=" + encodeURIComponent(p64 + "." + sig);
+  var emailHtml = email.replace(/[&<>"']/g, function (c) { return "&#" + c.charCodeAt(0) + ";"; });
+  var html = '<div style="font-family:Arial,sans-serif;padding:32px;text-align:center">'
+    + '<h2 style="margin:0 0 8px">Hệ Thống Quản Lý Thanh Toán HAK</h2>'
+    + '<p>Tài khoản: <b>' + emailHtml + '</b></p>'
+    + '<a href="' + url + '" target="_top" style="display:inline-block;margin-top:12px;padding:12px 24px;background:#1f6f43;color:#fff;border-radius:8px;text-decoration:none;font-weight:600">Vào hệ thống</a>'
+    + '<p style="color:#666;font-size:12px;margin-top:16px">Link có hiệu lực ${soPhut} phút và chỉ dùng được 1 lần.</p></div>';
+  return HtmlService.createHtmlOutput(html).setTitle("Đăng nhập HAK");
+}
+`;
+}
+
+/** CÔNG KHAI (không cần đăng nhập): trạng thái đăng nhập + link Cổng đăng nhập. */
+function thongTinDangNhap(phien) {
+  const emailPhien = _docPhien_(phien);
+  let email = emailPhien;
+  if (!email) {
+    try { email = _chuanHoaEmail_(Session.getActiveUser().getEmail()); } catch (e) {}
+  }
+  const vaiTro = email ? _vaiTroCua_(email) : null;
+  return {
+    daDangNhap: !!vaiTro,
+    email,
+    vaiTro: vaiTro || "",
+    vaiTroNhan: vaiTro ? VAI_TRO_NHAN[vaiTro] : "",
+    quyen: vaiTro ? QUYEN_THEO_VAI_TRO[vaiTro].slice() : [],
+    quaPhien: !!emailPhien,
+    congDangNhapUrl: PropertiesService.getScriptProperties().getProperty(AUTH_CFG.PROP_CONG_DANG_NHAP_URL) || ""
+  };
+}
+
+/** CÔNG KHAI: hủy phiên (chỉ xóa đúng mã phiên được gửi lên). */
+function dangXuat(phien) {
+  if (MAU_MA_PHIEN.test(String(phien || ""))) CacheService.getScriptCache().remove(AUTH_CFG.TIEN_TO_PHIEN + phien);
+  return { success: true };
+}
+
+/** CỬA VÀO DUY NHẤT cho web app: kiểm tra phiên + quyền rồi gọi đúng hàm
+ * nghiệp vụ đã đăng ký trong API_ROUTES. */
+function api(phien, tenHam, thamSo) {
+  const route = Object.prototype.hasOwnProperty.call(API_ROUTES, tenHam) ? API_ROUTES[tenHam] : null;
+  if (!route) throw new Error("Chức năng không tồn tại: " + tenHam);
+  _nguoiDungHienTai_ = null;
+  try {
+    if (phien) {
+      const email = _docPhien_(phien);
+      if (!email) throw new Error(AUTH_CFG.LOI_DANG_NHAP + "Phiên đăng nhập đã hết hạn - vui lòng đăng nhập lại.");
+      _nguoiDungHienTai_ = { email, vaiTro: _vaiTroCua_(email) };
+    }
+    _yeuCauQuyen_(route.quyen);
+    return route.fn.apply(null, Array.isArray(thamSo) ? thamSo : []);
+  } finally {
+    _nguoiDungHienTai_ = null;
+  }
+}
+
+/** Bảng phân quyền duy nhất: tên chức năng (trình duyệt gọi) -> hàm nội bộ + quyền cần có.
+ * Chức năng không có trong bảng này thì KHÔNG gọi được từ web app. */
+const API_ROUTES = (() => {
+  const X = QUYEN.XEM, N = QUYEN.NGHIEP_VU, Q = QUYEN.QUAN_TRI;
+  const r = (fn, quyen) => ({ fn, quyen });
+  return {
+    // --- Chung, Trang chủ, Trợ lý AI ---
+    getAppSetupStatus: r(getAppSetupStatus_, X),
+    getDashboardStats: r(getDashboardStats_, X),
+    getDraftBadgeCount: r(getDraftBadgeCount_, X),
+    TRA_LOI_CHATBOT: r(TRA_LOI_CHATBOT_, X),
+
+    // --- Báo cáo thanh toán (xem + xuất Excel) ---
+    getReportList: r(getReportList_, X),
+    webExportReport: r(webExportReport_, X),
+    getChiTietDNTTDaChot: r(getChiTietDNTTDaChot_, X),
+    exportChiTietDNTTDaChotExcel: r(exportChiTietDNTTDaChotExcel_, X),
+    getMisaDataTheoNgay: r(getMisaDataTheoNgay_, X),
+    exportMisaTheoNgayExcel: r(exportMisaTheoNgayExcel_, X),
+    getLichSuUNC: r(getLichSuUNC_, X),
+    exportLichSuUNCExcel: r(exportLichSuUNCExcel_, X),
+
+    // --- Công nợ & phân tích (xem, xuất, tính lại số liệu báo cáo) ---
+    getDebtByCustomer: r(getDebtByCustomer_, X),
+    getDebtByContract: r(getDebtByContract_, X),
+    getDebtLedgerDetail: r(getDebtLedgerDetail_, X),
+    getPaymentAnalysis: r(getPaymentAnalysis_, X),
+    getPhanTichNhapTTReport: r(getPhanTichNhapTTReport_, X),
+    exportPhanTichNhapTTBaoCao: r(exportPhanTichNhapTTBaoCao_, X),
+    getChiTietCongNoPhieuCanWeb: r(getChiTietCongNoPhieuCanWeb_, X),
+    exportChiTietCongNoPhieuCanExcel: r(exportChiTietCongNoPhieuCanExcel_, X),
+    getTinhHinhThanhToanHangNgayWeb: r(getTinhHinhThanhToanHangNgayWeb_, X),
+    exportTinhHinhThanhToanExcel: r(exportTinhHinhThanhToanExcel_, X),
+    webRunCongNoRefreshNow: r(webRunCongNoRefreshNow_, X),
+    webRunDaily15hRefreshNow: r(webRunDaily15hRefreshNow_, X),
+
+    // --- Tạo mới ĐNTT (Kế toán) ---
+    getBulkReferenceData: r(getBulkReferenceData_, N),
+    getAvailablePhieuCanForChuRung: r(getAvailablePhieuCanForChuRung_, N),
+    getHopDongSummary: r(getHopDongSummary_, N),
+    webRefreshCreateFlowData: r(webRefreshCreateFlowData_, N),
+    webSuaTenKhachHangPhieuCan: r(webSuaTenKhachHangPhieuCan_, N),
+    createNewPaymentRequest: r(createNewPaymentRequest_, N),
+
+    // --- Danh sách ĐNTT / Nháp / Duyệt (Kế toán) ---
+    getDraftListSummary: r(getDraftListSummary_, N),
+    getDraftRecordDetail: r(getDraftRecordDetail_, N),
+    updateDraft112Info: r(updateDraft112Info_, N),
+    addPhieuCanToDraft: r(addPhieuCanToDraft_, N),
+    removePhieuCanFromDraft: r(removePhieuCanFromDraft_, N),
+    runDeleteDraftRecord: r(runDeleteDraftRecord_, N),
+    webRunCreate112: r(webRunCreate112_, N),
+    runXacNhanDNTT: r(runXacNhanDNTT_, N),
+    runHuyXacNhanDNTT: r(runHuyXacNhanDNTT_, N),
+    exportBaoCaoDNTTFromDraft: r(exportBaoCaoDNTTFromDraft_, N),
+    getUncConfigForWeb: r(getUncConfigForWeb_, N),
+    webCreateUNCFromDraft: r(webCreateUNCFromDraft_, N),
+    webConfirmPayment: r(webConfirmPayment_, N),
+
+    // --- Hệ thống: đối soát, bảo trì, sửa dữ liệu đã chốt (Quản trị) ---
+    getDoiSoatTenKhachHang: r(getDoiSoatTenKhachHang_, Q),
+    webDongBoTenKhachHang: r(webDongBoTenKhachHang_, Q),
+    exportDoiSoatTenKhachHangExcel: r(exportDoiSoatTenKhachHangExcel_, Q),
+    getKiemTraDoiChieuBaoTri: r(getKiemTraDoiChieuBaoTri_, Q),
+    webXoaCTMoCoi: r(webXoaCTMoCoi_, Q),
+    webXoaSrcMoCoi: r(webXoaSrcMoCoi_, Q),
+    webXoaMoCoiChiTietDNTT: r(webXoaMoCoiChiTietDNTT_, Q),
+    webXoaMoCoiChiTietUNC: r(webXoaMoCoiChiTietUNC_, Q),
+    runFillMissingBankOnly: r(runFillMissingBankOnly, Q),
+    timChuRungDaChot: r(timChuRungDaChot_, Q),
+    webMoDongThanhToanTheoHoSo: r(webMoDongThanhToanTheoHoSo_, Q),
+    getLichSuSuaDoi: r(getLichSuSuaDoi_, Q),
+    dongBoChiTietDNTTTuDauLichSu: r(dongBoChiTietDNTTTuDauLichSu_, Q),
+    webTaoLaiMisaTheoNgay: r(webTaoLaiMisaTheoNgay_, Q),
+    webTaoLaiUNCTheoNgay: r(webTaoLaiUNCTheoNgay_, Q),
+
+    // --- Cài đặt (Quản trị) ---
+    getMainSsInfoForWeb: r(getMainSsInfoForWeb_, Q),
+    webSetMainSsId: r(webSetMainSsId_, Q),
+    setupDraftSpreadsheet: r(setupDraftSpreadsheet_, Q),
+    getConfigLinksForSettings: r(getConfigLinksForSettings_, Q),
+    webSetSwappableLink: r(webSetSwappableLink_, Q),
+    getSharedUsersForLink: r(getSharedUsersForLink_, Q),
+    webShareConfigLink: r(webShareConfigLink_, Q),
+    webRevokeConfigLinkAccess: r(webRevokeConfigLinkAccess_, Q),
+    getTriggerStatusForWeb: r(getTriggerStatusForWeb_, Q),
+    webXacNhanHeaderPhieuCanMoi: r(webXacNhanHeaderPhieuCanMoi_, Q),
+    getFormatLockStatusForWeb: r(getFormatLockStatusForWeb_, Q),
+    webKhoaDinhDangTextTatCa: r(webKhoaDinhDangTextTatCa_, Q),
+    webRefreshPhieuCanCache: r(webRefreshPhieuCanCache_, Q),
+    webSetupPcCacheAutoRefreshTrigger: r(webSetupPcCacheAutoRefreshTrigger_, Q),
+    setup10MinRefreshTrigger: r(setup10MinRefreshTrigger_, Q),
+    setupDaily15hTrigger: r(setupDaily15hTrigger_, Q),
+    webResetPhanTichNhapTTSheet: r(webResetPhanTichNhapTTSheet_, Q),
+    webResetChiTietCongNoSheet: r(webResetChiTietCongNoSheet_, Q),
+    getWebhookInfoForWeb: r(getWebhookInfoForWeb_, Q),
+    getSheetLocaleInfoForWeb: r(getSheetLocaleInfoForWeb_, Q),
+    getRegionInfoForWeb: r(getRegionInfoForWeb_, Q),
+    webSetRegion: r(webSetRegion_, Q),
+    getExportRegionInfoForWeb: r(getExportRegionInfoForWeb_, Q),
+    webSetExportRegion: r(webSetExportRegion_, Q),
+    getMisaDefaultsForWeb: r(getMisaDefaultsForWeb_, Q),
+    webSetMisaDefaults: r(webSetMisaDefaults_, Q),
+    webSetUncConfig: r(webSetUncConfig_, Q),
+    getChatbotSettingsForWeb: r(getChatbotSettingsForWeb_, Q),
+    webSetChatbotApiKey: r(webSetChatbotApiKey_, Q),
+    generateThongSoSheet: r(generateThongSoSheet_, Q),
+
+    // --- Người dùng & Cổng đăng nhập (Quản trị) ---
+    getDanhSachNguoiDungForWeb: r(getDanhSachNguoiDungForWeb_, Q),
+    webLuuNguoiDung: r(webLuuNguoiDung_, Q),
+    getCauHinhDangNhapForWeb: r(getCauHinhDangNhapForWeb_, Q),
+    webSetCongDangNhapUrl: r(webSetCongDangNhapUrl_, Q),
+    webTaoLaiSsoSecret: r(webTaoLaiSsoSecret_, Q)
+  };
+})();
+
+// ----- Quản trị người dùng & Cổng đăng nhập (chỉ Quản trị, qua api) -----
+
+function getDanhSachNguoiDungForWeb_() {
+  _getNguoiDungSheet_();
+  CacheService.getScriptCache().remove(AUTH_CFG.CACHE_KEY_NGUOI_DUNG);
+  return {
+    chuScript: _emailChuScript_(),
+    vaiTro: Object.keys(VAI_TRO).map(ma => ({ ma, nhan: VAI_TRO_NHAN[ma] })),
+    trangThai: Object.values(TRANG_THAI_NGUOI_DUNG),
+    nguoiDung: _docDanhSachNguoiDung_().map(x => ({ email: x.email, hoTen: x.hoTen, vaiTro: x.vaiTro, trangThai: x.trangThai }))
+  };
+}
+
+/** Thêm mới hoặc cập nhật 1 người dùng (theo email). Không xóa - dùng trạng thái "Khóa". */
+function webLuuNguoiDung_(duLieu) {
+  try {
+    const email = _chuanHoaEmail_(duLieu && duLieu.email);
+    const vaiTro = String((duLieu && duLieu.vaiTro) || "").trim().toUpperCase();
+    const trangThai = (duLieu && duLieu.trangThai) === TRANG_THAI_NGUOI_DUNG.KHOA ? TRANG_THAI_NGUOI_DUNG.KHOA : TRANG_THAI_NGUOI_DUNG.HOAT_DONG;
+    const hoTen = String((duLieu && duLieu.hoTen) || "").trim();
+    if (!MAU_EMAIL.test(email)) return { success: false, message: "❌ Email không hợp lệ." };
+    if (!QUYEN_THEO_VAI_TRO[vaiTro]) return { success: false, message: "❌ Vai trò không hợp lệ." };
+    if (email === _emailChuScript_()) return { success: false, message: "⚠️ Chủ script luôn là Quản trị - không cần thêm/không thể đổi." };
+
+    const ketQua = _chayTrongKhoa_(() => {
+      const sh = _getNguoiDungSheet_();
+      CacheService.getScriptCache().remove(AUTH_CFG.CACHE_KEY_NGUOI_DUNG);
+      const cu = _docDanhSachNguoiDung_().find(x => x.email === email);
+      const dong = [email, hoTen, vaiTro, trangThai, new Date(), _emailNguoiThucHien_() || "N/A"];
+      if (cu) _ghiTheoDong_(sh, [{ row: cu.dong, values: dong }], 1);
+      else sh.getRange(sh.getLastRow() + 1, 1, 1, dong.length).setValues([dong]);
+      CacheService.getScriptCache().remove(AUTH_CFG.CACHE_KEY_NGUOI_DUNG);
+      return cu;
+    });
+    const chiTiet = ketQua
+      ? `${email}: vai trò ${ketQua.vaiTro} → ${vaiTro}, trạng thái ${ketQua.trangThai} → ${trangThai}`
+      : `Thêm ${email}: vai trò ${vaiTro}, trạng thái ${trangThai}`;
+    logAction_("PHAN_QUYEN", email, chiTiet);
+    return { success: true, message: `✅ Đã lưu người dùng ${email} (${VAI_TRO_NHAN[vaiTro]}, ${trangThai}).` };
+  } catch (e) {
+    return { success: false, message: "❌ Lỗi: " + e.toString() };
+  }
+}
+
+function getCauHinhDangNhapForWeb_() {
+  const appUrl = ScriptApp.getService().getUrl() || "";
+  return {
+    appUrl,
+    congDangNhapUrl: PropertiesService.getScriptProperties().getProperty(AUTH_CFG.PROP_CONG_DANG_NHAP_URL) || "",
+    maNguon: _maNguonCongDangNhap_(appUrl, _laySsoSecret_())
+  };
+}
+
+function webSetCongDangNhapUrl_(url) {
+  const u = String(url || "").trim();
+  if (!MAU_URL_CONG_DANG_NHAP.test(u)) {
+    return { success: false, message: "❌ Link Cổng đăng nhập phải có dạng https://script.google.com/macros/s/.../exec" };
+  }
+  PropertiesService.getScriptProperties().setProperty(AUTH_CFG.PROP_CONG_DANG_NHAP_URL, u);
+  logAction_("CAU_HINH_DANG_NHAP", "-", "Đổi link Cổng đăng nhập: " + u);
+  return { success: true, message: "✅ Đã lưu link Cổng đăng nhập." };
+}
+
+/** Đổi mã bí mật (khi nghi bị lộ). Phải dán lại mã nguồn mới vào Cổng đăng nhập. */
+function webTaoLaiSsoSecret_() {
+  PropertiesService.getScriptProperties().setProperty(AUTH_CFG.PROP_SSO_SECRET, _taoMaNgauNhien_());
+  logAction_("CAU_HINH_DANG_NHAP", "-", "Tạo lại mã bí mật Cổng đăng nhập - cần dán lại mã nguồn Cổng đăng nhập.");
+  return { success: true, message: "✅ Đã tạo mã bí mật mới. Hãy dán lại mã nguồn mới vào dự án Cổng đăng nhập và Deploy lại (Manage deployments > Edit > New version)." };
+}
+
 function doGet(e) {
-  if (e.parameter.action) {
-    let action = e.parameter.action;
+  const thamSo = (e && e.parameter) || {};
+  if (thamSo.action) {
+    const action = thamSo.action;
+    // v2026.7: chỉ còn webhook làm mới cache (có mã bí mật). Các action
+    // tach_phieu / lap_de_nghi / tim_phieu_can / tra_cuu_hop_dong đã bỏ -
+    // chạy nghiệp vụ hoặc lộ dữ liệu mà không cần đăng nhập.
     try {
-      if (action === "tach_phieu") {
-        return ContentService.createTextOutput(JSON.stringify({ status: "success", message: runProcessDetail() })).setMimeType(ContentService.MimeType.JSON);
-      }
-      if (action === "lap_de_nghi") {
-        return ContentService.createTextOutput(JSON.stringify({ status: "success", message: runCreate112() })).setMimeType(ContentService.MimeType.JSON);
-      }
-      if (action === "tim_phieu_can") {
-        return ContentService.createTextOutput(JSON.stringify({ status: "success", data: findAvailablePhieuCan(e.parameter.q || "") })).setMimeType(ContentService.MimeType.JSON);
-      }
-      if (action === "tra_cuu_hop_dong") {
-        return ContentService.createTextOutput(JSON.stringify({ status: "success", data: getContractInfo(e.parameter.soHD || "") })).setMimeType(ContentService.MimeType.JSON);
-      }
       if (action === "lam_moi_cache") {
         // MỚI (theo yêu cầu): webhook để file PhieuCan_DN/HD_NCC GỐC tự
         // gọi ngược lại đây mỗi khi có thay đổi (qua Trigger onChange cài
@@ -753,7 +1183,28 @@ function doGet(e) {
       return ContentService.createTextOutput(JSON.stringify({ status: "error", message: err.toString() })).setMimeType(ContentService.MimeType.JSON);
     }
   }
-  return HtmlService.createTemplateFromFile('Index').evaluate()
+  const tpl = HtmlService.createTemplateFromFile('Index');
+  tpl.phien = "";
+  tpl.loiDangNhap = "";
+  if (thamSo.sso) {
+    try {
+      const email = _xacMinhSso_(thamSo.sso);
+      const vaiTro = _vaiTroCua_(email);
+      _nguoiDungHienTai_ = { email, vaiTro };
+      if (vaiTro) {
+        tpl.phien = _taoPhien_(email);
+        logAction_("DANG_NHAP", email, "Đăng nhập qua Cổng đăng nhập Gmail.");
+      } else {
+        tpl.loiDangNhap = `Tài khoản ${email} chưa được cấp quyền hoặc đã bị khóa - liên hệ Quản trị để được thêm vào hệ thống.`;
+        logAction_("DANG_NHAP_BI_TU_CHOI", email, "Email chưa được cấp quyền / đã khóa.");
+      }
+    } catch (err) {
+      tpl.loiDangNhap = String((err && err.message) || err);
+    } finally {
+      _nguoiDungHienTai_ = null;
+    }
+  }
+  return tpl.evaluate()
       .setTitle("QUẢN LÝ THANH TOÁN HAK")
       .addMetaTag('viewport', 'width=device-width, initial-scale=1')
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
@@ -762,7 +1213,7 @@ function doGet(e) {
 // ============================================================
 // TRUY VẤN NGOẠI VI (mở an toàn có try/catch dùng chung)
 // ============================================================
-function openExternalSheet(ssId, sheetName, labelForError) {
+function openExternalSheet_(ssId, sheetName, labelForError) {
   try {
     const ss = SpreadsheetApp.openById(ssId);
     const sh = ss.getSheetByName(sheetName);
@@ -802,7 +1253,7 @@ function getMainSs_() {
   return SpreadsheetApp.openById(getMainSsId_());
 }
 /** #Web: kiểm tra đã cấu hình File Chính chưa - dùng cho trang Cài Đặt. */
-function getMainSsInfoForWeb() {
+function getMainSsInfoForWeb_() {
   try {
     const id = PropertiesService.getScriptProperties().getProperty('MAIN_SS_ID');
     if (!id) return { configured: false };
@@ -819,7 +1270,7 @@ function getMainSsInfoForWeb() {
  * không biết đã bật hay chưa) - dùng cho trang Cài Đặt hiện huy hiệu
  * "✅ Đã bật" / "⭕ Chưa bật" cạnh từng nút.
  */
-function getTriggerStatusForWeb() {
+function getTriggerStatusForWeb_() {
   const handlers = new Set(ScriptApp.getProjectTriggers().map(t => t.getHandlerFunction()));
   const gioPhut15h = _trigger15hGioPhutHienTai_();
   return {
@@ -827,8 +1278,45 @@ function getTriggerStatusForWeb() {
     triggerDaily: handlers.has('dailyRefreshAllCaches_'),
     trigger15h: handlers.has('daily15hRefresh_'),
     trigger15hGio: gioPhut15h.gio,
-    trigger15hPhut: gioPhut15h.phut
+    trigger15hPhut: gioPhut15h.phut,
+    pcHeaderCanhBao: _pcHeaderDaThayDoi_()
   };
+}
+
+// ============================================================
+// CẢNH BÁO CẤU TRÚC CỘT PhieuCan_DN THAY ĐỔI (v2026.7)
+// Mọi chỗ đọc Phiếu Cân dùng vị trí cột cố định (PC_COL) - ai đó chèn/xóa/
+// đổi thứ tự cột trong file gốc sẽ làm hệ thống đọc SAI cột âm thầm. Mỗi
+// lần làm mới cache, so dòng tiêu đề với "chuẩn" đã xác nhận; lệch thì
+// báo ở Cài Đặt cho tới khi Quản trị kiểm tra và xác nhận chuẩn mới.
+// ============================================================
+const PC_HEADER_PROP = { CHUAN: "PC_HEADER_CHUAN", MOI: "PC_HEADER_MOI" };
+
+function _chuKyHeaderPc_(header) {
+  return header.map(h => utils.standardize(h)).join("|");
+}
+/** Ghi nhận tiêu đề vừa đọc: lần đầu lấy làm chuẩn; về sau khác chuẩn thì lưu để cảnh báo. */
+function _ghiNhanHeaderPc_(header) {
+  if (!header || !header.length) return;
+  const props = PropertiesService.getScriptProperties();
+  const chuKy = _chuKyHeaderPc_(header);
+  const chuan = props.getProperty(PC_HEADER_PROP.CHUAN);
+  if (!chuan) { props.setProperty(PC_HEADER_PROP.CHUAN, chuKy); return; }
+  if (chuKy === chuan) props.deleteProperty(PC_HEADER_PROP.MOI);
+  else props.setProperty(PC_HEADER_PROP.MOI, chuKy);
+}
+function _pcHeaderDaThayDoi_() {
+  return !!PropertiesService.getScriptProperties().getProperty(PC_HEADER_PROP.MOI);
+}
+/** Quản trị xác nhận cấu trúc cột hiện tại là đúng (đổi có chủ đích). */
+function webXacNhanHeaderPhieuCanMoi_() {
+  const props = PropertiesService.getScriptProperties();
+  const moi = props.getProperty(PC_HEADER_PROP.MOI);
+  if (!moi) return { success: true, message: "✅ Cấu trúc cột Phiếu Cân không có thay đổi cần xác nhận." };
+  props.setProperty(PC_HEADER_PROP.CHUAN, moi);
+  props.deleteProperty(PC_HEADER_PROP.MOI);
+  logAction_("XAC_NHAN_HEADER_PHIEU_CAN", "-", "Xác nhận cấu trúc cột mới của PhieuCan_DN: " + moi.slice(0, GIOI_HAN_KY_TU_O_NHAT_KY));
+  return { success: true, message: "✅ Đã xác nhận cấu trúc cột hiện tại của Phiếu Cân là chuẩn." };
 }
 
 /**
@@ -840,11 +1328,11 @@ function getTriggerStatusForWeb() {
  * SỬA (theo yêu cầu - "đã khóa bao nhiêu cột rồi, không thấy hiển thị"):
  * trước đây chỉ kiểm tra 1 cột đại diện (CCCD ở Draft CT), không cho
  * biết cụ thể đã khóa được BAO NHIÊU cột / còn thiếu cột nào. Giờ kiểm
- * tra ĐÚNG TỪNG CỘT mà khoaDinhDangTextTatCa() khóa, trên CẢ 6 sheet -
+ * tra ĐÚNG TỪNG CỘT mà khoaDinhDangTextTatCa_() khóa, trên CẢ 6 sheet -
  * trả về danh sách chi tiết (sheet, cột, tên trường, đã khóa hay chưa)
  * để hiện đầy đủ ở Cài Đặt, không còn phải đoán qua 1 huy hiệu chung.
  */
-function getFormatLockStatusForWeb() {
+function getFormatLockStatusForWeb_() {
   const items = [];
   const checkSheet = (sh, sheetLabel, colsWithNames) => {
     colsWithNames.forEach(([col, name]) => {
@@ -883,7 +1371,7 @@ function getFormatLockStatusForWeb() {
   return { locked: total > 0 && lockedCount === total, total, lockedCount, items };
 }
 /** #Web: cấu hình ID File Chính (dán từ URL Google Sheet). */
-function webSetMainSsId(id) {
+function webSetMainSsId_(id) {
   try {
     const clean = String(id || "").trim();
     if (!clean) return { success: false, message: "❌ Vui lòng nhập ID hoặc URL File Chính." };
@@ -934,10 +1422,10 @@ function getCompanyBankInfo_() {
     code: _getMisaDefault_("COMPANY_BANK_CODE", CFG.COMPANY_BANK_CODE)
   };
 }
-function getMisaDefaultsForWeb() {
+function getMisaDefaultsForWeb_() {
   return getCompanyBankInfo_();
 }
-function webSetMisaDefaults(values) {
+function webSetMisaDefaults_(values) {
   try {
     values = values || {};
     if (values.account !== undefined) _setMisaDefault_("COMPANY_BANK_ACCOUNT", values.account);
@@ -994,10 +1482,10 @@ function _formatNgayXuat_(v) {
   return Utilities.formatDate(d, "GMT+7", _getExportRegionPreset_().dateFmt);
 }
 
-function getExportRegionInfoForWeb() {
+function getExportRegionInfoForWeb_() {
   return { current: _getExportRegion_(), presets: Object.keys(REGION_PRESETS).map(k => ({ code: k, label: REGION_PRESETS[k].label })) };
 }
-function webSetExportRegion(region) {
+function webSetExportRegion_(region) {
   try {
     _setExportRegion_(region);
     return { success: true, message: `✅ Đã đổi Vùng Định Dạng Báo Cáo Xuất sang "${region}".` };
@@ -1040,10 +1528,10 @@ function getUncConfig_() {
     sheetDmNH: _getUncDefault_("SHEET_DM_NH", "UNC_NGANHANG_HAK")
   };
 }
-function getUncConfigForWeb() {
+function getUncConfigForWeb_() {
   return getUncConfig_();
 }
-function webSetUncConfig(values) {
+function webSetUncConfig_(values) {
   try {
     values = values || {};
     if (values.tkTrichNo !== undefined) _setUncDefault_("TK_TRICH_NO", values.tkTrichNo);
@@ -1080,7 +1568,7 @@ function webSetUncConfig(values) {
 // MỚI (theo yêu cầu): TAB "LỊCH SỬ SỬA ĐỔI" - đọc lại Nhật Ký Thao Tác,
 // LỌC riêng các hành động "nhạy cảm" (Mở Đóng Thanh Toán, Đồng Bộ Tên
 // Khách Hàng) để theo dõi RIÊNG, kèm rõ user Gmail đã thực hiện (đã có
-// sẵn trong logAction() - Session.getActiveUser().getEmail()).
+// sẵn trong logAction_() - Session.getActiveUser().getEmail()).
 // ============================================================
 // SỬA (rà soát phát hiện): bổ sung 4 hành động xóa "mồ côi" mới (mục Bảo
 // Trì) vào danh sách hiển thị ở "Lịch Sử Sửa Đổi" - 2 trong số đó
@@ -1088,7 +1576,7 @@ function webSetUncConfig(values) {
 // LIỆU TÀI CHÍNH ĐÃ CHỐT" khi ghi log nhưng trước đây KHÔNG hiện ra ở
 // trang audit trail này - vẫn nằm trong sheet log nhưng vô hình với
 // người xem trang "Lịch Sử Sửa Đổi".
-const LICH_SU_SUA_DOI_ACTIONS = new Set(["MO_DONG_THANH_TOAN", "DOI_SOAT_DONG_BO_TEN", "VA_NGAN_HANG_112", "XOA_MO_COI_CHITIET_DNTT", "XOA_MO_COI_CHITIET_UNC", "XOA_MO_COI_CT_THAT", "XOA_MO_COI_SRC_THAT"]);
+const LICH_SU_SUA_DOI_ACTIONS = new Set(["MO_DONG_THANH_TOAN", "DOI_SOAT_DONG_BO_TEN", "VA_NGAN_HANG_112", "XOA_MO_COI_CHITIET_DNTT", "XOA_MO_COI_CHITIET_UNC", "XOA_MO_COI_CT_THAT", "XOA_MO_COI_SRC_THAT", "SUA_TEN_KH_PHIEU_CAN", "PHAN_QUYEN", "CAU_HINH_DANG_NHAP"]);
 /**
  * SỬA (theo yêu cầu - "cho xem theo ngày, không phải cứ nối dài"): giờ
  * lọc theo khoảng ngày (fDate/tDate, dạng yyyy-MM-dd) thay vì luôn hiện
@@ -1097,7 +1585,7 @@ const LICH_SU_SUA_DOI_ACTIONS = new Set(["MO_DONG_THANH_TOAN", "DOI_SOAT_DONG_BO
  * lên, DỪNG NGAY khi gặp dòng cũ hơn "Từ ngày" là chắc chắn đủ, không
  * cần đọc hết toàn bộ log (có thể rất dài qua nhiều năm).
  */
-function getLichSuSuaDoi(fDate, tDate) {
+function getLichSuSuaDoi_(fDate, tDate) {
   const ss = getMainSs_();
   const sh = ss.getSheetByName(CFG.LOG_SHEET);
   if (!sh || sh.getLastRow() < 2) return [];
@@ -1142,7 +1630,7 @@ function getLichSuSuaDoi(fDate, tDate) {
  * "Mở Đóng Thanh Toán". Giới hạn 20 kết quả/lần gõ để tránh trả về quá
  * nhiều (frontend nên debounce, không gọi liên tục từng phím).
  */
-function timChuRungDaChot(query) {
+function timChuRungDaChot_(query) {
   const q = utils.standardize(String(query || "").trim());
   if (!q) return [];
   try {
@@ -1192,7 +1680,7 @@ function timChuRungDaChot(query) {
  * sang File Nháp (Chờ ĐNTT) để điều chỉnh, và MỞ KHÓA TẤT CẢ Phiếu Cân
  * thuộc hồ sơ đó (không chỉ 1 phiếu).
  */
-function webMoDongThanhToanTheoHoSo(chuRungInput, ngayDongTTInput, lanTTInput) {
+function webMoDongThanhToanTheoHoSo_(chuRungInput, ngayDongTTInput, lanTTInput) {
   let lock;
   try {
     lock = sysLock.acquire(); // MỚI (rà soát bổ sung): khóa đồng thời - tránh xung đột nếu 2 người cùng thao tác dữ liệu tài chính lúc này
@@ -1335,7 +1823,7 @@ function webMoDongThanhToanTheoHoSo(chuRungInput, ngayDongTTInput, lanTTInput) {
     let soDaMoKhoa = 0;
     const khongMoDuoc = [];
     try {
-      const shPC = openExternalSheet(CFG.PC_SS_ID, CFG.PC_SHEET, "Phiếu Cân");
+      const shPC = openExternalSheet_(CFG.PC_SS_ID, CFG.PC_SHEET, "Phiếu Cân");
       const pcLastRow = shPC.getLastRow();
       if (pcLastRow > 1) {
         const soPCol = shPC.getRange(2, PC_COL.SO_PHIEU + 1, pcLastRow - 1, 1).getValues();
@@ -1357,7 +1845,7 @@ function webMoDongThanhToanTheoHoSo(chuRungInput, ngayDongTTInput, lanTTInput) {
     } catch (e) { /* không chặn luồng chính nếu lỗi mở khóa - vẫn báo rõ ở kết quả */ }
 
     const chiTiet = `Mở Đóng TT cả hồ sơ - Chủ rừng "${chuRung}", Ngày Đóng TT ${ngayISO}, Lần TT "${lanTT}", Số HĐ ${soHD}, ${ctConIdx.length} phiếu cân (${soPhieuCanLienQuan.join(", ")}) - đã tạo lại đơn xin mới ID ${newId} trong File Nháp, xóa Src+112+${ctConIdx.length} CT khỏi bản chính, mở khóa ${soDaMoKhoa}/${soPhieuCanLienQuan.length} Phiếu Cân. Đã dọn 3 bảng con: ChiTietDNTT (${ketQuaDonDep.chiTietDnttXoa} dòng), ChiTietUNC (${ketQuaDonDep.chiTietUncXoa} dòng), Update_NganHang_DN (${ketQuaDonDep.misaXoa} dòng).`;
-    logAction("MO_DONG_THANH_TOAN", newId, chiTiet);
+    logAction_("MO_DONG_THANH_TOAN", newId, chiTiet);
     _invalidateCtSrc112Cache_(); // MỚI (rà soát bổ sung): CT/Src/112 thật vừa thay đổi - xóa cache ngay
     _invalidateCongNoCache_(); // MỚI (rà soát bổ sung): buộc Báo Cáo Công Nợ tính lại, tránh hiện snapshot cũ
     // MỚI (rà soát phát hiện - "báo cáo công nợ ok chưa"): "Chi Tiết
@@ -1391,11 +1879,11 @@ function webMoDongThanhToanTheoHoSo(chuRungInput, ngayDongTTInput, lanTTInput) {
  * trên File Nháp, TRƯỚC khi Đóng Thanh Toán) - sau khi chốt, hồ sơ rời
  * khỏi Nháp, không còn chỗ nào tạo lại UNC nếu phát hiện sai/lỗi. Hàm
  * này nhận thẳng rows từ "Báo Cáo Thanh Toán Gỗ Keo" (đã chốt, đọc từ
- * get112ViewData() - CÙNG cấu trúc {idHeThong, chuRung, nguoiNhan, stk,
- * nganHang, soHD, soTien, noiDungCK} mà runCreateUNCOnly() cần) - tái
+ * get112ViewData_() - CÙNG cấu trúc {idHeThong, chuRung, nguoiNhan, stk,
+ * nganHang, soHD, soTien, noiDungCK} mà runCreateUNCOnly_() cần) - tái
  * sử dụng LẠI ĐÚNG hàm tạo UNC, không viết lại logic.
  */
-function webCreateUNCFromDraft(selectedIds, ngayHieuLuc, tkTrichNoOverride, tkThuPhiOverride) {
+function webCreateUNCFromDraft_(selectedIds, ngayHieuLuc, tkTrichNoOverride, tkThuPhiOverride) {
   try {
     if (!Array.isArray(selectedIds) || selectedIds.length === 0) {
       return { success: false, message: "❌ Lỗi: Không có hồ sơ nào được chọn để tạo UNC." };
@@ -1434,7 +1922,7 @@ function webCreateUNCFromDraft(selectedIds, ngayHieuLuc, tkTrichNoOverride, tkTh
     // MỚI (theo yêu cầu): cho phép gõ TK Trích Nợ/TK Thu Phí KHÁC với
     // cấu hình mặc định NGAY LÚC TẠO - chỉ áp dụng cho lần tạo NÀY,
     // không lưu lại cấu hình gốc ở Cài Đặt.
-    return runCreateUNCOnly(filteredRows, toDate, String(tkTrichNoOverride || "").trim(), String(tkThuPhiOverride || "").trim());
+    return runCreateUNCOnly_(filteredRows, toDate, String(tkTrichNoOverride || "").trim(), String(tkThuPhiOverride || "").trim());
   } catch (e) {
     return { success: false, message: "❌ Lỗi: " + e.toString() };
   }
@@ -1476,8 +1964,7 @@ function _getChiTietUncSheet_() {
 function _ghiLichSuUNC_(filteredRows, uncCfg, toDate, toDateXuat, fileUrl) {
   try {
     const sh = _getChiTietUncSheet_();
-    let user = "N/A";
-    try { user = Session.getActiveUser().getEmail() || "N/A"; } catch (e) {}
+    const user = _emailNguoiThucHien_() || "N/A";
     const now = new Date();
 
     const rows = filteredRows.map((r, i) => {
@@ -1502,12 +1989,12 @@ function _ghiLichSuUNC_(filteredRows, uncCfg, toDate, toDateXuat, fileUrl) {
   } catch (e) {
     // Không chặn luồng chính "Tạo File UNC" nếu lỗi ghi lịch sử - file
     // Excel vẫn tạo thành công như bình thường, chỉ mất phần lưu vết.
-    logAction("LOI_GHI_LICH_SU_UNC", "-", "Lỗi khi ghi lịch sử UNC: " + e.toString());
+    logAction_("LOI_GHI_LICH_SU_UNC", "-", "Lỗi khi ghi lịch sử UNC: " + e.toString());
   }
 }
 
 /** Đọc lại lịch sử UNC theo khoảng ngày (dựa vào Thời gian tạo) - dùng
- * chung kiểu đọc "từ cuối lên, dừng sớm" như getLichSuSuaDoi() vì
+ * chung kiểu đọc "từ cuối lên, dừng sớm" như getLichSuSuaDoi_() vì
  * ChiTietUNC cũng luôn ghi thêm vào cuối theo thứ tự thời gian. */
 /** Chuyển chuỗi ngày đã xuất (theo đúng Vùng Định Dạng Báo Cáo Xuất
  * Excel đang cấu hình - có thể dd/MM/yyyy hoặc MM/dd/yyyy) về lại
@@ -1529,7 +2016,7 @@ function _parseNgayXuatVeIso_(str) {
  * (Ngày hạch toán) - giống hệt cách "Báo Cáo UNC" đang làm - KHÔNG cần
  * mở nguyên file để tự lọc bằng mắt nữa.
  */
-function getMisaDataTheoNgay(fDate, tDate) {
+function getMisaDataTheoNgay_(fDate, tDate) {
   try {
     const ssNH = SpreadsheetApp.openById(CFG.UPDATE_NH_SS_ID);
     const shUpdateNH = ssNH.getSheetByName("Update_NganHang_DN");
@@ -1587,9 +2074,9 @@ function getMisaDataTheoNgay(fDate, tDate) {
 
 /** Xuất Excel MISA đã LỌC theo ngày - file RIÊNG, KHÔNG đụng gì tới
  * Update_NganHang_DN gốc, chỉ là bản sao đã lọc để tải về/gửi đi. */
-function exportMisaTheoNgayExcel(fDate, tDate) {
+function exportMisaTheoNgayExcel_(fDate, tDate) {
   try {
-    const ketQua = getMisaDataTheoNgay(fDate, tDate);
+    const ketQua = getMisaDataTheoNgay_(fDate, tDate);
     if (ketQua.error) return { success: false, message: ketQua.error };
     const rows = ketQua.items;
     if (!rows.length) return { success: false, message: "⚠️ Không có dữ liệu MISA nào trong khoảng ngày đã chọn." };
@@ -1611,7 +2098,7 @@ function exportMisaTheoNgayExcel(fDate, tDate) {
     sheet.getRange(2, 7, bodyDayDu.length, 1).setNumberFormat("#,##0");
     sheet.setFrozenRows(1);
 
-    logAction("XUAT_BAO_CAO_MISA", "-", `Xuất Báo Cáo MISA (${fDate} - ${tDate}), ${rows.length} dòng - ${ss.getUrl()}`);
+    logAction_("XUAT_BAO_CAO_MISA", "-", `Xuất Báo Cáo MISA (${fDate} - ${tDate}), ${rows.length} dòng - ${ss.getUrl()}`);
     let msg = `✅ Đã xuất ${rows.length} dòng.`;
     if (ketQua.truncated) msg += ` ⚠️ Tổng khớp khoảng ngày là ${ketQua.total} dòng, đã đạt giới hạn 2000 - thu hẹp khoảng ngày để xuất đầy đủ hơn.`;
     return { success: true, url: ss.getUrl(), count: rows.length, message: msg };
@@ -1620,7 +2107,7 @@ function exportMisaTheoNgayExcel(fDate, tDate) {
   }
 }
 
-function getLichSuUNC(fDate, tDate) {
+function getLichSuUNC_(fDate, tDate) {
   const ss = getMainSs_();
   const sh = ss.getSheetByName(CHITIET_UNC_SHEET);
   if (!sh || sh.getLastRow() < 2) return [];
@@ -1663,9 +2150,9 @@ function getLichSuUNC(fDate, tDate) {
  * xuất lại thành file Excel MỚI từ đúng dữ liệu Lịch Sử UNC theo khoảng
  * ngày đã chọn - dùng khi file gốc bị mất/quên tải, hoặc cần gộp lại
  * nhiều lần tạo UNC trong 1 khoảng ngày thành 1 file duy nhất. */
-function exportLichSuUNCExcel(fDate, tDate) {
+function exportLichSuUNCExcel_(fDate, tDate) {
   try {
-    const rows = getLichSuUNC(fDate, tDate);
+    const rows = getLichSuUNC_(fDate, tDate);
     if (!rows.length) return { success: false, message: "⚠️ Không có dữ liệu UNC nào trong khoảng ngày đã chọn." };
 
     const folder = DriveApp.getFolderById(getReportFolderId_());
@@ -1685,7 +2172,7 @@ function exportLichSuUNCExcel(fDate, tDate) {
     sheet.getRange(2, 5, body.length, 1).setNumberFormat("#,##0");
     sheet.setFrozenRows(1);
 
-    logAction("XUAT_BAO_CAO_UNC", "-", `Xuất lại Báo Cáo UNC (${fDate} - ${tDate}), ${rows.length} dòng - ${ss.getUrl()}`);
+    logAction_("XUAT_BAO_CAO_UNC", "-", `Xuất lại Báo Cáo UNC (${fDate} - ${tDate}), ${rows.length} dòng - ${ss.getUrl()}`);
     return { success: true, url: ss.getUrl(), count: rows.length };
   } catch (e) {
     return { success: false, message: "❌ Lỗi: " + e.toString() };
@@ -1707,7 +2194,7 @@ function exportLichSuUNCExcel(fDate, tDate) {
  * trình duyệt khi vẽ bảng. Giờ giới hạn 2000 dòng/lần xem, báo rõ khi
  * đạt giới hạn để người dùng thu hẹp khoảng ngày.
  */
-function getChiTietDNTTDaChot(fDate, tDate) {
+function getChiTietDNTTDaChot_(fDate, tDate) {
   const ss = getMainSs_();
   const sh = ss.getSheetByName(CHITIET_DNTT_SHEET);
   if (!sh || sh.getLastRow() < 2) return { items: [], total: 0, truncated: false };
@@ -1742,9 +2229,9 @@ function getChiTietDNTTDaChot(fDate, tDate) {
 
 /** Xuất Excel "Báo Cáo Thanh Toán Chi Tiết" - nhanh vì đọc thẳng từ
  * ChiTietDNTT đã tính sẵn, không phải join lại từ đầu. */
-function exportChiTietDNTTDaChotExcel(fDate, tDate) {
+function exportChiTietDNTTDaChotExcel_(fDate, tDate) {
   try {
-    const ketQua = getChiTietDNTTDaChot(fDate, tDate);
+    const ketQua = getChiTietDNTTDaChot_(fDate, tDate);
     const rows = ketQua.items;
     if (!rows.length) return { success: false, message: "⚠️ Không có dữ liệu nào trong khoảng ngày đã chọn." };
 
@@ -1770,7 +2257,7 @@ function exportChiTietDNTTDaChotExcel(fDate, tDate) {
     sheet.getRange(2, 11, body.length, 2).setNumberFormat("#,##0");
     sheet.setFrozenRows(1);
 
-    logAction("XUAT_BAO_CAO_CHITIET_DNTT", "-", `Xuất Báo Cáo Thanh Toán Chi Tiết (${fDate} - ${tDate}), ${rows.length} dòng - ${ss.getUrl()}`);
+    logAction_("XUAT_BAO_CAO_CHITIET_DNTT", "-", `Xuất Báo Cáo Thanh Toán Chi Tiết (${fDate} - ${tDate}), ${rows.length} dòng - ${ss.getUrl()}`);
     let msgKq = `✅ Đã xuất ${rows.length} dòng.`;
     if (ketQua.truncated) msgKq += ` ⚠️ Tổng khớp bộ lọc là ${ketQua.total} dòng, đã đạt giới hạn 2000 dòng/lần xuất - thu hẹp khoảng ngày để xuất đầy đủ hơn.`;
     return { success: true, url: ss.getUrl(), count: rows.length, message: msgKq };
@@ -1801,7 +2288,7 @@ function _kiemTraTrungUNC_(filteredRows) {
   }
 }
 
-function runCreateUNCOnly(filteredRows, toDate, tkTrichNoOverride, tkThuPhiOverride) {
+function runCreateUNCOnly_(filteredRows, toDate, tkTrichNoOverride, tkThuPhiOverride) {
   try {
     // MỚI (theo yêu cầu - "có chức năng loại trùng không"): UNC là hành
     // động CÓ CHỦ Ý (có thể cố tình tạo lại nếu file trước lỗi - xem
@@ -1882,7 +2369,7 @@ function runCreateUNCOnly(filteredRows, toDate, tkTrichNoOverride, tkThuPhiOverr
       sheet.getRange(4, 1, rows.length, 16).setValues(rows);
     }
 
-    logAction("TAO_UNC", filteredRows.map(r => r.idHeThong).join(","), `Tạo file UNC ngày ${toDate}, ${rows.length} dòng - ${newSS.getUrl()}`);
+    logAction_("TAO_UNC", filteredRows.map(r => r.idHeThong).join(","), `Tạo file UNC ngày ${toDate}, ${rows.length} dòng - ${newSS.getUrl()}`);
     _ghiLichSuUNC_(filteredRows, uncCfg, toDate, toDateXuat, newSS.getUrl()); // MỚI (theo yêu cầu): lưu vết để xem lại sau này
     return { success: true, url: newSS.getUrl(), count: rows.length, canhBaoTrung: canhBaoTrungUNC };
   } catch (e) {
@@ -1890,14 +2377,15 @@ function runCreateUNCOnly(filteredRows, toDate, tkTrichNoOverride, tkThuPhiOverr
   }
 }
 
-// MỚI (theo yêu cầu): hộp thoại menu Sheet để dán URL/ID File Chính (bản Sheet-UI của webSetMainSsId()).
+// MỚI (theo yêu cầu): hộp thoại menu Sheet để dán URL/ID File Chính (bản Sheet-UI của webSetMainSsId_()).
 function showKetNoiFileChinhDialog() {
+  _yeuCauQuyen_(QUYEN.QUAN_TRI);
   const ui = SpreadsheetApp.getUi();
   const cur = PropertiesService.getScriptProperties().getProperty('MAIN_SS_ID');
   const goiY = cur ? `Đang kết nối: ${cur}\n\n` : "";
   const res = ui.prompt("Kết Nối File Chính", `${goiY}Dán URL hoặc ID Google Sheet của File Chính (chứa DNTT_GK_DN/CT/112/Nhật Ký):`, ui.ButtonSet.OK_CANCEL);
   if (res.getSelectedButton() !== ui.Button.OK) return;
-  const r = webSetMainSsId(res.getResponseText());
+  const r = webSetMainSsId_(res.getResponseText());
   ui.alert(r.message);
 }
 
@@ -1934,7 +2422,7 @@ function _lockDateCols_(sh, colFormatPairs, maxRows) {
  * - KHÔNG tự phục hồi được số 0 đầu đã bị mất ở dữ liệu CŨ (nếu có) -
  * những dòng cũ bị sai cần bạn tự kiểm tra/sửa lại tay.
  */
-function khoaDinhDangTextTatCa() {
+function khoaDinhDangTextTatCa_() {
   let ketQua = [];
   const preset = _getRegionPreset_(); // MỚI: theo đúng vùng đã chọn (mặc định Việt Nam)
   const FMT_NGAY = preset.dateFmt;
@@ -1962,7 +2450,7 @@ function khoaDinhDangTextTatCa() {
     ss = getMainSs_();
   } catch (e) {
     ketQua.push("File Chính: CHƯA kết nối - " + e.toString());
-    logAction("KHOA_DINH_DANG_TEXT", "-", ketQua.join(" · "));
+    logAction_("KHOA_DINH_DANG_TEXT", "-", ketQua.join(" · "));
     return ketQua.join(" · ");
   }
 
@@ -1993,23 +2481,24 @@ function khoaDinhDangTextTatCa() {
     }
   } catch (e) { ketQua.push("Nguồn thật: lỗi - " + e.toString()); }
 
-  logAction("KHOA_DINH_DANG_TEXT", "-", ketQua.join(" · "));
+  logAction_("KHOA_DINH_DANG_TEXT", "-", ketQua.join(" · "));
   return ketQua.join(" · ");
 }
 
 function showKhoaDinhDangTextDialog() {
+  _yeuCauQuyen_(QUYEN.QUAN_TRI);
   const ui = SpreadsheetApp.getUi();
   try {
-    ui.alert("✅ Đã khóa định dạng cho CCCD/STK/Số HĐ/Số Phiếu Cân (TEXT) và Timestamp/Ngày (dd/MM/yyyy):\n\n" + khoaDinhDangTextTatCa() +
+    ui.alert("✅ Đã khóa định dạng cho CCCD/STK/Số HĐ/Số Phiếu Cân (TEXT) và Timestamp/Ngày (dd/MM/yyyy):\n\n" + khoaDinhDangTextTatCa_() +
       "\n\n⚠️ Lưu ý: việc này chỉ ngăn lỗi xảy ra THÊM từ bây giờ, không tự phục hồi dữ liệu cũ đã bị sai (số 0 đầu bị mất, ngày/tháng bị lộn) - cần tự kiểm tra lại các dòng cũ.");
   } catch (e) {
     ui.alert("❌ Lỗi: " + e.toString());
   }
 }
 
-function webKhoaDinhDangTextTatCa() {
+function webKhoaDinhDangTextTatCa_() {
   try {
-    const r = khoaDinhDangTextTatCa();
+    const r = khoaDinhDangTextTatCa_();
     return { success: true, message: "✅ Đã khóa định dạng CCCD/STK/Số HĐ/Số Phiếu Cân (TEXT) và Timestamp/Ngày (dd/MM/yyyy): " + r + ". ⚠️ Không tự phục hồi dữ liệu cũ đã bị sai (nếu có)." };
   } catch (e) {
     return { success: false, message: "❌ Lỗi: " + e.toString() };
@@ -2021,7 +2510,7 @@ function webKhoaDinhDangTextTatCa() {
  * ngày/số với ĐÚNG cách Google Sheet đang lưu trữ (có thể khác nhau tùy
  * locale của từng file Sheet, vd Việt Nam dd/mm/yyyy hay Mỹ mm/dd/yyyy).
  * Thay vì "cứng" 1 định dạng trong code, giờ chọn 1 trong các preset
- * bên dưới - MỌI nơi khóa định dạng cột (khoaDinhDangTextTatCa) và MỌI
+ * bên dưới - MỌI nơi khóa định dạng cột (khoaDinhDangTextTatCa_) và MỌI
  * nơi phân tích/ghép chuỗi ngày (vd "Ngày thanh toán" khi Đóng Thanh
  * Toán) đều tự động dùng ĐÚNG theo lựa chọn này.
  */
@@ -2056,7 +2545,7 @@ function _parseNgayTheoVung_(str) {
  * utils.formatDate() xuất ra (KHÔNG theo Vùng Lãnh Thổ, khác
  * _parseNgayTheoVung_ ở trên) - dùng khi cần dựng lại Date object thật
  * từ 1 giá trị đã qua utils.formatDate() (vd payload.ngayHopDong lấy từ
- * getBulkReferenceData()/ngayKy). new Date("dd/MM/yyyy") của V8 hiểu
+ * getBulkReferenceData_()/ngayKy). new Date("dd/MM/yyyy") của V8 hiểu
  * nhầm thành mm/dd/yyyy - gây sai hoặc Invalid Date. */
 function _parseNgayVN_(str) {
   const p = String(str || "").trim().split('/');
@@ -2068,6 +2557,7 @@ function _parseNgayVN_(str) {
 }
 
 function showChonVungDialog() {
+  _yeuCauQuyen_(QUYEN.QUAN_TRI);
   const ui = SpreadsheetApp.getUi();
   const cur = _getRegion_();
   const options = Object.keys(REGION_PRESETS).map(k => `${k === cur ? "👉 " : "   "}${k}: ${REGION_PRESETS[k].label}`).join("\n");
@@ -2082,7 +2572,7 @@ function showChonVungDialog() {
   }
 }
 
-function getRegionInfoForWeb() {
+function getRegionInfoForWeb_() {
   return { current: _getRegion_(), presets: Object.keys(REGION_PRESETS).map(k => ({ code: k, label: REGION_PRESETS[k].label })) };
 }
 
@@ -2098,7 +2588,7 @@ function _suyRaVungTuLocale_(locale) {
   if (l.startsWith("en")) return "US";
   return null; // locale khác (vd fr, zh...) - không tự đoán, để người dùng tự chọn
 }
-function getSheetLocaleInfoForWeb() {
+function getSheetLocaleInfoForWeb_() {
   const result = {};
   try {
     const mainSs = getMainSs_();
@@ -2113,7 +2603,7 @@ function getSheetLocaleInfoForWeb() {
   return result;
 }
 
-function webSetRegion(region) {
+function webSetRegion_(region) {
   try {
     _setRegion_(region);
     return { success: true, message: `✅ Đã đổi sang vùng "${region}". Hãy bấm "Khóa Định Dạng TEXT/Ngày..." lại 1 lần để áp dụng.` };
@@ -2173,6 +2663,7 @@ function onChangeLamMoiCache(e) {
 }
 
 function showWebhookInfoDialog() {
+  _yeuCauQuyen_(QUYEN.QUAN_TRI);
   const ui = SpreadsheetApp.getUi();
   try {
     const webAppUrl = ScriptApp.getService().getUrl();
@@ -2198,7 +2689,7 @@ function showWebhookInfoDialog() {
 }
 
 /** #Web: tương tự showWebhookInfoDialog() nhưng trả JSON cho Web App hiển thị. */
-function getWebhookInfoForWeb() {
+function getWebhookInfoForWeb_() {
   try {
     const webAppUrl = ScriptApp.getService().getUrl();
     if (!webAppUrl) return { success: false, message: "⚠️ Chưa triển khai Web App (Deploy). Hãy Deploy Web App trước." };
@@ -2250,7 +2741,7 @@ function getDraftSheets_() {
 
 /** MỚI (mục AI): tự tạo sheet CFG.DRAFT_SRC_SHEET ("đơn xin" gốc, dành
  * riêng cho hồ sơ tạo qua Web App) nếu File Nháp được tạo từ bản trước
- * chưa có sheet này - không cần chạy lại setupDraftSpreadsheet(). */
+ * chưa có sheet này - không cần chạy lại setupDraftSpreadsheet_(). */
 function _ensureDraftSrcSheet_(ss) {
   let sh = ss.getSheetByName(CFG.DRAFT_SRC_SHEET);
   if (!sh) {
@@ -2267,7 +2758,7 @@ function _ensureDraftSrcSheet_(ss) {
 
 /** MỚI (mục U): tự vá thêm cột 24 "Trạng Thái ĐNTT" cho File Nháp đã
  * tạo từ bản trước (chỉ có 23 cột) - để không ai phải chạy lại
- * setupDraftSpreadsheet() hay tạo File Nháp mới khi cập nhật code. */
+ * setupDraftSpreadsheet_() hay tạo File Nháp mới khi cập nhật code. */
 function _ensureDraft112Schema_(sh112) {
   try {
     if (sh112.getLastColumn() < 24) {
@@ -2330,7 +2821,7 @@ function buildDraftCtRow_(idKey, stt, soP, srcInfo, pcMap) {
  * sheet chưa quá lớn hoặc KHÔNG có "Từ ngày" (xem toàn bộ lịch sử), vẫn
  * đọc bình thường (toàn bộ) để đảm bảo CHẮC CHẮN đúng.
  */
-function get112ViewData(fDate, tDate) {
+function get112ViewData_(fDate, tDate) {
   const sh = getMainSs_().getSheetByName(CFG.DNTT_112);
   if (!sh || sh.getLastRow() < 2) return [];
   const totalDataRows = sh.getLastRow() - 1;
@@ -2404,7 +2895,7 @@ function _docSheetToiUuTheoNgay_(sh, totalDataRows, numCols, fDate, colNgayIdx0B
   return allRowsNguocLai.reverse();
 }
 
-function getMainTableData(fDate, tDate) {
+function getMainTableData_(fDate, tDate) {
   const sh = getMainSs_().getSheetByName(CFG.DNTT_SRC);
   if (!sh || sh.getLastRow() < 2) return [];
   const data = sh.getRange(2, 1, sh.getLastRow() - 1, 18).getValues();
@@ -2434,7 +2925,7 @@ function getMainTableData(fDate, tDate) {
 // NÚT 6: TẠO BÁO CÁO & SHEET NGÂN HÀNG (giữ nguyên logic gốc - đọc từ
 // dữ liệu CHÍNH THỨC, tức chỉ gồm các hồ sơ ĐÃ CHỐT qua File Nháp)
 // ============================================================
-function createFinalReportFromFilteredData(filteredRows, dateRange) {
+function createFinalReportFromFilteredData_(filteredRows, dateRange) {
   try {
     const folder = DriveApp.getFolderById(getReportFolderId_());
     const fileName = "BÁO CÁO ĐNTT (" + dateRange + ") - " + Utilities.formatDate(new Date(), "GMT+7", "HHmm");
@@ -2445,16 +2936,16 @@ function createFinalReportFromFilteredData(filteredRows, dateRange) {
 
     const sheet1 = newSS.getSheets()[0];
     sheet1.setName("DeNghiThanhToanCK");
-    renderSheet1Full(sheet1, filteredRows, dateRange);
+    renderSheet1Full_(sheet1, filteredRows, dateRange);
 
     const sheet2 = newSS.insertSheet("BangKeChiTietCK");
-    renderSheet2Detail(sheet2, filteredRows, dateRange);
+    renderSheet2Detail_(sheet2, filteredRows, dateRange);
 
-    logAction("XUAT_BAO_CAO", dateRange, `Đã xuất báo cáo ${filteredRows.length} hồ sơ - ${newSS.getUrl()}`);
+    logAction_("XUAT_BAO_CAO", dateRange, `Đã xuất báo cáo ${filteredRows.length} hồ sơ - ${newSS.getUrl()}`);
 
     // SỬA (theo yêu cầu - tách "Báo Cáo Kết Xuất MISA" thành tab riêng):
     // KHÔNG còn tự động ghi Update_NganHang_DN kèm theo nữa - dùng nút
-    // "Tạo Lại MISA" riêng ở Hệ Thống (webTaoLaiMisaTheoNgay()).
+    // "Tạo Lại MISA" riêng ở Hệ Thống (webTaoLaiMisaTheoNgay_()).
     return {
       success: true,
       url: newSS.getUrl()
@@ -2467,7 +2958,7 @@ function createFinalReportFromFilteredData(filteredRows, dateRange) {
 // ============================================================
 // SHEET 1: TỐI ƯU GIAO DIỆN IN ẤN (giữ nguyên logic gốc)
 // ============================================================
-function renderSheet1Full(sheet, filteredRows, dateRange) {
+function renderSheet1Full_(sheet, filteredRows, dateRange) {
   sheet.clear();
   // SỬA (theo yêu cầu - file xuất ra cũng phải khóa, không chỉ Draft/bản
   // chính): "Số tài khoản" (cột 6) khóa TEXT thuần - dấu ' chỉ đảm bảo
@@ -2547,10 +3038,10 @@ function _getChiTietDnttSheet_() {
 }
 
 /** Gộp logic lấy Tên người thụ hưởng/Ngân hàng/STK: ưu tiên override (đã
- * có thể SỬA TAY khác mặc định hợp đồng - vd tt112 từ get112ViewData()
+ * có thể SỬA TAY khác mặc định hợp đồng - vd tt112 từ get112ViewData_()
  * hoặc parentInfo từ getSheet2DraftData()), chỉ rơi về mặc định HD_NCC
  * (hd[10]/hd[16]/hd[15]) khi không có override. Dùng chung cho
- * _xayChiTietDNTTRows_, _gomChiTietChuyenKhoan_, renderSheet2DetailFromDraft
+ * _xayChiTietDNTTRows_, _gomChiTietChuyenKhoan_, renderSheet2DetailFromDraft_
  * để tránh lệch quy tắc fallback giữa các nơi ghi ChiTietDNTT/MISA. */
 function _resolveNguoiNhanTien_(override, hd) {
   return {
@@ -2629,7 +3120,7 @@ function _ghiChiTietDNTT_N_(idHeThongList, ctRowsDaLoc, layLanTT, layThongTinNha
   } catch (e) {
     // Không chặn luồng chính "In Báo Cáo ĐNTT" nếu lỗi ghi ChiTietDNTT -
     // báo cáo Excel vẫn xuất bình thường, chỉ mất phần tăng tốc sau này.
-    logAction("LOI_GHI_CHITIET_DNTT", idHeThongList.join(","), "Lỗi khi ghi ChiTietDNTT lúc In Báo Cáo ĐNTT: " + e.toString());
+    logAction_("LOI_GHI_CHITIET_DNTT", idHeThongList.join(","), "Lỗi khi ghi ChiTietDNTT lúc In Báo Cáo ĐNTT: " + e.toString());
   }
 }
 
@@ -2660,7 +3151,7 @@ function _ghiChiTietDNTT_N_(idHeThongList, ctRowsDaLoc, layLanTT, layThongTinNha
  * còn thiếu SAU lượt này) để trình duyệt tự động gọi lại cho tới khi
  * hết, không cần bạn tự bấm nút nhiều lần.
  */
-function dongBoChiTietDNTTTuDauLichSu(gioiHanMoiLan) {
+function dongBoChiTietDNTTTuDauLichSu_(gioiHanMoiLan) {
   let lock;
   try {
     lock = sysLock.acquire();
@@ -2725,7 +3216,7 @@ function dongBoChiTietDNTTTuDauLichSu(gioiHanMoiLan) {
     const startRow = sh.getLastRow() + 1;
     sh.getRange(startRow, 1, rowsMoi.length, CHITIET_DNTT_HEADERS.length).setValues(rowsMoi);
 
-    logAction("DONG_BO_CHITIET_DNTT_LICH_SU", "-", `Đồng bộ lịch sử ChiTietDNTT: đã bổ sung ${rowsMoi.length} dòng từ CT thật (còn lại ${conLaiSauLoNay} dòng).`);
+    logAction_("DONG_BO_CHITIET_DNTT_LICH_SU", "-", `Đồng bộ lịch sử ChiTietDNTT: đã bổ sung ${rowsMoi.length} dòng từ CT thật (còn lại ${conLaiSauLoNay} dòng).`);
     const xong = conLaiSauLoNay === 0;
     return {
       success: true,
@@ -2751,7 +3242,7 @@ function _chuyenChiTietDNTTSangYVaTinhBu_(validIds, ctToCommit, mapSoLan, mapNha
 
   // SỬA LỖI NGHIÊM TRỌNG (rà soát phát hiện): dòng N ghi lúc "In Báo
   // Cáo ĐNTT" luôn có "Ngày CK" (cột D) RỖNG - tại thời điểm đó Draft CT
-  // (row[20]) CHƯA được set (chỉ set ở runConfirmPayment ngay phía
+  // (row[20]) CHƯA được set (chỉ set ở runConfirmPayment_ ngay phía
   // trên). Nếu chỉ đổi N -> Y mà không bù lại "Ngày CK" thật, mọi hồ sơ
   // đi qua luồng chuẩn (In Báo Cáo ĐNTT rồi mới Đóng Thanh Toán) sẽ có
   // ChiTietDNTT/MISA bị TRỐNG NGÀY CHỨNG TỪ VĨNH VIỄN - biến mất khỏi
@@ -2870,7 +3361,7 @@ function _donDep3BangConKhiMoDong_(idCha, soPhieuCanLienQuan) {
       }, "MO_DONG_THANH_TOAN");
     }
   } catch (e) {
-    logAction("LOI_DON_DEP_MISA_KHI_MO_DONG", idCha, "Lỗi khi dọn Update_NganHang_DN lúc Mở Đóng Thanh Toán: " + e.toString());
+    logAction_("LOI_DON_DEP_MISA_KHI_MO_DONG", idCha, "Lỗi khi dọn Update_NganHang_DN lúc Mở Đóng Thanh Toán: " + e.toString());
   }
 
   return { chiTietDnttXoa, chiTietUncXoa, misaXoa };
@@ -2898,11 +3389,11 @@ function _laySoPhieuCanDaCoTrongMisa_(shUpdateNH) {
  * khi xong, tránh timeout với khoảng ngày rộng/nhiều hồ sơ. Dùng lại
  * ĐÚNG logic _gomChiTietChuyenKhoan_() + loại trùng đã có.
  */
-function webTaoLaiMisaTheoNgay(fDate, tDate, offset, gioiHanMoiLan) {
+function webTaoLaiMisaTheoNgay_(fDate, tDate, offset, gioiHanMoiLan) {
   try {
     const GIOI_HAN = Math.max(20, Math.min(300, parseInt(gioiHanMoiLan, 10) || 150));
     offset = parseInt(offset, 10) || 0;
-    const dsHoSo = get112ViewData(fDate, tDate);
+    const dsHoSo = get112ViewData_(fDate, tDate);
     if (!dsHoSo.length) return { success: true, message: "⚠️ Không có hồ sơ nào đã chốt trong khoảng ngày đã chọn.", count: 0, conLai: 0, xong: true };
     const loNay = dsHoSo.slice(offset, offset + GIOI_HAN);
     if (loNay.length === 0) return { success: true, message: `✅ HOÀN TẤT - đã xử lý toàn bộ ${dsHoSo.length} hồ sơ.`, count: 0, conLai: 0, xong: true };
@@ -2949,7 +3440,7 @@ function webTaoLaiMisaTheoNgay(fDate, tDate, offset, gioiHanMoiLan) {
     const conLai = Math.max(0, dsHoSo.length - offsetMoi);
     const xong = conLai === 0;
     const soTrung = tempRows.length - tempRowsChuaCo.length;
-    logAction("TAO_LAI_MISA_THEO_NGAY", "-", `Tạo lại MISA theo ngày (${fDate} - ${tDate}): lô offset ${offset}, ghi ${tempRowsChuaCo.length} dòng, bỏ qua ${soTrung} dòng trùng.`);
+    logAction_("TAO_LAI_MISA_THEO_NGAY", "-", `Tạo lại MISA theo ngày (${fDate} - ${tDate}): lô offset ${offset}, ghi ${tempRowsChuaCo.length} dòng, bỏ qua ${soTrung} dòng trùng.`);
     return {
       success: true,
       message: xong
@@ -2968,17 +3459,17 @@ function webTaoLaiMisaTheoNgay(fDate, tDate, offset, gioiHanMoiLan) {
  * (không gộp lại thành 1 file duy nhất) - với khoảng ngày rộng, có thể
  * ra NHIỀU file, mỗi file ứng với 1 lô tối đa 150 hồ sơ.
  */
-function webTaoLaiUNCTheoNgay(fDate, tDate, ngayHieuLuc, offset, gioiHanMoiLan, tkTrichNoOverride, tkThuPhiOverride) {
+function webTaoLaiUNCTheoNgay_(fDate, tDate, ngayHieuLuc, offset, gioiHanMoiLan, tkTrichNoOverride, tkThuPhiOverride) {
   try {
     const GIOI_HAN = Math.max(20, Math.min(300, parseInt(gioiHanMoiLan, 10) || 150));
     offset = parseInt(offset, 10) || 0;
-    const dsHoSo = get112ViewData(fDate, tDate);
+    const dsHoSo = get112ViewData_(fDate, tDate);
     if (!dsHoSo.length) return { success: true, message: "⚠️ Không có hồ sơ nào đã chốt trong khoảng ngày đã chọn.", count: 0, conLai: 0, xong: true };
     const loNay = dsHoSo.slice(offset, offset + GIOI_HAN);
     if (loNay.length === 0) return { success: true, message: `✅ HOÀN TẤT - đã xử lý toàn bộ ${dsHoSo.length} hồ sơ.`, count: 0, conLai: 0, xong: true };
 
     const toDate = String(ngayHieuLuc || "").trim() || Utilities.formatDate(new Date(), "GMT+7", "yyyy-MM-dd");
-    const ketQua = runCreateUNCOnly(loNay, toDate, tkTrichNoOverride, tkThuPhiOverride);
+    const ketQua = runCreateUNCOnly_(loNay, toDate, tkTrichNoOverride, tkThuPhiOverride);
     if (!ketQua.success) return ketQua;
 
     const offsetMoi = offset + loNay.length;
@@ -3036,12 +3527,12 @@ function _tuDongXuatMisaKhiDong_(rowsChiTietY) {
     shUpdateNH.getRange(startRow, 1, bankRows.length, 33).setValues(bankRows);
     _lockTextCols_(shUpdateNH, [3, 4, 5, 6, 10, 13, 16, 33], startRow + bankRows.length + 5);
     if (rowsChiTietY.length > rowsChuaCo.length) {
-      logAction("MISA_BO_QUA_TRUNG", "-", `Tự động ghi MISA: bỏ qua ${rowsChiTietY.length - rowsChuaCo.length} dòng đã có sẵn Số phiếu cân trùng trong Update_NganHang_DN.`);
+      logAction_("MISA_BO_QUA_TRUNG", "-", `Tự động ghi MISA: bỏ qua ${rowsChiTietY.length - rowsChuaCo.length} dòng đã có sẵn Số phiếu cân trùng trong Update_NganHang_DN.`);
     }
   } catch (e) {
     // Không chặn luồng chính "Đóng Thanh Toán" nếu lỗi tự động ghi MISA -
     // ghi log để biết và có thể xử lý tay (Xuất MISA thủ công vẫn dùng được).
-    logAction("LOI_TU_DONG_MISA", "-", "Lỗi khi tự động ghi MISA lúc Đóng Thanh Toán: " + e.toString());
+    logAction_("LOI_TU_DONG_MISA", "-", "Lỗi khi tự động ghi MISA lúc Đóng Thanh Toán: " + e.toString());
   }
 }
 
@@ -3076,7 +3567,7 @@ function _gomChiTietChuyenKhoan_(filteredRows) {
       // "Ngân hàng"/"Số tài khoản" LUÔN lấy mặc định hợp đồng (hd[10]/
       // hd[16]/hd[15]) - nếu hồ sơ có sửa tay người nhận/STK/ngân hàng
       // khác mặc định (nút "Sửa" ở Draft 112), UNC (tiền chuyển thật)
-      // dùng đúng giá trị đã sửa (parentInfo, lấy từ get112ViewData()),
+      // dùng đúng giá trị đã sửa (parentInfo, lấy từ get112ViewData_()),
       // nhưng báo cáo/MISA ở đây lại ghi theo mặc định hợp đồng - lệch
       // với tiền đã chuyển thật. Ưu tiên parentInfo (đã có thể sửa tay),
       // chỉ rơi về mặc định HD_NCC khi không có parentInfo.
@@ -3101,7 +3592,7 @@ function _gomChiTietChuyenKhoan_(filteredRows) {
  * "Update_NganHang_DN" (file kết xuất MISA/ngân hàng) - dùng cho tab
  * "Báo Cáo Kết Xuất MISA" riêng biệt, KHÔNG còn kèm theo mỗi lần Xuất
  * Báo Cáo Thanh Toán Gỗ Keo nữa. */
-function renderSheet2Detail(sheet, filteredRows, dateRange) {
+function renderSheet2Detail_(sheet, filteredRows, dateRange) {
   const tempRows = _gomChiTietChuyenKhoan_(filteredRows);
 
   sheet.clear();
@@ -3135,22 +3626,22 @@ function renderSheet2Detail(sheet, filteredRows, dateRange) {
   }
   // SỬA (theo yêu cầu - tách riêng "Báo Cáo Kết Xuất MISA" thành tab
   // riêng): KHÔNG còn tự động ghi vào "Update_NganHang_DN" ở đây nữa -
-  // xem hàm webTaoLaiMisaTheoNgay() riêng, gọi từ Hệ Thống.
+  // xem hàm webTaoLaiMisaTheoNgay_() riêng, gọi từ Hệ Thống.
 }
 
 /**
- * MỚI (theo yêu cầu): tương tự renderSheet2Detail() nhưng đọc CT từ
+ * MỚI (theo yêu cầu): tương tự renderSheet2Detail_() nhưng đọc CT từ
  * DRAFT (chưa chốt) thay vì CT thật - dùng cho "In Báo Cáo ĐNTT" ở
  * trạng thái "Đang ĐNTT" (chưa Duyệt/Đóng Thanh Toán). KHÔNG ghi vào
  * "Update_NganHang_DN" (file đó chỉ dành cho hồ sơ đã CHỐT THẬT, tránh
  * lẫn dữ liệu chưa được duyệt vào file thanh toán ngân hàng thật).
  */
-function renderSheet2DetailFromDraft(sheet, filteredRows, dateRange) {
+function renderSheet2DetailFromDraft_(sheet, filteredRows, dateRange) {
   const idSet = new Set(filteredRows.map(r => r.idHeThong));
   const { shCT: shDraftCT } = getDraftSheets_();
   const ctData = shDraftCT.getDataRange().getValues();
 
-  // SỬA (tối ưu tốc độ - cùng lý do như renderSheet2Detail()): dùng
+  // SỬA (tối ưu tốc độ - cùng lý do như renderSheet2Detail_()): dùng
   // cache chung thay vì đọc trực tiếp không cache mỗi lần xuất.
   const pcDataNoHeader = _pcData_();
   const hdDataNoHeader = _hdNccFullData_();
@@ -3160,7 +3651,7 @@ function renderSheet2DetailFromDraft(sheet, filteredRows, dateRange) {
 
   sheet.clear();
   // SỬA (theo yêu cầu - file xuất ra cũng phải khóa): giống hệt
-  // renderSheet2Detail() - Số phiếu cân(3), Số hợp đồng(7), CCCD Chủ
+  // renderSheet2Detail_() - Số phiếu cân(3), Số hợp đồng(7), CCCD Chủ
   // rừng(10), CCCD Người thụ hưởng(12), Số tài khoản(25).
   _lockTextCols_(sheet, [3, 4, 5, 7, 10, 12, 25], filteredRows.length + 5); // SỬA (tối ưu tốc độ): dùng đúng số dòng thực tế thay vì mặc định 2000
   sheet.getRange("A1:Z1").merge().setValue("BẢNG KÊ CHI TIẾT CHUYỂN KHOẢN (CHỜ DUYỆT - CHƯA CHỐT)").setFontSize(16).setFontWeight("bold").setHorizontalAlignment("center");
@@ -3179,7 +3670,7 @@ function renderSheet2DetailFromDraft(sheet, filteredRows, dateRange) {
       let parentInfo = filteredRows.find(f => f.idHeThong === parentId);
       // SỬA LỖI (rà soát phát hiện - đồng bộ với _gomChiTietChuyenKhoan_()):
       // ưu tiên người nhận/ngân hàng/STK đã có thể SỬA TAY (parentInfo,
-      // từ get112ViewData()/rows) thay vì luôn lấy mặc định hợp đồng -
+      // từ get112ViewData_()/rows) thay vì luôn lấy mặc định hợp đồng -
       // báo cáo in ra phải khớp đúng với hồ sơ đang chờ duyệt.
       const { tenThuHuong, nganHangThat, stkThat } = _resolveNguoiNhanTien_(parentInfo, hd);
 
@@ -3217,7 +3708,7 @@ function renderSheet2DetailFromDraft(sheet, filteredRows, dateRange) {
  * xong) - BẮT BUỘC cho runFillMissingBankOnly (vá dữ liệu LỊCH SỬ, có
  * thể thuộc hợp đồng đã "Đã Thanh lý"). Mặc định (false) dùng mirror đã
  * lọc "Đang Thực Hiện" - nhanh hơn, đủ dùng cho luồng "Tạo Mới". */
-function buildBankLookupFromHDSTK(useFull) {
+function buildBankLookupFromHDSTK_(useFull) {
   const map = new Map();
   try {
     // SỬA GẤP: dùng ĐÚNG bộ cột tương ứng với nguồn dữ liệu - dữ liệu
@@ -3244,7 +3735,7 @@ function buildBankLookupFromHDSTK(useFull) {
 // rồi XÓA phần vừa chốt khỏi Nháp. Chỉ chốt được hồ sơ đã đủ điều kiện
 // (đã có Số tiền > 0 trong Draft 112, tức đã chạy xong "Tổng Hợp 112").
 // ============================================================
-function runConfirmPayment(selectedIds, payDateStr) {
+function runConfirmPayment_(selectedIds, payDateStr) {
   let lock;
   try {
     lock = sysLock.acquire();
@@ -3252,7 +3743,7 @@ function runConfirmPayment(selectedIds, payDateStr) {
     const shSrc = ss.getSheetByName(CFG.DNTT_SRC); // bản CHÍNH - chỉ ghi vào đây lúc Đóng Thanh Toán
     const shCTReal = ss.getSheetByName(CFG.DNTT_CT);
     const sh112Real = ss.getSheetByName(CFG.DNTT_112);
-    const shPC = openExternalSheet(CFG.PC_SS_ID, CFG.PC_SHEET, "Phiếu Cân");
+    const shPC = openExternalSheet_(CFG.PC_SS_ID, CFG.PC_SHEET, "Phiếu Cân");
     const { shCT: shDraftCT, sh112: shDraft112, shSrc: shDraftSrc } = getDraftSheets_();
 
     if (!Array.isArray(selectedIds) || selectedIds.length === 0) {
@@ -3276,7 +3767,7 @@ function runConfirmPayment(selectedIds, payDateStr) {
     // "dd/mm/yyyy" (kiểu Việt Nam) bị hiểu SAI ngày/tháng, hoặc bị lưu
     // thành TEXT không đồng nhất giữa các dòng. Giờ dùng Date OBJECT
     // THẬT - Google Sheets sẽ luôn hiển thị đúng theo định dạng cột đã
-    // khóa (xem khoaDinhDangTextTatCa()), không còn phụ thuộc cách hiểu
+    // khóa (xem khoaDinhDangTextTatCa_()), không còn phụ thuộc cách hiểu
     // chuỗi mơ hồ nữa.
     // SỬA THÊM (theo yêu cầu làm rõ): new Date(y, m, d) sẽ hiểu y/m/d
     // theo múi giờ CỦA PROJECT (Project Settings > Time zone) - nếu
@@ -3394,7 +3885,7 @@ function runConfirmPayment(selectedIds, payDateStr) {
       const rowsChiTietY = _chuyenChiTietDNTTSangYVaTinhBu_(validIds, ctToCommit, mapSoLan, mapNhanTien112);
       _tuDongXuatMisaKhiDong_(rowsChiTietY);
     } catch (e) {
-      logAction("LOI_CHITIET_DNTT_LUC_CHOT", validIds.join(","), "Lỗi khi xử lý ChiTietDNTT/MISA tự động lúc Đóng Thanh Toán: " + e.toString());
+      logAction_("LOI_CHITIET_DNTT_LUC_CHOT", validIds.join(","), "Lỗi khi xử lý ChiTietDNTT/MISA tự động lúc Đóng Thanh Toán: " + e.toString());
     }
 
     // 5. COPY "ĐƠN XIN" TỪ DRAFT SANG BẢN CHÍNH (mục AI) - trước đây các
@@ -3474,7 +3965,7 @@ function runConfirmPayment(selectedIds, payDateStr) {
     if (skippedNotCalculated.length) msg += ` ⚠️ Chưa chạy Tổng Hợp 112 (bỏ qua): ${skippedNotCalculated.join(", ")}.`;
     if (skippedNotConfirmed.length) msg += ` ⚠️ Chưa "Xác Nhận" ĐNTT (bỏ qua): ${skippedNotConfirmed.join(", ")}.`;
 
-    logAction("CHOT_THANH_TOAN", validIds.join(","), `Chốt ${validIds.length} hồ sơ từ File Nháp, ngày TT ${dateForSheetStr}.`);
+    logAction_("CHOT_THANH_TOAN", validIds.join(","), `Chốt ${validIds.length} hồ sơ từ File Nháp, ngày TT ${dateForSheetStr}.`);
     _invalidateCtSrc112Cache_(); // MỚI (rà soát bổ sung): CT/Src/112 thật vừa thay đổi - xóa cache để lần đọc tiếp theo (gợi ý, chẩn đoán) thấy dữ liệu mới ngay
     _invalidateCongNoCache_(); // MỚI (rà soát bổ sung): buộc Báo Cáo Công Nợ tính lại, tránh hiện snapshot cũ
     // MỚI (rà soát phát hiện - "báo cáo công nợ ok chưa"): làm mới NGAY
@@ -3492,7 +3983,7 @@ function runConfirmPayment(selectedIds, payDateStr) {
     } catch (e) { /* không chặn luồng chính nếu làm mới báo cáo công nợ lỗi */ }
     return msg;
   } catch (e) {
-    logAction("LOI_CHOT_THANH_TOAN", Array.isArray(selectedIds) ? selectedIds.join(",") : "-", e.toString());
+    logAction_("LOI_CHOT_THANH_TOAN", Array.isArray(selectedIds) ? selectedIds.join(",") : "-", e.toString());
     return "❌ Lỗi: " + e.toString() + " - Có thể bấm Duyệt lại cho CÙNG các hồ sơ này: hệ thống tự bỏ qua phần đã ghi, không tạo dữ liệu trùng.";
   } finally { if (lock) lock.releaseLock(); }
 }
@@ -3504,6 +3995,7 @@ function runConfirmPayment(selectedIds, payDateStr) {
  * CT (tránh tạo trùng / đè lên dòng đã sửa tay trong Nháp).
  */
 function runProcessDetail() {
+  _yeuCauQuyen_(QUYEN.NGHIEP_VU);
   let lock;
   try {
     lock = sysLock.acquire();
@@ -3593,7 +4085,7 @@ function runProcessDetail() {
       let logDetail = `Đã đưa ${countNewIds} hồ sơ (${newDraftRows.length} dòng chi tiết) vào File Nháp.`;
       if (countSkippedEmptyPC > 0) logDetail += ` Bỏ qua ${countSkippedEmptyPC} hồ sơ thiếu Số phiếu cân.`;
       if (countSkippedHeld > 0) logDetail += ` Bỏ qua ${countSkippedHeld} phiếu cân đang bị giữ bởi hồ sơ Nháp khác.`;
-      logAction("TACH_PHIEU_NHAP", "-", logDetail);
+      logAction_("TACH_PHIEU_NHAP", "-", logDetail);
 
       let msg = `✅ Đã đưa ${countNewIds} hồ sơ (${newDraftRows.length} dòng) vào File Nháp để kiểm tra/chỉnh sửa trước khi Tổng Hợp 112.`;
       if (countSkippedEmptyPC > 0) msg += ` ⚠️ Bỏ qua ${countSkippedEmptyPC} hồ sơ thiếu "Số phiếu cân" (ID: ${skippedIds.join(", ")}${countSkippedEmptyPC > skippedIds.length ? "..." : ""}).`;
@@ -3617,6 +4109,7 @@ function runProcessDetail() {
  * Không đụng đến dữ liệu chính thức hay khóa Phiếu Cân.
  */
 function runCreate112() {
+  _yeuCauQuyen_(QUYEN.NGHIEP_VU);
   let lock;
   try {
     lock = sysLock.acquire();
@@ -3671,14 +4164,14 @@ function runCreate112() {
     realCTRows.forEach(addToGroup);
     draftCTRows.forEach(addToGroup);
 
-    const bankMap = buildBankLookupFromHDSTK();
+    const bankMap = buildBankLookupFromHDSTK_();
 
     // Tự tạo Draft 112 placeholder cho các ID_KEY có trong Draft CT
     // nhưng chưa có dòng 112 tương ứng (vd vừa "Tách Phiếu" xong)
     Object.keys(ctGroupedById).forEach(id => {
       if (draft112MapIdx.has(id)) return;
       const first = ctGroupedById[id][0];
-      const session = getSessionInfo();
+      const session = getSessionInfo_();
       const newRow = new Array(24).fill(""); // mục U: +1 cột "Trạng Thái ĐNTT" (mặc định rỗng = Chờ ĐNTT)
       newRow[0] = id;
       newRow[1] = first[2];
@@ -3773,7 +4266,7 @@ function runCreate112() {
     if (count > 0) parts.push(`Đã tính toán/cập nhật ${count} hồ sơ trong File Nháp`);
     if (filledBankCount > 0) parts.push(`tự động điền Ngân hàng cho ${filledBankCount} hồ sơ`);
     const detailMsg = (parts.join(", ") || "Không có gì thay đổi") + ".";
-    logAction("TONG_HOP_112_NHAP", "-", detailMsg);
+    logAction_("TONG_HOP_112_NHAP", "-", detailMsg);
     return "✅ " + detailMsg + " Vào File Nháp để kiểm tra/chỉnh sửa trước khi Chốt Thanh Toán.";
   } catch (e) {
     return "❌ Lỗi: " + e.toString();
@@ -3783,7 +4276,7 @@ function runCreate112() {
 // ============================================================
 // TÍNH LẦN THANH TOÁN + NGÀY DỰ KIẾN THEO KHUNG GIỜ
 // ============================================================
-function getSessionInfo() {
+function getSessionInfo_() {
   const now = new Date();
   const fallback = () => {
     const ngayDuKien = new Date(now);
@@ -3811,76 +4304,6 @@ function getSessionInfo() {
     return fallback();
   } catch (e) {
     return fallback();
-  }
-}
-
-// ============================================================
-// TÌM SỐ PHIẾU CÂN CÒN KHẢ DỤNG
-// SỬA (mục J): loại thêm các Số phiếu cân đang bị "giữ tạm" bởi 1 hồ sơ
-// NHÁP khác (đang có mặt trong Draft CT).
-// ============================================================
-function findAvailablePhieuCan(query) {
-  // SỬA (mục P - tối ưu tốc độ): đọc từ cache "chưa thanh toán" (nhỏ,
-  // nhanh) thay vì quét toàn bộ PhieuCan_DN thật.
-  const data = _pcUnpaidData_();
-  const q = utils.standardize(query);
-
-  const heldByDraft = new Set();
-  try {
-    const { shCT } = getDraftSheets_();
-    const lastRow = shCT.getLastRow();
-    if (lastRow > 1) {
-      shCT.getRange(2, 12, lastRow - 1, 1).getValues().forEach(r => {
-        const key = utils.standardize(r[0]);
-        if (key) heldByDraft.add(key);
-      });
-    }
-  } catch (e) {
-    // Chưa thiết lập File Nháp -> bỏ qua bước lọc này
-  }
-
-  const results = [];
-  for (let i = 0; i < data.length && results.length < 25; i++) {
-    const r = data[i];
-    const soP = String(r[22] || "").trim();
-    if (!soP) continue;
-    const trangThai = String(r[26] || "").trim();
-    const daKhoa = String(r[27] || "").trim().toUpperCase();
-    if (trangThai || daKhoa === "Y" || daKhoa === "N") continue; // đã dùng cho hồ sơ CHÍNH THỨC khác
-    if (heldByDraft.has(utils.standardize(soP))) continue; // đang bị giữ tạm bởi hồ sơ NHÁP khác
-    if (q && !utils.standardize(soP).includes(q)) continue;
-    results.push({
-      soPhieuCan: soP,
-      ngayNhap: utils.formatDate(r[1]),
-      soXe: String(r[5] || ""),
-      klKg: utils.parseNum(r[9])
-    });
-  }
-  return results;
-}
-
-// ============================================================
-// TRA CỨU THÔNG TIN HỢP ĐỒNG ĐỂ TỰ ĐIỀN FORM
-// ============================================================
-function getContractInfo(soHopDong) {
-  if (!soHopDong) return null;
-  try {
-    const key = utils.standardize(soHopDong);
-    // mục Z: tra cứu theo đúng 1 Số HĐ - có thể là hợp đồng đã xong, nên
-    // dùng dữ liệu ĐẦY ĐỦ (không lọc "Đang Thực Hiện") để không bị "Không
-    // tìm thấy" oan.
-    const row = _hdNccFullData_().find(r => !utils.isBlank(r[2]) && utils.standardize(r[2]) === key);
-    if (!row) return null;
-    return {
-      soHopDong: String(row[2] || ""),
-      cccdChuRung: String(row[6] || ""),
-      nguoiThuHuong: String(row[10] || ""),
-      cccdThuHuong: String(row[11] || ""),
-      soTaiKhoan: String(row[15] || ""),
-      nganHang: String(row[16] || "")
-    };
-  } catch (e) {
-    return null;
   }
 }
 
@@ -4095,7 +4518,7 @@ function getHdStkCacheSheet_() {
 const HD_TRANG_THAI_DANG_THUC_HIEN = utils.standardize("Đang Thực Hiện");
 
 function refreshHdNccCache_() {
-  const shSrc = openExternalSheet(CFG.HD_SS_ID, "HD_NCC", "Hợp Đồng NCC");
+  const shSrc = openExternalSheet_(CFG.HD_SS_ID, "HD_NCC", "Hợp Đồng NCC");
   const lastRow = shSrc.getLastRow();
   const lastColSrc = shSrc.getLastColumn();
   // Đọc TOÀN BỘ 1 lần (1 lượt gọi API duy nhất, rẻ hơn nhiều lần gọi rời
@@ -4128,7 +4551,7 @@ function refreshHdNccCache_() {
  * "Đang Thực Hiện" (activeSoHDSet lấy từ refreshHdNccCache_() - nếu
  * không truyền vào, tự tính lại từ mirror HD_NCC hiện có). */
 function refreshHdStkCache_(activeSoHDSet) {
-  const shSrc = openExternalSheet(CFG.HD_SS_ID, CFG.HD_STK_SHEET, "Hợp Đồng NCC (HD_STK)");
+  const shSrc = openExternalSheet_(CFG.HD_SS_ID, CFG.HD_STK_SHEET, "Hợp Đồng NCC (HD_STK)");
   const lastRow = shSrc.getLastRow();
   const lastColSrc = shSrc.getLastColumn();
   const allRaw = lastRow > 1 ? shSrc.getRange(2, 1, lastRow - 1, lastColSrc).getValues() : [];
@@ -4177,7 +4600,7 @@ function _hdStkData_() {
 // ------------------------------------------------------------
 // _hdNccData_()/_hdStkData_() ở trên giờ CHỈ còn hợp đồng "Đang Thực
 // Hiện" (để luồng "Tạo Mới" nhanh) - nhưng Công Nợ/Báo Cáo
-// (getDebtByContract) và các thao tác vá dữ liệu LỊCH SỬ
+// (getDebtByContract_) và các thao tác vá dữ liệu LỊCH SỬ
 // (runFillMissingBankOnly) BẮT BUỘC cần TOÀN BỘ hợp đồng, kể cả "Đã
 // Thanh lý"/"Đã Hủy" - nếu không sẽ MẤT hợp đồng đã xong khỏi báo cáo.
 // 2 hàm dưới đây đọc TRỰC TIẾP từ file ngoài (không qua mirror) - CHẤP
@@ -4190,7 +4613,7 @@ function _hdStkData_() {
  * Toán, Đối Soát, Bảo Trì) - mỗi nơi tự đọc lại từ đầu dù dữ liệu y hệt
  * vừa đọc vài giây trước. Thêm cache DÙNG CHUNG (90 giây) CHỈ áp dụng
  * cho các chỗ THUẦN ĐỌC/TÌM KIẾM (gợi ý, chẩn đoán) - các hàm THỰC THI
- * xóa/sửa dữ liệu (webMoDongThanhToanTheoHoSo, webDongBoTenKhachHang...) vẫn
+ * xóa/sửa dữ liệu (webMoDongThanhToanTheoHoSo_, webDongBoTenKhachHang_...) vẫn
  * đọc TRỰC TIẾP KHÔNG QUA CACHE như cũ, đảm bảo luôn thao tác trên dữ
  * liệu MỚI NHẤT, không bị lệch do cache.
  */
@@ -4232,14 +4655,14 @@ function _invalidateCtSrc112Cache_() {
 
 function _hdNccFullData_() {
   return _getCachedRefData_("hdncc_full_data_v1", () => {
-    const sh = openExternalSheet(CFG.HD_SS_ID, "HD_NCC", "Hợp Đồng NCC");
+    const sh = openExternalSheet_(CFG.HD_SS_ID, "HD_NCC", "Hợp Đồng NCC");
     const lr = sh.getLastRow();
     return lr > 1 ? sh.getRange(2, 1, lr - 1, sh.getLastColumn()).getValues() : [];
   });
 }
 function _hdStkFullData_() {
   return _getCachedRefData_("hdstk_full_data_v1", () => {
-    const sh = openExternalSheet(CFG.HD_SS_ID, CFG.HD_STK_SHEET, "Hợp Đồng NCC (HD_STK)");
+    const sh = openExternalSheet_(CFG.HD_SS_ID, CFG.HD_STK_SHEET, "Hợp Đồng NCC (HD_STK)");
     const lr = sh.getLastRow();
     return lr > 1 ? sh.getRange(2, 1, lr - 1, sh.getLastColumn()).getValues() : [];
   });
@@ -4252,7 +4675,7 @@ function refreshAllDraftCaches_() {
   const pc = refreshPhieuCanUnpaidCache_();
   const hdNccRes = refreshHdNccCache_();
   const hdStkRes = refreshHdStkCache_(hdNccRes.activeSoHDSet);
-  logAction("REFRESH_ALL_CACHE", "-",
+  logAction_("REFRESH_ALL_CACHE", "-",
     `PC chưa TT: ${pc} · HD_NCC: ${hdNccRes.count}/${hdNccRes.total} (Đang Thực Hiện) · HD_STK: ${hdStkRes.count}/${hdStkRes.total}.`);
   return { pc, hdNcc: hdNccRes.count, hdNccTotal: hdNccRes.total, hdStk: hdStkRes.count, hdStkTotal: hdStkRes.total };
 }
@@ -4260,7 +4683,7 @@ function refreshAllDraftCaches_() {
 
 /**
  * MỚI (mục AA/AB): hàm chạy nền DUY NHẤT theo lịch cố định 7:30 sáng &
- * 13:00 chiều hàng ngày (setupPcCacheAutoRefreshTrigger()) - làm mới
+ * 13:00 chiều hàng ngày (setupPcCacheAutoRefreshTrigger_()) - làm mới
  * TẤT CẢ: cache Phiếu Cân/HD_NCC/HD_STK (mục Y), tiến độ hợp đồng (mục
  * AA), và snapshot Công Nợ theo khoảng mặc định 3 tháng (mục AB).
  */
@@ -4269,7 +4692,7 @@ function refreshAllDraftCaches_() {
 // THEO NGUỒN GỐC / ĐẠI LÝ
 // ------------------------------------------------------------
 // Lưu dạng DÀI (mỗi dòng = 1 ngày + 1 hạng mục) vào CFG.DRAFT_PHANTICH_SHEET.
-// Khi xuất báo cáo (getPhanTichNhapTTReport/exportPhanTichNhapTTExcel),
+// Khi xuất báo cáo (getPhanTichNhapTTReport_/exportPhanTichNhapTTExcel),
 // dữ liệu được PIVOT thành bảng (ngày làm dòng, NG/ĐL làm cột) - dễ bảo
 // trì hơn nhiều so với tự phình cột trong sheet mỗi khi có NG/ĐL mới.
 // ============================================================
@@ -4464,7 +4887,7 @@ function _refreshPhanTichNhapTTChoDanhSachNgayNoLock_(ngayList) {
 
 /** Đọc + PIVOT dữ liệu đã tổng hợp trong khoảng [fDate,tDate] thành 4
  * bảng: Nhập theo NG, Nhập theo ĐL, Thanh Toán theo NG, Thanh Toán theo ĐL. */
-function getPhanTichNhapTTReport(fDate, tDate) {
+function getPhanTichNhapTTReport_(fDate, tDate) {
   const sh = getPhanTichCacheSheet_();
   let lastRow = sh.getLastRow();
   let all = lastRow > 1 ? sh.getRange(2, 1, lastRow - 1, PHANTICH_HEADERS.length).getValues() : [];
@@ -4553,7 +4976,7 @@ function _formatGioCan_(v) {
   return v ? String(v) : "";
 }
 
-function getChiTietCongNoPhieuCan(ngayStr) {
+function getChiTietCongNoPhieuCan_(ngayStr) {
   const ngayMoc = new Date(ngayStr + "T00:00:00");
   const rows = [];
   const dmNgMap = _getDmNgMap_(); // SỬA (tối ưu): tra DM_NG 1 LẦN, không tra lại từng dòng trong vòng lặp bên dưới
@@ -4645,12 +5068,12 @@ function _ctcnNgayGioToStr_(v, kieu) {
 
 /** Tính + lưu snapshot cho ĐÚNG 1 ngày (dùng cho Trigger 15h). SỬA (tối
  * ưu): nhận thêm precomputedRows (tùy chọn) để không phải tính lại nếu
- * nơi gọi (getChiTietCongNoPhieuCanWeb) đã tính rồi. */
+ * nơi gọi (getChiTietCongNoPhieuCanWeb_) đã tính rồi. */
 function refreshChiTietCongNoPhieuCanChoNgay_(ngayStr, precomputedRows) {
   let lock;
   try {
     lock = sysLock.acquire();
-    const rows = precomputedRows || getChiTietCongNoPhieuCan(ngayStr);
+    const rows = precomputedRows || getChiTietCongNoPhieuCan_(ngayStr);
     const sh = getChiTietCongNoCacheSheet_();
     // SỬA LỖI: dùng clearContents() thay vì clear() - clear() xóa luôn cả
     // ĐỊNH DẠNG cột (kể cả định dạng TEXT thuần vừa khóa ở
@@ -4699,14 +5122,14 @@ function _applyCtcnFilters_(rows, filters) {
 /** #Web: đọc snapshot nếu ĐÚNG ngày đã làm mới (15h) - nhanh; ngược lại
  * tính trực tiếp NGAY (đúng yêu cầu "chọn ngày khác tự tải lại và
  * tính"), đồng thời tự cập nhật snapshot cho ngày đó luôn cho lần sau. */
-function getChiTietCongNoPhieuCanWeb(ngayStr, filters) {
+function getChiTietCongNoPhieuCanWeb_(ngayStr, filters) {
   const snapDate = PropertiesService.getScriptProperties().getProperty('CTCN_SNAPSHOT_DATE') || '';
   let rows;
   if (ngayStr === snapDate) {
     try { rows = _readChiTietCongNoCacheAll_(); } catch (e) { rows = null; }
   }
   if (!rows) {
-    rows = getChiTietCongNoPhieuCan(ngayStr);
+    rows = getChiTietCongNoPhieuCan_(ngayStr);
     try { refreshChiTietCongNoPhieuCanChoNgay_(ngayStr, rows); } catch (e) { /* không chặn luồng chính nếu ghi cache lỗi */ }
   }
   return _applyCtcnFilters_(rows, filters);
@@ -4721,7 +5144,7 @@ function getChiTietCongNoPhieuCanWeb(ngayStr, filters) {
 // (không qua cache/snapshot) - vì mặc định chỉ xem 1 ngày (hôm nay),
 // khối lượng tính toán nhỏ, không cần tối ưu thêm.
 // ============================================================
-function getTinhHinhThanhToanHangNgay(fDate, tDate) {
+function getTinhHinhThanhToanHangNgay_(fDate, tDate) {
   const dmNgMap = _getDmNgMap_();
   const pcMap = new Map(); // SO_CT (đã standardize) -> dòng Phiếu Cân đầy đủ
   _pcData_().forEach(r => {
@@ -4780,14 +5203,14 @@ function _applyThtFilters_(rows, filters) {
   );
 }
 
-function getTinhHinhThanhToanHangNgayWeb(fDate, tDate, filters) {
-  const rows = getTinhHinhThanhToanHangNgay(fDate, tDate);
+function getTinhHinhThanhToanHangNgayWeb_(fDate, tDate, filters) {
+  const rows = getTinhHinhThanhToanHangNgay_(fDate, tDate);
   return _applyThtFilters_(rows, filters);
 }
 
-function exportTinhHinhThanhToanExcel(fDate, tDate, filters) {
+function exportTinhHinhThanhToanExcel_(fDate, tDate, filters) {
   try {
-    const rows = getTinhHinhThanhToanHangNgayWeb(fDate, tDate, filters || {});
+    const rows = getTinhHinhThanhToanHangNgayWeb_(fDate, tDate, filters || {});
     const folder = DriveApp.getFolderById(getReportFolderId_());
     const fileName = `TINH HINH THANH TOAN GO KEO (${fDate} den ${tDate})`;
     const ss = SpreadsheetApp.create(fileName);
@@ -4809,7 +5232,7 @@ function exportTinhHinhThanhToanExcel(fDate, tDate, filters) {
     sheet.setFrozenRows(1);
     sheet.autoResizeColumns(1, headers.length);
 
-    logAction("XUAT_TINH_HINH_TT", "-", `Xuất Tình Hình Thanh Toán (${fDate} - ${tDate}), ${rows.length} dòng - ${ss.getUrl()}`);
+    logAction_("XUAT_TINH_HINH_TT", "-", `Xuất Tình Hình Thanh Toán (${fDate} - ${tDate}), ${rows.length} dòng - ${ss.getUrl()}`);
     return { success: true, url: ss.getUrl(), count: rows.length };
   } catch (e) {
     return { success: false, message: "❌ Lỗi: " + e.toString() };
@@ -4823,7 +5246,7 @@ function dailyRefreshAllCaches_() {
   // cùng 1 lượt quét - truyền chung khoảng ngày với Công Nợ Khách Hàng.
   const tienDoCount = refreshHopDongTienDoCache_(range.fDate, range.tDate);
   const congNo = refreshCongNoCache_(range.fDate, range.tDate);
-  logAction("DAILY_REFRESH_ALL", "-",
+  logAction_("DAILY_REFRESH_ALL", "-",
     `Tiến độ HĐ (+ Công Nợ HĐ): ${tienDoCount} · Công nợ KH: ${congNo.kh} (${range.fDate} - ${range.tDate}).`);
   return { cache, tienDoCount, congNo, range };
 }
@@ -4832,7 +5255,7 @@ function dailyRefreshAllCaches_() {
  * MỚI (mục 11): hàm chạy nền lúc 15h HÀNG NGÀY - tổng hợp cho ĐÚNG "ngày
  * hôm qua" (so với lúc trigger chạy): Phân Tích Nhập/Thanh Toán theo
  * NG & ĐL + Chi Tiết Công Nợ theo Phiếu Cân. Bật bằng
- * setupDaily15hTrigger() (menu/Cài Đặt) - chạy 1 lần.
+ * setupDaily15hTrigger_() (menu/Cài Đặt) - chạy 1 lần.
  */
 /** Xuất PDF từ 1 Google Sheet (dùng endpoint export chính thức của
  * Google) - trả về Blob PDF. */
@@ -4885,9 +5308,9 @@ function _renderPhanTichSheet_(sheet, report, fDate, tDate) {
 
 /** #Web: xuất "Báo cáo tổng hợp từ ngày đến ngày" - vừa Excel (Google
  * Sheet trong Drive) vừa PDF. */
-function exportPhanTichNhapTTBaoCao(fDate, tDate) {
+function exportPhanTichNhapTTBaoCao_(fDate, tDate) {
   try {
-    const report = getPhanTichNhapTTReport(fDate, tDate);
+    const report = getPhanTichNhapTTReport_(fDate, tDate);
     const folder = DriveApp.getFolderById(getReportFolderId_());
     const fileName = `BAO CAO TONG HOP TU ${fDate} DEN ${tDate}`;
     const ss = SpreadsheetApp.create(fileName);
@@ -4903,7 +5326,7 @@ function exportPhanTichNhapTTBaoCao(fDate, tDate) {
     const pdfBlob = _exportSheetAsPdf_(ss.getId());
     const pdfFile = folder.createFile(pdfBlob).setName(fileName + ".pdf");
 
-    logAction("XUAT_PHAN_TICH_NG_DL", "-", `Xuất báo cáo tổng hợp ${fDate} - ${tDate} - ${ss.getUrl()}`);
+    logAction_("XUAT_PHAN_TICH_NG_DL", "-", `Xuất báo cáo tổng hợp ${fDate} - ${tDate} - ${ss.getUrl()}`);
     return { success: true, excelUrl: ss.getUrl(), pdfUrl: pdfFile.getUrl() };
   } catch (e) {
     return { success: false, message: "❌ Lỗi: " + e.toString() };
@@ -4912,9 +5335,9 @@ function exportPhanTichNhapTTBaoCao(fDate, tDate) {
 
 /** #Web: xuất Excel "Chi Tiết Công Nợ theo Phiếu Cân" (áp dụng bộ lọc
  * hiện tại nếu có). */
-function exportChiTietCongNoPhieuCanExcel(ngayStr, filters) {
+function exportChiTietCongNoPhieuCanExcel_(ngayStr, filters) {
   try {
-    const rows = getChiTietCongNoPhieuCanWeb(ngayStr, filters || {});
+    const rows = getChiTietCongNoPhieuCanWeb_(ngayStr, filters || {});
     const folder = DriveApp.getFolderById(getReportFolderId_());
     const fileName = `CHI TIET CONG NO THEO PHIEU CAN (den ${ngayStr})`;
     const ss = SpreadsheetApp.create(fileName);
@@ -4938,7 +5361,7 @@ function exportChiTietCongNoPhieuCanExcel(ngayStr, filters) {
     sheet.setFrozenRows(1);
     sheet.autoResizeColumns(1, headers.length);
 
-    logAction("XUAT_CHITIET_CONGNO_PC", "-", `Xuất Chi Tiết Công Nợ theo Phiếu Cân (đến ${ngayStr}), ${rows.length} dòng - ${ss.getUrl()}`);
+    logAction_("XUAT_CHITIET_CONGNO_PC", "-", `Xuất Chi Tiết Công Nợ theo Phiếu Cân (đến ${ngayStr}), ${rows.length} dòng - ${ss.getUrl()}`);
     return { success: true, url: ss.getUrl(), count: rows.length };
   } catch (e) {
     return { success: false, message: "❌ Lỗi: " + e.toString() };
@@ -4952,10 +5375,10 @@ function exportChiTietCongNoPhieuCanExcel(ngayStr, filters) {
  * còn cách nào đọc lại đúng ngày gốc để tính bù. Cách CHẮC CHẮN nhất:
  * xóa sạch toàn bộ dữ liệu (giữ lại header) - sheet sẽ tự nạp lại SẠCH
  * dần qua Trigger 15h hoặc ngay khi có người xem báo cáo (tự tính bù
- * ngày thiếu - xem getPhanTichNhapTTReport()). Chạy 1 LẦN nếu thấy báo
+ * ngày thiếu - xem getPhanTichNhapTTReport_()). Chạy 1 LẦN nếu thấy báo
  * cáo có dòng ngày hiển thị sai/rác.
  */
-function resetPhanTichNhapTTSheet() {
+function resetPhanTichNhapTTSheet_() {
   const sh = getPhanTichCacheSheet_();
   const lastRow = sh.getLastRow();
   const soDongXoa = Math.max(0, lastRow - 1);
@@ -4964,28 +5387,28 @@ function resetPhanTichNhapTTSheet() {
   // từ TRƯỚC khi có sửa lỗi định dạng (getPhanTichCacheSheet_() chỉ tự
   // khóa định dạng lúc TẠO MỚI, không áp lại cho sheet cũ đã có).
   _forcePlainTextCols_(sh, 1, 1);
-  logAction("RESET_PHAN_TICH", "-", `Đã xóa sạch ${soDongXoa} dòng Phân Tích Nhập/TT (giữ header) để nạp lại từ đầu.`);
+  logAction_("RESET_PHAN_TICH", "-", `Đã xóa sạch ${soDongXoa} dòng Phân Tích Nhập/TT (giữ header) để nạp lại từ đầu.`);
   return soDongXoa;
 }
 
-/** MỚI: tương tự resetPhanTichNhapTTSheet() nhưng cho Chi Tiết Công Nợ
+/** MỚI: tương tự resetPhanTichNhapTTSheet_() nhưng cho Chi Tiết Công Nợ
  * theo Phiếu Cân - phòng khi sheet này cũng đã bị Google Sheets tự
  * chuyển sai định dạng Ngày/Giờ từ trước (cùng loại lỗi, có thể chưa lộ
  * ra vì chỉ làm sai bộ lọc "Ngày nhập" chứ không tạo dòng rác 0/0). */
-function resetChiTietCongNoSheet() {
+function resetChiTietCongNoSheet_() {
   const sh = getChiTietCongNoCacheSheet_();
   const lastRow = sh.getLastRow();
   const soDongXoa = Math.max(0, lastRow - 1);
   if (lastRow > 1) sh.getRange(2, 1, lastRow - 1, CTCN_HEADERS.length).clearContent();
   _forcePlainTextCols_(sh, 2, 3);
   PropertiesService.getScriptProperties().deleteProperty('CTCN_SNAPSHOT_DATE'); // buộc tính lại ngày gần nhất khi xem lần sau
-  logAction("RESET_CTCN", "-", `Đã xóa sạch ${soDongXoa} dòng Chi Tiết Công Nợ theo Phiếu Cân (giữ header) để nạp lại từ đầu.`);
+  logAction_("RESET_CTCN", "-", `Đã xóa sạch ${soDongXoa} dòng Chi Tiết Công Nợ theo Phiếu Cân (giữ header) để nạp lại từ đầu.`);
   return soDongXoa;
 }
 
-function webResetChiTietCongNoSheet() {
+function webResetChiTietCongNoSheet_() {
   try {
-    const n = resetChiTietCongNoSheet();
+    const n = resetChiTietCongNoSheet_();
     return { success: true, message: `✅ Đã xóa sạch ${n} dòng dữ liệu cũ (có thể đã bị lỗi định dạng Ngày/Giờ). Dữ liệu sẽ tự nạp lại SẠCH qua Trigger 15h, hoặc ngay khi bạn xem báo cáo.` };
   } catch (e) {
     return { success: false, message: "❌ Lỗi: " + e.toString() };
@@ -4993,18 +5416,19 @@ function webResetChiTietCongNoSheet() {
 }
 
 function showResetChiTietCongNoDialog() {
+  _yeuCauQuyen_(QUYEN.QUAN_TRI);
   const ui = SpreadsheetApp.getUi();
   try {
-    const n = resetChiTietCongNoSheet();
+    const n = resetChiTietCongNoSheet_();
     ui.alert(`✅ Đã xóa sạch ${n} dòng dữ liệu cũ. Dữ liệu sẽ tự nạp lại SẠCH qua Trigger 15h hoặc khi có người xem báo cáo.`);
   } catch (e) {
     ui.alert("❌ Lỗi: " + e.toString());
   }
 }
 
-function webResetPhanTichNhapTTSheet() {
+function webResetPhanTichNhapTTSheet_() {
   try {
-    const n = resetPhanTichNhapTTSheet();
+    const n = resetPhanTichNhapTTSheet_();
     return { success: true, message: `✅ Đã xóa sạch ${n} dòng dữ liệu cũ (có thể đã bị lỗi định dạng). Dữ liệu sẽ tự nạp lại SẠCH qua Trigger 15h, hoặc ngay khi bạn xem báo cáo (tự tính bù ngày thiếu).` };
   } catch (e) {
     return { success: false, message: "❌ Lỗi: " + e.toString() };
@@ -5012,9 +5436,10 @@ function webResetPhanTichNhapTTSheet() {
 }
 
 function showResetPhanTichDialog() {
+  _yeuCauQuyen_(QUYEN.QUAN_TRI);
   const ui = SpreadsheetApp.getUi();
   try {
-    const n = resetPhanTichNhapTTSheet();
+    const n = resetPhanTichNhapTTSheet_();
     ui.alert(`✅ Đã xóa sạch ${n} dòng dữ liệu cũ. Dữ liệu sẽ tự nạp lại SẠCH qua Trigger 15h hoặc khi có người xem báo cáo.`);
   } catch (e) {
     ui.alert("❌ Lỗi: " + e.toString());
@@ -5049,7 +5474,7 @@ function daily15hRefresh_() {
 
   const r1 = refreshPhanTichNhapTTChoKhoang_(dauThang, homNay);
   const n2 = refreshChiTietCongNoPhieuCanChoNgay_(ngayHomQua);
-  logAction("DAILY_15H_REFRESH", "-", `Phân tích NG/ĐL: ${dauThang} - ${homNay} (${r1.soNgay} ngày, ${r1.soDong} dòng) · Chi tiết công nợ phiếu cân (ngày ${ngayHomQua}): ${n2} dòng.`);
+  logAction_("DAILY_15H_REFRESH", "-", `Phân tích NG/ĐL: ${dauThang} - ${homNay} (${r1.soNgay} ngày, ${r1.soDong} dòng) · Chi tiết công nợ phiếu cân (ngày ${ngayHomQua}): ${n2} dòng.`);
   return { dauThang, homNay, r1, ngayHomQua, n2 };
 }
 
@@ -5059,7 +5484,7 @@ function daily15hRefresh_() {
  * gì tới lịch tự động đang chạy (trigger vẫn giữ nguyên, vẫn tự chạy
  * đúng giờ như bình thường). Dùng khi mới đổi giờ trigger muốn xem ngay
  * kết quả, hoặc nghi ngờ số liệu đang cũ mà chưa muốn chờ tới giờ hẹn. */
-function webRunDaily15hRefreshNow() {
+function webRunDaily15hRefreshNow_() {
   try {
     const r = daily15hRefresh_();
     return `✅ Đã đồng bộ xong: Phân tích NG/ĐL ${r.dauThang} → ${r.homNay} (${r.r1.soNgay} ngày, ${r.r1.soDong} dòng) · Chi tiết công nợ phiếu cân ngày ${r.ngayHomQua} (${r.n2} dòng).`;
@@ -5074,7 +5499,7 @@ const TRIGGER_15H_HOUR_MAC_DINH = 15;
 const TRIGGER_15H_MINUTE_MAC_DINH = 0;
 
 /** Giờ/phút ĐANG cấu hình cho Trigger 15h (đọc từ Script Properties, rơi
- * về mặc định 15:00 nếu chưa từng đổi) - dùng cho getTriggerStatusForWeb()
+ * về mặc định 15:00 nếu chưa từng đổi) - dùng cho getTriggerStatusForWeb_()
  * để giao diện tự điền đúng giờ hiện tại vào ô nhập. */
 function _trigger15hGioPhutHienTai_() {
   const props = PropertiesService.getScriptProperties();
@@ -5096,7 +5521,7 @@ function _trigger15hGioPhutHienTai_() {
  * đúng menu đó trong Google Sheet. Luôn xóa trigger cũ trước khi tạo
  * lại - vừa để đổi giờ, vừa tránh trigger bị "kẹt" chạy code cũ (xem sự
  * cố Version 6 đã rà soát trước đó). */
-function setupDaily15hTrigger(gio, phut) {
+function setupDaily15hTrigger_(gio, phut) {
   const hienTai = _trigger15hGioPhutHienTai_();
   const h = (gio === undefined || gio === null || gio === "") ? hienTai.gio : parseInt(gio, 10);
   const m = (phut === undefined || phut === null || phut === "") ? hienTai.phut : parseInt(phut, 10);
@@ -5111,7 +5536,7 @@ function setupDaily15hTrigger(gio, phut) {
   PropertiesService.getScriptProperties().setProperty('TRIGGER_15H_MINUTE', String(m));
   const gioText = (h < 10 ? "0" + h : h) + ":" + (m < 10 ? "0" + m : m);
   const msg = `✅ Đã bật tự động tổng hợp lúc ${gioText} hàng ngày (Phân Tích Nhập/TT theo NG-ĐL + Chi Tiết Công Nợ theo Phiếu Cân, cho ngày hôm trước).`;
-  logAction("SETUP_TRIGGER_15H", "-", msg);
+  logAction_("SETUP_TRIGGER_15H", "-", msg);
   return msg;
 }
 
@@ -5132,15 +5557,15 @@ function _hdNccActiveData_() {
 // ============================================================
 // MỚI (mục AA - chạy nền theo giờ cố định): CACHE TIẾN ĐỘ HỢP ĐỒNG
 // ------------------------------------------------------------
-// getHopDongSummary() (Bước 2 "Tạo Mới") trước đây quét lại TOÀN BỘ
+// getHopDongSummary_() (Bước 2 "Tạo Mới") trước đây quét lại TOÀN BỘ
 // DNTT_CT + DNTT_112 THẬT mỗi lần đổi Số HĐ/STK - rất chậm. Giờ tiến độ
 // từng hợp đồng "Đang Thực Hiện" được TÍNH SẴN 1 LẦN (quét CT/112 thật
 // đúng 1 lượt cho TẤT CẢ hợp đồng, không phải từng hợp đồng 1 lượt) và
 // lưu vào sheet CFG.DRAFT_HDTIENDO_SHEET trong File Nháp. Làm mới bằng:
 //  a. Trigger cố định 7:30 sáng & 13:00 chiều hàng ngày (dailyRefreshAllCaches_).
-//  b. Nút "🔄 Tải & Tính Lại" ngay trong màn "Tạo Mới" (webRefreshCreateFlowData).
+//  b. Nút "🔄 Tải & Tính Lại" ngay trong màn "Tạo Mới" (webRefreshCreateFlowData_).
 //  c. Tự động 1 lần nếu 1 hợp đồng CHƯA có trong cache (hợp đồng vừa
-//     thêm, chưa tới giờ làm mới định kỳ) - xem getHopDongSummary().
+//     thêm, chưa tới giờ làm mới định kỳ) - xem getHopDongSummary_().
 // ============================================================
 function getHdTienDoCacheSheet_() {
   const { ss } = getDraftSheets_();
@@ -5155,7 +5580,7 @@ function getHdTienDoCacheSheet_() {
  * LUÔN TRONG 1 LẦN QUÉT, ghép thẳng vào CÙNG sheet HopDongTienDo_DRAFT -
  * KHÔNG cần sheet CongNoHopDong_DRAFT riêng nữa (giảm 1 lượt quét CT
  * thật trùng lặp trước đây). "Chi tiết công nợ" (sổ chi tiết từng lần
- * TT) vẫn tính riêng theo yêu cầu xem (getDebtLedgerDetail), không gộp
+ * TT) vẫn tính riêng theo yêu cầu xem (getDebtLedgerDetail_), không gộp
  * vào đây. fDate/tDate mặc định = khoảng Công Nợ mặc định (3 tháng). */
 function refreshHopDongTienDoCache_(fDate, tDate) {
   const range = (fDate && tDate) ? { fDate, tDate } : _defaultCongNoRange_();
@@ -5243,7 +5668,7 @@ function refreshHopDongTienDoCache_(fDate, tDate) {
 function _hdTienDoData_() {
   const sh = getHdTienDoCacheSheet_();
   const lastRow = sh.getLastRow();
-  if (lastRow < 2) return []; // trống (chưa tới giờ làm mới đầu tiên) -> getHopDongSummary() tự tính bù trực tiếp
+  if (lastRow < 2) return []; // trống (chưa tới giờ làm mới đầu tiên) -> getHopDongSummary_() tự tính bù trực tiếp
   return sh.getRange(2, 1, lastRow - 1, sh.getLastColumn()).getValues();
 }
 
@@ -5288,7 +5713,7 @@ function _getDmNgMap_() {
   const pairs = _getCachedRefData_("dm_ng_map_v1", () => {
     const out = [];
     try {
-      const sh = openExternalSheet(CFG.HD_SS_ID, "DM_NG", "Danh Mục Nguồn Gốc");
+      const sh = openExternalSheet_(CFG.HD_SS_ID, "DM_NG", "Danh Mục Nguồn Gốc");
       const lr = sh.getLastRow();
       if (lr > 1) {
         sh.getRange(2, 2, lr - 1, 2).getValues().forEach(r => { // cột B,C
@@ -5319,7 +5744,7 @@ function _tenNguonGoc_(maNG, dmNgMap) {
 
 function _pcData_() {
   return _getCachedRefData_("pc_data_v1", () => {
-    const sh = openExternalSheet(CFG.PC_SS_ID, CFG.PC_SHEET, "Phiếu Cân");
+    const sh = openExternalSheet_(CFG.PC_SS_ID, CFG.PC_SHEET, "Phiếu Cân");
     const lr = sh.getLastRow();
     return lr > 1 ? sh.getRange(2, 1, lr - 1, sh.getLastColumn()).getValues() : [];
   });
@@ -5336,21 +5761,21 @@ function _pcData_() {
 // nguyên nhân chính khiến Web App tải chậm.
 // GIẢI PHÁP: duy trì 1 BẢN SAO thu gọn - CHỈ gồm các dòng CHƯA thanh
 // toán - ngay trong File Nháp (sheet CFG.DRAFT_PC_SHEET). Các hàm chọn
-// phiếu cân (findAvailablePhieuCan, getAvailablePhieuCanForChuRung,
-// pcMap trong runProcessDetail/createNewPaymentRequest/
-// addPhieuCanToDraft) đọc từ bản sao NHỎ này thay vì PhieuCan_DN thật.
-// QUAN TRỌNG: Công nợ/Báo cáo/Phân tích (getDebtByCustomer,
-// getPaymentAnalysis, searchChuRungNames...) CẦN dữ liệu ĐẦY ĐỦ (kể cả
+// phiếu cân (findAvailablePhieuCan_, getAvailablePhieuCanForChuRung_,
+// pcMap trong runProcessDetail/createNewPaymentRequest_/
+// addPhieuCanToDraft_) đọc từ bản sao NHỎ này thay vì PhieuCan_DN thật.
+// QUAN TRỌNG: Công nợ/Báo cáo/Phân tích (getDebtByCustomer_,
+// getPaymentAnalysis_, searchChuRungNames_...) CẦN dữ liệu ĐẦY ĐỦ (kể cả
 // đã trả) để tính đúng lũy kế - các hàm đó VẪN dùng _pcData_() như cũ,
 // KHÔNG đụng tới bản sao này.
 // LÀM MỚI (refresh) bản sao:
 //  a. Tự động làm mới 1 lần nếu bản sao đang TRỐNG (vd lần đầu dùng).
 //  b. Bấm menu "🔄 Làm Mới Cache Phiếu Cân (chưa TT)" trong Google Sheet,
 //     hoặc nút tương ứng trong mục Cài Đặt của Web App.
-//  c. (Khuyến khích) chạy 1 lần hàm setupPcCacheAutoRefreshTrigger() để
+//  c. (Khuyến khích) chạy 1 lần hàm setupPcCacheAutoRefreshTrigger_() để
 //     hệ thống tự làm mới mỗi ngày lúc 7:30 & 13:00 (Trigger theo giờ cố
 //     định) - dữ liệu "chưa thanh toán" luôn mới trong ngày.
-// Ngoài ra, ngay sau khi "Chốt Thanh Toán" (runConfirmPayment), các
+// Ngoài ra, ngay sau khi "Chốt Thanh Toán" (runConfirmPayment_), các
 // phiếu cân vừa dùng được XÓA NGAY khỏi bản sao (không cần đợi tới lần
 // làm mới định kỳ) - đúng yêu cầu "đóng thanh toán xong thì xóa khỏi
 // Nháp".
@@ -5369,13 +5794,14 @@ function getPcCacheSheet_() {
 /** Quét TOÀN BỘ PhieuCan_DN thật (thao tác nặng - chỉ nên chạy định kỳ,
  * không nên gọi trong luồng xử lý nhanh) và ghi đè bản sao "chưa TT". */
 function refreshPhieuCanUnpaidCache_() {
-  const shSrcPC = openExternalSheet(CFG.PC_SS_ID, CFG.PC_SHEET, "Phiếu Cân");
+  const shSrcPC = openExternalSheet_(CFG.PC_SS_ID, CFG.PC_SHEET, "Phiếu Cân");
   const lastRow = shSrcPC.getLastRow();
   // SỬA (mục AH): chỉ mirror đúng số cột thật sự cần dùng (PC_MIRROR_COLS)
   // thay vì toàn bộ cột của sheet nguồn - đỡ tải/lưu dư thừa.
   const lastCol = Math.min(shSrcPC.getLastColumn(), PC_MIRROR_COLS);
   const header = lastRow >= 1 ? shSrcPC.getRange(1, 1, 1, lastCol).getValues()[0] : [];
   const all = lastRow > 1 ? shSrcPC.getRange(2, 1, lastRow - 1, lastCol).getValues() : [];
+  _ghiNhanHeaderPc_(header);
 
   const unpaid = all.filter(r => {
     const soP = String(r[PC_COL_SO_CT_IDX] || "").trim();
@@ -5394,7 +5820,7 @@ function refreshPhieuCanUnpaidCache_() {
   });
   _ghiLaiMirror_(getPcCacheSheet_(), header, unpaid);
   _invalidateChunkedCache_("pc_unpaid_data_v1"); // SỬA: dùng helper xóa hết các mảnh (dữ liệu có thể đã bị chia mảnh nếu lớn)
-  logAction("REFRESH_CACHE_PC_CHUA_TT", "-", `Đã làm mới cache Phiếu Cân chưa TT: ${unpaid.length}/${all.length} dòng.`);
+  logAction_("REFRESH_CACHE_PC_CHUA_TT", "-", `Đã làm mới cache Phiếu Cân chưa TT: ${unpaid.length}/${all.length} dòng.`);
   return unpaid.length;
 }
 
@@ -5437,7 +5863,7 @@ function _removeFromPcUnpaidCache_(soCTKeySet) {
 /** Wrapper cho Web App (mục Cài Đặt) - làm mới cache thủ công. */
 /** Wrapper cho Web App - làm mới CẢ 3 cache (Phiếu Cân chưa TT, HD_NCC,
  * HD_STK) trong 1 lần bấm (mục Y). */
-function webRefreshPhieuCanCache() {
+function webRefreshPhieuCanCache_() {
   try {
     const r = refreshAllDraftCaches_();
     const tienDoCount = refreshHopDongTienDoCache_();
@@ -5454,7 +5880,7 @@ function webRefreshPhieuCanCache() {
  * gì cần cho luồng tạo mới (KHÔNG đụng tới snapshot Công Nợ - không cần
  * thiết ở màn này, làm mới sẽ chậm hơn không cần thiết).
  */
-function webRefreshCreateFlowData() {
+function webRefreshCreateFlowData_() {
   try {
     const r = refreshAllDraftCaches_();
     const tienDoCount = refreshHopDongTienDoCache_();
@@ -5474,21 +5900,21 @@ function webRefreshCreateFlowData() {
  * ĐỊNH mỗi ngày: 7:30 sáng và 13:00 chiều (thay vì mỗi 10 phút như bản
  * cũ) - đúng theo yêu cầu chạy nền theo giờ hành chính cố định.
  */
-function setupPcCacheAutoRefreshTrigger() {
+function setupPcCacheAutoRefreshTrigger_() {
   ScriptApp.getProjectTriggers().forEach(t => {
     if (t.getHandlerFunction() === 'dailyRefreshAllCaches_') ScriptApp.deleteTrigger(t);
   });
   ScriptApp.newTrigger('dailyRefreshAllCaches_').timeBased().atHour(7).nearMinute(30).everyDays(1).create();
   ScriptApp.newTrigger('dailyRefreshAllCaches_').timeBased().atHour(13).nearMinute(0).everyDays(1).create();
   const msg = "✅ Đã bật tự động làm mới TOÀN BỘ dữ liệu (Phiếu Cân, HD_NCC, HD_STK, Tiến Độ Hợp Đồng, Công Nợ) mỗi ngày lúc 7:30 và 13:00.";
-  logAction("SETUP_TRIGGER_CACHE_PC", "-", msg);
+  logAction_("SETUP_TRIGGER_CACHE_PC", "-", msg);
   return msg;
 }
 
 // MỚI (theo yêu cầu - trước đây THIẾU, chỉ có ở menu Sheet): bản Web App cho trigger 7:30/13:00.
-function webSetupPcCacheAutoRefreshTrigger() {
+function webSetupPcCacheAutoRefreshTrigger_() {
   try {
-    return { success: true, message: setupPcCacheAutoRefreshTrigger() };
+    return { success: true, message: setupPcCacheAutoRefreshTrigger_() };
   } catch (e) {
     return { success: false, message: "❌ Lỗi: " + e.toString() };
   }
@@ -5498,7 +5924,7 @@ function webSetupPcCacheAutoRefreshTrigger() {
  * MỚI (mục AD): Trigger RIÊNG, NHẸ HƠN - chỉ làm mới Phiếu Cân chưa TT +
  * HD_NCC + HD_STK (Đang Thực Hiện) mỗi 10 phút, KHÔNG đụng tới Tiến Độ
  * Hợp Đồng hay Công Nợ (2 mục đó vẫn chỉ chạy theo lịch 7:30/13:00 ở
- * setupPcCacheAutoRefreshTrigger() - nặng hơn, không cần chạy mỗi 10
+ * setupPcCacheAutoRefreshTrigger_() - nặng hơn, không cần chạy mỗi 10
  * phút). Dùng khi cần Phiếu Cân/Hợp Đồng/Số Tài Khoản cập nhật KỊP THỜI
  * hơn (giữa 2 mốc 7:30/13:00) mà không tốn thêm chi phí tính Tiến Độ HĐ
  * + Công Nợ. Chạy 1 LẦN để bật (menu, mục Cài Đặt, hoặc Apps Script
@@ -5523,14 +5949,14 @@ function refreshAllDraftCaches10Min_() {
   refreshAllDraftCaches_();
 }
 
-function setup10MinRefreshTrigger() {
+function setup10MinRefreshTrigger_() {
   ScriptApp.getProjectTriggers().forEach(t => {
     const fn = t.getHandlerFunction();
     if (fn === 'refreshAllDraftCaches_' || fn === 'refreshAllDraftCaches10Min_') ScriptApp.deleteTrigger(t);
   });
   ScriptApp.newTrigger('refreshAllDraftCaches10Min_').timeBased().everyMinutes(10).create();
   const msg = "✅ Đã bật tự động làm mới Phiếu Cân chưa TT + HD_NCC + HD_STK (Đang Thực Hiện) mỗi 10 phút, CHỈ trong khung giờ 7:30 - 19:00 hàng ngày.";
-  logAction("SETUP_TRIGGER_10MIN", "-", msg);
+  logAction_("SETUP_TRIGGER_10MIN", "-", msg);
   return msg;
 }
 
@@ -5590,7 +6016,7 @@ function _clampReportRange_(fDate, tDate) {
 }
 
 /** #1 + #3: Công nợ theo Khách hàng mua gỗ keo, trong khoảng ngày - TÍNH
- * TRỰC TIẾP (không qua cache). Dùng nội bộ bởi getDebtByCustomer() (mục
+ * TRỰC TIẾP (không qua cache). Dùng nội bộ bởi getDebtByCustomer_() (mục
  * AB) và bởi refreshCongNoCache_() (chạy nền định kỳ). */
 function _computeDebtByCustomerLive_(fDate, tDate) {
   fDate = _clampReportRange_(fDate, tDate); // mục R - xem ghi chú tại _clampReportRange_
@@ -5639,7 +6065,7 @@ function _computeDebtByCustomerLive_(fDate, tDate) {
 }
 
 /** #2: Công nợ theo Hợp đồng mua gỗ keo - TÍNH TRỰC TIẾP (không qua
- * cache). Dùng nội bộ bởi getDebtByContract() (mục AB) và bởi
+ * cache). Dùng nội bộ bởi getDebtByContract_() (mục AB) và bởi
  * refreshCongNoCache_() (chạy nền định kỳ). */
 function _computeDebtByContractLive_(fDate, tDate) {
   fDate = _clampReportRange_(fDate, tDate); // mục R - xem ghi chú tại _clampReportRange_
@@ -5783,7 +6209,7 @@ function _readCongNoKhSheet_() {
  * sheet riêng nữa, xem mục 7 ở đó). */
 /** SỬA (tối ưu): nhận thêm khRows (tùy chọn, đã tính sẵn) để KHÔNG phải
  * tính lại _computeDebtByCustomerLive_() một lần nữa khi nơi gọi
- * (getDebtByCustomer) đã tính rồi - tránh quét PhieuCan_DN/CT 2 lần liên
+ * (getDebtByCustomer_) đã tính rồi - tránh quét PhieuCan_DN/CT 2 lần liên
  * tiếp cho cùng 1 khoảng ngày. */
 function refreshCongNoCache_(fDate, tDate, khRows) {
   const rows = khRows || _computeDebtByCustomerLive_(fDate, tDate);
@@ -5794,7 +6220,7 @@ function refreshCongNoCache_(fDate, tDate, khRows) {
 
 /** #1+#3 (bản CÔNG KHAI cho Web App): đọc snapshot nếu khoảng ngày khớp
  * cache hiện tại (nhanh), ngược lại tính trực tiếp rồi ghi đè cache. */
-function getDebtByCustomer(fDate, tDate) {
+function getDebtByCustomer_(fDate, tDate) {
   fDate = _clampReportRange_(fDate, tDate);
   const meta = _congNoCacheMeta_();
   if (meta.fDate === fDate && meta.tDate === tDate) {
@@ -5812,9 +6238,9 @@ function getDebtByCustomer(fDate, tDate) {
  * cache mà vừa phát sinh thêm (nhập/thanh toán), số liệu sẽ cũ cho tới
  * lần trigger kế tiếp. Hàm này tính lại NGAY cho đúng khoảng đang xem
  * (không phải khoảng mặc định của trigger) rồi ghi đè cả 2 cache -
- * getDebtByCustomer()/getDebtByContract() gọi lại ngay sau đó sẽ thấy
+ * getDebtByCustomer_()/getDebtByContract_() gọi lại ngay sau đó sẽ thấy
  * khoảng ngày khớp và đọc được đúng số liệu vừa làm mới. */
-function webRunCongNoRefreshNow(fDate, tDate) {
+function webRunCongNoRefreshNow_(fDate, tDate) {
   try {
     const fClamped = _clampReportRange_(fDate, tDate);
     const rows = _computeDebtByCustomerLive_(fClamped, tDate);
@@ -5826,7 +6252,7 @@ function webRunCongNoRefreshNow(fDate, tDate) {
   }
 }
 
-/** #2 (bản CÔNG KHAI cho Web App): tương tự getDebtByCustomer(). */
+/** #2 (bản CÔNG KHAI cho Web App): tương tự getDebtByCustomer_(). */
 /** MỚI (mục 7): đọc Công Nợ theo Hợp Đồng TỪ CHÍNH sheet
  * HopDongTienDo_DRAFT (đã ghép sẵn cột Công Nợ - xem
  * refreshHopDongTienDoCache_()) nếu khoảng ngày khớp cache hiện tại;
@@ -5837,7 +6263,7 @@ function webRunCongNoRefreshNow(fDate, tDate) {
  * liệu) - lãng phí gấp đôi. Giờ CHỈ làm mới cache 1 lần rồi ĐỌC LẠI từ
  * chính cache đó (dùng chung 1 đường đọc cho cả 2 trường hợp trùng/lệch
  * khoảng ngày) - chỉ quét CT/112 đúng 1 lần trong mọi trường hợp. */
-function getDebtByContract(fDate, tDate) {
+function getDebtByContract_(fDate, tDate) {
   fDate = _clampReportRange_(fDate, tDate);
   const meta = _hdTienDoCongNoMeta_();
   if (meta.fDate !== fDate || meta.tDate !== tDate) {
@@ -5871,7 +6297,7 @@ function getDebtByContract(fDate, tDate) {
  *   CT thật luôn phát sinh Nợ/Có cùng lúc (không có độ trễ), nên trình
  *   bày dạng theo dõi tiến độ dễ hiểu hơn dạng sổ cái thuần túy.
  */
-function getDebtLedgerDetail(type, key, tDate) {
+function getDebtLedgerDetail_(type, key, tDate) {
   const keyStd = utils.standardize(key);
   if (!keyStd) return { success: false, message: "Thiếu tên khách hàng / số hợp đồng." };
 
@@ -5956,7 +6382,7 @@ function getDebtLedgerDetail(type, key, tDate) {
 }
 
 /** #5: Bảng phân tích tình hình thanh toán trong khoảng ngày. */
-function getPaymentAnalysis(fDate, tDate) {
+function getPaymentAnalysis_(fDate, tDate) {
   fDate = _clampReportRange_(fDate, tDate); // mục R - xem ghi chú tại _clampReportRange_
   let tongKL = 0, tongGiaTri = 0;
   const byNguonGoc = new Map(), byDaiLy = new Map();
@@ -6015,7 +6441,7 @@ function getPaymentAnalysis(fDate, tDate) {
  * tên trong phiếu cân, cảnh báo khi lưu" nếu phiếu cân chọn sau đó khác
  * tên - xem cảnh báo ở submitCreate() phía Web App).
  */
-function searchChuRungNames(query) {
+function searchChuRungNames_(query) {
   const q = utils.standardize(query);
   const seen = new Set();
   const results = [];
@@ -6032,7 +6458,7 @@ function searchChuRungNames(query) {
 }
 
 /** #2: Danh sách CCCD của 1 Họ tên Chủ rừng, tra trong HD_NCC. */
-function getCccdListByChuRung(hoTen) {
+function getCccdListByChuRung_(hoTen) {
   const name = utils.standardize(hoTen);
   if (!name) return [];
   const seen = new Set(), out = [];
@@ -6052,7 +6478,7 @@ function getCccdListByChuRung(hoTen) {
  * thanh toán). Nếu có nhiều hợp đồng cùng Tên+CCCD, lấy hợp đồng có
  * Ngày ký MỚI NHẤT làm gợi ý mặc định - người dùng vẫn có thể sửa tay.
  */
-function getNguoiDeNghiInfo(hoTen, cccd) {
+function getNguoiDeNghiInfo_(hoTen, cccd) {
   const name = utils.standardize(hoTen), cc = String(cccd || "").trim();
   if (!name || !cc) return null;
   const rows = _hdNccActiveData_().filter(r =>
@@ -6077,9 +6503,9 @@ function getNguoiDeNghiInfo(hoTen, cccd) {
  *  - Thành tiền > 0.
  *  - CHƯA có trong DNTT_GK_DN_CT THẬT (đã chốt) và CHƯA có trong Draft
  *    CT (File Nháp) - đối chiếu theo "So_CT".
- *  - Chưa bị khóa ngay trong PhieuCan_DN (như findAvailablePhieuCan cũ).
+ *  - Chưa bị khóa ngay trong PhieuCan_DN (như findAvailablePhieuCan_ cũ).
  */
-function getAvailablePhieuCanForChuRung(hoTen, query) {
+function getAvailablePhieuCanForChuRung_(hoTen, query) {
   const nameStd = utils.standardize(hoTen);
   const genericNames = new Set(["KH", "KL", "KHACHLE"]);
   // SỬA (mục X): hỗ trợ nhập NHIỀU số phiếu cân cùng lúc, ngăn cách bởi
@@ -6166,7 +6592,7 @@ function getAvailablePhieuCanForChuRung(hoTen, query) {
 }
 
 /** #6: Người nhận tiền khả dụng theo Tên + CCCD, tra trong HD_STK. */
-function getNguoiNhanTienOptions(hoTen, cccd) {
+function getNguoiNhanTienOptions_(hoTen, cccd) {
   const name = utils.standardize(hoTen), cc = String(cccd || "").trim();
   if (!name || !cc) return [];
   const seen = new Set(), out = [];
@@ -6181,7 +6607,7 @@ function getNguoiNhanTienOptions(hoTen, cccd) {
 }
 
 /** #7: Số tài khoản khả dụng theo Tên + CCCD + Người nhận, tra trong HD_STK. */
-function getSoTaiKhoanOptions(hoTen, cccd, nguoiNhan) {
+function getSoTaiKhoanOptions_(hoTen, cccd, nguoiNhan) {
   const name = utils.standardize(hoTen), cc = String(cccd || "").trim(), nguoi = String(nguoiNhan || "").trim();
   if (!name || !cc) return [];
   const seen = new Set(), out = [];
@@ -6199,7 +6625,7 @@ function getSoTaiKhoanOptions(hoTen, cccd, nguoiNhan) {
 }
 
 /** #12: Số hợp đồng khả dụng theo Tên + CCCD, tra trong HD_NCC. */
-function getSoHopDongOptions(hoTen, cccd) {
+function getSoHopDongOptions_(hoTen, cccd) {
   const name = utils.standardize(hoTen), cc = String(cccd || "").trim();
   if (!name || !cc) return [];
   const seen = new Set(), out = [];
@@ -6221,8 +6647,8 @@ function getSoHopDongOptions(hoTen, cccd) {
  * MỚI (mục N - tối ưu tốc độ): gộp 3 lượt tra cứu (Người đề nghị/Ủy
  * quyền, Danh sách Số hợp đồng, Danh sách Người nhận tiền) thành 1 lượt
  * gọi google.script.run DUY NHẤT, đọc HD_NCC và HD_STK MỖI SHEET CHỈ 1
- * LẦN thay vì 3 lần riêng rẽ như trước (mỗi hàm getNguoiDeNghiInfo/
- * getSoHopDongOptions/getNguoiNhanTienOptions gọi riêng đều tự mở lại
+ * LẦN thay vì 3 lần riêng rẽ như trước (mỗi hàm getNguoiDeNghiInfo_/
+ * getSoHopDongOptions_/getNguoiNhanTienOptions_ gọi riêng đều tự mở lại
  * HD_NCC/HD_STK từ đầu). Gọi ngay khi người dùng vừa chọn CCCD, để khi
  * sang Bước 2 dữ liệu đã có sẵn, không phải chờ tải lại.
  */
@@ -6240,7 +6666,7 @@ function getSoHopDongOptions(hoTen, cccd) {
  * trừ "Tiến Độ Hợp Đồng" (đổi liên tục theo thanh toán, vẫn tính ở
  * server) và "Phiếu Cân" (theo yêu cầu vẫn giữ nguyên trên server).
  */
-function getBulkReferenceData() {
+function getBulkReferenceData_() {
   const hopDong = _hdNccData_().map(r => ({
     hoTen: String(r[HDNCC_COL.HO_TEN] || "").trim(),
     cccd: String(r[HDNCC_COL.CCCD] || "").trim(),
@@ -6264,7 +6690,7 @@ function getBulkReferenceData() {
   return { hopDong, taiKhoan, generatedAt: new Date().getTime() };
 }
 
-function getChuRungContext(hoTen, cccd) {
+function getChuRungContext_(hoTen, cccd) {
   const name = utils.standardize(hoTen), cc = String(cccd || "").trim();
   const result = { nguoiDeNghi: "", chuRungUyQuyen: "Không", soHopDongOptions: [], nguoiNhanOptions: [] };
   if (!name || !cc) return result;
@@ -6314,7 +6740,7 @@ function getChuRungContext(hoTen, cccd) {
  * stkDangDeNghi (tùy chọn): nếu truyền vào, tính thêm số lần đã chuyển
  * riêng cho đúng tài khoản đang đề nghị lần này.
  */
-function getHopDongSummary(soHD, stkDangDeNghi) {
+function getHopDongSummary_(soHD, stkDangDeNghi) {
   const key = utils.standardize(soHD);
   if (!key) return null;
 
@@ -6363,7 +6789,7 @@ function getHopDongSummary(soHD, stkDangDeNghi) {
 // SỬA (mục M): thêm "Ngày đề nghị" là trường BẮT BUỘC do người dùng
 // nhập (khác với Timestamp = giờ hệ thống tự động).
 // ============================================================
-function createNewPaymentRequest(payload) {
+function createNewPaymentRequest_(payload) {
   let lock;
   try {
     lock = sysLock.acquire();
@@ -6381,7 +6807,7 @@ function createNewPaymentRequest(payload) {
     const ss = getMainSs_();
     // MỚI (mục AI): "đơn xin" gốc ghi vào Draft (shSrc từ getDraftSheets_)
     // thay vì ghi thẳng bản CHÍNH - chỉ copy sang bản chính khi Đóng
-    // Thanh Toán (xem runConfirmPayment).
+    // Thanh Toán (xem runConfirmPayment_).
     const { shCT: shDraftCT, sh112: shDraft112, shSrc: shDraftSrc } = getDraftSheets_();
 
     // SỬA (mục P - tối ưu tốc độ): chỉ cần tra cứu trong các phiếu cân
@@ -6415,7 +6841,7 @@ function createNewPaymentRequest(payload) {
     }
 
     // 2. Tính Lần thanh toán + Ngày dự kiến TT
-    const session = getSessionInfo();
+    const session = getSessionInfo_();
     const now = new Date();
 
     // 3. Sinh ID_KEY duy nhất - kiểm tra CẢ Draft lẫn bản CHÍNH (phòng
@@ -6433,8 +6859,7 @@ function createNewPaymentRequest(payload) {
     let newId;
     do { newId = Utilities.getUuid().split('-')[0]; } while (existingIds.has(newId));
 
-    let userEmail = "";
-    try { userEmail = Session.getActiveUser().getEmail() || ""; } catch (e) {}
+    const userEmail = _emailNguoiThucHien_();
 
     // 4. Ghi "đơn xin" gốc vào DRAFT (mục AI) - KHÔNG ghi thẳng bản
     // chính nữa. Chỉ copy sang DNTT_GK_DN thật khi Đóng Thanh Toán.
@@ -6479,7 +6904,7 @@ function createNewPaymentRequest(payload) {
     shDraft112.getRange(shDraft112.getLastRow() + 1, 1, 1, 24).setValues([new112Row]);
 
     SpreadsheetApp.flush();
-    logAction("TAO_MOI_DNTT_NHAP", newId, `Tạo mới (vào File Nháp) cho ${payload.hoTenChuRung}, HĐ ${payload.soHopDong}, ${dsPC.length} phiếu cân, KL ${tongKLKg}kg, Lần ${session.lan}`);
+    logAction_("TAO_MOI_DNTT_NHAP", newId, `Tạo mới (vào File Nháp) cho ${payload.hoTenChuRung}, HĐ ${payload.soHopDong}, ${dsPC.length} phiếu cân, KL ${tongKLKg}kg, Lần ${session.lan}`);
 
     return {
       success: true,
@@ -6503,7 +6928,7 @@ function createNewPaymentRequest(payload) {
 // phiếu cân của hồ sơ đó TỰ ĐỘNG được giải phóng - không cần bước "mở
 // khóa" riêng. KHÔNG đụng đến dữ liệu CHÍNH THỨC.
 // ============================================================
-function runDeleteDraftRecord(idKey) {
+function runDeleteDraftRecord_(idKey) {
   let lock;
   try {
     lock = sysLock.acquire();
@@ -6605,7 +7030,7 @@ function runDeleteDraftRecord(idKey) {
       }
     } catch (e) { /* không chặn luồng chính nếu dọn ChiTietUNC lỗi */ }
 
-    logAction("XOA_NHAP", id, `Đã xóa ${ctRemoved} dòng CT nháp, ${c112Removed} dòng 112 nháp, ${srcRemoved} dòng nguồn nháp, ${chiTietDnttXoa} dòng ChiTietDNTT, ${chiTietUncXoa} dòng ChiTietUNC.`);
+    logAction_("XOA_NHAP", id, `Đã xóa ${ctRemoved} dòng CT nháp, ${c112Removed} dòng 112 nháp, ${srcRemoved} dòng nguồn nháp, ${chiTietDnttXoa} dòng ChiTietDNTT, ${chiTietUncXoa} dòng ChiTietUNC.`);
     let ketQuaTraVe = `✅ Đã xóa hồ sơ "${id}" khỏi File Nháp (${ctRemoved} dòng chi tiết, ${c112Removed} dòng tổng hợp). Các Số phiếu cân liên quan đã được giải phóng.`;
     if (chiTietDnttXoa || chiTietUncXoa) ketQuaTraVe += ` Đã dọn theo ${chiTietDnttXoa} dòng ChiTietDNTT + ${chiTietUncXoa} dòng ChiTietUNC (nếu đã từng In Báo Cáo ĐNTT/Tạo UNC cho hồ sơ này).`;
     return ketQuaTraVe;
@@ -6625,7 +7050,7 @@ function runDeleteDraftRecord(idKey) {
  * MỚI (theo yêu cầu - code chạy độc lập): kiểm tra múi giờ của PROJECT
  * Apps Script này - CỰC KỲ QUAN TRỌNG vì mọi lịch chạy nền (7:30, 13:00,
  * 15:00, cửa sổ 7:30-19:00) và cả cách tính "Lần Thanh Toán" theo giờ
- * trong ngày (getSessionInfo()) đều dựa vào múi giờ NÀY - không phải
+ * trong ngày (getSessionInfo_()) đều dựa vào múi giờ NÀY - không phải
  * GMT+7 hardcode. Trước đây code gắn liền với file Sheet (thường tự kế
  * thừa múi giờ Việt Nam từ file đó); giờ code độc lập, project MỚI có
  * thể mặc định múi giờ KHÁC (vd UTC) nếu không chỉnh tay trong Project
@@ -6655,14 +7080,14 @@ function _ngayVNTruaThat_(y, m, d) {
 
 /** MỚI (tối ưu tốc độ - "webapp load rất chậm"): CHỈ trả 2 giá trị RẺ
  * (không đọc sheet nào) - dùng cho 2 chỗ TRƯỚC ĐÂY lỡ gọi thẳng
- * getDashboardStats() (giờ đã tính RẤT NHIỀU thứ: Mua/Thanh Toán tháng
+ * getDashboardStats_() (giờ đã tính RẤT NHIỀU thứ: Mua/Thanh Toán tháng
  * này, Nguồn Gốc/Đại Lý, Công Nợ Top 5...) chỉ để đọc đúng 2 trường
  * mainSetup/muiGio: (1) bước điều hướng lúc khởi động trang (kiểm tra đã
  * cấu hình File Chính chưa để vào Dashboard hay Cài Đặt), (2) mở trang
  * Cài Đặt. Cả 2 chỗ này chạy TRƯỚC KHI trang thật sự hiện ra - gọi nhầm
  * hàm nặng ở đây khiến toàn bộ trang phải chờ tính xong Trang chủ dù
  * chưa cần hiển thị gì từ đó cả. */
-function getAppSetupStatus() {
+function getAppSetupStatus_() {
   return {
     mainSetup: !!PropertiesService.getScriptProperties().getProperty('MAIN_SS_ID'),
     muiGio: _kiemTraMuiGio_()
@@ -6671,19 +7096,19 @@ function getAppSetupStatus() {
 
 /** MỚI (tối ưu tốc độ): CHỈ đếm số hồ sơ đang ở File Nháp - dùng cho huy
  * hiệu (badge) trên thanh điều hướng, vốn TRƯỚC ĐÂY gọi thẳng
- * getDashboardStats() (rất nặng, xem trên) chỉ để lấy 1 con số này. Huy
+ * getDashboardStats_() (rất nặng, xem trên) chỉ để lấy 1 con số này. Huy
  * hiệu này được làm mới liên tục (sau mỗi thao tác ở Danh Sách ĐNTT) nên
- * càng cần nhẹ - getDraftListSummary() chỉ đọc 2 sheet Nháp (CT+112),
- * không đụng tới Phiếu Cân/CT thật/Công Nợ như getDashboardStats(). */
-function getDraftBadgeCount() {
+ * càng cần nhẹ - getDraftListSummary_() chỉ đọc 2 sheet Nháp (CT+112),
+ * không đụng tới Phiếu Cân/CT thật/Công Nợ như getDashboardStats_(). */
+function getDraftBadgeCount_() {
   try {
-    return getDraftListSummary().length;
+    return getDraftListSummary_().length;
   } catch (e) {
     return 0;
   }
 }
 
-function getDashboardStats() {
+function getDashboardStats_() {
   const result = {
     draftSetup: true, // MỚI: File Nháp giờ LÀ chính file đang chạy - luôn sẵn sàng, tự tạo sheet nếu thiếu (xem getDraftSheets_())
     mainSetup: !!PropertiesService.getScriptProperties().getProperty('MAIN_SS_ID'), // MỚI: để Web App biết hiện form cấu hình File Chính nếu chưa có
@@ -6695,7 +7120,7 @@ function getDashboardStats() {
     tongNoGoKeo: 0, top5KhachHangNo: []
   };
   try {
-    const list = getDraftListSummary();
+    const list = getDraftListSummary_();
     result.draftCount = list.length;
     result.draftReady = list.filter(x => x.sanSangChot).length;
     result.draftPending = result.draftCount - result.draftReady;
@@ -6714,7 +7139,7 @@ function getDashboardStats() {
   } catch (e) {}
 
   // MỚI (theo yêu cầu - "Tổng nợ tiền gỗ keo và 5 khách hàng còn nợ
-  // nhiều nhất"): dùng lại ĐÚNG getDebtByCustomer() đã có (mục AB) với
+  // nhiều nhất"): dùng lại ĐÚNG getDebtByCustomer_() đã có (mục AB) với
   // khoảng ngày MẶC ĐỊNH của Công Nợ (_defaultCongNoRange_(), 90 ngày -
   // cũng CHÍNH LÀ khoảng trigger 7:30/13:00 đang giữ cache) - nên phần
   // lớn trường hợp Trang chủ đọc thẳng snapshot có sẵn (nhanh), không
@@ -6723,7 +7148,7 @@ function getDashboardStats() {
   // dương (đang nợ, bỏ qua khách đã trả dư/âm) rồi lấy 5 dòng đầu.
   try {
     const range = _defaultCongNoRange_();
-    const debtRows = getDebtByCustomer(range.fDate, range.tDate);
+    const debtRows = getDebtByCustomer_(range.fDate, range.tDate);
     const dangNo = debtRows.filter(r => r.congNo > 0);
     result.tongNoGoKeo = dangNo.reduce((s, r) => s + r.congNo, 0);
     result.top5KhachHangNo = dangNo.slice(0, 5).map(r => ({ khachHang: r.khachHang, congNo: r.congNo }));
@@ -6780,7 +7205,7 @@ function getDashboardStats() {
  * Danh sách hồ sơ đang có trong File Nháp (gộp CT + 112), dùng cho màn
  * "Danh Sách Nháp" của Web App.
  */
-function getDraftListSummary() {
+function getDraftListSummary_() {
   const { shCT, sh112 } = getDraftSheets_();
   const ctLastRow = shCT.getLastRow();
   const ctAll = ctLastRow > 1 ? shCT.getRange(2, 1, ctLastRow - 1, 22).getValues() : [];
@@ -6830,7 +7255,7 @@ function getDraftListSummary() {
 /**
  * Chi tiết 1 hồ sơ trong Nháp (dùng cho modal Xem/Sửa).
  */
-function getDraftRecordDetail(idKey) {
+function getDraftRecordDetail_(idKey) {
   const id = String(idKey || "").trim();
   if (!id) return null;
   const { shCT, sh112 } = getDraftSheets_();
@@ -6882,7 +7307,7 @@ function getDraftRecordDetail(idKey) {
  * này giờ đồng bộ các trường liên quan xuống MỌI dòng Draft CT của
  * cùng ID_KEY.
  */
-function updateDraft112Info(idKey, updates) {
+function updateDraft112Info_(idKey, updates) {
   let lock;
   try {
     lock = sysLock.acquire();
@@ -6933,7 +7358,7 @@ function updateDraft112Info(idKey, updates) {
     }
 
     SpreadsheetApp.flush();
-    logAction("SUA_NHAP", id, "Cập nhật thông tin hồ sơ nháp: " + JSON.stringify(updates));
+    logAction_("SUA_NHAP", id, "Cập nhật thông tin hồ sơ nháp: " + JSON.stringify(updates));
     return { success: true, message: `✅ Đã cập nhật hồ sơ "${id}" (đã đồng bộ xuống dòng chi tiết).` };
   } catch (e) {
     return { success: false, message: "❌ Lỗi: " + e.toString() };
@@ -6944,7 +7369,7 @@ function updateDraft112Info(idKey, updates) {
  * Thêm 1 Số phiếu cân vào 1 hồ sơ đang có trong Nháp (mở rộng Draft CT).
  * Sau khi thêm, cần chạy lại "Tổng Hợp 112" để tính lại Số tiền.
  */
-function addPhieuCanToDraft(idKey, soPhieuCan) {
+function addPhieuCanToDraft_(idKey, soPhieuCan) {
   let lock;
   try {
     lock = sysLock.acquire();
@@ -6993,7 +7418,7 @@ function addPhieuCanToDraft(idKey, soPhieuCan) {
     const { row } = buildDraftCtRow_(id, stt, soP, srcInfo, pcMap);
     shCT.getRange(shCT.getLastRow() + 1, 1, 1, 22).setValues([row]);
     SpreadsheetApp.flush();
-    logAction("THEM_PHIEU_NHAP", id, `Thêm phiếu cân ${soP}`);
+    logAction_("THEM_PHIEU_NHAP", id, `Thêm phiếu cân ${soP}`);
     return { success: true, message: `✅ Đã thêm phiếu cân "${soP}" vào hồ sơ "${id}". Hãy chạy lại "Đề Nghị Thanh Toán" để tính lại số tiền.` };
   } catch (e) {
     return { success: false, message: "❌ Lỗi: " + e.toString() };
@@ -7007,7 +7432,7 @@ function addPhieuCanToDraft(idKey, soPhieuCan) {
  * luôn dòng Draft 112 tương ứng - tránh để sót hồ sơ "mồ côi" (còn dòng
  * 112 nhưng 0 phiếu cân, không thể chốt cũng không hiển thị đúng).
  */
-function removePhieuCanFromDraft(idCT) {
+function removePhieuCanFromDraft_(idCT) {
   let lock;
   try {
     lock = sysLock.acquire();
@@ -7050,7 +7475,7 @@ function removePhieuCanFromDraft(idCT) {
     }
 
     SpreadsheetApp.flush();
-    logAction("XOA_PHIEU_NHAP", "-", `Xóa dòng chi tiết ${idct} khỏi Nháp` + (alsoRemoved112 ? ` (hồ sơ ${ownerId} hết phiếu cân, đã xóa luôn dòng tổng hợp)` : ""));
+    logAction_("XOA_PHIEU_NHAP", "-", `Xóa dòng chi tiết ${idct} khỏi Nháp` + (alsoRemoved112 ? ` (hồ sơ ${ownerId} hết phiếu cân, đã xóa luôn dòng tổng hợp)` : ""));
     const msg = alsoRemoved112
       ? `✅ Đã xóa phiếu cân cuối cùng - hồ sơ "${ownerId}" đã hết dữ liệu và được xóa luôn khỏi Nháp.`
       : `✅ Đã xóa dòng "${idct}" khỏi Nháp. Hãy chạy lại "Đề Nghị Thanh Toán" để tính lại số tiền.`;
@@ -7082,7 +7507,7 @@ function removePhieuCanFromDraft(idCT) {
 // cập nhật PHIẾU CÂN theo ĐÚNG "Chủ rừng" ở CT (CT đã đối chiếu hợp
 // đồng nên là nguồn ĐÚNG, không phải Phiếu Cân).
 // ============================================================
-function getDoiSoatTenKhachHang() {
+function getDoiSoatTenKhachHang_() {
   try {
     const genericNames = new Set(["KH", "KL", "KHACHLE"]);
     // SỬA (tối ưu tốc độ): dùng cache dùng chung - an toàn vì đây chỉ là
@@ -7124,12 +7549,12 @@ function getDoiSoatTenKhachHang() {
  * cập nhật từng ô lẻ) để nhanh dù chọn nhiều dòng; xóa cache Phiếu Cân
  * sau khi ghi để lần đọc tiếp theo lấy đúng dữ liệu mới.
  */
-function webDongBoTenKhachHang(items) {
+function webDongBoTenKhachHang_(items) {
   let lock;
   try {
     if (!Array.isArray(items) || !items.length) return { success: false, message: "❌ Không có dòng nào được chọn." };
     lock = sysLock.acquire();
-    const shPC = openExternalSheet(CFG.PC_SS_ID, CFG.PC_SHEET, "Phiếu Cân");
+    const shPC = openExternalSheet_(CFG.PC_SS_ID, CFG.PC_SHEET, "Phiếu Cân");
     const lastRow = shPC.getLastRow();
     if (lastRow < 2) return { success: false, message: "⚠️ Sheet Phiếu Cân trống." };
 
@@ -7165,12 +7590,48 @@ function webDongBoTenKhachHang(items) {
 
     let msg = `✅ Đã đồng bộ ${count} dòng vào Phiếu Cân (theo CT).`;
     if (khongTim.length) msg += ` ⚠️ Không tìm thấy ${khongTim.length} số phiếu cân: ${khongTim.join(", ")}.`;
-    logAction("DOI_SOAT_DONG_BO_TEN", "-", `Đã đồng bộ tên khách hàng cho ${count} dòng trong Phiếu Cân (theo CT): ${vet.join("; ").slice(0, GIOI_HAN_KY_TU_O_NHAT_KY)}`);
+    logAction_("DOI_SOAT_DONG_BO_TEN", "-", `Đã đồng bộ tên khách hàng cho ${count} dòng trong Phiếu Cân (theo CT): ${vet.join("; ").slice(0, GIOI_HAN_KY_TU_O_NHAT_KY)}`);
     return { success: true, message: msg, count };
   } catch (e) {
     return { success: false, message: "❌ Lỗi: " + e.toString() };
   } finally {
     if (lock) lock.releaseLock();
+  }
+}
+
+/** Số dòng (1-based) đầu tiên có cột `col` khớp khóa đã chuẩn hóa, 0 nếu không có. */
+function _timDongTheoKhoa_(sh, col, khoaChuan) {
+  const lastRow = sh.getLastRow();
+  if (lastRow < 2) return 0;
+  const i = sh.getRange(2, col, lastRow - 1, 1).getValues().findIndex(r => utils.standardize(r[0]) === khoaChuan);
+  return i === -1 ? 0 : i + 2;
+}
+
+/** Sửa tên Khách hàng của 1 phiếu cân ngay ở bước chọn phiếu cân (Tạo Mới /
+ * Sửa hồ sơ). Tra theo Số phiếu cân (cột SO_CT - đúng cột danh sách chọn
+ * phiếu cân dùng), ghi đúng 1 ô trong PhieuCan_DN và trong bản mirror
+ * "chưa thanh toán" để danh sách hiện tên mới ngay. */
+function webSuaTenKhachHangPhieuCan_(soPhieuCan, tenMoi) {
+  const ten = String(tenMoi || "").trim();
+  const khoa = utils.standardize(soPhieuCan);
+  if (!khoa || !ten) return { success: false, message: "❌ Thiếu Số phiếu cân hoặc tên khách hàng." };
+  try {
+    return _chayTrongKhoa_(() => {
+      const shPC = openExternalSheet_(CFG.PC_SS_ID, CFG.PC_SHEET, "Phiếu Cân");
+      const dong = _timDongTheoKhoa_(shPC, PC_COL.SO_CT + 1, khoa);
+      if (!dong) return { success: false, message: `❌ Không tìm thấy phiếu cân "${soPhieuCan}" trong PhieuCan_DN.` };
+      const tenCu = shPC.getRange(dong, PC_COL.KHACH_HANG + 1).getValue();
+      shPC.getRange(dong, PC_COL.KHACH_HANG + 1).setValue(ten);
+      _invalidatePcCache_();
+      const shMirror = getPcCacheSheet_();
+      const dongMirror = _timDongTheoKhoa_(shMirror, PC_COL.SO_CT + 1, khoa);
+      if (dongMirror) shMirror.getRange(dongMirror, PC_COL.KHACH_HANG + 1).setValue(ten);
+      _invalidateChunkedCache_("pc_unpaid_data_v1");
+      logAction_("SUA_TEN_KH_PHIEU_CAN", String(soPhieuCan), `"${tenCu}" → "${ten}"`);
+      return { success: true, message: `✅ Đã sửa tên khách hàng của phiếu cân ${soPhieuCan} thành "${ten}".` };
+    });
+  } catch (e) {
+    return { success: false, message: "❌ Lỗi: " + e.toString() };
   }
 }
 
@@ -7182,9 +7643,9 @@ function webDongBoTenKhachHang(items) {
  * LẦN NỮA (dữ liệu y hệt, quét lại là thừa) - chỉ khi KHÔNG có sẵn (vd
  * gọi từ nơi khác) mới tự quét lại như cũ.
  */
-function exportDoiSoatTenKhachHangExcel(rowsCoSan) {
+function exportDoiSoatTenKhachHangExcel_(rowsCoSan) {
   try {
-    const rows = (Array.isArray(rowsCoSan) && rowsCoSan.length) ? rowsCoSan : getDoiSoatTenKhachHang();
+    const rows = (Array.isArray(rowsCoSan) && rowsCoSan.length) ? rowsCoSan : getDoiSoatTenKhachHang_();
     const folder = DriveApp.getFolderById(getReportFolderId_());
     const fileName = `DOI SOAT TEN KHACH HANG (${Utilities.formatDate(new Date(), "GMT+7", "yyyyMMdd_HHmm")})`;
     const ss = SpreadsheetApp.create(fileName);
@@ -7204,7 +7665,7 @@ function exportDoiSoatTenKhachHangExcel(rowsCoSan) {
     sheet.setFrozenRows(1);
     sheet.autoResizeColumns(1, headers.length);
 
-    logAction("XUAT_DOI_SOAT_TEN", "-", `Xuất Đối Soát Tên Khách Hàng, ${rows.length} dòng - ${ss.getUrl()}`);
+    logAction_("XUAT_DOI_SOAT_TEN", "-", `Xuất Đối Soát Tên Khách Hàng, ${rows.length} dòng - ${ss.getUrl()}`);
     return { success: true, url: ss.getUrl(), count: rows.length };
   } catch (e) {
     return { success: false, message: "❌ Lỗi: " + e.toString() };
@@ -7233,7 +7694,7 @@ function _gioiHan50_(arr) {
 
 /** Xóa dòng mồ côi khỏi ChiTietDNTT - AN TOÀN (chỉ bảng phụ). items:
  * mảng {idHeThong, soPhieuCan} (lấy từ chiTietDnttYMoCoi/chiTietDnttNMoCoi). */
-function webXoaMoCoiChiTietDNTT(items) {
+function webXoaMoCoiChiTietDNTT_(items) {
   let lock;
   try {
     if (!Array.isArray(items) || !items.length) return { success: false, message: "❌ Không có dòng nào được chọn." };
@@ -7244,7 +7705,7 @@ function webXoaMoCoiChiTietDNTT(items) {
     const soXoa = _saoLuuVaXoaDong_(sh,
       r => keySetCanXoa.has(String(r[0] || "").trim() + "|" + utils.standardize(String(r[2] || "").replace(/'/g, "").trim())),
       "XOA_MO_COI_CHITIET_DNTT");
-    logAction("XOA_MO_COI_CHITIET_DNTT", "-", `Đã xóa ${soXoa} dòng mồ côi khỏi ChiTietDNTT (từ Bảo Trì) - đã sao lưu vào ${SAO_LUU_DONG_XOA_SHEET}.`);
+    logAction_("XOA_MO_COI_CHITIET_DNTT", "-", `Đã xóa ${soXoa} dòng mồ côi khỏi ChiTietDNTT (từ Bảo Trì) - đã sao lưu vào ${SAO_LUU_DONG_XOA_SHEET}.`);
     return { success: true, message: `✅ Đã xóa ${soXoa} dòng mồ côi khỏi ChiTietDNTT.`, count: soXoa };
   } catch (e) {
     return { success: false, message: "❌ Lỗi: " + e.toString() };
@@ -7255,7 +7716,7 @@ function webXoaMoCoiChiTietDNTT(items) {
 
 /** Xóa dòng mồ côi khỏi ChiTietUNC - AN TOÀN (chỉ lịch sử). items: mảng
  * {idHeThong} (lấy từ chiTietUncMoCoi). */
-function webXoaMoCoiChiTietUNC(items) {
+function webXoaMoCoiChiTietUNC_(items) {
   let lock;
   try {
     if (!Array.isArray(items) || !items.length) return { success: false, message: "❌ Không có dòng nào được chọn." };
@@ -7264,7 +7725,7 @@ function webXoaMoCoiChiTietUNC(items) {
     if (!sh || sh.getLastRow() < 2) return { success: false, message: "⚠️ Sheet ChiTietUNC trống." };
     const idSetCanXoa = new Set(items.map(it => String(it.idHeThong || "").trim()));
     const soXoa = _saoLuuVaXoaDong_(sh, r => idSetCanXoa.has(String(r[0] || "").trim()), "XOA_MO_COI_CHITIET_UNC");
-    logAction("XOA_MO_COI_CHITIET_UNC", "-", `Đã xóa ${soXoa} dòng mồ côi khỏi ChiTietUNC (từ Bảo Trì) - đã sao lưu vào ${SAO_LUU_DONG_XOA_SHEET}.`);
+    logAction_("XOA_MO_COI_CHITIET_UNC", "-", `Đã xóa ${soXoa} dòng mồ côi khỏi ChiTietUNC (từ Bảo Trì) - đã sao lưu vào ${SAO_LUU_DONG_XOA_SHEET}.`);
     return { success: true, message: `✅ Đã xóa ${soXoa} dòng mồ côi khỏi ChiTietUNC.`, count: soXoa };
   } catch (e) {
     return { success: false, message: "❌ Lỗi: " + e.toString() };
@@ -7277,7 +7738,7 @@ function webXoaMoCoiChiTietUNC(items) {
  * chốt). items: mảng {idCT} (lấy từ ctMoCoi hoặc soPhieuCanKhongTonTai).
  * Luôn đọc lại CT MỚI NHẤT ngay lúc xóa, tìm theo idCT (cột A, duy nhất
  * tuyệt đối) - không dùng vị trí dòng cũ từ lúc quét Bảo Trì. */
-function webXoaCTMoCoi(items) {
+function webXoaCTMoCoi_(items) {
   let lock;
   try {
     lock = sysLock.acquire();
@@ -7288,7 +7749,7 @@ function webXoaCTMoCoi(items) {
     const soXoa = _saoLuuVaXoaDong_(shCT, r => idSetCanXoa.has(String(r[0] || "").trim()), "XOA_MO_COI_CT_THAT");
     _invalidateCtSrc112Cache_();
     _invalidateCongNoCache_();
-    logAction("XOA_MO_COI_CT_THAT", "-", `⚠️ Đã xóa ${soXoa} dòng CT thật mồ côi (từ Bảo Trì) - ĐỘNG TỚI DỮ LIỆU TÀI CHÍNH ĐÃ CHỐT (đã sao lưu vào ${SAO_LUU_DONG_XOA_SHEET}): ${items.map(it => it.idCT).join(", ")}.`);
+    logAction_("XOA_MO_COI_CT_THAT", "-", `⚠️ Đã xóa ${soXoa} dòng CT thật mồ côi (từ Bảo Trì) - ĐỘNG TỚI DỮ LIỆU TÀI CHÍNH ĐÃ CHỐT (đã sao lưu vào ${SAO_LUU_DONG_XOA_SHEET}): ${items.map(it => it.idCT).join(", ")}.`);
     return { success: true, message: `✅ Đã xóa ${soXoa} dòng CT thật mồ côi.`, count: soXoa };
   } catch (e) {
     return { success: false, message: "❌ Lỗi: " + e.toString() };
@@ -7299,7 +7760,7 @@ function webXoaCTMoCoi(items) {
 
 /** Xóa dòng mồ côi khỏi DNTT_GK_DN THẬT - RỦI RO CAO. items: mảng
  * {idSrc} (lấy từ srcMoCoi112). */
-function webXoaSrcMoCoi(items) {
+function webXoaSrcMoCoi_(items) {
   let lock;
   try {
     lock = sysLock.acquire();
@@ -7310,7 +7771,7 @@ function webXoaSrcMoCoi(items) {
     const soXoa = _saoLuuVaXoaDong_(shSrc, r => idSetCanXoa.has(String(r[0] || "").trim()), "XOA_MO_COI_SRC_THAT");
     _invalidateCtSrc112Cache_();
     _invalidateCongNoCache_();
-    logAction("XOA_MO_COI_SRC_THAT", "-", `⚠️ Đã xóa ${soXoa} dòng DNTT_GK_DN thật mồ côi (từ Bảo Trì) - ĐỘNG TỚI DỮ LIỆU TÀI CHÍNH ĐÃ CHỐT (đã sao lưu vào ${SAO_LUU_DONG_XOA_SHEET}): ${items.map(it => it.idSrc).join(", ")}.`);
+    logAction_("XOA_MO_COI_SRC_THAT", "-", `⚠️ Đã xóa ${soXoa} dòng DNTT_GK_DN thật mồ côi (từ Bảo Trì) - ĐỘNG TỚI DỮ LIỆU TÀI CHÍNH ĐÃ CHỐT (đã sao lưu vào ${SAO_LUU_DONG_XOA_SHEET}): ${items.map(it => it.idSrc).join(", ")}.`);
     return { success: true, message: `✅ Đã xóa ${soXoa} dòng DNTT_GK_DN thật mồ côi.`, count: soXoa };
   } catch (e) {
     return { success: false, message: "❌ Lỗi: " + e.toString() };
@@ -7319,7 +7780,7 @@ function webXoaSrcMoCoi(items) {
   }
 }
 
-function getKiemTraDoiChieuBaoTri() {
+function getKiemTraDoiChieuBaoTri_() {
   try {
     const ss = getMainSs_();
     const shSrc = ss.getSheetByName(CFG.DNTT_SRC);
@@ -7492,7 +7953,7 @@ function _timPhieuCanKhacTenChuRung_(idSet) {
   return mismatches;
 }
 
-function runXacNhanDNTT(selectedIds, forceConfirm) {
+function runXacNhanDNTT_(selectedIds, forceConfirm) {
   let lock;
   try {
     lock = sysLock.acquire();
@@ -7549,7 +8010,7 @@ function runXacNhanDNTT(selectedIds, forceConfirm) {
     }
     if (skippedNotCalculated.length) msg += ` ⚠️ Chưa tính tiền (bỏ qua): ${skippedNotCalculated.join(", ")}.`;
     if (skippedNoData.length) msg += ` ⚠️ Không tìm thấy trong Nháp: ${skippedNoData.join(", ")}.`;
-    logAction("XAC_NHAN_DNTT", Array.from(idSet).join(","), `Xác Nhận ${count} hồ sơ.`);
+    logAction_("XAC_NHAN_DNTT", Array.from(idSet).join(","), `Xác Nhận ${count} hồ sơ.`);
     return { success: count > 0, message: msg };
   } catch (e) {
     return { success: false, message: "❌ Lỗi: " + e.toString() };
@@ -7562,7 +8023,7 @@ function runXacNhanDNTT(selectedIds, forceConfirm) {
  * trạng thái "Chờ ĐNTT" (mục W: khóa Sửa/Xóa ở "Chưa ĐNTT" và "Đang
  * ĐNTT" để tránh sửa nhầm hồ sơ đã tính tiền/đã xác nhận).
  */
-function runHuyXacNhanDNTT(idKey) {
+function runHuyXacNhanDNTT_(idKey) {
   let lock;
   try {
     lock = sysLock.acquire();
@@ -7579,22 +8040,22 @@ function runHuyXacNhanDNTT(idKey) {
     sh112.getRange(idx + 2, COL_TRANG_THAI_DNTT + 1).setValue("");
     SpreadsheetApp.flush();
 
-    logAction("HUY_XAC_NHAN_DNTT", id, `Chuyển hồ sơ "${id}" về "Chờ ĐNTT" để cho phép Sửa/Xóa.`);
+    logAction_("HUY_XAC_NHAN_DNTT", id, `Chuyển hồ sơ "${id}" về "Chờ ĐNTT" để cho phép Sửa/Xóa.`);
     return { success: true, message: `✅ Đã chuyển hồ sơ "${id}" về trạng thái "Chờ ĐNTT" - giờ có thể Sửa/Xóa.` };
   } catch (e) {
     return { success: false, message: "❌ Lỗi: " + e.toString() };
   } finally { if (lock) lock.releaseLock(); }
 }
 
-function webConfirmPayment(selectedIds, payDateStr) {
-  const msg = runConfirmPayment(selectedIds, payDateStr);
+function webConfirmPayment_(selectedIds, payDateStr) {
+  const msg = runConfirmPayment_(selectedIds, payDateStr);
   return { success: msg.indexOf("✅") === 0, message: msg };
 }
 
 /**
  * Wrapper cho Web App: chạy "Đề Nghị Thanh Toán" (Tổng Hợp 112).
  */
-function webRunCreate112() {
+function webRunCreate112_() {
   const msg = runCreate112();
   return { success: msg.indexOf("✅") === 0, message: msg };
 }
@@ -7603,17 +8064,17 @@ function webRunCreate112() {
  * Báo cáo: danh sách hồ sơ CHÍNH THỨC (đã chốt) trong khoảng ngày, dùng
  * cho màn "Báo Cáo" của Web App. fDate/tDate dạng "yyyy-MM-dd" hoặc rỗng.
  */
-function getReportList(fDate, tDate) {
+function getReportList_(fDate, tDate) {
   fDate = _clampReportRange_(fDate, tDate); // mục R - xem ghi chú tại _clampReportRange_
-  return get112ViewData(fDate, tDate);
+  return get112ViewData_(fDate, tDate);
 }
 
 /**
  * Xuất báo cáo (tạo file Google Sheet mới) cho các dòng đã chọn trên
  * màn Báo Cáo của Web App.
  */
-function webExportReport(rows, dateRange) {
-  return createFinalReportFromFilteredData(rows, dateRange || "");
+function webExportReport_(rows, dateRange) {
+  return createFinalReportFromFilteredData_(rows, dateRange || "");
 }
 
 /**
@@ -7624,7 +8085,7 @@ function webExportReport(rows, dateRange) {
  * "Bảng Kê Chi Tiết CK" (sheet đó cần dữ liệu đã chốt ở sheet chính thức
  * thật, chưa có ở giai đoạn này).
  */
-function exportBaoCaoDNTTFromDraft(selectedIds) {
+function exportBaoCaoDNTTFromDraft_(selectedIds) {
   try {
     if (!Array.isArray(selectedIds) || selectedIds.length === 0) {
       return { success: false, message: "❌ Lỗi: Không có hồ sơ nào được chọn để xuất Báo Cáo ĐNTT." };
@@ -7672,12 +8133,12 @@ function exportBaoCaoDNTTFromDraft(selectedIds) {
 
     const sheet1 = newSS.getSheets()[0];
     sheet1.setName("DeNghiThanhToanCK");
-    renderSheet1Full(sheet1, rows, dateRange);
+    renderSheet1Full_(sheet1, rows, dateRange);
 
     // MỚI (theo yêu cầu): bổ sung sheet "Bảng Kê Chi Tiết CK" còn thiếu -
     // đọc từ Draft CT (chưa chốt), KHÔNG ghi vào Update_NganHang_DN.
     const sheet2 = newSS.insertSheet("BangKeChiTietCK");
-    renderSheet2DetailFromDraft(sheet2, rows, dateRange);
+    renderSheet2DetailFromDraft_(sheet2, rows, dateRange);
 
     // MỚI (theo yêu cầu - Báo Cáo Thanh Toán chạy nhanh hơn): ghi sẵn
     // chi tiết từng phiếu cân (Trạng thái = N) vào sheet "ChiTietDNTT"
@@ -7706,7 +8167,7 @@ function exportBaoCaoDNTTFromDraft(selectedIds) {
 
     let msg = `✅ Đã xuất Báo Cáo ĐNTT (${rows.length} hồ sơ - CHƯA chốt thanh toán chính thức, chỉ để in/trình duyệt).`;
     if (skippedNotConfirmed.length) msg += ` ⚠️ Bỏ qua (chưa Xác Nhận): ${skippedNotConfirmed.join(", ")}.`;
-    logAction("XUAT_BAO_CAO_DNTT_NHAP", Array.from(idSet).join(","), `Xuất Báo Cáo ĐNTT nháp ${rows.length} hồ sơ - ${newSS.getUrl()}`);
+    logAction_("XUAT_BAO_CAO_DNTT_NHAP", Array.from(idSet).join(","), `Xuất Báo Cáo ĐNTT nháp ${rows.length} hồ sơ - ${newSS.getUrl()}`);
     return { success: true, url: newSS.getUrl(), message: msg };
   } catch (e) {
     return { success: false, message: "❌ Lỗi: " + e.toString() };
@@ -7720,7 +8181,7 @@ function exportBaoCaoDNTTFromDraft(selectedIds) {
 // chạy 1 lần cho chắc (vd sau khi dán code mới), thực chất chỉ gọi lại
 // getDraftSheets_().
 // ============================================================
-function setupDraftSpreadsheet() {
+function setupDraftSpreadsheet_() {
   const { ss } = getDraftSheets_(); // tự tạo sheet nếu thiếu
   const url = ss.getUrl();
   const msg = `✅ File Nháp đã sẵn sàng (chính là file này đang chạy).\n\nURL: ${url}`;
@@ -7728,13 +8189,8 @@ function setupDraftSpreadsheet() {
   return { success: true, alreadySetup: true, message: msg, url };
 }
 
-function showSetupDraftDialog() {
-  const ui = SpreadsheetApp.getUi();
-  const result = setupDraftSpreadsheet();
-  ui.alert(result.message);
-}
-
 function showOpenDraftDialog() {
+  _yeuCauQuyen_(QUYEN.XEM);
   const ui = SpreadsheetApp.getUi();
   try {
     const { ss } = getDraftSheets_();
@@ -7748,15 +8204,17 @@ function showOpenDraftDialog() {
 }
 
 function showDeleteDraftDialog() {
+  _yeuCauQuyen_(QUYEN.NGHIEP_VU);
   const ui = SpreadsheetApp.getUi();
   const result = ui.prompt('Xóa Hồ Sơ Nháp', 'Nhập ID hồ sơ (ID_KEY) cần xóa khỏi File Nháp:', ui.ButtonSet.OK_CANCEL);
   if (result.getSelectedButton() != ui.Button.OK) return;
-  const msg = runDeleteDraftRecord(result.getResponseText().trim());
+  const msg = runDeleteDraftRecord_(result.getResponseText().trim());
   ui.alert(msg);
 }
 
 // MỚI (mục Y): làm mới thủ công cả 3 cache (Phiếu Cân chưa TT, HD_NCC, HD_STK).
 function showRefreshPcCacheDialog() {
+  _yeuCauQuyen_(QUYEN.QUAN_TRI);
   const ui = SpreadsheetApp.getUi();
   try {
     const r = refreshAllDraftCaches_();
@@ -7768,9 +8226,10 @@ function showRefreshPcCacheDialog() {
 
 // MỚI (mục AA/AB): bật Trigger tự động làm mới TOÀN BỘ dữ liệu nền mỗi ngày lúc 7:30 & 13:00 (chỉ cần chạy 1 lần).
 function showSetupPcCacheTriggerDialog() {
+  _yeuCauQuyen_(QUYEN.QUAN_TRI);
   const ui = SpreadsheetApp.getUi();
   try {
-    ui.alert(setupPcCacheAutoRefreshTrigger());
+    ui.alert(setupPcCacheAutoRefreshTrigger_());
   } catch (e) {
     ui.alert("❌ Lỗi: " + e.toString());
   }
@@ -7778,9 +8237,10 @@ function showSetupPcCacheTriggerDialog() {
 
 // MỚI (mục AD): bật riêng Trigger 10 phút cho Phiếu Cân + Hợp Đồng + Số Tài Khoản.
 function showSetup10MinTriggerDialog() {
+  _yeuCauQuyen_(QUYEN.QUAN_TRI);
   const ui = SpreadsheetApp.getUi();
   try {
-    ui.alert(setup10MinRefreshTrigger());
+    ui.alert(setup10MinRefreshTrigger_());
   } catch (e) {
     ui.alert("❌ Lỗi: " + e.toString());
   }
@@ -7788,9 +8248,10 @@ function showSetup10MinTriggerDialog() {
 
 // MỚI (mục 11): bật Trigger 15h cho Phân Tích Nhập/TT theo NG-ĐL + Chi Tiết Công Nợ theo Phiếu Cân.
 function showSetupDaily15hTriggerDialog() {
+  _yeuCauQuyen_(QUYEN.QUAN_TRI);
   const ui = SpreadsheetApp.getUi();
   try {
-    ui.alert(setupDaily15hTrigger());
+    ui.alert(setupDaily15hTrigger_());
   } catch (e) {
     ui.alert("❌ Lỗi: " + e.toString());
   }
@@ -7801,6 +8262,7 @@ function showSetupDaily15hTriggerDialog() {
 // (không đổi so với 2026.3 - vẫn dùng để vá dữ liệu LỊCH SỬ đã chốt)
 // ============================================================
 function runFillMissingBankOnly() {
+  _yeuCauQuyen_(QUYEN.QUAN_TRI);
   let lock;
   try {
     lock = sysLock.acquire();
@@ -7809,7 +8271,7 @@ function runFillMissingBankOnly() {
 
     const data112 = sh112.getRange(1, 1, sh112.getLastRow(), sh112.getLastColumn()).getValues();
     // mục Z: vá dữ liệu LỊCH SỬ có thể thuộc hợp đồng đã "Đã Thanh lý" -> cần dữ liệu ĐẦY ĐỦ.
-    const bankMap = buildBankLookupFromHDSTK(true);
+    const bankMap = buildBankLookupFromHDSTK_(true);
 
     // v2026.6: chỉ ghi đúng ô Ngân hàng (cột E) của các dòng đang trống,
     // không ghi đè lại toàn bộ sheet 112 đã chốt.
@@ -7832,7 +8294,7 @@ function runFillMissingBankOnly() {
     if (filledBankCount > 0) {
       _ghiTheoDong_(sh112, capNhatNganHang, 5);
       SpreadsheetApp.flush();
-      logAction("VA_NGAN_HANG_112", "-", `Đã tự động điền Ngân hàng cho ${filledBankCount} dòng đang trống.`);
+      logAction_("VA_NGAN_HANG_112", "-", `Đã tự động điền Ngân hàng cho ${filledBankCount} dòng đang trống.`);
       _invalidateChunkedCache_("h112_that_data_v1"); // MỚI (rà soát bổ sung): 112 thật vừa thay đổi - xóa cache ngay
       return `✅ Đã tự động điền Ngân hàng cho ${filledBankCount} dòng đang trống (tham chiếu HD_STK).`;
     }
@@ -7892,6 +8354,7 @@ function onOpen() {
 // SỬA (mục J): chọn danh sách hồ sơ để chốt dựa trên FILE NHÁP (Draft
 // 112 đã có Số tiền > 0), không còn dựa vào cột trạng thái của nguồn.
 function showPayDialog() {
+  _yeuCauQuyen_(QUYEN.NGHIEP_VU);
   var ui = SpreadsheetApp.getUi();
   var result = ui.prompt('Xác nhận chốt', 'Nhập ngày thanh toán (dd/mm/yyyy):', ui.ButtonSet.OK_CANCEL);
   if (result.getSelectedButton() != ui.Button.OK) return;
@@ -7920,12 +8383,13 @@ function showPayDialog() {
   var confirm = ui.alert('Xác nhận', `Sẽ chốt thanh toán cho ${selectedIds.length} hồ sơ đang có trong File Nháp. Tiếp tục?`, ui.ButtonSet.YES_NO);
   if (confirm != ui.Button.YES) return;
 
-  var msg = runConfirmPayment(selectedIds, payDateStr);
+  var msg = runConfirmPayment_(selectedIds, payDateStr);
   ui.alert(msg);
 }
 
 // Mở hộp thoại "Thêm Mới Đề Nghị Thanh Toán" ngay trong Google Sheet.
 function showAddPaymentDialog() {
+  _yeuCauQuyen_(QUYEN.NGHIEP_VU);
   var html = HtmlService.createHtmlOutputFromFile('AddPaymentDialog')
       .setWidth(560).setHeight(640);
   SpreadsheetApp.getUi().showModalDialog(html, 'Thêm Mới Đề Nghị Thanh Toán');
@@ -7978,7 +8442,7 @@ function getChatbotSettings_() {
   return { apiKey, coApiKey: !!apiKey };
 }
 /** #Web: lưu API key Gemini - gọi từ Cài Đặt. */
-function webSetChatbotApiKey(apiKey) {
+function webSetChatbotApiKey_(apiKey) {
   try {
     const clean = String(apiKey || '').trim();
     if (!clean) {
@@ -7992,7 +8456,7 @@ function webSetChatbotApiKey(apiKey) {
   }
 }
 /** #Web: cho Cài Đặt biết ĐÃ có API key chưa (không trả về chính key ra ngoài để tránh lộ). */
-function getChatbotSettingsForWeb() {
+function getChatbotSettingsForWeb_() {
   const s = getChatbotSettings_();
   return { coApiKey: s.coApiKey };
 }
@@ -8080,8 +8544,8 @@ function _chatbotTraLoiDuPhong_(cauHoi) {
  */
 function _layNgayVaSoLieuThatChoChatbot_() {
   try {
-    const stats = getDashboardStats();
-    const list = getDraftListSummary();
+    const stats = getDashboardStats_();
+    const list = getDraftListSummary_();
     const dem = { cho_tinh: 0, cho_dntt: 0, dang_dntt: 0 };
     list.forEach(r => { if (dem[r.trangThaiKey] !== undefined) dem[r.trangThaiKey]++; });
     const homNay = Utilities.formatDate(new Date(), "GMT+7", "dd/MM/yyyy");
@@ -8090,26 +8554,26 @@ function _layNgayVaSoLieuThatChoChatbot_() {
     let phanCongNoKH = "", phanCongNoHD = "", phanDaiLyNguonGoc = "", phanHoSoNhap = "", phanCongNoPhieuCan = "";
     try {
       const homQua = Utilities.formatDate(new Date(Date.now() - 86400000), "GMT+7", "yyyy-MM-dd");
-      const ctcn = getChiTietCongNoPhieuCanWeb(homQua, {});
+      const ctcn = getChiTietCongNoPhieuCanWeb_(homQua, {});
       const top = ctcn.slice().sort((a, b) => (b.chenhLechNgay || 0) - (a.chenhLechNgay || 0)).slice(0, 100);
       const tongChuaTT = ctcn.reduce((s, r) => s + (r.thanhTien || 0), 0);
       phanCongNoPhieuCan = `\n\nCHI TIẾT CÔNG NỢ THEO PHIẾU CÂN (phiếu cân CHƯA thanh toán tính đến ${homQua}, tổng ${ctcn.length} phiếu, tổng tiền chưa TT ${tongChuaTT.toLocaleString('vi-VN')}đ - liệt kê tối đa 100 phiếu TREO LÂU NHẤT trước):\n` +
         top.map(r => `- Phiếu ${r.soPhieuCan} (${r.khachHang}, ĐL ${r.dl}): ${(r.thanhTien||0).toLocaleString('vi-VN')}đ, nhập ngày ${r.ngayNhap1}, treo ${r.chenhLechNgay} ngày`).join("\n");
     } catch (e) {}
     try {
-      const congNoKH = getDebtByCustomer(tuNgay90Ngay, homNay.split('/').reverse().join('-'));
+      const congNoKH = getDebtByCustomer_(tuNgay90Ngay, homNay.split('/').reverse().join('-'));
       const top = congNoKH.slice(0, 100);
       phanCongNoKH = "\n\nCÔNG NỢ THEO KHÁCH HÀNG (90 ngày gần nhất, sắp xếp công nợ giảm dần, tối đa 100 khách hàng lớn nhất - nếu khách hàng cần tìm KHÔNG có trong danh sách này, khả năng công nợ = 0 hoặc ngoài 90 ngày gần đây):\n" +
         top.map(o => `- ${o.khachHang}: nhập ${o.giaTriNhapLuyKe.toLocaleString('vi-VN')}đ, đã TT ${o.daTTLuyKe.toLocaleString('vi-VN')}đ, còn nợ ${o.congNo.toLocaleString('vi-VN')}đ`).join("\n");
     } catch (e) {}
     try {
-      const congNoHD = getDebtByContract(tuNgay90Ngay, homNay.split('/').reverse().join('-'));
+      const congNoHD = getDebtByContract_(tuNgay90Ngay, homNay.split('/').reverse().join('-'));
       const top = congNoHD.slice(0, 100);
       phanCongNoHD = "\n\nCÔNG NỢ THEO HỢP ĐỒNG (90 ngày gần nhất, tối đa 100 hợp đồng công nợ lớn nhất):\n" +
         top.map(o => `- HĐ ${o.soHD} (${o.chuRung}): SL dự kiến ${o.slDuKien}, đã thực hiện ${o.klThucHienLuyKe}, còn nợ ${o.congNo.toLocaleString('vi-VN')}đ`).join("\n");
     } catch (e) {}
     try {
-      const pt = getPaymentAnalysis(tuNgay90Ngay, homNay.split('/').reverse().join('-'));
+      const pt = getPaymentAnalysis_(tuNgay90Ngay, homNay.split('/').reverse().join('-'));
       const dsDaiLy = (pt.theoDaiLy || []).map(o => `${o.nhan}: ${o.klTan.toFixed(1)} tấn, ${o.giaTri.toLocaleString('vi-VN')}đ`).join("; ");
       const dsNguonGoc = (pt.theoNguonGoc || []).map(o => `${o.nhan}: ${o.klTan.toFixed(1)} tấn, ${o.giaTri.toLocaleString('vi-VN')}đ`).join("; ");
       phanDaiLyNguonGoc = `\n\nTỔNG HỢP THEO ĐẠI LÝ (90 ngày gần nhất): ${dsDaiLy || "(không có dữ liệu)"}\nTỔNG HỢP THEO NGUỒN GỐC (90 ngày gần nhất): ${dsNguonGoc || "(không có dữ liệu)"}`;
@@ -8134,7 +8598,7 @@ Số liệu THẬT đang có trong hệ thống (đọc trực tiếp lúc trả
   }
 }
 
-function TRA_LOI_CHATBOT(cauHoi, lichSuHoiDap) {
+function TRA_LOI_CHATBOT_(cauHoi, lichSuHoiDap) {
   try {
     cauHoi = String(cauHoi || '').trim();
     if (!cauHoi) return { thanhCong: false, loi: 'Câu hỏi trống.' };
