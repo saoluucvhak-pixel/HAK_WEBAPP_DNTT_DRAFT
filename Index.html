@@ -526,7 +526,7 @@
       <div class="nav-item" role="button" tabindex="0" data-page="settings"><span class="ic">⚙️</span> Cài đặt / Nháp</div>
     </nav>
     <div class="nguoi-dung-chip" id="nguoi-dung-chip"></div>
-    <div class="sidebar-footer">Hệ thống Quản Lý Thanh Toán · v2026.9.10<br><button type="button" class="theme-toggle" id="theme-toggle" aria-label="Đổi giao diện sáng / tối">🌓 Giao diện: Tự động</button></div>
+    <div class="sidebar-footer">Hệ thống Quản Lý Thanh Toán · v2026.9.11<br><button type="button" class="theme-toggle" id="theme-toggle" aria-label="Đổi giao diện sáng / tối">🌓 Giao diện: Tự động</button></div>
   </aside>
 
   <main class="main">
@@ -3351,7 +3351,7 @@ function doExportPhanTich(){
         <div class="modal-body">
           <p>Báo cáo tổng hợp từ ${esc(state.phanTichFrom)} đến ${esc(state.phanTichTo)} đã được tạo.</p>
           ${nutMoFile_(res.excelUrl, '📊 Mở file Excel', 'btn primary', 'width:100%;margin-bottom:8px')}
-          ${nutMoFile_(res.pdfUrl, '📄 Mở file PDF', 'btn', 'width:100%')}
+          ${res.pdfUrl ? nutMoFile_(res.pdfUrl, '📄 Mở file PDF', 'btn', 'width:100%') : `<p class="muted">⚠️ ${esc(res.canhBao || 'Không tạo được file PDF.')}</p>`}
         </div>
         <div class="modal-foot"><button class="btn ghost" onclick="closeModal()">Đóng</button></div>`);
     } else {

@@ -347,7 +347,7 @@ export function createGasEnvironment({ activeSpreadsheet, spreadsheets = [], pro
       getFileById: () => ({ getId: () => 'file', getUrl: () => 'url', moveTo() {}, getParents: () => ({ hasNext: () => false }) }),
       getRootFolder: () => ({ removeFile() {} })
     },
-    ScriptApp: { getProjectTriggers: () => [], newTrigger: () => ({ timeBased: () => ({}) }), deleteTrigger() {}, getService: () => ({ getUrl: () => serviceUrl }) },
+    ScriptApp: { getProjectTriggers: () => [], newTrigger: () => ({ timeBased: () => ({}) }), deleteTrigger() {}, getService: () => ({ getUrl: () => serviceUrl }), getOAuthToken: () => 'mock-token' },
     HtmlService: {
       createTemplateFromFile: (name) => {
         const tpl = { file: name, evaluate() { const out = htmlOutput(''); out.templateVars = { ...tpl }; return out; } };

@@ -52,9 +52,10 @@ Trạng thái: ✅ xong · 🟡 một phần · ⏳ chưa làm · ⚖️ cần n
 | R-08, R-09, R-10 | Mở File Chính 1 lần/lượt; `_taoFileBaoCao_`; bỏ đọc lặp | ✅ 2026.9.7 |
 | R-19, R-20, R-23…R-26 | Client, a11y, dark/print, mã chết | ✅ 2026.9.7 |
 | R-05 | Mở Đóng TT nguyên tử | ⏳ ⚖️ |
-| R-06 | `logAction_` lỗi âm thầm | ⏳ |
+| R-06 | `logAction_` lỗi âm thầm | ✅ 2026.9.11 |
 | R-11, R-12 | Webhook: giới hạn tần suất, so sánh an toàn | ✅ 2026.9.9 — bỏ hẳn webhook (người dùng yêu cầu) |
-| R-13, R-14, R-16, R-17, R-18, R-27, R-29, R-31, R-32 | Xem REVIEW | ⏳ |
+| R-14, R-18 | Đọc số dạng chữ VN; PDF lỗi | ✅ 2026.9.11 |
+| R-13, R-16, R-17, R-27, R-29, R-31, R-32 | Xem REVIEW | ⏳ |
 | L-01, L-02 | Accessibility, Dark mode | ✅ 2026.9.7 (cơ bản) |
 
 ## Đã bỏ theo yêu cầu người dùng

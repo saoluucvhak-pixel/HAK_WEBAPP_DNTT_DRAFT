@@ -1,6 +1,6 @@
 /**
  * ============================================================
- * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.10
+ * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.11
  * Lịch sử thay đổi: CHANGELOG.md · Kiến trúc: docs/ARCHITECTURE.md
  * ------------------------------------------------------------
  * *** QUAN TRỌNG - CẦN LÀM TRƯỚC KHI DÙNG BẢN NÀY (chỉ 1 LẦN DUY NHẤT
@@ -511,7 +511,25 @@ const utils = {
   parseNum: (v) => {
     if (typeof v === 'number') return isNaN(v) ? 0 : v;
     if (!v) return 0;
-    let n = parseFloat(String(v).replace(/[^0-9.-]+/g, ""));
+    // v2026.9.11 (R-14): hiểu đúng số dạng CHỮ kiểu Việt Nam. Trước đây mọi
+    // dấu phẩy bị bỏ và chỉ đọc tới dấu chấm thứ 2: "1.234.567" -> 1,234;
+    // "12,5" -> 125. Quy tắc (chỉ áp dụng cho CHỮ - ô số không đổi):
+    //  - có cả "." và ",": dấu xuất hiện SAU CÙNG là dấu thập phân;
+    //  - chỉ có ".": từ 2 dấu trở lên là phân cách nghìn; 1 dấu = thập phân (như cũ);
+    //  - chỉ có ",": từ 2 dấu trở lên là phân cách nghìn; 1 dấu mà sau nó
+    //    đúng 3 chữ số là phân cách nghìn (như cũ, "1,234" = 1234), còn lại là thập phân.
+    let s = String(v).replace(/[^0-9.,-]+/g, "");
+    const soCham = (s.match(/\./g) || []).length, soPhay = (s.match(/,/g) || []).length;
+    if (soCham && soPhay) {
+      s = s.lastIndexOf(",") > s.lastIndexOf(".") ? s.replace(/\./g, "").replace(",", ".") : s.replace(/,/g, "");
+    } else if (soCham > 1) {
+      s = s.replace(/\./g, "");
+    } else if (soPhay > 1 || (soPhay === 1 && /,\d{3}$/.test(s))) {
+      s = s.replace(/,/g, "");
+    } else if (soPhay === 1) {
+      s = s.replace(",", ".");
+    }
+    const n = parseFloat(s);
     return isNaN(n) ? 0 : n;
   },
   timeToSeconds: (d) => (d instanceof Date) ? (d.getHours() * 3600 + d.getMinutes() * 60 + d.getSeconds()) : null,
@@ -920,7 +938,12 @@ function logAction_(actionType, refId, detail) {
     }
     sh.appendRow(_dongAnToan_([[new Date(), _emailNguoiThucHien_() || "N/A", actionType, refId, detail]])[0]);
   } catch (e) {
-    // Không chặn luồng chính nếu ghi log lỗi
+    // Không chặn luồng chính nếu ghi log lỗi. v2026.9.11 (R-06): nhưng không
+    // để mất âm thầm - ghi vào nhật ký thực thi của Apps Script (Executions)
+    // đủ hành động/mã/chi tiết để tra lại.
+    try {
+      console.error(`LOI_GHI_NHAT_KY ${actionType} ${refId}: ${e && e.message} | ${String(detail || "").slice(0, 1000)}`);
+    } catch (e2) { /* console không khả dụng - bỏ qua */ }
   }
 }
 
@@ -5996,6 +6019,10 @@ function _exportSheetAsPdf_(ssId) {
   const url = `https://docs.google.com/spreadsheets/d/${ssId}/export?format=pdf&size=A4&portrait=false&fitw=true&gridlines=false&printtitle=false&sheetnames=false&pagenum=CENTER&attachment=true`;
   const token = ScriptApp.getOAuthToken();
   const res = UrlFetchApp.fetch(url, { headers: { Authorization: "Bearer " + token }, muteHttpExceptions: true });
+  // v2026.9.11 (R-18): Google trả lỗi (hết quota, không có quyền...) thì
+  // KHÔNG lưu trang lỗi thành file .pdf.
+  const ma = res.getResponseCode();
+  if (ma !== 200) throw new Error(`Google không xuất được PDF (mã HTTP ${ma}).`);
   return res.getBlob().setName("bao_cao.pdf");
 }
 
@@ -6052,11 +6079,17 @@ function exportPhanTichNhapTTBaoCao_(fDate, tDate) {
     _renderPhanTichSheet_(sh1, report, fDate, tDate);
     SpreadsheetApp.flush();
 
-    const pdfBlob = _exportSheetAsPdf_(ss.getId());
-    const pdfFile = folder.createFile(pdfBlob).setName(fileName + ".pdf");
+    // PDF lỗi -> vẫn trả file Excel đã tạo, kèm cảnh báo (trước đây báo lỗi
+    // cả thao tác, người dùng mất link Excel dù file đã nằm trong thư mục).
+    let pdfUrl = "", canhBao = "";
+    try {
+      pdfUrl = folder.createFile(_exportSheetAsPdf_(ss.getId())).setName(fileName + ".pdf").getUrl();
+    } catch (ePdf) {
+      canhBao = "Không tạo được file PDF: " + (ePdf && ePdf.message) + " Mở file Excel rồi File › Tải xuống › PDF.";
+    }
 
-    logAction_("XUAT_PHAN_TICH_NG_DL", "-", `Xuất báo cáo tổng hợp ${fDate} - ${tDate} - ${ss.getUrl()}`);
-    return { success: true, excelUrl: ss.getUrl(), pdfUrl: pdfFile.getUrl() };
+    logAction_("XUAT_PHAN_TICH_NG_DL", "-", `Xuất báo cáo tổng hợp ${fDate} - ${tDate} - ${ss.getUrl()}${canhBao ? " - " + canhBao : ""}`);
+    return { success: true, excelUrl: ss.getUrl(), pdfUrl, canhBao };
   } catch (e) {
     return { success: false, message: "❌ Lỗi: " + _loiChoNguoiDung_(e) };
   }

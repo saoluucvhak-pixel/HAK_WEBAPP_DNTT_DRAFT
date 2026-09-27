@@ -2,6 +2,16 @@
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/). Phiên bản theo `NĂM.ĐỢT.SỬA`; thay đổi làm đổi hành vi nghiệp vụ (⚖️) sẽ tăng số ĐỢT và ghi rõ đã được người dùng đồng ý.
 
+## [2026.9.11] — Rà soát lại: 3 lỗi nhỏ
+
+### Fixed
+- **R-18 — Xuất Báo cáo tổng hợp (Excel + PDF):** Google trả lỗi khi xuất PDF (hết quota, không có quyền…) thì trước đây trang lỗi bị lưu thành file `.pdf` hỏng, hoặc cả thao tác báo lỗi dù file Excel đã tạo. Nay `_exportSheetAsPdf_` kiểm tra mã HTTP; PDF lỗi thì vẫn trả link Excel kèm cảnh báo “Không tạo được file PDF…” (`exportPhanTichNhapTTBaoCao_`, `doExportPhanTich`).
+- **R-06 — Nhật ký thao tác mất âm thầm:** `logAction_` ghi lỗi (hết quota, sheet bị khóa…) nay ghi `LOI_GHI_NHAT_KY` + hành động/mã/chi tiết vào nhật ký thực thi Apps Script (Executions). Vẫn không chặn thao tác chính.
+- **R-14 — `utils.parseNum` với số dạng CHỮ kiểu Việt Nam:** `"1.234.567"` trước đọc thành 1,234 và `"12,5"` thành 125; nay đúng 1.234.567 và 12,5. Ô kiểu số (dữ liệu hiện tại) không đổi; `"1,234"`, `"1,234.5"`, `"1.234"` giữ cách đọc cũ.
+
+### Tests
+- 116 test (+3 trong `review202609`, đều thất bại trên 2026.9.10). Mock thêm `ScriptApp.getOAuthToken`.
+
 ## [2026.9.10] — Cờ "đang khóa sổ" cho webapp nhập kho
 
 ### Added

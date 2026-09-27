@@ -150,3 +150,44 @@ test('In Báo Cáo ĐNTT (Excel) xếp hồ sơ theo THỜI GIAN LẬP, không t
   const bangKe = file.getSheets()[1].rows(26).slice(4, 7).map(r => [r[0], String(r[2]).replace(/^'/, '')]);
   assert.deepEqual(bangKe, [[1, 'PC003'], [2, 'PC001'], [3, 'PC002']], 'bảng kê theo cùng thứ tự hồ sơ, STT liên tục');
 });
+
+// ---- Rà soát lại 27/09/2026 (v2026.9.11) ----
+
+test('R-18: a failed PDF export keeps the Excel report and says the PDF failed', () => {
+  const { run } = setup();
+  run('UrlFetchApp').fetch = () => ({
+    getResponseCode: () => 500, getContentText: () => '<html>error</html>',
+    getBlob() { return { setName() { return this; } }; },
+  });
+  const kq = run('exportPhanTichNhapTTBaoCao_')('2026-09-01', '2026-09-26');
+  assert.equal(kq.success, true, kq.message);
+  assert.ok(kq.excelUrl, 'Excel link is still returned');
+  assert.equal(kq.pdfUrl, '', 'no PDF file made from an error page');
+  assert.match(kq.canhBao, /PDF/);
+});
+
+test('R-06: a failure writing the action log is reported to the execution log, not lost', () => {
+  const { run } = setup();
+  const loi = [];
+  run('console').error = (...a) => loi.push(a.join(' '));
+  run("getMainSs_ = () => { throw new Error('Hết quota'); }");
+  run('logAction_')('THU', 'X1', 'chi tiết');
+  assert.equal(loi.length, 1);
+  assert.match(loi[0], /THU/);
+  assert.match(loi[0], /X1/);
+  assert.match(loi[0], /Hết quota/);
+});
+
+test('R-14: parseNum reads Vietnamese-formatted text numbers; plain numbers are unchanged', () => {
+  const { run } = setup();
+  const p = run('utils.parseNum');
+  assert.equal(p('1.234.567'), 1234567);
+  assert.equal(p('1.234.567,5'), 1234567.5);
+  assert.equal(p('5.000.000 đ'), 5000000);
+  assert.equal(p('1,234.5'), 1234.5);   // kiểu Mỹ giữ nguyên
+  assert.equal(p('1.234'), 1.234);      // 1 dấu chấm: không đoán, giữ như cũ
+  assert.equal(p('12,5'), 12.5);        // dấu phẩy thập phân kiểu VN
+  assert.equal(p(1234.5), 1234.5);
+  assert.equal(p(''), 0);
+  assert.equal(p('-2.500.000'), -2500000);
+});
