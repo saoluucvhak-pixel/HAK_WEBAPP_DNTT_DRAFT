@@ -1,6 +1,6 @@
 /**
  * ============================================================
- * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.3
+ * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.4
  * Lịch sử thay đổi: CHANGELOG.md · Kiến trúc: docs/ARCHITECTURE.md
  * ------------------------------------------------------------
  * *** QUAN TRỌNG - CẦN LÀM TRƯỚC KHI DÙNG BẢN NÀY (chỉ 1 LẦN DUY NHẤT
@@ -929,11 +929,14 @@ function logAction_(actionType, refId, detail) {
 // thẳng được. Menu trong Sheet dùng email thật của người bấm menu.
 // Chủ script luôn là Quản trị (không thể tự khóa mình ra ngoài).
 // ============================================================
-const VAI_TRO = { ADMIN: "ADMIN", KE_TOAN: "KE_TOAN", XEM: "XEM" };
-const VAI_TRO_NHAN = { ADMIN: "Quản trị", KE_TOAN: "Kế toán", XEM: "Chỉ xem" };
-const QUYEN = { XEM: "XEM", NGHIEP_VU: "NGHIEP_VU", QUAN_TRI: "QUAN_TRI" };
+const VAI_TRO = { ADMIN: "ADMIN", KE_TOAN_TONG_HOP: "KE_TOAN_TONG_HOP", KE_TOAN: "KE_TOAN", XEM: "XEM" };
+const VAI_TRO_NHAN = { ADMIN: "Quản trị", KE_TOAN_TONG_HOP: "Kế toán tổng hợp", KE_TOAN: "Kế toán", XEM: "Chỉ xem" };
+// HE_THONG: toàn bộ trang Hệ Thống (đối soát, bảo trì, Mở Đóng TT, khôi phục,
+// khóa sổ năm...). QUAN_TRI: thêm Cài đặt, người dùng, Cổng đăng nhập.
+const QUYEN = { XEM: "XEM", NGHIEP_VU: "NGHIEP_VU", HE_THONG: "HE_THONG", QUAN_TRI: "QUAN_TRI" };
 const QUYEN_THEO_VAI_TRO = {
-  ADMIN: [QUYEN.XEM, QUYEN.NGHIEP_VU, QUYEN.QUAN_TRI],
+  ADMIN: [QUYEN.XEM, QUYEN.NGHIEP_VU, QUYEN.HE_THONG, QUYEN.QUAN_TRI],
+  KE_TOAN_TONG_HOP: [QUYEN.XEM, QUYEN.NGHIEP_VU, QUYEN.HE_THONG],
   KE_TOAN: [QUYEN.XEM, QUYEN.NGHIEP_VU],
   XEM: [QUYEN.XEM]
 };
@@ -1188,7 +1191,7 @@ function api(phien, tenHam, thamSo) {
 /** Bảng phân quyền duy nhất: tên chức năng (trình duyệt gọi) -> hàm nội bộ + quyền cần có.
  * Chức năng không có trong bảng này thì KHÔNG gọi được từ web app. */
 const API_ROUTES = (() => {
-  const X = QUYEN.XEM, N = QUYEN.NGHIEP_VU, Q = QUYEN.QUAN_TRI;
+  const X = QUYEN.XEM, N = QUYEN.NGHIEP_VU, H = QUYEN.HE_THONG, Q = QUYEN.QUAN_TRI;
   const r = (fn, quyen) => ({ fn, quyen });
   return {
     // --- Chung, Trang chủ, Trợ lý AI ---
@@ -1249,31 +1252,31 @@ const API_ROUTES = (() => {
     webCreateUNCFromDraft: r(webCreateUNCFromDraft_, N),
     webConfirmPayment: r(webConfirmPayment_, N),
 
-    // --- Hệ thống: đối soát, bảo trì, sửa dữ liệu đã chốt (Quản trị) ---
-    getDoiSoatTenKhachHang: r(getDoiSoatTenKhachHang_, Q),
-    webDongBoTenKhachHang: r(webDongBoTenKhachHang_, Q),
-    exportDoiSoatTenKhachHangExcel: r(exportDoiSoatTenKhachHangExcel_, Q),
-    getKiemTraDoiChieuBaoTri: r(getKiemTraDoiChieuBaoTri_, Q),
-    webXoaCTMoCoi: r(webXoaCTMoCoi_, Q),
-    webXoaSrcMoCoi: r(webXoaSrcMoCoi_, Q),
-    webXoaMoCoiChiTietDNTT: r(webXoaMoCoiChiTietDNTT_, Q),
-    webXoaMoCoiChiTietUNC: r(webXoaMoCoiChiTietUNC_, Q),
-    runFillMissingBankOnly: r(runFillMissingBankOnly, Q),
-    timChuRungDaChot: r(timChuRungDaChot_, Q),
-    webMoDongThanhToanTheoHoSo: r(webMoDongThanhToanTheoHoSo_, Q),
-    getLichSuSuaDoi: r(getLichSuSuaDoi_, Q),
-    getDanhSachSaoLuuXoa: r(getDanhSachSaoLuuXoa_, Q),
-    webKhoiPhucSaoLuuXoa: r(webKhoiPhucSaoLuuXoa_, Q),
-    dongBoChiTietDNTTTuDauLichSu: r(dongBoChiTietDNTTTuDauLichSu_, Q),
-    webTaoLaiMisaTheoNgay: r(webTaoLaiMisaTheoNgay_, Q),
-    webTaoLaiUNCTheoNgay: r(webTaoLaiUNCTheoNgay_, Q),
+    // --- Hệ thống: đối soát, bảo trì, sửa dữ liệu đã chốt (Quản trị + Kế toán tổng hợp) ---
+    getDoiSoatTenKhachHang: r(getDoiSoatTenKhachHang_, H),
+    webDongBoTenKhachHang: r(webDongBoTenKhachHang_, H),
+    exportDoiSoatTenKhachHangExcel: r(exportDoiSoatTenKhachHangExcel_, H),
+    getKiemTraDoiChieuBaoTri: r(getKiemTraDoiChieuBaoTri_, H),
+    webXoaCTMoCoi: r(webXoaCTMoCoi_, H),
+    webXoaSrcMoCoi: r(webXoaSrcMoCoi_, H),
+    webXoaMoCoiChiTietDNTT: r(webXoaMoCoiChiTietDNTT_, H),
+    webXoaMoCoiChiTietUNC: r(webXoaMoCoiChiTietUNC_, H),
+    runFillMissingBankOnly: r(runFillMissingBankOnly, H),
+    timChuRungDaChot: r(timChuRungDaChot_, H),
+    webMoDongThanhToanTheoHoSo: r(webMoDongThanhToanTheoHoSo_, H),
+    getLichSuSuaDoi: r(getLichSuSuaDoi_, H),
+    getDanhSachSaoLuuXoa: r(getDanhSachSaoLuuXoa_, H),
+    webKhoiPhucSaoLuuXoa: r(webKhoiPhucSaoLuuXoa_, H),
+    dongBoChiTietDNTTTuDauLichSu: r(dongBoChiTietDNTTTuDauLichSu_, H),
+    webTaoLaiMisaTheoNgay: r(webTaoLaiMisaTheoNgay_, H),
+    webTaoLaiUNCTheoNgay: r(webTaoLaiUNCTheoNgay_, H),
+    webKhoaSoNam: r(webKhoaSoNam_, H),
 
     // --- Cài đặt (Quản trị) ---
     getMainSsInfoForWeb: r(getMainSsInfoForWeb_, Q),
     webSetMainSsId: r(webSetMainSsId_, Q),
     getLuuTruNamForWeb: r(getLuuTruNamForWeb_, Q),
     webSetLuuTruNam: r(webSetLuuTruNam_, Q),
-    webKhoaSoNam: r(webKhoaSoNam_, Q),
     setupDraftSpreadsheet: r(setupDraftSpreadsheet_, Q),
     getConfigLinksForSettings: r(getConfigLinksForSettings_, Q),
     webSetSwappableLink: r(webSetSwappableLink_, Q),
@@ -8976,7 +8979,7 @@ function showSetupDaily15hTriggerDialog() {
 // (không đổi so với 2026.3 - vẫn dùng để vá dữ liệu LỊCH SỬ đã chốt)
 // ============================================================
 function runFillMissingBankOnly() {
-  _yeuCauQuyen_(QUYEN.QUAN_TRI);
+  _yeuCauQuyen_(QUYEN.HE_THONG);
   let lock;
   try {
     lock = sysLock.acquire();

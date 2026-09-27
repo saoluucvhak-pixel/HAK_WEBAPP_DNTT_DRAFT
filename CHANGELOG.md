@@ -2,6 +2,15 @@
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/). Phiên bản theo `NĂM.ĐỢT.SỬA`; thay đổi làm đổi hành vi nghiệp vụ (⚖️) sẽ tăng số ĐỢT và ghi rõ đã được người dùng đồng ý.
 
+## [2026.9.4] — Vai trò Kế toán tổng hợp (người dùng yêu cầu 27/09/2026)
+
+### Added
+- Vai trò **Kế toán tổng hợp**: đủ quyền Kế toán + **toàn bộ trang Hệ Thống** (Đối soát tên KH, Bảo trì, Cập nhật ngân hàng, Mở Đóng TT, Khóa sổ năm, Khôi phục dữ liệu đã xóa, Lịch sử sửa đổi, Đồng bộ ChiTietDNTT, Tạo lại MISA/UNC) — người dùng chọn “Toàn bộ Hệ Thống”. Không vào Cài đặt (người dùng, Cổng đăng nhập, kết nối file, trigger…).
+- Quyền mới `HE_THONG` giữa Kế toán và Quản trị; các chức năng trang Hệ Thống và menu Sheet “Vá Ngân Hàng Còn Trống” chuyển sang quyền này (Quản trị vẫn làm được tất cả).
+
+### Tests
+- 94 test (thêm 1: Kế toán tổng hợp vào được mọi chức năng Hệ Thống, không vào Cài đặt; Kế toán không vào Hệ Thống).
+
 ## [2026.9.3] — Trang chủ mở nhanh
 
 ### Fixed

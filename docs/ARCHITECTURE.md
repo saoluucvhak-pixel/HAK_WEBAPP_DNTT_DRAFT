@@ -1,4 +1,4 @@
-# ARCHITECTURE — HAK Quản Lý Thanh Toán (v2026.9.3)
+# ARCHITECTURE — HAK Quản Lý Thanh Toán (v2026.9.4)
 
 > Tài liệu sống: cập nhật mỗi khi đổi module, lớp, luồng dữ liệu hoặc schema.
 > Phân tích chi tiết hiện trạng: `docs/PROJECT_ANALYSIS.md`. Kiến trúc đích: `docs/REFACTOR_PLAN.md` §3–§4.
@@ -87,7 +87,7 @@ Trình duyệt ─ google.script.run.api(phiên, "tenChucNang", [tham số])
 
 | Thành phần | Vị trí |
 |---|---|
-| Vai trò → quyền | `VAI_TRO`, `QUYEN`, `QUYEN_THEO_VAI_TRO` — ADMIN ⊇ KE_TOAN ⊇ XEM |
+| Vai trò → quyền | `VAI_TRO`, `QUYEN`, `QUYEN_THEO_VAI_TRO` — ADMIN (XEM, NGHIEP_VU, HE_THONG, QUAN_TRI) ⊇ KE_TOAN_TONG_HOP (XEM, NGHIEP_VU, HE_THONG) ⊇ KE_TOAN (XEM, NGHIEP_VU) ⊇ XEM. `HE_THONG` = toàn bộ trang Hệ Thống (2026.9.4, người dùng chọn); `QUAN_TRI` = Cài đặt, người dùng, Cổng đăng nhập |
 | Bảng phân quyền | `API_ROUTES` (tên chức năng → hàm nội bộ + quyền). Không có trong bảng = không gọi được |
 | Cửa vào công khai | `doGet`, `onOpen`, `api`, `thongTinDangNhap` (không cần đăng nhập, chỉ trả trạng thái của chính người gọi + link cổng), `dangXuat` |
 | Menu Sheet | 18 hàm công khai, dòng đầu `_yeuCauQuyen_(QUYEN.*)` — email lấy từ `Session.getActiveUser()` (người bấm menu) |

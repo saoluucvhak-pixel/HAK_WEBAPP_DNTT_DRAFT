@@ -449,7 +449,7 @@
       <div class="nav-item" data-page="settings"><span class="ic">⚙️</span> Cài đặt / Nháp</div>
     </nav>
     <div class="nguoi-dung-chip" id="nguoi-dung-chip"></div>
-    <div class="sidebar-footer">Hệ thống Quản Lý Thanh Toán · v2026.9.3</div>
+    <div class="sidebar-footer">Hệ thống Quản Lý Thanh Toán · v2026.9.4</div>
   </aside>
 
   <main class="main">
@@ -813,7 +813,7 @@ const PAGES = {
   report:    {title:'Báo Cáo Thanh Toán', desc:'Danh sách hồ sơ đã chốt thanh toán chính thức', render: renderReport, quyen:'XEM'},
   debt:      {title:'Báo Cáo Công Nợ Khách Hàng Gỗ Keo', desc:'Công nợ theo khách hàng / hợp đồng, sổ chi tiết, phân tích tình hình thanh toán', render: renderDebt, quyen:'XEM'},
   huongdan:  {title:'Hướng Dẫn Sử Dụng', desc:'Quy trình thực hiện thủ tục thanh toán và hướng dẫn từng màn hình', render: renderHuongDan, quyen:'XEM'},
-  hethong:   {title:'Hệ Thống', desc:'Đối soát tên khách hàng và bảo trì kiểm tra đối chiếu dữ liệu', render: renderHeThong, quyen:'QUAN_TRI'},
+  hethong:   {title:'Hệ Thống', desc:'Đối soát tên khách hàng và bảo trì kiểm tra đối chiếu dữ liệu', render: renderHeThong, quyen:'HE_THONG'},
   settings:  {title:'Cài đặt / File Nháp', desc:'Khởi tạo và quản lý File Nháp, người dùng & đăng nhập', render: renderSettings, quyen:'QUAN_TRI'}
 };
 
@@ -3898,7 +3898,7 @@ function loadNguoiDung(){
     const nhan = {};
     d.vaiTro.forEach(v => { nhan[v.ma] = v.nhan; });
     box.innerHTML = `<h3>👥 Người Dùng & Phân Quyền</h3>
-      <p class="muted" style="font-size:13px"><b>Quản trị</b>: toàn quyền, gồm Cài đặt và Hệ thống. <b>Kế toán</b>: tạo, xác nhận, duyệt ĐNTT, UNC, xem và xuất báo cáo. <b>Chỉ xem</b>: xem và xuất báo cáo.
+      <p class="muted" style="font-size:13px"><b>Quản trị</b>: toàn quyền, gồm Cài đặt và Hệ thống. <b>Kế toán tổng hợp</b>: như Kế toán + toàn bộ trang Hệ Thống (đối soát, bảo trì, Mở Đóng TT, khôi phục dữ liệu, khóa sổ năm…), không vào Cài đặt. <b>Kế toán</b>: tạo, xác nhận, duyệt ĐNTT, UNC, xem và xuất báo cáo. <b>Chỉ xem</b>: xem và xuất báo cáo.
       Chủ script <b>${esc(d.chuScript)}</b> và Quản trị cố định <b>${d.quanTriCoDinh.map(esc).join(', ')}</b> luôn là Quản trị (đổi trong code). Không xóa người dùng - đổi trạng thái sang "Khóa" để chặn truy cập (có hiệu lực trong khoảng 1 phút).</p>
       <div class="grid cols-4">
         <div class="field"><label>Email Google</label><input type="text" id="nd-email" placeholder="ten@gmail.com"></div>

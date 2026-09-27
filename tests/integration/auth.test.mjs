@@ -79,14 +79,14 @@ test('every browser call has a route, and every route points to a function', () 
   called.forEach(n => assert.ok(routes[n], `missing route for ${n}`));
   Object.entries(routes).forEach(([n, r]) => {
     assert.equal(typeof r.fn, 'function', n);
-    assert.ok(['XEM', 'NGHIEP_VU', 'QUAN_TRI'].includes(r.quyen), n);
+    assert.ok(['XEM', 'NGHIEP_VU', 'HE_THONG', 'QUAN_TRI'].includes(r.quyen), n);
   });
 });
 
 test('no page calls a function that needs more permission than the page itself', () => {
   const { run } = setup();
   const routes = run('API_ROUTES');
-  const LV = { XEM: 0, NGHIEP_VU: 1, QUAN_TRI: 2 };
+  const LV = { XEM: 0, NGHIEP_VU: 1, HE_THONG: 2, QUAN_TRI: 3 };
   // Split the client script into top-level functions.
   const fns = {};
   let cur = null;
@@ -120,6 +120,27 @@ test('no page calls a function that needs more permission than the page itself',
     }
   });
   assert.deepEqual(tooHigh, []);
+});
+
+test('chief accountant opens the whole Hệ Thống page but not Cài đặt; accountant cannot open Hệ Thống', () => {
+  const { run, actAs, addUser } = setup();
+  const KTTH = 'kttonghop@gmail.com';
+  addUser(KTTH, 'KE_TOAN_TONG_HOP');
+  addUser(KE_TOAN, 'KE_TOAN');
+  const phienTH = openApp(run, actAs, loginThroughGateway(run, actAs, KTTH)).phien;
+  const info = run('thongTinDangNhap')(phienTH);
+  assert.equal(info.vaiTroNhan, 'Kế toán tổng hợp');
+  assert.deepEqual(Array.from(info.quyen), ['XEM', 'NGHIEP_VU', 'HE_THONG']);
+  assert.ok(Array.isArray(run('api')(phienTH, 'getLichSuSuaDoi', ['2026-01-01', '2026-12-31'])));
+  assert.ok(Array.isArray(run('api')(phienTH, 'getDanhSachSaoLuuXoa', [])));
+  assert.equal(typeof run('api')(phienTH, 'webKhoaSoNam', [2000, false]).success, 'boolean');
+  assert.equal(typeof run('api')(phienTH, 'getDraftListSummary', []).length, 'number', 'still does accounting work');
+  assert.throws(() => run('api')(phienTH, 'getDanhSachNguoiDungForWeb', []), /^Error: \[QUYEN\]/);
+  assert.throws(() => run('api')(phienTH, 'webSetMainSsId', ['x']), /^Error: \[QUYEN\]/);
+
+  const phienKT = openApp(run, actAs, loginThroughGateway(run, actAs, KE_TOAN)).phien;
+  assert.throws(() => run('api')(phienKT, 'getLichSuSuaDoi', ['2026-01-01', '2026-12-31']), /^Error: \[QUYEN\]/);
+  assert.throws(() => run('api')(phienKT, 'webKhoaSoNam', [2000, false]), /^Error: \[QUYEN\]/);
 });
 
 test('accountant can approve and refresh caches from the draft page', () => {
