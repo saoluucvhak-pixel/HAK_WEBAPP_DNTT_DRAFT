@@ -21,7 +21,7 @@ const MENU_FUNCTIONS = ['runProcessDetail', 'runCreate112', 'showPayDialog', 'sh
   'showDeleteDraftDialog', 'runFillMissingBankOnly', 'showRefreshPcCacheDialog', 'showSetupPcCacheTriggerDialog',
   'showSetup10MinTriggerDialog', 'showSetupDaily15hTriggerDialog', 'showResetPhanTichDialog', 'showResetChiTietCongNoDialog',
   'showWebhookInfoDialog', 'showKhoaDinhDangTextDialog', 'showChonVungDialog', 'showGenerateThongSoDialog', 'showKetNoiFileChinhDialog'];
-const ENTRY_POINTS = ['doGet', 'onOpen', 'api', 'thongTinDangNhap', 'dangXuat'];
+const ENTRY_POINTS = ['doGet', 'onOpen', 'api', 'thongTinDangNhap', 'dangXuat', 'nhanPhienDangNhap'];
 
 /** Main app (owner deployment) + helpers to act as different visitors. */
 function setup() {
@@ -141,6 +141,33 @@ test('chief accountant opens the whole Hệ Thống page but not Cài đặt; ac
   const phienKT = openApp(run, actAs, loginThroughGateway(run, actAs, KE_TOAN)).phien;
   assert.throws(() => run('api')(phienKT, 'getLichSuSuaDoi', ['2026-01-01', '2026-12-31']), /^Error: \[QUYEN\]/);
   assert.throws(() => run('api')(phienKT, 'webKhoaSoNam', [2000, false]), /^Error: \[QUYEN\]/);
+});
+
+test('login from an embedding page: the popup leaves a one-time session for the embedded frame', () => {
+  const { run, actAs, addUser } = setup();
+  addUser(KE_TOAN, 'KE_TOAN');
+  const yc = 'a'.repeat(32);
+  assert.deepEqual({ ...run('nhanPhienDangNhap')(yc) }, {}, 'nothing before login');
+  const token = loginThroughGateway(run, actAs, KE_TOAN, { yc });
+  actAs('');
+  const popup = run('doGet')({ parameter: { sso: token } });
+  assert.match(popup.getContent(), /Đăng nhập thành công/);
+  assert.equal(popup.templateVars, undefined, 'the popup shows a short page, not the app');
+  const kq = run('nhanPhienDangNhap')(yc);
+  assert.match(kq.phien, /^[0-9a-f]{64}$/);
+  assert.equal(run('thongTinDangNhap')(kq.phien).email, KE_TOAN);
+  assert.deepEqual({ ...run('nhanPhienDangNhap')(yc) }, {}, 'the session is handed out once');
+  assert.deepEqual({ ...run('nhanPhienDangNhap')('../x') }, {});
+
+  // Tài khoản chưa được cấp quyền: khung nhúng nhận lỗi để hiện ra.
+  const yc2 = 'b'.repeat(32);
+  const token2 = loginThroughGateway(run, actAs, 'la@gmail.com', { yc: yc2 });
+  actAs('');
+  run('doGet')({ parameter: { sso: token2 } });
+  assert.match(run('nhanPhienDangNhap')(yc2).loi, /chưa được cấp quyền/);
+
+  // Không kèm mã yêu cầu (mở thẳng): như cũ, vào app ngay.
+  assert.match(openApp(run, actAs, loginThroughGateway(run, actAs, KE_TOAN)).phien, /^[0-9a-f]{64}$/);
 });
 
 test('accountant can approve and refresh caches from the draft page', () => {

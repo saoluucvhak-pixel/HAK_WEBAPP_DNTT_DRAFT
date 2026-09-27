@@ -2,6 +2,16 @@
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/). Phiên bản theo `NĂM.ĐỢT.SỬA`; thay đổi làm đổi hành vi nghiệp vụ (⚖️) sẽ tăng số ĐỢT và ghi rõ đã được người dùng đồng ý.
 
+## [2026.9.5] — Đăng nhập khi web app nằm trong trang chủ (web app khác)
+
+### Fixed
+- Người dùng (không phải chủ script) mở web app **nhúng trong trang chủ**: bấm “Đăng nhập bằng Google” làm cả tab rời trang chủ, đăng nhập xong web app mở toàn trang, quay lại trang chủ lại phải đăng nhập (vòng lặp). Nay khi đang nhúng, Cổng mở ở **cửa sổ nhỏ**; đăng nhập xong cửa sổ tự đóng và web app trong trang chủ tự vào hệ thống. Trình duyệt chặn popup → hiện link mở ở tab mới.
+- Bảo mật giữ nguyên: mã từ Cổng vẫn ký HMAC, hạn 5 phút, dùng 1 lần; mã yêu cầu 128 bit ngẫu nhiên nằm trong phần đã ký; phiên chỉ trao 1 lần.
+- ⚠️ Cần **dán lại mã Cổng đăng nhập** (Cài đặt › Cấu hình đăng nhập) vào dự án Cổng rồi Deploy lại — Cổng cũ không chuyển tiếp mã yêu cầu.
+
+### Tests
+- 95 test (thêm 1: đăng nhập từ trang nhúng; kiểm tra thêm cửa vào công khai `nhanPhienDangNhap`).
+
 ## [2026.9.4] — Vai trò Kế toán tổng hợp (người dùng yêu cầu 27/09/2026)
 
 ### Added

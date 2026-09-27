@@ -1,4 +1,4 @@
-# ARCHITECTURE — HAK Quản Lý Thanh Toán (v2026.9.4)
+# ARCHITECTURE — HAK Quản Lý Thanh Toán (v2026.9.5)
 
 > Tài liệu sống: cập nhật mỗi khi đổi module, lớp, luồng dữ liệu hoặc schema.
 > Phân tích chi tiết hiện trạng: `docs/PROJECT_ANALYSIS.md`. Kiến trúc đích: `docs/REFACTOR_PLAN.md` §3–§4.
@@ -98,6 +98,7 @@ Trình duyệt ─ google.script.run.api(phiên, "tenChucNang", [tham số])
 | Lỗi | `[AUTH] …` → client hiện màn hình đăng nhập; `[QUYEN] …` → chỉ báo lỗi |
 | Mở thẳng 1 màn hình | `?trang=` chỉ nhận giá trị trong `TRANG_MO_THANG` (server) ↔ `MO_THANG` (client, kèm quyền). Link đăng nhập gắn thêm `trang`, Cổng đăng nhập (mã sinh từ 2026.7.5) chuyển tiếp lại. Dùng cho menu Sheet “Thêm Mới” |
 | Nhúng iframe | `ALLOWALL` — giữ theo quyết định người dùng (web app nhúng vào trang chủ, H-08) |
+| Đăng nhập khi nhúng (2026.9.5) | Client `_dangNhung_()` (`window.parent !== window.top`) → nút mở Cổng ở **cửa sổ nhỏ** kèm `?yc=<32 hex ngẫu nhiên>`; Cổng đưa `yc` vào phần **đã ký** → `doGet(sso)` tạo phiên, lưu `dn_yc_<yc>` (10 phút) rồi trả trang “Đăng nhập thành công” tự đóng (`_trangDangNhapNhung_`); khung nhúng hỏi `nhanPhienDangNhap(yc)` 2,5 giây/lần — trả phiên **1 lần** hoặc lỗi. Mở thẳng (không nhúng) giữ cách cũ. Cần dán lại mã Cổng từ bản này |
 
 Quy tắc: **thêm chức năng mới gọi từ web** = viết hàm nội bộ `ten_` + thêm 1 dòng vào `API_ROUTES` với quyền phù hợp. Test `auth.test.mjs` sẽ báo lỗi nếu có hàm global mới không kết thúc bằng `_`, trình duyệt gọi 1 chức năng chưa có route, hoặc 1 trang (theo `PAGES[].quyen`) gọi chức năng cần quyền **cao hơn** quyền mở trang đó.
 

@@ -449,7 +449,7 @@
       <div class="nav-item" data-page="settings"><span class="ic">⚙️</span> Cài đặt / Nháp</div>
     </nav>
     <div class="nguoi-dung-chip" id="nguoi-dung-chip"></div>
-    <div class="sidebar-footer">Hệ thống Quản Lý Thanh Toán · v2026.9.4</div>
+    <div class="sidebar-footer">Hệ thống Quản Lý Thanh Toán · v2026.9.5</div>
   </aside>
 
   <main class="main">
@@ -741,10 +741,48 @@ function hienManHinhDangNhap(loi){
       <h3>🔐 Đăng nhập</h3>
       <p class="muted" style="font-size:13px">Dùng tài khoản Google (Gmail) đã được Quản trị cấp quyền.</p>
       ${loi ? `<div class="hint-text" style="color:#b00;margin-bottom:12px">${esc(loi)}</div>` : ''}
-      ${url
-        ? `<a class="btn primary" href="${esc(url)}" target="_top">Đăng nhập bằng Google</a>`
-        : `<div class="hint-text">Quản trị chưa cấu hình Cổng đăng nhập. Chủ hệ thống hãy mở web app bằng tài khoản chủ để cấu hình ở mục Cài đặt.</div>`}
+      ${!url
+        ? `<div class="hint-text">Quản trị chưa cấu hình Cổng đăng nhập. Chủ hệ thống hãy mở web app bằng tài khoản chủ để cấu hình ở mục Cài đặt.</div>`
+        : _dangNhung_()
+          ? `<button class="btn primary" onclick="dangNhapCuaSoNho()">Đăng nhập bằng Google</button><div id="dn-trang-thai" class="hint-text" style="margin-top:10px"></div>`
+          : `<a class="btn primary" href="${esc(url)}" target="_top">Đăng nhập bằng Google</a>`}
     </div>`;
+}
+/** Web app đang nằm trong trang khác (vd trang chủ là 1 web app khác): khung
+ * của web app này không phải khung ngoài cùng. Mở thẳng thì 2 khung là 1. */
+function _dangNhung_(){
+  try { return window.parent !== window.top; } catch(e) { return true; }
+}
+/** Đăng nhập khi đang nhúng: Google không cho trang đăng nhập nằm trong khung,
+ * nên mở Cổng ở cửa sổ nhỏ kèm mã yêu cầu ngẫu nhiên; đăng nhập xong máy chủ
+ * giữ phiên theo mã đó, khung này hỏi lại rồi vào hệ thống - không rời trang chủ. */
+let _dnHoiPhien_ = null;
+function dangNhapCuaSoNho(){
+  const cong = (state.nguoiDung && state.nguoiDung.congDangNhapUrl) || '';
+  const box = document.getElementById('dn-trang-thai');
+  if (!cong || !box) return;
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  const yeuCau = Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
+  const trangDau = document.body.dataset.trangDau || '';
+  const url = cong + (cong.indexOf('?') >= 0 ? '&' : '?') + 'yc=' + yeuCau + (trangDau ? '&trang=' + encodeURIComponent(trangDau) : '');
+  const cuaSo = window.open(url, 'hak_dang_nhap', 'width=520,height=680');
+  box.innerHTML = cuaSo
+    ? 'Đang chờ đăng nhập ở cửa sổ mới…'
+    : `Trình duyệt đã chặn cửa sổ bật lên. <a href="${esc(url)}" target="_blank">Bấm vào đây để đăng nhập</a> rồi quay lại trang này.`;
+  clearInterval(_dnHoiPhien_);
+  const hetHan = Date.now() + 10 * 60 * 1000;
+  _dnHoiPhien_ = setInterval(() => {
+    if (Date.now() > hetHan) { clearInterval(_dnHoiPhien_); box.textContent = 'Hết thời gian chờ - bấm Đăng nhập lại.'; return; }
+    google.script.run.withSuccessHandler(kq => {
+      if (!kq || (!kq.phien && !kq.loi)) return;
+      clearInterval(_dnHoiPhien_);
+      if (kq.loi) { hienManHinhDangNhap(kq.loi); return; }
+      PHIEN = kq.phien;
+      try { sessionStorage.setItem(PHIEN_STORAGE_KEY, PHIEN); } catch(e) {}
+      _batDauUngDung_();
+    }).nhanPhienDangNhap(yeuCau);
+  }, 2500);
 }
 function _veNguoiDungChip_(){
   const nd = state.nguoiDung;
@@ -4619,21 +4657,25 @@ function _moTrangDauTien_(){
     document.getElementById('content').innerHTML = '<div class="card"><div class="empty"><div class="ic">⚙️</div>Hệ thống chưa được Quản trị kết nối File Chính - vui lòng liên hệ Quản trị.</div></div>';
   }).catch(() => {});
 }
+/** Xác định người dùng theo phiên hiện tại rồi mở trang đầu (hoặc màn hình đăng nhập). */
+function _batDauUngDung_(){
+  google.script.run
+    .withSuccessHandler(info => {
+      state.nguoiDung = info;
+      if (!info.daDangNhap) {
+        const loi = document.body.dataset.loiDangNhap
+          || (info.email ? `Tài khoản ${info.email} chưa được cấp quyền hoặc đã bị khóa - liên hệ Quản trị.` : '');
+        hienManHinhDangNhap(loi);
+        return;
+      }
+      apDungQuyenGiaoDien();
+      _moTrangDauTien_();
+    })
+    .withFailureHandler(err => hienManHinhDangNhap(String((err && err.message) || err)))
+    .thongTinDangNhap(PHIEN);
+}
 _khoiTaoPhien_();
-google.script.run
-  .withSuccessHandler(info => {
-    state.nguoiDung = info;
-    if (!info.daDangNhap) {
-      const loi = document.body.dataset.loiDangNhap
-        || (info.email ? `Tài khoản ${info.email} chưa được cấp quyền hoặc đã bị khóa - liên hệ Quản trị.` : '');
-      hienManHinhDangNhap(loi);
-      return;
-    }
-    apDungQuyenGiaoDien();
-    _moTrangDauTien_();
-  })
-  .withFailureHandler(err => hienManHinhDangNhap(String((err && err.message) || err)))
-  .thongTinDangNhap(PHIEN);
+_batDauUngDung_();
 </script>
 </body>
 </html>

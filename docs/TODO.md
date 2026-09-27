@@ -57,6 +57,8 @@ Trạng thái: ✅ xong · 🟡 một phần · ⏳ chưa làm · ⚖️ cần n
 - ✅ 2026.8.2: Giao diện “Khôi phục từ SYS_SaoLuuDongXoa” (hoàn tất C-07).
 - ⏳ Kiểm chứng trên Google Sheets thật: `getRangeList().setValue()` và `deleteRows()` với dữ liệu lớn (mock đã kiểm chứng logic).
 - ✅ Khóa sổ năm (quy trình người dùng): kiểm chứng công nợ đầu năm = phiếu chưa trả mang sang (test `khoaSoNam`); không cần bộ nhớ đệm 6 tháng.
+- ✅ 2026.9.5: Đăng nhập khi nhúng trong trang chủ (cửa sổ nhỏ, không rời trang chủ).
+- ⏳ Kiểm chứng trên Google thật: đăng nhập từ trang chủ nhúng (popup, tự đóng cửa sổ) sau khi dán lại mã Cổng.
 - ✅ 2026.9.4: Vai trò Kế toán tổng hợp (Kế toán + toàn bộ Hệ Thống, không Cài đặt).
 - ✅ 2026.9.3: Trang chủ không tính lại công nợ khi mở (đọc bản tổng hợp), không che màn hình.
 - ✅ 2026.9.1: Khóa sổ năm là **1 thao tác** (tự tạo DATA<năm>, chuyển sổ ĐNTT + phiếu cân cùng lúc, tự đăng ký) — người dùng yêu cầu 26/09/2026.

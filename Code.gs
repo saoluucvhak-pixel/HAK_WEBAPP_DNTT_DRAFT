@@ -1,6 +1,6 @@
 /**
  * ============================================================
- * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.4
+ * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.5
  * Lịch sử thay đổi: CHANGELOG.md · Kiến trúc: docs/ARCHITECTURE.md
  * ------------------------------------------------------------
  * *** QUAN TRỌNG - CẦN LÀM TRƯỚC KHI DÙNG BẢN NÀY (chỉ 1 LẦN DUY NHẤT
@@ -956,10 +956,15 @@ const AUTH_CFG = {
   CACHE_KEY_NGUOI_DUNG: "sys_nguoi_dung_v1",
   TIEN_TO_PHIEN: "phien_",
   TIEN_TO_NONCE: "sso_n_",
+  // Đăng nhập khi web app nằm trong trang khác (iframe): Cổng mở ở cửa sổ nhỏ,
+  // xong thì để phiên ở đây theo mã yêu cầu; khung nhúng hỏi lại bằng mã đó.
+  TIEN_TO_YEU_CAU: "dn_yc_",
+  YEU_CAU_TTL_GIAY: 600,
   LOI_DANG_NHAP: "[AUTH] ",         // client hiện màn hình đăng nhập
   LOI_QUYEN: "[QUYEN] "             // client chỉ báo lỗi, không đăng xuất
 };
 const MAU_MA_PHIEN = /^[0-9a-f]{64}$/;
+const MAU_MA_YEU_CAU = /^[0-9a-f]{32}$/;
 const MAU_EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 const MAU_URL_CONG_DANG_NHAP = /^https:\/\/script\.google\.com\/(a\/[^/]+\/)?macros\/s\/[\w-]+\/exec$/;
 
@@ -1083,7 +1088,8 @@ function _soSanhAnToan_(a, b) {
   return khac === 0;
 }
 
-/** Xác minh mã từ Cổng đăng nhập: đúng chữ ký, còn hạn, chưa dùng. Trả về email. */
+/** Xác minh mã từ Cổng đăng nhập: đúng chữ ký, còn hạn, chưa dùng. Trả về
+ * { email, yeuCau } - yeuCau: mã yêu cầu của khung nhúng (nằm trong phần đã ký). */
 function _xacMinhSso_(token) {
   const secret = PropertiesService.getScriptProperties().getProperty(AUTH_CFG.PROP_SSO_SECRET);
   if (!secret) throw new Error("Cổng đăng nhập chưa được cấu hình.");
@@ -1103,7 +1109,7 @@ function _xacMinhSso_(token) {
   cache.put(AUTH_CFG.TIEN_TO_NONCE + nonce, "1", AUTH_CFG.SSO_NONCE_TTL_GIAY);
   const email = _chuanHoaEmail_(payload.email);
   if (!MAU_EMAIL.test(email)) throw new Error("Mã đăng nhập không có email hợp lệ.");
-  return email;
+  return { email, yeuCau: MAU_MA_YEU_CAU.test(String(payload.yc || "")) ? payload.yc : "" };
 }
 
 /** Mã nguồn Cổng đăng nhập (dán vào 1 dự án Apps Script riêng). */
@@ -1120,10 +1126,11 @@ var SSO_HIEU_LUC_MS = ${AUTH_CFG.SSO_HIEU_LUC_MS};
 function doGet(e) {
   var email = String(Session.getActiveUser().getEmail() || "").trim().toLowerCase();
   var trang = String((e && e.parameter && e.parameter.trang) || "");
+  var yc = String((e && e.parameter && e.parameter.yc) || "");  // mã yêu cầu khi đăng nhập từ trang nhúng
   if (!email) {
     return HtmlService.createHtmlOutput('<p style="font-family:Arial;padding:24px">Không xác định được tài khoản Google. Hãy đăng nhập Google rồi mở lại link này.</p>');
   }
-  var payload = JSON.stringify({ email: email, exp: Date.now() + SSO_HIEU_LUC_MS, n: Utilities.getUuid() });
+  var payload = JSON.stringify({ email: email, exp: Date.now() + SSO_HIEU_LUC_MS, n: Utilities.getUuid(), yc: /^[0-9a-f]{32}$/.test(yc) ? yc : "" });
   var p64 = Utilities.base64EncodeWebSafe(payload, Utilities.Charset.UTF_8);
   var sig = Utilities.base64EncodeWebSafe(Utilities.computeHmacSha256Signature(p64, SSO_SECRET));
   var url = APP_URL + "?sso=" + encodeURIComponent(p64 + "." + sig) + (/^[A-Za-z]{1,30}$/.test(trang) ? "&trang=" + trang : "");
@@ -1158,6 +1165,30 @@ function thongTinDangNhap(phien) {
     quaPhien: !!emailPhien,
     congDangNhapUrl: PropertiesService.getScriptProperties().getProperty(AUTH_CFG.PROP_CONG_DANG_NHAP_URL) || ""
   };
+}
+
+/** Đăng nhập từ trang nhúng: cửa sổ nhỏ (Cổng -> web app ?sso) để lại phiên /
+ * lỗi theo mã yêu cầu cho khung nhúng lấy, rồi tự đóng. */
+function _trangDangNhapNhung_(yeuCau, phien, loi) {
+  CacheService.getScriptCache().put(AUTH_CFG.TIEN_TO_YEU_CAU + yeuCau, JSON.stringify(phien ? { phien } : { loi }), AUTH_CFG.YEU_CAU_TTL_GIAY);
+  const noiDung = phien
+    ? '<h2 style="color:#1f6f43">✅ Đăng nhập thành công</h2><p>Quay lại trang đang dùng - cửa sổ này tự đóng.</p>'
+    : '<h2 style="color:#b00">Không đăng nhập được</h2><p>' + String(loi).replace(/[&<>"']/g, c => "&#" + c.charCodeAt(0) + ";") + '</p>';
+  return HtmlService.createHtmlOutput('<div style="font-family:Arial,sans-serif;padding:32px;text-align:center">' + noiDung
+    + '<button onclick="window.top.close()" style="margin-top:12px;padding:10px 20px">Đóng cửa sổ</button></div>'
+    + (phien ? '<script>setTimeout(function () { try { window.top.close(); } catch (e) {} }, 1200);</script>' : ''))
+    .setTitle("Đăng nhập HAK");
+}
+/** CÔNG KHAI: khung nhúng lấy phiên theo mã yêu cầu của mình (dùng 1 lần).
+ * Trả {phien}, {loi}, hoặc {} khi chưa đăng nhập xong. */
+function nhanPhienDangNhap(yeuCau) {
+  if (!MAU_MA_YEU_CAU.test(String(yeuCau || ""))) return {};
+  const cache = CacheService.getScriptCache();
+  const khoa = AUTH_CFG.TIEN_TO_YEU_CAU + yeuCau;
+  const raw = cache.get(khoa);
+  if (!raw) return {};
+  cache.remove(khoa);
+  try { return JSON.parse(raw); } catch (e) { return {}; }
 }
 
 /** CÔNG KHAI: hủy phiên (chỉ xóa đúng mã phiên được gửi lên). */
@@ -1417,13 +1448,16 @@ function doGet(e) {
   tpl.loiDangNhap = "";
   tpl.trangDau = TRANG_MO_THANG.indexOf(String(thamSo.trang || "")) !== -1 ? String(thamSo.trang) : "";
   if (thamSo.sso) {
+    let yeuCau = "";
     try {
-      const email = _xacMinhSso_(thamSo.sso);
+      const xacMinh = _xacMinhSso_(thamSo.sso);
+      const email = xacMinh.email;
+      yeuCau = xacMinh.yeuCau;
       const vaiTro = _vaiTroCua_(email);
       _nguoiDungHienTai_ = { email, vaiTro };
       if (vaiTro) {
         tpl.phien = _taoPhien_(email);
-        logAction_("DANG_NHAP", email, "Đăng nhập qua Cổng đăng nhập Gmail.");
+        logAction_("DANG_NHAP", email, "Đăng nhập qua Cổng đăng nhập Gmail" + (yeuCau ? " (từ trang nhúng)." : "."));
       } else {
         tpl.loiDangNhap = `Tài khoản ${email} chưa được cấp quyền hoặc đã bị khóa - liên hệ Quản trị để được thêm vào hệ thống.`;
         logAction_("DANG_NHAP_BI_TU_CHOI", email, "Email chưa được cấp quyền / đã khóa.");
@@ -1433,6 +1467,7 @@ function doGet(e) {
     } finally {
       _nguoiDungHienTai_ = null;
     }
+    if (yeuCau) return _trangDangNhapNhung_(yeuCau, tpl.phien, tpl.loiDangNhap);
   }
   return tpl.evaluate()
       .setTitle("QUẢN LÝ THANH TOÁN HAK")
