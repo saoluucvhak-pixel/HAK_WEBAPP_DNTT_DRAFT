@@ -2,6 +2,26 @@
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/). Phiên bản theo `NĂM.ĐỢT.SỬA`; thay đổi làm đổi hành vi nghiệp vụ (⚖️) sẽ tăng số ĐỢT và ghi rõ đã được người dùng đồng ý.
 
+## [2026.9.14] — Báo Cáo UNC không nhân dòng khi tạo lại UNC (người dùng báo 27/09/2026)
+
+### Fixed
+- Mỗi lần bấm **Tạo File UNC** (Danh Sách ĐNTT) hoặc **Tạo lại UNC** (Hệ Thống), lịch sử `ChiTietUNC` **ghi thêm** dòng mới, không thay dòng cũ của cùng hồ sơ → tạo lại 3 lần thì Báo Cáo UNC hiện hồ sơ đó 3 lần. Nay tạo lại **thay** dòng cũ của đúng các hồ sơ đó (giống ChiTietDNTT khi In Báo Cáo ĐNTT); dòng cũ được sao lưu, khôi phục được ở Hệ Thống › Khôi Phục (nhãn “🔁 Tạo lại UNC (thay bản cũ)”).
+- Dữ liệu đã bị nhân dòng từ trước: Báo Cáo UNC (xem + xuất Excel) chỉ lấy **lần tạo mới nhất** của mỗi hồ sơ.
+- Cảnh báo “hồ sơ đã từng có UNC” vẫn giữ (tránh nộp ngân hàng trùng), ghi rõ bản mới thay bản cũ.
+
+### Tests
+- 103 test (thêm `uncHistory.test.mjs`: tạo lại 3 lần còn 1 dòng + 2 bản sao lưu; dữ liệu cũ nhiều dòng chỉ hiện bản mới nhất — cả 2 thất bại trên 2026.9.13).
+
+## [2026.9.13] — Xuất MISA trở lại đúng mẫu cũ (người dùng báo 27/09/2026)
+
+### Fixed
+- **Báo Cáo MISA › 📥 Xuất file MISA** trở lại như bản 2026.8: file **“XUAT MISA (…)”** có sheet `XuatMISA` **đúng mẫu nhập MISA — 33 cột, dòng tiêu đề chép nguyên từ Update_NganHang_DN**, cột chữ giữ số 0 đầu (Số phiếu cân, TK, CCCD, STK, Số HĐ). Từ khi chuyển sang lọc theo ngày, nút này chỉ còn xuất bảng tóm tắt 9 cột, không nhập được vào MISA.
+- Bảng tóm tắt 9 cột vẫn giữ, ở sheet thứ 2 `TomTat`. Màn hình và file xuất dùng chung 1 hàm lọc (`_locMisaTheoNgay_`) nên luôn cùng số dòng.
+- Danh sách cột chữ của mẫu MISA khai báo 1 chỗ (`MISA_COT_CHU`), dùng chung cho ghi tự động lúc Duyệt, Tạo lại MISA và file xuất.
+
+### Tests
+- 101 test (thêm `misa.test.mjs`: 33 cột, tiêu đề, lọc theo ngày TT, số 0 đầu, sheet tóm tắt, khớp màn hình).
+
 ## [2026.9.12] — Mở Đóng TT: xóa trước, ghi Nháp sau (R-05, người dùng đồng ý)
 
 ### Changed

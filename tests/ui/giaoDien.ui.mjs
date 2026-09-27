@@ -74,7 +74,7 @@ test('bàn phím: Tab tới menu, Enter mở trang; Esc đóng hộp thoại và
   await page.focus('.subtab[data-t="misa"]');
   await page.keyboard.press(' ');
   await page.waitForSelector('#misa-from');
-  await page.click('button:has-text("Xuất Excel")');
+  await page.click('button:has-text("Xuất file MISA")');
   await page.waitForSelector('#modal-bg.show');
   assert.equal(await page.getAttribute('#modal', 'role'), 'dialog');
   assert.equal(await page.getAttribute('#modal a.btn', 'rel'), 'noopener');

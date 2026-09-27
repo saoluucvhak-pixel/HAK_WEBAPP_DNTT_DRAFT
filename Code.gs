@@ -1,6 +1,6 @@
 /**
  * ============================================================
- * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.12
+ * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.14
  * Lịch sử thay đổi: CHANGELOG.md · Kiến trúc: docs/ARCHITECTURE.md
  * ------------------------------------------------------------
  * *** QUAN TRỌNG - CẦN LÀM TRƯỚC KHI DÙNG BẢN NÀY (chỉ 1 LẦN DUY NHẤT
@@ -2821,6 +2821,10 @@ function _ghiLichSuUNC_(filteredRows, uncCfg, toDate, toDateXuat, fileUrl) {
     });
     if (rows.length) {
       _chayTrongKhoa_(() => {
+        // Tạo lại UNC cho hồ sơ đã có: THAY dòng cũ của đúng các hồ sơ đó (sao lưu
+        // trước, khôi phục được) - Báo Cáo UNC mỗi hồ sơ 1 dòng, như ChiTietDNTT.
+        const idTaoLai = new Set(rows.map(r => String(r[0] || "").trim()).filter(Boolean));
+        if (idTaoLai.size) _saoLuuVaXoaDong_(sh, r => idTaoLai.has(String(r[0] || "").trim()), "TAO_LAI_UNC", _maThaoTacMoi_("TAO_LAI_UNC"));
         const startRow = sh.getLastRow() + 1;
         sh.getRange(startRow, 1, rows.length, CHITIET_UNC_HEADERS.length).setValues(_dongAnToan_(rows));
       });
@@ -2855,89 +2859,113 @@ function _parseNgayXuatVeIso_(str) {
  * (Ngày hạch toán) - giống hệt cách "Báo Cáo UNC" đang làm - KHÔNG cần
  * mở nguyên file để tự lọc bằng mắt nữa.
  */
+// Update_NganHang_DN = mẫu nhập MISA (33 cột). Cột dạng CHỮ (0-based): Ngày hạch
+// toán, Ngày chứng từ, Số phiếu cân, TK công ty, CCCD, STK, CCCD thụ hưởng, Số HĐ.
+const MISA_SO_COT = 33;
+const MISA_COT_CHU = [2, 3, 4, 5, 9, 12, 15, 32];
+const MISA_GIOI_HAN_DONG = 2000;
+
+/** Dòng Update_NganHang_DN (đủ 33 cột, như trong file) có Ngày CK thuộc
+ * [fDate, tDate] - dùng chung cho màn Báo Cáo MISA và file xuất. */
+function _locMisaTheoNgay_(fDate, tDate) {
+  const ssNH = SpreadsheetApp.openById(CFG.UPDATE_NH_SS_ID);
+  const shUpdateNH = ssNH.getSheetByName("Update_NganHang_DN");
+  if (!shUpdateNH || shUpdateNH.getLastRow() < 2) return { tieuDe: [], dong: [], total: 0, truncated: false };
+  const data = shUpdateNH.getRange(2, 1, shUpdateNH.getLastRow() - 1, MISA_SO_COT).getValues();
+
+  // SỬA LỖI (rà soát phát hiện): trước đây lọc theo ngày bằng cách
+  // parse LẠI chuỗi "Ngày hạch toán" (cột C, đã lưu dạng TEXT theo
+  // Vùng Định Dạng Báo Cáo Xuất Excel LÚC GHI) theo Vùng Định Dạng
+  // HIỆN TẠI (_parseNgayXuatVeIso_) - nếu ai đó đổi cài đặt Vùng Xuất
+  // (Cài Đặt) SAU KHI đã có dữ liệu cũ, các dòng cũ bị đọc NHẦM
+  // ngày/tháng (nếu ngày ≤ 12) hoặc bị loại khỏi mọi kết quả lọc (nếu
+  // ngày > 12, ra chuỗi ISO không hợp lệ) - mất dữ liệu khỏi báo cáo mà
+  // không có cảnh báo gì. Giờ tra lại "Ngày CK" THẬT (Date object,
+  // không mơ hồ) từ CT thật theo Số phiếu cân - không phụ thuộc cài
+  // đặt Vùng Xuất còn đang là gì. Chỉ dòng NÀO không tra được (vd nhập
+  // tay ngoài luồng app, không gắn với CT thật nào) mới dùng lại cách
+  // parse chuỗi cũ làm phương án dự phòng.
+  const ngayCkBySoPhieuCan = new Map();
+  _ctGopLuuTru_(fDate, tDate).forEach(ctRow => {
+    const soP = String(ctRow[11] || "").replace(/'/g, "").trim();
+    if (soP && ctRow[20] instanceof Date) ngayCkBySoPhieuCan.set(utils.standardize(soP), ctRow[20]);
+  });
+
+  const dong = [];
+  let tongKhop = 0;
+  data.forEach(r => {
+    const soPhieuCanRow = String(r[4] || "").replace(/^'/, "").trim();
+    const ngayCkThat = ngayCkBySoPhieuCan.get(utils.standardize(soPhieuCanRow));
+    const iso = ngayCkThat ? Utilities.formatDate(ngayCkThat, "GMT+7", "yyyy-MM-dd") : _parseNgayXuatVeIso_(r[2]);
+    if (!iso) return;
+    if (fDate && iso < fDate) return;
+    if (tDate && iso > tDate) return;
+    tongKhop++;
+    if (dong.length < MISA_GIOI_HAN_DONG) dong.push(r);
+  });
+  return {
+    tieuDe: shUpdateNH.getRange(1, 1, 1, MISA_SO_COT).getValues()[0],
+    dong, total: tongKhop, truncated: tongKhop > MISA_GIOI_HAN_DONG
+  };
+}
+/** Dòng MISA (33 cột) -> dòng tóm tắt cho màn hình / sheet Tóm tắt. */
+function _tomTatDongMisa_(r) {
+  return {
+    ngayHachToan: String(r[2] || ""),
+    soPhieuCan: String(r[4] || "").replace(/^'/, "").trim(),
+    hoTenChuRung: String(r[10] || ""),
+    tenThuHuong: String(r[14] || ""),
+    soTK: String(r[12] || "").replace(/^'/, "").trim(),
+    nganHang: String(r[13] || ""),
+    thanhTien: utils.parseNum(r[24]),
+    noiDung: String(r[8] || ""),
+    soHD: String(r[32] || "").replace(/^'/, "").trim()
+  };
+}
 function getMisaDataTheoNgay_(fDate, tDate) {
   try {
-    const ssNH = SpreadsheetApp.openById(CFG.UPDATE_NH_SS_ID);
-    const shUpdateNH = ssNH.getSheetByName("Update_NganHang_DN");
-    if (!shUpdateNH || shUpdateNH.getLastRow() < 2) return { items: [], total: 0, truncated: false };
-    const lastRow = shUpdateNH.getLastRow();
-    const data = shUpdateNH.getRange(2, 1, lastRow - 1, 33).getValues();
-
-    // SỬA LỖI (rà soát phát hiện): trước đây lọc theo ngày bằng cách
-    // parse LẠI chuỗi "Ngày hạch toán" (cột C, đã lưu dạng TEXT theo
-    // Vùng Định Dạng Báo Cáo Xuất Excel LÚC GHI) theo Vùng Định Dạng
-    // HIỆN TẠI (_parseNgayXuatVeIso_) - nếu ai đó đổi cài đặt Vùng Xuất
-    // (Cài Đặt) SAU KHI đã có dữ liệu cũ, các dòng cũ bị đọc NHẦM
-    // ngày/tháng (nếu ngày ≤ 12) hoặc bị loại khỏi mọi kết quả lọc (nếu
-    // ngày > 12, ra chuỗi ISO không hợp lệ) - mất dữ liệu khỏi báo cáo mà
-    // không có cảnh báo gì. Giờ tra lại "Ngày CK" THẬT (Date object,
-    // không mơ hồ) từ CT thật theo Số phiếu cân - không phụ thuộc cài
-    // đặt Vùng Xuất còn đang là gì. Chỉ dòng NÀO không tra được (vd nhập
-    // tay ngoài luồng app, không gắn với CT thật nào) mới dùng lại cách
-    // parse chuỗi cũ làm phương án dự phòng.
-    const ngayCkBySoPhieuCan = new Map();
-    _ctGopLuuTru_(fDate, tDate).forEach(ctRow => {
-      const soP = String(ctRow[11] || "").replace(/'/g, "").trim();
-      if (soP && ctRow[20] instanceof Date) ngayCkBySoPhieuCan.set(utils.standardize(soP), ctRow[20]);
-    });
-
-    const GIOI_HAN = 2000;
-    const results = [];
-    let tongKhop = 0;
-    data.forEach(r => {
-      const soPhieuCanRow = String(r[4] || "").replace(/^'/, "").trim();
-      const ngayCkThat = ngayCkBySoPhieuCan.get(utils.standardize(soPhieuCanRow));
-      const iso = ngayCkThat ? Utilities.formatDate(ngayCkThat, "GMT+7", "yyyy-MM-dd") : _parseNgayXuatVeIso_(r[2]);
-      if (!iso) return;
-      if (fDate && iso < fDate) return;
-      if (tDate && iso > tDate) return;
-      tongKhop++;
-      if (results.length >= GIOI_HAN) return;
-      results.push({
-        ngayHachToan: String(r[2] || ""),
-        soPhieuCan: String(r[4] || "").replace(/^'/, "").trim(),
-        hoTenChuRung: String(r[10] || ""),
-        tenThuHuong: String(r[14] || ""),
-        soTK: String(r[12] || "").replace(/^'/, "").trim(),
-        nganHang: String(r[13] || ""),
-        thanhTien: utils.parseNum(r[24]),
-        noiDung: String(r[8] || ""),
-        soHD: String(r[32] || "").replace(/^'/, "").trim()
-      });
-    });
-    return { items: results, total: tongKhop, truncated: tongKhop > GIOI_HAN };
+    const kq = _locMisaTheoNgay_(fDate, tDate);
+    return { items: kq.dong.map(_tomTatDongMisa_), total: kq.total, truncated: kq.truncated };
   } catch (e) {
     return { items: [], total: 0, truncated: false, error: "❌ Lỗi: " + _loiChoNguoiDung_(e) };
   }
 }
 
-/** Xuất Excel MISA đã LỌC theo ngày - file RIÊNG, KHÔNG đụng gì tới
- * Update_NganHang_DN gốc, chỉ là bản sao đã lọc để tải về/gửi đi. */
+/** Xuất Excel MISA đã LỌC theo ngày - file RIÊNG "XUAT MISA (...)", KHÔNG đụng
+ * gì tới Update_NganHang_DN gốc. Sheet 1 đúng mẫu nhập MISA (33 cột, như bản
+ * 2026.8 - người dùng yêu cầu giữ như cũ), sheet 2 bảng tóm tắt 9 cột. */
 function exportMisaTheoNgayExcel_(fDate, tDate) {
   try {
-    const ketQua = getMisaDataTheoNgay_(fDate, tDate);
-    if (ketQua.error) return { success: false, message: ketQua.error };
-    const rows = ketQua.items;
-    if (!rows.length) return { success: false, message: "⚠️ Không có dữ liệu MISA nào trong khoảng ngày đã chọn." };
+    const kq = _locMisaTheoNgay_(fDate, tDate);
+    if (!kq.dong.length) return { success: false, message: "⚠️ Không có dữ liệu MISA nào trong khoảng ngày đã chọn." };
 
     const folder = DriveApp.getFolderById(getReportFolderId_());
-    const fileName = `BAO CAO MISA (${(fDate || '').replace(/-/g, '')}_${(tDate || '').replace(/-/g, '')})`;
+    const fileName = `XUAT MISA (${(fDate || '').replace(/-/g, '')}_${(tDate || '').replace(/-/g, '')})`;
     const ss = _taoFileBaoCao_(fileName, folder);
 
+    // Sheet 1 - ĐÚNG MẪU NHẬP MISA như trước (bản 2026.8): đủ 33 cột, dòng tiêu
+    // đề chép nguyên từ Update_NganHang_DN, cột chữ giữ số 0 đầu.
     const sheet = ss.getSheets()[0];
-    sheet.setName("BaoCaoMISA");
-    _lockTextCols_(sheet, [1, 2, 8], rows.length + 5); // Số phiếu cân, Số TK, Số HĐ
-    const headers = ["Ngày hạch toán", "Số phiếu cân", "Họ tên chủ rừng", "Tên người thụ hưởng", "Số TK", "Ngân hàng", "Thành tiền", "Nội dung", "Số hợp đồng"];
-    sheet.getRange(1, 1, 1, headers.length).setValues([headers]).setFontWeight("bold").setBackground("#d9d2e9");
-    const bodyDayDu = rows.map(r => [r.ngayHachToan, _chu_(r.soPhieuCan), r.hoTenChuRung, r.tenThuHuong, _chu_(r.soTK), r.nganHang, r.thanhTien, r.noiDung, _chu_(r.soHD)]);
-    sheet.getRange(2, 1, bodyDayDu.length, headers.length).setValues(_dongAnToan_(bodyDayDu));
-    sheet.getRange(2, 7, bodyDayDu.length, 1).setNumberFormat("#,##0");
+    sheet.setName("XuatMISA");
+    _lockTextCols_(sheet, MISA_COT_CHU.map(i => i + 1), kq.dong.length + 5);
+    sheet.getRange(1, 1, 1, MISA_SO_COT).setValues(_dongAnToan_([kq.tieuDe])).setFontWeight("bold").setBackground("#d9d2e9");
+    sheet.getRange(2, 1, kq.dong.length, MISA_SO_COT).setValues(_dongAnToan_(kq.dong, MISA_COT_CHU));
     sheet.setFrozenRows(1);
 
-    logAction_("XUAT_BAO_CAO_MISA", "-", `Xuất Báo Cáo MISA (${fDate} - ${tDate}), ${rows.length} dòng - ${ss.getUrl()}`);
-    let msg = `✅ Đã xuất ${rows.length} dòng.`;
-    if (ketQua.truncated) msg += ` ⚠️ Tổng khớp khoảng ngày là ${ketQua.total} dòng, đã đạt giới hạn 2000 - thu hẹp khoảng ngày để xuất đầy đủ hơn.`;
-    return { success: true, url: ss.getUrl(), count: rows.length, message: msg };
+    // Sheet 2 - bảng tóm tắt 9 cột (dễ đọc, như màn hình Báo Cáo MISA).
+    const tomTat = ss.insertSheet("TomTat");
+    _lockTextCols_(tomTat, [2, 5, 9], kq.dong.length + 5); // Số phiếu cân, Số TK, Số HĐ
+    const headers = ["Ngày hạch toán", "Số phiếu cân", "Họ tên chủ rừng", "Tên người thụ hưởng", "Số TK", "Ngân hàng", "Thành tiền", "Nội dung", "Số hợp đồng"];
+    tomTat.getRange(1, 1, 1, headers.length).setValues([headers]).setFontWeight("bold").setBackground("#d9d2e9");
+    const body = kq.dong.map(_tomTatDongMisa_).map(r => [r.ngayHachToan, _chu_(r.soPhieuCan), r.hoTenChuRung, r.tenThuHuong, _chu_(r.soTK), r.nganHang, r.thanhTien, r.noiDung, _chu_(r.soHD)]);
+    tomTat.getRange(2, 1, body.length, headers.length).setValues(_dongAnToan_(body));
+    tomTat.getRange(2, 7, body.length, 1).setNumberFormat("#,##0");
+    tomTat.setFrozenRows(1);
+
+    logAction_("XUAT_BAO_CAO_MISA", "-", `Xuất MISA (${fDate} - ${tDate}), ${kq.dong.length} dòng - ${ss.getUrl()}`);
+    let msg = `✅ Đã xuất ${kq.dong.length} dòng theo mẫu nhập MISA (sheet XuatMISA) + bảng tóm tắt (sheet TomTat).`;
+    if (kq.truncated) msg += ` ⚠️ Tổng khớp khoảng ngày là ${kq.total} dòng, đã đạt giới hạn ${MISA_GIOI_HAN_DONG} - thu hẹp khoảng ngày để xuất đầy đủ hơn.`;
+    return { success: true, url: ss.getUrl(), count: kq.dong.length, message: msg };
   } catch (e) {
     return { success: false, message: "❌ Lỗi: " + _loiChoNguoiDung_(e) };
   }
@@ -2948,6 +2976,9 @@ function getLichSuUNC_(fDate, tDate) {
   const GIOI_HAN_KET_QUA = 1000;
   const results = [];
   let daQuaXaFDate = false;
+  // Mỗi hồ sơ chỉ lấy lần tạo UNC MỚI NHẤT (dữ liệu do bản cũ ghi có thể còn
+  // nhiều dòng cho 1 hồ sơ vì mỗi lần tạo lại đều ghi thêm).
+  const daCoHoSo = new Set();
   // Xét 1 dòng (duyệt từ mới về cũ); trả về false khi phải dừng.
   const xet = r => {
     const d = r[14]; // Thời gian tạo
@@ -2955,6 +2986,11 @@ function getLichSuUNC_(fDate, tDate) {
     const iso = Utilities.formatDate(d, "GMT+7", "yyyy-MM-dd");
     if (fDate && iso < fDate) { daQuaXaFDate = true; return false; }
     if (tDate && iso > tDate) return true;
+    const idHoSo = String(r[0] || "").trim();
+    if (idHoSo) {
+      if (daCoHoSo.has(idHoSo)) return true;
+      daCoHoSo.add(idHoSo);
+    }
     results.push({
       idHeThong: String(r[0] || ""), soTT: r[1], phuongThuc: String(r[2] || ""),
       tenNguoiNhan: String(r[4] || ""), soTK: String(r[5] || "").replace(/'/g, ""),
@@ -3113,7 +3149,7 @@ function _kiemTraTrungUNC_(filteredRows) {
     });
     if (idDaCoUNC.size === 0) return "";
     const soLuong = idDaCoUNC.size;
-    return `⚠️ ${soLuong} hồ sơ trong lần tạo này ĐÃ TỪNG có UNC trước đó (xem "Lịch Sử Tạo File UNC" ở Hệ Thống để đối chiếu) - kiểm tra kỹ tránh nộp ngân hàng trùng lặp nếu đây không phải là tạo lại có chủ ý.`;
+    return `⚠️ ${soLuong} hồ sơ trong lần tạo này ĐÃ TỪNG có UNC trước đó - Báo Cáo UNC giữ bản mới này thay cho bản cũ (bản cũ được sao lưu ở Hệ Thống › Khôi Phục). Kiểm tra kỹ tránh nộp ngân hàng trùng lặp nếu đây không phải là tạo lại có chủ ý.`;
   } catch (e) {
     return ""; // Không chặn tạo UNC nếu kiểm tra trùng lỗi
   }
@@ -4155,7 +4191,7 @@ function webTaoLaiMisaTheoNgay_(fDate, tDate, offset, gioiHanMoiLan) {
         });
         const startRow = Math.max(2, shUpdateNH.getLastRow() + 1);
         shUpdateNH.getRange(startRow, 1, bankUpdateRows.length, 33).setValues(_dongAnToan_(bankUpdateRows));
-        _lockTextCols_(shUpdateNH, [3, 4, 5, 6, 10, 13, 16, 33], startRow + bankUpdateRows.length + 5);
+        _lockTextCols_(shUpdateNH, MISA_COT_CHU.map(i => i + 1), startRow + bankUpdateRows.length + 5);
       }
       return chuaCo;
     });
@@ -4249,7 +4285,7 @@ function _tuDongXuatMisaKhiDong_(rowsChiTietY) {
 
     const startRow = Math.max(2, shUpdateNH.getLastRow() + 1);
     shUpdateNH.getRange(startRow, 1, bankRows.length, 33).setValues(_dongAnToan_(bankRows));
-    _lockTextCols_(shUpdateNH, [3, 4, 5, 6, 10, 13, 16, 33], startRow + bankRows.length + 5);
+    _lockTextCols_(shUpdateNH, MISA_COT_CHU.map(i => i + 1), startRow + bankRows.length + 5);
     if (rowsChiTietY.length > rowsChuaCo.length) {
       logAction_("MISA_BO_QUA_TRUNG", "-", `Tự động ghi MISA: bỏ qua ${rowsChiTietY.length - rowsChuaCo.length} dòng đã có sẵn Số phiếu cân trùng trong Update_NganHang_DN.`);
     }
