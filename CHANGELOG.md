@@ -2,6 +2,14 @@
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/). Phiên bản theo `NĂM.ĐỢT.SỬA`; thay đổi làm đổi hành vi nghiệp vụ (⚖️) sẽ tăng số ĐỢT và ghi rõ đã được người dùng đồng ý.
 
+## [2026.9.8] — In Báo Cáo ĐNTT theo thời gian lập hồ sơ
+
+### Fixed
+- **In Báo Cáo ĐNTT (Excel)** liệt kê hồ sơ theo thứ tự dòng trong File Nháp (thực tế đang theo tên chủ rừng). Nay sắp theo **thời gian lập hồ sơ** (Timestamp, cũ trước); cùng thời điểm thì theo Ngày đề nghị. Sheet “Bảng Kê Chi Tiết CK” theo đúng thứ tự hồ sơ đó (trong 1 hồ sơ giữ thứ tự phiếu cân), STT liên tục. Không đổi số liệu.
+
+### Tests
+- 109 test (thêm 1; thất bại trên 2026.9.7 — Excel ra “Nguyen Van A” trước “Tran Thi B” dù B lập trước).
+
 ## [2026.9.7] — Rà soát toàn hệ thống: chặn trả 2 lần trong 1 lượt Duyệt, giao diện tối / in / bàn phím
 
 Báo cáo đầy đủ: `docs/REVIEW_2026_09.md` (kiến trúc, 34 mục lỗi R-01…R-34, đề xuất tính năng). Không đổi schema dữ liệu, không đổi quy trình thanh toán.

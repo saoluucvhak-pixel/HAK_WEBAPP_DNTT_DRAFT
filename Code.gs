@@ -1,6 +1,6 @@
 /**
  * ============================================================
- * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.7
+ * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.8
  * Lịch sử thay đổi: CHANGELOG.md · Kiến trúc: docs/ARCHITECTURE.md
  * ------------------------------------------------------------
  * *** QUAN TRỌNG - CẦN LÀM TRƯỚC KHI DÙNG BẢN NÀY (chỉ 1 LẦN DUY NHẤT
@@ -4402,18 +4402,25 @@ function renderSheet2DetailFromDraft_(sheet, filteredRows, dateRange) {
       // báo cáo in ra phải khớp đúng với hồ sơ đang chờ duyệt.
       const { tenThuHuong, nganHangThat, stkThat } = _resolveNguoiNhanTien_(parentInfo, hd);
 
-      tempRows.push([
+      const dong = [
         0, parentInfo && parentInfo.soLan, _chu_(ctRow[11]), _formatNgayXuat_(ctRow[20]), _formatNgayXuat_(pc[PC_COL.NGAY_CAN_1]),
         pc[PC_COL.DAI_LY], _chu_(ctRow[19]), pc[PC_COL.BIEN_SO_1], ctRow[3], _chu_(_chuanHoaCCCD_(hd[6])), tenThuHuong, _chu_(_chuanHoaCCCD_(hd[11])),
         hd[5], hd[18], pc[PC_COL.GIO_CAN_1], pc[PC_COL.GIO_CAN_2], utils.parseNum(pc[PC_COL.CAN_LAN_1]), utils.parseNum(pc[PC_COL.CAN_LAN_2]),
         utils.parseNum(pc[PC_COL.KL_KG]), utils.parseNum(pc[PC_COL.KL_KG])/1000, utils.parseNum(pc[PC_COL.DON_GIA_TC]),
         utils.parseNum(pc[PC_COL.THANH_TIEN]), pc[PC_COL.NGUON_GOC], nganHangThat, _chu_(stkThat), ctRow[2]
-      ]);
+      ];
+      dong.idHoSo = parentId;
+      tempRows.push(dong);
     }
   });
 
   if (tempRows.length > 0) {
-    let finalRows = tempRows.map((row, index) => { row[0] = index + 1; return row; });
+    // v2026.9.8: cùng thứ tự hồ sơ với Sheet 1 (filteredRows - theo thời gian lập),
+    // trong 1 hồ sơ theo thứ tự dòng Nháp (STT phiếu cân). Sắp ổn định.
+    const thuTuHoSo = new Map(filteredRows.map((r, i) => [r.idHeThong, i]));
+    tempRows.forEach((row, i) => { row.viTri = i; });
+    tempRows.sort((a, b) => thuTuHoSo.get(a.idHoSo) - thuTuHoSo.get(b.idHoSo) || a.viTri - b.viTri);
+    let finalRows = tempRows.map((row, index) => { const out = row.slice(); out[0] = index + 1; return out; });
     const lastR = 5 + finalRows.length - 1;
     sheet.getRange(5, 1, finalRows.length, headers.length).setValues(_dongAnToan_(finalRows)).setBorder(true, true, true, true, true, true).setVerticalAlignment("middle");
 
@@ -8870,9 +8877,17 @@ function exportBaoCaoDNTTFromDraft_(selectedIds) {
         klTan: utils.parseNum(r[11]) / 1000,
         soTien: utils.parseNum(r[6]),
         noiDungCK: String(r[7] || ""),
-        ghiChu: String(r[15] || "")
+        ghiChu: String(r[15] || ""),
+        thoiGianLap: r[1] instanceof Date ? r[1].getTime() : 0 // Timestamp lúc tạo hồ sơ - để sắp xếp
       });
     });
+    // v2026.9.8: Báo cáo ĐNTT in theo THỜI GIAN LẬP hồ sơ (cũ trước), không phụ
+    // thuộc thứ tự dòng trong sheet Nháp (có thể đã bị sắp lại theo tên).
+    // Cùng thời điểm (hoặc thiếu Timestamp) -> theo Ngày đề nghị -> giữ thứ tự sheet.
+    rows.forEach((r, i) => { r.viTri = i; });
+    const ngayDNSo = r => { const p = String(r.ngayDN || "").split("/"); return p.length === 3 ? p[2] + p[1] + p[0] : ""; };
+    rows.sort((a, b) => (a.thoiGianLap || Infinity) - (b.thoiGianLap || Infinity)
+      || ngayDNSo(a).localeCompare(ngayDNSo(b)) || a.viTri - b.viTri);
 
     if (rows.length === 0) {
       let msg = "❌ Không có hồ sơ nào ở trạng thái 'Đang ĐNTT' để xuất báo cáo (phải bấm 'Xác Nhận' trước).";

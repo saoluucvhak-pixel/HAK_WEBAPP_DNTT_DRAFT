@@ -131,3 +131,22 @@ test('Xuất báo cáo tạo file thẳng trong thư mục báo cáo (moveTo), k
   const ss = run('_taoFileBaoCao_')('Thu nghiem');
   assert.deepEqual(daChuyen, [[ss.getId(), 'BAO_CAO']]);
 });
+
+test('In Báo Cáo ĐNTT (Excel) xếp hồ sơ theo THỜI GIAN LẬP, không theo tên / thứ tự dòng Nháp', () => {
+  const w = buildWorld();
+  const h112 = w.draft.getSheetByName('DNTT_GK_DN_112_DRAFT').data;
+  // Dòng Nháp đang theo tên (A trước B) nhưng B2 lập TRƯỚC A1.
+  h112[1][1] = new Date('2026-09-26T10:00:00+07:00'); // A1 - Nguyen Van A
+  h112[2][1] = new Date('2026-09-25T08:00:00+07:00'); // B2 - Tran Thi B
+  h112[2][23] = 'Đang ĐNTT';
+  const { run, env } = loadCode(w.options);
+  let file;
+  const tao = env.SpreadsheetApp.create;
+  env.SpreadsheetApp.create = ten => (file = tao(ten));
+  const kq = run('exportBaoCaoDNTTFromDraft_')(['A1', 'B2']);
+  assert.equal(kq.success, true, kq.message);
+  const chuRung = file.getSheets()[0].rows(11).slice(4, 6).map(r => r[3]);
+  assert.deepEqual(chuRung, ['Tran Thi B', 'Nguyen Van A']);
+  const bangKe = file.getSheets()[1].rows(26).slice(4, 7).map(r => [r[0], String(r[2]).replace(/^'/, '')]);
+  assert.deepEqual(bangKe, [[1, 'PC003'], [2, 'PC001'], [3, 'PC002']], 'bảng kê theo cùng thứ tự hồ sơ, STT liên tục');
+});
