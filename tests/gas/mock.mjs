@@ -196,6 +196,19 @@ export class MockSpreadsheet {
     return sh;
   }
   getSheetByName(name) { return this.sheets.get(name) || null; }
+  // Developer Metadata cấp spreadsheet (đủ cho cờ khóa sổ dùng chung với QL_NHAPKHO).
+  addDeveloperMetadata(key, value, visibility) {
+    const list = (this.metadata ||= []);
+    const md = { key, value, visibility, getKey: () => key, getValue: () => value, getVisibility: () => visibility,
+      remove: () => { const i = list.indexOf(md); if (i >= 0) list.splice(i, 1); } };
+    list.push(md);
+    return this;
+  }
+  createDeveloperMetadataFinder() {
+    let key = null;
+    const finder = { withKey: k => { key = k; return finder; }, find: () => (this.metadata || []).filter(m => key === null || m.key === key) };
+    return finder;
+  }
   insertSheet(name) { return this.addSheet(name || 'Sheet' + (this.sheets.size + 1), []); }
   getSheets() { return Array.from(this.sheets.values()); }
   deleteSheet(sh) { this.sheets.delete(sh.getName()); }
@@ -263,6 +276,7 @@ export function createGasEnvironment({ activeSpreadsheet, spreadsheets = [], pro
   const lock = { held: 0, waitLock() { this.held++; }, tryLock() { this.held++; return true; }, releaseLock() { this.held = Math.max(0, this.held - 1); }, hasLock() { return this.held > 0; } };
 
   const SpreadsheetApp = {
+    DeveloperMetadataVisibility: { DOCUMENT: 'DOCUMENT', PROJECT: 'PROJECT' },
     getActive: () => active,
     getActiveSpreadsheet: () => active,
     openById: id => {

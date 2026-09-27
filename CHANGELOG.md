@@ -5,7 +5,8 @@
 ## [Chưa phát hành] — chỉ thêm test (code web app không đổi, vẫn 2026.9.17)
 
 ### Tests
-- 112 test. Thêm `triggers.test.mjs`: 3 trigger tự động (7:30/13:00, 15:00, 10 phút) chạy được khi **không có ai đăng nhập** và khi người chạy **không có trong danh sách phân quyền** — phân quyền chỉ áp dụng cho lời gọi từ trình duyệt (`api`). Đã thử cố ý gắn kiểm tra quyền vào trigger 15:00 → test đỏ.
+- 114 test. Thêm 2 test **cờ “đang khóa sổ”** trên file Phiếu Cân (Developer Metadata `HAK_KHOA_SO_NAM_DANG_CHAY`, có từ 2026.9.10 nhưng trước đây chưa được kiểm chứng — mock chưa hỗ trợ nên lệnh đặt cờ lỗi và bị bỏ qua trong test): suốt lúc xóa dòng PhieuCan_DN có đúng 1 cờ `{nam, batDau, ung: "DNTT"}` hiển thị DOCUMENT; xem trước không đặt cờ; xong thì gỡ; lỗi giữa chừng vẫn gỡ; cờ sót từ lần bị ngắt được thay. Đã thử bỏ đặt cờ / bỏ gỡ cờ → test đỏ. Mock thêm Developer Metadata cấp spreadsheet.
+- Thêm `triggers.test.mjs`: 3 trigger tự động (7:30/13:00, 15:00, 10 phút) chạy được khi **không có ai đăng nhập** và khi người chạy **không có trong danh sách phân quyền** — phân quyền chỉ áp dụng cho lời gọi từ trình duyệt (`api`). Đã thử cố ý gắn kiểm tra quyền vào trigger 15:00 → test đỏ.
 
 ## [2026.9.17] — Báo Cáo MISA: cảnh báo hồ sơ đã chốt thiếu dòng MISA + “Tạo bổ sung” (người dùng đồng ý 27/09/2026)
 

@@ -202,3 +202,40 @@ test('re-exporting a payment report of a closed year still lists its transfers i
   const chiTiet = run('_gomChiTietChuyenKhoan_')(hoSoNam);
   assert.equal(chiTiet.length, 2, 'detail rows come from the archive file');
 });
+
+// Cờ "đang khóa sổ" (Developer Metadata trên file Phiếu Cân) - webapp nhập kho
+// QL_NHAPKHO đọc cờ này để tạm dừng ghi phiếu cân trong lúc khóa sổ xóa dòng.
+const CO = 'HAK_KHOA_SO_NAM_DANG_CHAY';
+const coTren = ss => ss.createDeveloperMetadataFinder().withKey(CO).find();
+
+test('while the yearly close deletes weigh-ticket rows, the Phiếu Cân file carries the "closing" flag; it is removed afterwards', () => {
+  const { run, w } = world();
+  const shPC = w.pc.getSheetByName('PhieuCan_DN');
+  const xoa = shPC.deleteRows.bind(shPC);
+  const luocXoa = [];
+  shPC.deleteRows = (row, n) => { luocXoa.push(coTren(w.pc).map(m => ({ v: JSON.parse(m.getValue()), vis: m.getVisibility() }))); return xoa(row, n); };
+
+  assert.equal(run('webKhoaSoNam_')(Y, false).success, true);
+  assert.deepEqual(coTren(w.pc), [], 'the preview never sets the flag');
+
+  const kq = run('webKhoaSoNam_')(Y, true);
+  assert.equal(kq.success, true, kq.message);
+  assert.ok(luocXoa.length > 0, 'weigh-ticket rows were deleted');
+  luocXoa.forEach(co => {
+    assert.equal(co.length, 1, 'exactly one flag while deleting');
+    assert.deepEqual([co[0].v.nam, co[0].v.ung, typeof co[0].v.batDau, co[0].vis], [Y, 'DNTT', 'number', 'DOCUMENT']);
+  });
+  assert.deepEqual(coTren(w.pc), [], 'flag removed when done');
+});
+
+test('the "closing" flag is removed even when the close fails midway, and a leftover flag is replaced', () => {
+  const { run, w } = world();
+  w.pc.addDeveloperMetadata(CO, JSON.stringify({ nam: Y - 5, batDau: 0, ung: 'DNTT' }), 'DOCUMENT'); // cờ sót từ lần bị ngắt
+  const shPC = w.pc.getSheetByName('PhieuCan_DN');
+  let thay = null;
+  shPC.deleteRows = () => { thay = coTren(w.pc).map(m => JSON.parse(m.getValue()).nam); throw new Error('Mất kết nối'); };
+  const kq = run('webKhoaSoNam_')(Y, true);
+  assert.equal(kq.success, false);
+  assert.deepEqual(thay, [Y], 'the leftover flag was replaced by this run\'s flag');
+  assert.deepEqual(coTren(w.pc), [], 'flag removed after the failure');
+});
