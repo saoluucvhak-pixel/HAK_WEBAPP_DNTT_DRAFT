@@ -2,6 +2,20 @@
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/). Phiên bản theo `NĂM.ĐỢT.SỬA`; thay đổi làm đổi hành vi nghiệp vụ (⚖️) sẽ tăng số ĐỢT và ghi rõ đã được người dùng đồng ý.
 
+## [2026.9.6] — Ngày đề nghị, % tiến độ, đo hiệu năng
+
+### Added
+- Danh sách ĐNTT: cột **Ngày đề nghị** (cột Q của 112 Nháp; hồ sơ cũ lấy ở CT Nháp).
+- Màn hình chờ hiện **% tiến độ ước tính + số giây đã chờ** (Google không báo tiến độ giữa chừng nên % tính theo thời gian các lần chạy trước của cùng chức năng; lâu hơn thường lệ thì báo).
+- **Hệ Thống › ⏱️ Hiệu Năng**: tự ghi mọi lần chạy từ 3 giây trở lên (web app + trigger 7:30/13:00, 15h, 10 phút) và các lần Google **dừng vì quá 6 phút** (sheet `SYS_HieuNang` trong File Nháp); bảng chậm nhất / quá giờ xếp trước + 50 lần gần nhất. Khi 1 chức năng bị dừng vì quá giờ, người dùng thấy thông báo rõ thay vì lỗi kỹ thuật.
+- `docs/HIEU_NANG.md`: kết quả đo khối lượng đọc/ghi của từng chức năng.
+
+### Changed
+- **Duyệt** nhanh hơn: không đọc lại toàn bộ Phiếu Cân và sổ CT lần 2 khi cập nhật Phân Tích ngày thanh toán (1,44 → 0,82 triệu ô với dữ liệu 1 năm). Số liệu Phân Tích không đổi (test đối chiếu với tính lại từ đầu).
+
+### Tests
+- 99 test (thêm 4: ghi lần chạy chậm, trigger quá giờ, quá giờ do trình duyệt báo, Duyệt không đọc Phiếu Cân 2 lần — test này thất bại trên bản cũ).
+
 ## [2026.9.5] — Đăng nhập khi web app nằm trong trang chủ (web app khác)
 
 ### Fixed

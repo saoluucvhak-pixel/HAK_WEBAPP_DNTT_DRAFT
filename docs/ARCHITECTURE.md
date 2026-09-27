@@ -1,4 +1,4 @@
-# ARCHITECTURE — HAK Quản Lý Thanh Toán (v2026.9.5)
+# ARCHITECTURE — HAK Quản Lý Thanh Toán (v2026.9.6)
 
 > Tài liệu sống: cập nhật mỗi khi đổi module, lớp, luồng dữ liệu hoặc schema.
 > Phân tích chi tiết hiện trạng: `docs/PROJECT_ANALYSIS.md`. Kiến trúc đích: `docs/REFACTOR_PLAN.md` §3–§4.
@@ -115,6 +115,12 @@ Lỗi: `api()` và các hàm trả `{success:false, message}` dùng `_loiChoNguo
 Quy tắc: màn hình mở thường xuyên đọc snapshot, không quét PhieuCan_DN. `_pcData_()` (bộ nhớ đệm 90 giây, tối đa 3,6 MB) chỉ dùng khi tính snapshot, khi chọn khoảng ngày khác mặc định, sổ chi tiết, đối soát/bảo trì và các bước cần chi tiết vài phiếu (Duyệt, Báo cáo ĐNTT, Mở Đóng TT).
 
 - Trang chủ: “tháng này” đọc PhanTichNhapTT_DRAFT; **Tổng nợ + Top 5** đọc Script Property `TRANG_CHU_CONG_NO` (`_luuCongNoTrangChu_`, ghi trong `refreshCongNoCache_` khi khoảng = `_defaultCongNoRange_`). Chỉ tính công nợ khi chưa từng có bản tổng hợp hoặc bấm “Cập nhật ngay” (`webRunCongNoRefreshNow_()` không tham số = khoảng mặc định). Sau Duyệt số trên Trang chủ cập nhật ở lần trigger kế tiếp (có ghi giờ).
+
+## 4f. Đo hiệu năng thật (v2026.9.6)
+
+`api()` và 3 trigger (qua `_chayTriggerCoDo_`) ghi mọi lần chạy ≥ `HIEU_NANG_NGUONG_MS` (3 giây) vào `SYS_HieuNang` (File Nháp, giữ 5.000 dòng): thời gian, chức năng, số giây, người dùng, kết quả (OK / Lỗi / Quá giờ). Quá giờ: lời gọi web do trình duyệt báo (`ghiQuaGioTrinhDuyet_`, nhận ra lỗi “maximum execution time”); trigger để dấu `HN_TRIGGER_DANG_CHAY_<tên>` và lần chạy sau (hoặc khi xem báo cáo) ghi “Quá giờ” nếu dấu còn quá 7 phút. Xem ở Hệ Thống › Hiệu Năng (`getHieuNangForWeb_`). Kết quả đo khối lượng dữ liệu: `docs/HIEU_NANG.md`.
+
+Màn hình chờ (client): % ước tính theo thời gian 5 lần chạy gần nhất của cùng chức năng trên máy đó (`localStorage` `hak_tg_<tên>`), chưa có số liệu thì đường cong chậm dần; luôn kèm số giây đã chờ.
 
 ## 4e. Khóa sổ năm (quy trình của người dùng, 26/09/2026)
 

@@ -150,3 +150,30 @@ test('approval skips a record that contains a ticket already paid in another rec
   assert.match(msg, /^❌.*ĐÃ ĐƯỢC THANH TOÁN.*B2.*PC001/);
   assert.equal(world.main.getSheetByName('DNTT_GK_DN_CT').rows().slice(1).filter(r => r[11]).length, truoc, 'nothing was paid again');
 });
+
+test('approving reads Phiếu Cân once and the day summary equals a full recalculation', () => {
+  const { world, run } = setup();
+  const pcSheet = world.pc.getSheetByName('PhieuCan_DN');
+  pcSheet.data.slice(1).forEach(r => { r[1] = new Date('2026-09-20T03:00:00Z'); r[13] = 'DL1'; r[14] = 'NG1'; });
+  // Khoản đã trả trước đó CÙNG ngày: phải có trong tổng thanh toán của ngày.
+  const cu = new Array(22).fill(''); cu[0] = 'OLD-CT1'; cu[1] = 'OLD'; cu[11] = 'PC999'; cu[12] = 2; cu[16] = 3e6; cu[18] = 'Y'; cu[20] = new Date('2026-09-26T05:00:00Z');
+  world.main.getSheetByName('DNTT_GK_DN_CT').data.push(cu);
+  // Hồ sơ chưa từng In Báo Cáo ĐNTT: Duyệt tự tính bù ChiTietDNTT (cần Phiếu Cân).
+  const chiTiet = world.main.getSheetByName('ChiTietDNTT'); chiTiet.data = [chiTiet.data[0]];
+  run('_invalidatePcCache_')(); run('_invalidateCtSrc112Cache_')();
+
+  let oPhieuCan = 0;
+  const goc = pcSheet.getRange.bind(pcSheet);
+  pcSheet.getRange = (...a) => { const r = goc(...a); const gv = r.getValues.bind(r); r.getValues = () => { const v = gv(); oPhieuCan += v.length * v[0].length; return v; }; return r; };
+  assert.match(run('runConfirmPayment_')(['A1'], '26/09/2026'), /^✅/);
+  const soDong = pcSheet.getLastRow() - 1;
+  assert.ok(oPhieuCan < 2 * soDong * run('PC_COT_CAN_DOC.length'), `Phiếu Cân must not be read in full twice (${oPhieuCan} cells)`);
+
+  const ngay = '2026-09-26';
+  const sauDuyet = JSON.stringify(Array.from(run('_docPhanTichTheoKhoang_')(ngay, ngay), r => Array.from(r).slice(1)));
+  run('_refreshPhanTichNhapTTChoDanhSachNgayNoLock_')([ngay]);
+  const tinhLai = JSON.stringify(Array.from(run('_docPhanTichTheoKhoang_')(ngay, ngay), r => Array.from(r).slice(1)));
+  assert.equal(sauDuyet, tinhLai);
+  const tongTT = JSON.parse(sauDuyet).find(r => r[0] === 'THANHTOAN' && r[1] === 'TONG');
+  assert.equal(tongTT[4], 2e6 + 3e6, 'A1 (2 phiếu) + the earlier payment of the same day');
+});

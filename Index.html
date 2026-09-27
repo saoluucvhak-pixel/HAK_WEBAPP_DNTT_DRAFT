@@ -273,6 +273,9 @@
     }
     @keyframes spin{to{transform:rotate(360deg);}}
     #loading-overlay .msg{font-size:12.5px; color:var(--ink-soft); font-weight:600;}
+    #loading-overlay .tien-do{width:260px; height:6px; border-radius:3px; background:var(--line); overflow:hidden;}
+    #loading-overlay .tien-do-thanh{height:100%; width:0; background:var(--timber); transition:width .25s linear;}
+    #loading-overlay .tien-do-chu{font-size:12px; color:var(--ink-soft);}
 
     /* modal */
     .modal-bg{
@@ -449,7 +452,7 @@
       <div class="nav-item" data-page="settings"><span class="ic">⚙️</span> Cài đặt / Nháp</div>
     </nav>
     <div class="nguoi-dung-chip" id="nguoi-dung-chip"></div>
-    <div class="sidebar-footer">Hệ thống Quản Lý Thanh Toán · v2026.9.5</div>
+    <div class="sidebar-footer">Hệ thống Quản Lý Thanh Toán · v2026.9.6</div>
   </aside>
 
   <main class="main">
@@ -465,7 +468,8 @@
     </div>
   </main>
 
-  <div id="loading-overlay"><div class="spinner"></div><div class="msg" id="loading-msg">Đang xử lý...</div></div>
+  <div id="loading-overlay"><div class="spinner"></div><div class="msg" id="loading-msg">Đang xử lý...</div>
+    <div class="tien-do"><div class="tien-do-thanh" id="loading-thanh"></div></div><div class="tien-do-chu" id="loading-tien-do"></div></div>
   <div id="toast-wrap"></div>
   <div class="modal-bg" id="modal-bg"><div class="modal" id="modal"></div></div>
 
@@ -664,11 +668,51 @@ function invalidateBulkRef(){
   _bulkRefPromise = null;
 }
 
-function showLoading(msg){
+/* Màn hình chờ có % tiến độ. Máy chủ Apps Script không báo tiến độ giữa chừng,
+ * nên % là ƯỚC TÍNH theo thời gian các lần chạy trước của đúng chức năng đó trên
+ * máy này (lưu 5 lần gần nhất); chưa có số liệu thì % tăng chậm dần, không chạm 100%
+ * trước khi xong. Luôn kèm số giây đã chờ. */
+const TIEN_DO_KHOA = 'hak_tg_';
+let _tienDo_ = null;
+function _thoiGianThuongLe_(fnName){
+  try {
+    const ds = JSON.parse(localStorage.getItem(TIEN_DO_KHOA + fnName) || '[]');
+    return ds.length ? ds.reduce((a, b) => a + b, 0) / ds.length : 0;
+  } catch(e) { return 0; }
+}
+function _ghiThoiGianChay_(fnName, ms){
+  try {
+    const ds = JSON.parse(localStorage.getItem(TIEN_DO_KHOA + fnName) || '[]');
+    ds.push(ms);
+    localStorage.setItem(TIEN_DO_KHOA + fnName, JSON.stringify(ds.slice(-5)));
+  } catch(e) { /* không lưu được thì lần sau ước tính theo đường cong mặc định */ }
+}
+function _phanTramUocTinh_(daChoMs, thuongLeMs){
+  if (thuongLeMs > 0) return Math.min(95, Math.round(daChoMs / thuongLeMs * 100));
+  return Math.round(90 * (1 - Math.exp(-daChoMs / 8000)));
+}
+function showLoading(msg, fnName){
   document.getElementById('loading-msg').textContent = msg || 'Đang xử lý...';
   document.getElementById('loading-overlay').classList.add('show');
+  clearInterval(_tienDo_ && _tienDo_.timer);
+  const batDau = Date.now(), thuongLe = fnName ? _thoiGianThuongLe_(fnName) : 0;
+  const ve = () => {
+    const daCho = Date.now() - batDau, pct = _phanTramUocTinh_(daCho, thuongLe);
+    document.getElementById('loading-thanh').style.width = pct + '%';
+    document.getElementById('loading-tien-do').textContent = `${pct}% · đã chờ ${Math.floor(daCho / 1000)} giây`
+      + (thuongLe ? (daCho > thuongLe * 1.5 ? ' · lâu hơn thường lệ, vui lòng chờ' : ` · thường mất khoảng ${Math.max(1, Math.round(thuongLe / 1000))} giây`) : '');
+  };
+  ve();
+  _tienDo_ = { fnName, batDau, timer: setInterval(ve, 250) };
 }
-function hideLoading(){ document.getElementById('loading-overlay').classList.remove('show'); }
+function hideLoading(thanhCong){
+  if (_tienDo_) {
+    clearInterval(_tienDo_.timer);
+    if (thanhCong && _tienDo_.fnName) _ghiThoiGianChay_(_tienDo_.fnName, Date.now() - _tienDo_.batDau);
+    _tienDo_ = null;
+  }
+  document.getElementById('loading-overlay').classList.remove('show');
+}
 
 function toast(message, type){
   const wrap = document.getElementById('toast-wrap');
@@ -706,6 +750,8 @@ function handleResult(res, onSuccess){
 const PHIEN_STORAGE_KEY = 'hak_phien';
 const LOI_DANG_NHAP = '[AUTH] ';
 const LOI_QUYEN = '[QUYEN] ';
+// Lỗi Google trả về khi 1 lần chạy vượt giới hạn thời gian (tiếng Anh / tiếng Việt).
+const MAU_LOI_QUA_GIO = /maximum execution time|thời gian thực thi tối đa/i;
 let PHIEN = '';
 
 function _khoiTaoPhien_(){
@@ -818,15 +864,20 @@ function call(fnName, args, loadingMsg){
     // toàn trang liên tục -> nhấp nháy trông như "cứ load hoài". Giờ
     // CHỈ hiện màn hình che khi có loadingMsg RÕ RÀNG - null = tải ngầm
     // thật sự, không hiện gì cả.
-    if (loadingMsg) showLoading(loadingMsg);
+    if (loadingMsg) showLoading(loadingMsg, fnName);
+    const batDau = Date.now();
     google.script.run
-      .withSuccessHandler(res => { if (loadingMsg) hideLoading(); resolve(res); })
+      .withSuccessHandler(res => { if (loadingMsg) hideLoading(true); resolve(res); })
       .withFailureHandler(err => {
-        if (loadingMsg) hideLoading();
+        if (loadingMsg) hideLoading(false);
         const msg = String((err && err.message) || err);
         const loiDangNhap = _phanSauTienTo_(msg, LOI_DANG_NHAP);
         const loiQuyen = _phanSauTienTo_(msg, LOI_QUYEN);
         if (loiDangNhap) hienManHinhDangNhap(loiDangNhap);
+        else if (MAU_LOI_QUA_GIO.test(msg)) {
+          toast('❌ Chức năng chạy quá giới hạn 6 phút của Google nên bị dừng. Đã ghi lại để kiểm tra (Hệ Thống › Hiệu Năng).', 'err');
+          google.script.run.withFailureHandler(() => {}).api(PHIEN, 'ghiQuaGioTrinhDuyet', [fnName, Math.round((Date.now() - batDau) / 1000)]);
+        }
         else toast('❌ ' + (loiQuyen || ('Lỗi hệ thống: ' + msg)), 'err');
         reject(err);
       })
@@ -1748,11 +1799,12 @@ function renderDraftTable(){
   const daChonHet = chonDuoc.length > 0 && chonDuoc.every(r => state.draftSelected.has(r.idKey));
   wrap.innerHTML = `<table><thead><tr>
       <th><input type="checkbox" id="chk-all" ${daChonHet ? 'checked' : ''} onchange="toggleAll(this)"></th>
-      <th>Chủ rừng</th><th>Người nhận</th><th>Ngân hàng / STK</th><th>Số HĐ</th>
+      <th>Ngày đề nghị</th><th>Chủ rừng</th><th>Người nhận</th><th>Ngân hàng / STK</th><th>Số HĐ</th>
       <th class="num">Số phiếu</th><th class="num">KL (kg)</th><th class="num">Số tiền</th><th>Trạng thái</th><th></th>
     </tr></thead><tbody>
     ${list.map(r => `<tr>
       <td><input type="checkbox" class="chk-row" data-id="${esc(r.idKey)}" ${state.draftSelected.has(r.idKey)?'checked':''} ${r.sanSangChot?'':'disabled title="Chưa tính Đề Nghị Thanh Toán"'} onchange="toggleRow(this.dataset.id, this.checked)"></td>
+      <td class="mono">${esc(r.ngayDeNghi)}</td>
       <td>${esc(r.chuRung)}</td>
       <td>${esc(r.nguoiNhan)}</td>
       <td>${esc(r.nganHang)}<br><span class="muted mono" style="font-size:11.5px">${esc(r.stk)}</span></td>
@@ -3602,6 +3654,16 @@ function renderHeThong(){
       <div id="saoluu-result" style="margin-top:10px"></div>
     </div>
     <div class="card">
+      <h3>⏱️ Hiệu Năng (chức năng chạy chậm)</h3>
+      <p class="muted" style="font-size:13px">Hệ thống tự ghi mọi lần chạy từ vài giây trở lên - trên web app lẫn các trigger 7:30/13:00, 15h, 10 phút - và các lần bị Google <b>dừng vì quá 6 phút</b>. Số liệu thật trên dữ liệu của công ty, chậm nhất / quá giờ xếp trước.</p>
+      <div class="grid cols-3">
+        <div class="field"><label>Từ ngày</label><input type="date" id="hieunang-from" value="${isoDaysAgoVN(30)}"></div>
+        <div class="field"><label>Đến ngày</label><input type="date" id="hieunang-to" value="${todayISOVN()}"></div>
+        <div class="field" style="display:flex;align-items:flex-end"><button class="btn primary" onclick="loadHieuNang()">🔍 Xem</button></div>
+      </div>
+      <div id="hieunang-result" style="margin-top:10px"></div>
+    </div>
+    <div class="card">
       <h3>📜 Lịch Sử Sửa Đổi</h3>
       <p class="muted" style="font-size:13px">Theo dõi việc Mở Đóng Thanh Toán, Đồng Bộ Tên Khách Hàng và Cập Nhật Ngân Hàng - kèm người thực hiện (Gmail). Xem theo khoảng ngày, không hiện dồn tất cả.</p>
       <div class="grid cols-3">
@@ -3767,6 +3829,40 @@ function doKhoiPhucSaoLuu(i){
   const moTa = g.theoSheet.map(x => `${x.sheet}: ${x.soDong} dòng`).join(', ');
   if (!confirm(`Khôi phục lần "${NHAN_HANH_DONG[g.hanhDong] || g.hanhDong}" lúc ${g.thoiGian}?\n${moTa}\n\nCác dòng sẽ được ghi lại vào cuối sheet gốc.`)) return;
   call('webKhoiPhucSaoLuuXoa', [g.ma], 'Đang khôi phục...').then(res => handleResult(res, loadSaoLuuXoa));
+}
+/** Tên dễ hiểu cho các chức năng hay gặp trong bảng Hiệu Năng (còn lại hiện tên kỹ thuật). */
+const NHAN_CHUC_NANG = {
+  getDashboardStats: 'Trang chủ', getDraftListSummary: 'Danh sách ĐNTT', getDraftRecordDetail: 'Xem hồ sơ Nháp',
+  getBulkReferenceData: 'Tạo mới: dữ liệu hợp đồng', getAvailablePhieuCanForChuRung: 'Tạo mới: chọn phiếu cân',
+  createNewPaymentRequest: 'Tạo mới: lưu hồ sơ', webRunCreate112: 'Tổng hợp 112 (tính tiền)', runXacNhanDNTT: 'Xác nhận ĐNTT',
+  exportBaoCaoDNTTFromDraft: 'In Báo cáo ĐNTT', webCreateUNCFromDraft: 'Tạo UNC', webConfirmPayment: 'Duyệt / Đóng thanh toán',
+  getReportList: 'Báo cáo thanh toán', webExportReport: 'Xuất báo cáo thanh toán', getChiTietDNTTDaChot: 'Báo cáo TT chi tiết',
+  getMisaDataTheoNgay: 'Báo cáo MISA', getLichSuUNC: 'Báo cáo UNC', getDebtByCustomer: 'Công nợ khách hàng',
+  getDebtByContract: 'Công nợ hợp đồng', getDebtLedgerDetail: 'Sổ chi tiết công nợ', getChiTietCongNoPhieuCanWeb: 'Công nợ theo phiếu cân',
+  getTinhHinhThanhToanHangNgayWeb: 'Tình hình thanh toán', getPaymentAnalysis: 'Phân tích nhập / thanh toán',
+  webRunCongNoRefreshNow: 'Cập nhật công nợ ngay', webRunDaily15hRefreshNow: 'Cập nhật số liệu tháng ngay',
+  webRefreshPhieuCanCache: 'Làm mới phiếu cân', getKiemTraDoiChieuBaoTri: 'Bảo trì kiểm tra', getDoiSoatTenKhachHang: 'Đối soát tên KH',
+  webMoDongThanhToanTheoHoSo: 'Mở Đóng TT', webKhoaSoNam: 'Khóa sổ năm', dongBoChiTietDNTTTuDauLichSu: 'Đồng bộ ChiTietDNTT',
+  webTaoLaiMisaTheoNgay: 'Tạo lại MISA', webTaoLaiUNCTheoNgay: 'Tạo lại UNC',
+  'Trigger: dailyRefreshAllCaches_': 'Trigger 7:30 / 13:00', 'Trigger: daily15hRefresh_': 'Trigger 15h', 'Trigger: refreshAllDraftCaches10Min_': 'Trigger 10 phút'
+};
+function loadHieuNang(){
+  const box = document.getElementById('hieunang-result');
+  if (!box) return;
+  const f = document.getElementById('hieunang-from').value, t = document.getElementById('hieunang-to').value;
+  box.innerHTML = '<div class="empty"><div class="ic">⏳</div>Đang tải...</div>';
+  call('getHieuNangForWeb', [f, t], null).then(kq => {
+    if (!kq.tongHop.length) { box.innerHTML = `<div class="empty"><div class="ic">✅</div>Không có lần chạy nào từ ${kq.nguongGiay} giây trở lên trong khoảng này.</div>`; return; }
+    const ten = n => `${esc(NHAN_CHUC_NANG[n] || n)}<br><span class="muted mono" style="font-size:11px">${esc(n)}</span>`;
+    box.innerHTML = `<div class="hint-text">Chỉ tính các lần chạy từ ${kq.nguongGiay} giây trở lên. Giới hạn của Google: 6 phút (360 giây) mỗi lần.</div>
+      <div class="bang"><table><thead><tr><th>Chức năng</th><th class="num">Số lần chậm</th><th class="num">Trung bình (giây)</th><th class="num">Lâu nhất (giây)</th><th class="num">Quá giờ</th><th class="num">Lỗi</th><th>Gần nhất</th></tr></thead><tbody>
+      ${kq.tongHop.map(o => `<tr${o.quaGio ? ' style="background:#fdecea"' : ''}><td>${ten(o.chucNang)}</td><td class="num">${o.soLan}</td><td class="num">${o.tbGiay}</td><td class="num">${o.lauNhat}</td>
+        <td class="num">${o.quaGio ? `<b style="color:#b00">${o.quaGio}</b>` : 0}</td><td class="num">${o.loi}</td><td class="mono">${esc(o.ganNhat)}</td></tr>`).join('')}
+      </tbody></table></div>
+      <details style="margin-top:8px"><summary style="cursor:pointer">50 lần gần nhất</summary><div class="bang"><table><thead><tr><th>Thời gian</th><th>Chức năng</th><th class="num">Giây</th><th>Người dùng</th><th>Kết quả</th><th>Ghi chú</th></tr></thead><tbody>
+      ${kq.ganDay.map(r => `<tr><td class="mono">${esc(r.thoiGian)}</td><td>${esc(NHAN_CHUC_NANG[r.chucNang] || r.chucNang)}</td><td class="num">${r.giay}</td><td>${esc(r.nguoiDung)}</td><td>${esc(r.ketQua)}</td><td style="font-size:12px">${esc(r.ghiChu)}</td></tr>`).join('')}
+      </tbody></table></div></details>`;
+  });
 }
 function loadLichSuSuaDoi(){
   const box = document.getElementById('lichsu-result');
