@@ -2,6 +2,19 @@
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/). Phiên bản theo `NĂM.ĐỢT.SỬA`; thay đổi làm đổi hành vi nghiệp vụ (⚖️) sẽ tăng số ĐỢT và ghi rõ đã được người dùng đồng ý.
 
+## [2026.9.9] — Bỏ webhook làm mới cache (người dùng yêu cầu)
+
+### Removed
+- Webhook `?action=lam_moi_cache&secret=…` (file Phiếu Cân / HD_NCC tự gọi web app khi có thay đổi) cùng nút/menu “🔑 Xem Link Webhook Làm Mới Cache Tức Thì” (Cài đặt + menu Sheet), `getWebhookInfoForWeb`, `showWebhookInfoDialog`, `_getWebhookSecret_`. Mọi link `?action=` giờ đều bị từ chối — web app không còn cửa nào chạy được mà không đăng nhập (xử lý luôn R-11/R-12).
+- Dữ liệu Phiếu Cân / Hợp đồng vẫn tự làm mới theo trigger 10 phút (7:30–19:00), 7:30 & 13:00, hoặc nút “↻ Làm mới” / “🔄 Tải & Tính Lại”.
+
+### Việc cần làm tay (nếu trước đây đã cài webhook)
+- Mở Apps Script của file **Phiếu Cân** và **HD_NCC** → Triggers → xóa trigger `onChangeLamMoiCache`, xóa file mã chứa hàm đó.
+- (Tùy chọn) Apps Script của File Nháp → Project Settings › Script Properties → xóa `WEBHOOK_SECRET`.
+
+### Tests
+- 109 test; `auth` kiểm tra `?action=lam_moi_cache` bị từ chối và không còn chức năng webhook.
+
 ## [2026.9.8] — In Báo Cáo ĐNTT theo thời gian lập hồ sơ
 
 ### Fixed

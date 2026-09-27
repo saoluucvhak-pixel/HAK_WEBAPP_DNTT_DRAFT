@@ -31,12 +31,12 @@ Khóa tài khoản: đổi trạng thái “Khóa” — hiệu lực ≤ 60 gi�
 | Mất dữ liệu | Sao lưu mọi dòng bị xóa; chặn trả 2 lần; khóa `sysLock` |
 
 ## 4. Bí mật & dữ liệu nhạy cảm
-- `SSO_SECRET`, `WEBHOOK_SECRET`, `GEMINI_API_KEY` chỉ nằm trong Script Properties; API key không bao giờ trả về trình duyệt. Mã nguồn Cổng (chứa `SSO_SECRET`) chỉ Quản trị xem — **không gửi cho người khác**; nghi lộ → “Tạo lại mã bí mật”.
+- `SSO_SECRET`, `GEMINI_API_KEY` chỉ nằm trong Script Properties; API key không bao giờ trả về trình duyệt. Mã nguồn Cổng (chứa `SSO_SECRET`) chỉ Quản trị xem — **không gửi cho người khác**; nghi lộ → “Tạo lại mã bí mật”.
 - ID các file và 2 email Quản trị cố định nằm trong code (không phải bí mật).
 - PII: CCCD/STK lưu `localStorage` để gợi ý nhanh (H-09) và gửi Gemini khi dùng Trợ lý AI (H-10) — giữ theo quyết định người dùng; chỉ dùng máy riêng.
 
 ## 5. Điểm còn mở (xem `REVIEW_2026_09.md`)
-- R-11/R-12: webhook `lam_moi_cache` — bí mật trong URL, không giới hạn tần suất.
+- R-11/R-12 (webhook `lam_moi_cache`): đã xử lý bằng cách **bỏ hẳn webhook** (2026.9.9) — web app không còn cửa nào chạy được mà không đăng nhập.
 - R-13: nonce SSO kiểm tra-rồi-ghi không nguyên tử (rủi ro rất thấp).
 - L-07: chưa khai báo `oauthScopes` tối thiểu trong `appsscript.json`.
 

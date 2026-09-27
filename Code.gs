@@ -1,6 +1,6 @@
 /**
  * ============================================================
- * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.8
+ * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.9
  * Lịch sử thay đổi: CHANGELOG.md · Kiến trúc: docs/ARCHITECTURE.md
  * ------------------------------------------------------------
  * *** QUAN TRỌNG - CẦN LÀM TRƯỚC KHI DÙNG BẢN NÀY (chỉ 1 LẦN DUY NHẤT
@@ -1446,7 +1446,6 @@ const API_ROUTES = (() => {
     setupDaily15hTrigger: r(setupDaily15hTrigger_, Q),
     webResetPhanTichNhapTTSheet: r(webResetPhanTichNhapTTSheet_, Q),
     webResetChiTietCongNoSheet: r(webResetChiTietCongNoSheet_, Q),
-    getWebhookInfoForWeb: r(getWebhookInfoForWeb_, Q),
     getSheetLocaleInfoForWeb: r(getSheetLocaleInfoForWeb_, Q),
     webSetRegion: r(webSetRegion_, Q),
     getExportRegionInfoForWeb: r(getExportRegionInfoForWeb_, Q),
@@ -1543,28 +1542,11 @@ function webTaoLaiSsoSecret_() {
 function doGet(e) {
   const thamSo = (e && e.parameter) || {};
   if (thamSo.action) {
-    const action = thamSo.action;
-    // v2026.7: chỉ còn webhook làm mới cache (có mã bí mật). Các action
-    // tach_phieu / lap_de_nghi / tim_phieu_can / tra_cuu_hop_dong đã bỏ -
-    // chạy nghiệp vụ hoặc lộ dữ liệu mà không cần đăng nhập.
-    try {
-      if (action === "lam_moi_cache") {
-        // MỚI (theo yêu cầu): webhook để file PhieuCan_DN/HD_NCC GỐC tự
-        // gọi ngược lại đây mỗi khi có thay đổi (qua Trigger onChange cài
-        // trực tiếp ở file gốc) - làm mới cache NGAY LẬP TỨC thay vì chờ
-        // tới lịch 10 phút/7:30/13:00. Bảo vệ bằng mã bí mật riêng (xem
-        // menu "🔑 Xem Link Webhook Làm Mới Cache") để tránh bị gọi tùy
-        // tiện từ bên ngoài.
-        if (String(e.parameter.secret || "") !== _getWebhookSecret_()) {
-          return ContentService.createTextOutput(JSON.stringify({ status: "error", message: "Sai mã bí mật." })).setMimeType(ContentService.MimeType.JSON);
-        }
-        const r = refreshAllDraftCaches_();
-        return ContentService.createTextOutput(JSON.stringify({ status: "success", message: `Đã làm mới: PC ${r.pc} · HD_NCC ${r.hdNcc}/${r.hdNccTotal} · HD_STK ${r.hdStk}/${r.hdStkTotal}.` })).setMimeType(ContentService.MimeType.JSON);
-      }
-      return ContentService.createTextOutput(JSON.stringify({ status: "error", message: "Hành động không hợp lệ." })).setMimeType(ContentService.MimeType.JSON);
-    } catch (err) {
-      return ContentService.createTextOutput(JSON.stringify({ status: "error", message: _loiChoNguoiDung_(err) })).setMimeType(ContentService.MimeType.JSON);
-    }
+    // Không còn hành động nào qua link ?action= : v2026.7 bỏ tach_phieu /
+    // lap_de_nghi / tim_phieu_can / tra_cuu_hop_dong, v2026.9.9 bỏ webhook
+    // lam_moi_cache (người dùng yêu cầu). Đoạn mã onChange cũ còn cài ở file
+    // Phiếu Cân / HD_NCC chỉ nhận lỗi này, không làm gì thêm.
+    return ContentService.createTextOutput(JSON.stringify({ status: "error", message: "Hành động không hợp lệ." })).setMimeType(ContentService.MimeType.JSON);
   }
   const tpl = HtmlService.createTemplateFromFile('Index');
   tpl.phien = "";
@@ -3362,28 +3344,6 @@ function webSetRegion_(region) {
   }
 }
 
-/**
- * MỚI (theo yêu cầu - "làm mới tức thì khi có thay đổi ở file gốc"): mã
- * bí mật riêng cho webhook "lam_moi_cache" ở doGet() - tự sinh ngẫu
- * nhiên 1 lần và lưu vào Script Properties (không nằm trong code, không
- * bị lộ khi chia sẻ code). Chỉ ai biết đúng mã này mới gọi được webhook.
- */
-function _getWebhookSecret_() {
-  const props = PropertiesService.getScriptProperties();
-  let secret = props.getProperty('WEBHOOK_SECRET');
-  if (!secret) {
-    secret = Utilities.getUuid();
-    props.setProperty('WEBHOOK_SECRET', secret);
-  }
-  return secret;
-}
-
-/**
- * Hiện link Webhook + đoạn script mẫu để dán vào Apps Script Editor của
- * file PhieuCan_DN và HD_NCC GỐC - giúp 2 file đó tự báo cho hệ thống
- * này làm mới cache NGAY khi có ai chỉnh sửa dữ liệu (thay vì đợi lịch
- * 10 phút/7:30/13:00). Chạy qua menu "🔑 Xem Link Webhook Làm Mới Cache".
- */
 /** Thoát ký tự đặc biệt HTML (&,<,>,",') - dùng khi nhúng text thô vào
  * HtmlService.createHtmlOutput() để tránh vỡ layout/nội dung hiển thị
  * (vd URL có dấu & sẽ bị trình duyệt hiểu nhầm nếu không thoát trước). */
@@ -3394,61 +3354,6 @@ function _escHtml_(s) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
-}
-
-/** Tạo đoạn script mẫu (tách URL/mã bí mật thành biến riêng ở đầu, thay
- * vì gộp chung 1 dòng dài) - dễ đọc, dễ dán, ít lỗi cú pháp hơn khi copy
- * paste qua trình duyệt. */
-function _buildWebhookScript_(webAppUrl, secret) {
-  return `var WEBHOOK_URL = "${webAppUrl}";
-var WEBHOOK_SECRET = "${secret}";
-
-function onChangeLamMoiCache(e) {
-  try {
-    UrlFetchApp.fetch(WEBHOOK_URL + "?action=lam_moi_cache&secret=" + WEBHOOK_SECRET, { muteHttpExceptions: true });
-  } catch (err) {
-    // bo qua loi mang - khong chan thao tac cua nguoi dung tren file nay
-  }
-}`;
-}
-
-function showWebhookInfoDialog() {
-  _yeuCauQuyen_(QUYEN.QUAN_TRI);
-  const ui = SpreadsheetApp.getUi();
-  try {
-    const webAppUrl = ScriptApp.getService().getUrl();
-    if (!webAppUrl) {
-      ui.alert("⚠️ Chưa triển khai Web App (Deploy > New deployment > Web app) nên chưa có link. Hãy Deploy Web App trước, sau đó chạy lại mục này.");
-      return;
-    }
-    const secret = _getWebhookSecret_();
-    const script = _buildWebhookScript_(webAppUrl, secret);
-    const html = HtmlService.createHtmlOutput(
-      `<div style="font-family:Arial;padding:12px;line-height:1.6;font-size:13px">
-        <p><b>Bước 1:</b> Mở Apps Script Editor của file <b>PhieuCan_DN</b> (và tương tự cho file <b>HD_NCC</b>), dán đoạn code sau vào 1 file .gs mới (chọn hết bằng nút bên dưới rồi Ctrl+C):</p>
-        <textarea readonly onclick="this.select()" style="width:100%;height:140px;font-family:monospace;font-size:12px">${_escHtml_(script)}</textarea>
-        <p><b>Bước 2:</b> Vào menu bên trái "Trình kích hoạt" (Triggers) → "+ Thêm trình kích hoạt" → chọn hàm <b>onChangeLamMoiCache</b> → Loại sự kiện: <b>"Khi thay đổi trang tính" (On change)</b> → Lưu.</p>
-        <p style="color:#b00">⚠️ Lặp lại y hệt bước 1-2 ở CẢ file HD_NCC (dùng chung 1 đoạn code này).</p>
-        <p style="color:#666;font-size:12px">Dùng "On change" (không phải "On edit") để không gọi quá nhiều lần khi dán/sửa hàng loạt ô cùng lúc. Nếu dán vào vẫn báo lỗi cú pháp, thử gõ lại thủ công 2 dấu ngoặc kép ở dòng 1-2 (đôi khi trình duyệt tự đổi thành dấu ngoặc kép "cong" khi copy).</p>
-      </div>`
-    ).setWidth(600).setHeight(430);
-    ui.showModalDialog(html, "Webhook Làm Mới Cache Tức Thì");
-  } catch (e) {
-    ui.alert("❌ Lỗi: " + _loiChoNguoiDung_(e));
-  }
-}
-
-/** #Web: tương tự showWebhookInfoDialog() nhưng trả JSON cho Web App hiển thị. */
-function getWebhookInfoForWeb_() {
-  try {
-    const webAppUrl = ScriptApp.getService().getUrl();
-    if (!webAppUrl) return { success: false, message: "⚠️ Chưa triển khai Web App (Deploy). Hãy Deploy Web App trước." };
-    const secret = _getWebhookSecret_();
-    const script = _buildWebhookScript_(webAppUrl, secret);
-    return { success: true, url: `${webAppUrl}?action=lam_moi_cache&secret=${secret}`, script };
-  } catch (e) {
-    return { success: false, message: "❌ Lỗi: " + _loiChoNguoiDung_(e) };
-  }
 }
 
 /**
@@ -9106,7 +9011,6 @@ function onOpen() {
       .addItem('🧹 Xóa Sạch & Nạp Lại Phân Tích NG-ĐL', 'showResetPhanTichDialog')
       .addItem('🧹 Xóa Sạch & Nạp Lại Chi Tiết Công Nợ PC', 'showResetChiTietCongNoDialog')
       .addSeparator()
-      .addItem('🔑 Xem Link Webhook Làm Mới Cache Tức Thì', 'showWebhookInfoDialog')
       .addItem('🔒 Khóa Định Dạng TEXT/Ngày (CCCD/STK/Số HĐ/Timestamp...)', 'showKhoaDinhDangTextDialog')
       .addItem('🌐 Chọn Vùng Lãnh Thổ (Việt Nam / United States)', 'showChonVungDialog')
       .addSeparator()

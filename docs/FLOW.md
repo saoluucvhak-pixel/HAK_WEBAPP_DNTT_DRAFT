@@ -44,7 +44,7 @@ Lỗi giữa chừng → `LOI_CHOT_THANH_TOAN`; bấm Duyệt lại cùng hồ s
 ## 4. Phiếu cân
 
 ```
- Nhập ở file Phiếu Cân (bên ngoài) ─► mirror "chưa TT" (10'/7:30/13:00/webhook)
+ Nhập ở file Phiếu Cân (bên ngoài) ─► mirror "chưa TT" (10'/7:30/13:00/nút Làm mới)
    ─► chọn ở Tạo Mới/Sửa (gợi ý) ─► "giữ tạm" khi nằm trong CT_DRAFT
    ─► Duyệt: khóa (OK / Đóng TT / Y) ─► Mở Đóng TT: mở khóa (Test giá)
    ─► Khóa sổ năm: phiếu đã trả chuyển sang PhieuCan_DN_<năm>; phiếu chưa trả ở lại = công nợ đầu năm

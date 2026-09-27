@@ -18,8 +18,7 @@
    - Nhập Giá trị mặc định MISA, Cấu hình UNC.
 7. **Cổng đăng nhập Gmail** (Cài đặt): làm theo 3 bước trên màn hình (script.new → dán mã → Deploy *User accessing the web app* → dán link Cổng).
 8. **Người dùng & Phân quyền**: thêm email từng người + vai trò.
-9. (Tùy chọn) Webhook làm mới tức thì: Cài đặt › Xem Link Webhook → dán đoạn mã vào file Phiếu Cân và HD_NCC, tạo trigger *On change*.
-10. (Tùy chọn) Trợ lý AI: dán API key Gemini ở Cài đặt.
+9. (Tùy chọn) Trợ lý AI: dán API key Gemini ở Cài đặt.
 
 Xong: gửi link web app cho người dùng; họ bấm **Đăng nhập bằng Google**.
 

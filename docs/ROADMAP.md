@@ -15,6 +15,6 @@
 | P4a | Giao diện: dark mode, print, a11y bàn phím/ARIA, bảng cuộn ngang | ✅ Hoàn thành (phần CSS/a11y của P4) | 2026.9.7 |
 | P6 | Dashboard/Report Builder, Print Designer, e-Sign, API, OCR, AI đa provider, Offline/Sync | ⏳ | – |
 
-Đề xuất tiếp theo (chờ người dùng chọn — `REVIEW_2026_09.md` §GĐ6, mục ⭐): R-05 Mở Đóng TT nguyên tử, R-06 nhật ký không mất âm thầm, R-11 giới hạn webhook, sao lưu File Chính hằng tuần, email cảnh báo, biểu đồ 12 tháng, phân trang tab MISA/Chi tiết/UNC, menu thu gọn trên điện thoại.
+Đề xuất tiếp theo (chờ người dùng chọn — `REVIEW_2026_09.md` §GĐ6, mục ⭐): R-05 Mở Đóng TT nguyên tử, R-06 nhật ký không mất âm thầm, sao lưu File Chính hằng tuần, email cảnh báo, biểu đồ 12 tháng, phân trang tab MISA/Chi tiết/UNC, menu thu gọn trên điện thoại.
 
 Quy trình mỗi Phase: backup → deployment thử nghiệm → nghiệm thu Phụ lục C (PROJECT_ANALYSIS) → người dùng duyệt → triển khai → cập nhật ARCHITECTURE / CHANGELOG / TODO / VERSION / ROADMAP.

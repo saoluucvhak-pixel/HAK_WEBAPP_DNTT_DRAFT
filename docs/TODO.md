@@ -53,7 +53,7 @@ Trạng thái: ✅ xong · 🟡 một phần · ⏳ chưa làm · ⚖️ cần n
 | R-19, R-20, R-23…R-26 | Client, a11y, dark/print, mã chết | ✅ 2026.9.7 |
 | R-05 | Mở Đóng TT nguyên tử | ⏳ ⚖️ |
 | R-06 | `logAction_` lỗi âm thầm | ⏳ |
-| R-11, R-12 | Webhook: giới hạn tần suất, so sánh an toàn | ⏳ ⚖️ |
+| R-11, R-12 | Webhook: giới hạn tần suất, so sánh an toàn | ✅ 2026.9.9 — bỏ hẳn webhook (người dùng yêu cầu) |
 | R-13, R-14, R-16, R-17, R-18, R-27, R-29, R-31, R-32 | Xem REVIEW | ⏳ |
 | L-01, L-02 | Accessibility, Dark mode | ✅ 2026.9.7 (cơ bản) |
 

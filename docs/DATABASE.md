@@ -80,7 +80,7 @@ Trạng thái hiển thị: Số tiền ≤ 0 → *Chưa ĐNTT*; > 0 và cột 2
 | `MAIN_SS_ID`, `PC_SS_ID`, `HD_SS_ID`, `UPDATE_NH_SS_ID`, `DM_NH_SS_ID`, `REPORT_FOLDER_ID` | Link file/thư mục (đổi ở Cài đặt) |
 | `REGION_LOCALE`, `EXPORT_REGION_LOCALE` | VN / US |
 | `MISA_COMPANY_BANK_*`, `UNC_*` | Mặc định MISA / UNC |
-| `SSO_SECRET`, `SSO_GATEWAY_URL`, `WEBHOOK_SECRET` | Bí mật (không chia sẻ) |
+| `SSO_SECRET`, `SSO_GATEWAY_URL` | Bí mật (không chia sẻ). `WEBHOOK_SECRET` (bản ≤ 2026.9.8) không còn dùng — xóa được |
 | `GEMINI_API_KEY`, `GEMINI_MODELS`, `GEMINI_MODEL` | Trợ lý AI |
 | `TRIGGER_15H_HOUR/MINUTE` | Giờ trigger 15h |
 | `LUU_TRU_NAM`, `KHOA_SO_DANG_LAM` | Khóa sổ năm (JSON {năm: ID}) |

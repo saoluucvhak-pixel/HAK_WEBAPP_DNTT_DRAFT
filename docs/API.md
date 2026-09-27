@@ -20,7 +20,7 @@ Phần lớn chức năng ghi trả `{ success: boolean, message: string, … }`
 
 | Hàm | Mô tả |
 |---|---|
-| `doGet(e)` | Trang web app; `?sso=` đăng nhập; `?trang=taoMoi` mở thẳng Tạo Mới; `?action=lam_moi_cache&secret=…` webhook làm mới cache |
+| `doGet(e)` | Trang web app; `?sso=` đăng nhập; `?trang=taoMoi` mở thẳng Tạo Mới; mọi `?action=` đều bị từ chối (webhook đã bỏ ở 2026.9.9) |
 | `thongTinDangNhap(phien)` | Trạng thái đăng nhập của chính người gọi + link Cổng |
 | `nhanPhienDangNhap(yeuCau)` | Khung nhúng lấy phiên theo mã yêu cầu (dùng 1 lần) |
 | `dangXuat(phien)` | Hủy phiên |
@@ -117,7 +117,6 @@ Quyền tối thiểu: **Chỉ xem** ⊂ **Kế toán** ⊂ **Kế toán tổng 
 | `setupDaily15hTrigger` | `setupDaily15hTrigger_(gio, phut)` | Quản trị |
 | `webResetPhanTichNhapTTSheet` | `webResetPhanTichNhapTTSheet_()` | Quản trị |
 | `webResetChiTietCongNoSheet` | `webResetChiTietCongNoSheet_()` | Quản trị |
-| `getWebhookInfoForWeb` | `getWebhookInfoForWeb_()` | Quản trị |
 | `getSheetLocaleInfoForWeb` | `getSheetLocaleInfoForWeb_()` | Quản trị |
 | `webSetRegion` | `webSetRegion_(region)` | Quản trị |
 | `getExportRegionInfoForWeb` | `getExportRegionInfoForWeb_()` | Quản trị |

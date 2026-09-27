@@ -526,7 +526,7 @@
       <div class="nav-item" role="button" tabindex="0" data-page="settings"><span class="ic">⚙️</span> Cài đặt / Nháp</div>
     </nav>
     <div class="nguoi-dung-chip" id="nguoi-dung-chip"></div>
-    <div class="sidebar-footer">Hệ thống Quản Lý Thanh Toán · v2026.9.8<br><button type="button" class="theme-toggle" id="theme-toggle" aria-label="Đổi giao diện sáng / tối">🌓 Giao diện: Tự động</button></div>
+    <div class="sidebar-footer">Hệ thống Quản Lý Thanh Toán · v2026.9.9<br><button type="button" class="theme-toggle" id="theme-toggle" aria-label="Đổi giao diện sáng / tối">🌓 Giao diện: Tự động</button></div>
   </aside>
 
   <main class="main">
@@ -4063,7 +4063,6 @@ function renderSettings(){
         </div>
         <button class="btn" style="margin-top:8px" onclick="doResetPhanTich()">🧹 Xóa Sạch &amp; Nạp Lại Phân Tích NG-ĐL</button>
         <button class="btn" style="margin-top:8px" onclick="doResetChiTietCongNo()">🧹 Xóa Sạch &amp; Nạp Lại Chi Tiết Công Nợ PC</button>
-        <button class="btn" style="margin-top:8px" onclick="doShowWebhookInfo()">🔑 Xem Link Webhook Làm Mới Cache Tức Thì</button>
         <div style="margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
           <button class="btn" onclick="doKhoaDinhDangText()">🔒 Khóa Định Dạng TEXT/Ngày (CCCD/STK/Số HĐ/Timestamp...)</button>
           <span id="badge-formatlock" class="badge dot">Đang kiểm tra...</span>
@@ -4747,20 +4746,6 @@ function doResetPhanTich(){
 function doResetChiTietCongNo(){
   if (!confirm('Xóa sạch toàn bộ dữ liệu Chi Tiết Công Nợ theo Phiếu Cân hiện có để nạp lại từ đầu? Không mất số liệu gốc (Phiếu Cân vẫn còn nguyên).')) return;
   call('webResetChiTietCongNoSheet', [], 'Đang xóa sạch và chuẩn bị nạp lại...').then(res => handleResult(res));
-}
-function doShowWebhookInfo(){
-  call('getWebhookInfoForWeb', [], 'Đang tạo link...').then(res => {
-    if (!res || !res.success) { toast('❌ ' + (res && res.message || 'Không lấy được link.'), 'err'); return; }
-    openModal(`<div class="modal-head"><h3>Webhook Làm Mới Cache Tức Thì</h3><button class="x" onclick="closeModal()" aria-label="Đóng">&times;</button></div>
-      <div class="modal-body" style="font-size:13px;line-height:1.6">
-        <p><b>Bước 1:</b> Mở Apps Script Editor của file <b>PhieuCan_DN</b> (và tương tự cho file <b>HD_NCC</b>), dán đoạn code sau vào 1 file .gs mới:</p>
-        <textarea readonly style="width:100%;height:110px;font-family:monospace;font-size:12px">${esc(res.script)}</textarea>
-        <p><b>Bước 2:</b> Menu bên trái "Trình kích hoạt" (Triggers) → "+ Thêm trình kích hoạt" → chọn hàm <b>onChangeLamMoiCache</b> → Loại sự kiện: <b>"Khi thay đổi trang tính" (On change)</b> → Lưu.</p>
-        <p style="color:#b00">⚠️ Lặp lại y hệt ở CẢ file HD_NCC (dùng chung 1 đoạn code này).</p>
-        <p class="muted" style="font-size:12px">Dùng "On change" (không phải "On edit") để không gọi quá nhiều lần khi sửa hàng loạt ô cùng lúc.</p>
-      </div>
-      <div class="modal-foot"><button class="btn ghost" onclick="closeModal()">Đóng</button></div>`);
-  });
 }
 function doKhoaDinhDangText(){
   if (!confirm('Khóa định dạng cho các cột CCCD/STK/Số HĐ/Số Phiếu Cân (TEXT) và Timestamp/Ngày (dd/MM/yyyy) trên cả Draft và bản chính? Việc này chỉ ngăn lỗi xảy ra THÊM từ bây giờ, KHÔNG tự phục hồi dữ liệu cũ đã bị sai (nếu có).')) return;

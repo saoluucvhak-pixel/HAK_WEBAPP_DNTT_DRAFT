@@ -20,7 +20,7 @@ const XEM = 'xem@gmail.com';
 const MENU_FUNCTIONS = ['runProcessDetail', 'runCreate112', 'showPayDialog', 'showAddPaymentDialog', 'showOpenDraftDialog',
   'showDeleteDraftDialog', 'runFillMissingBankOnly', 'showRefreshPcCacheDialog', 'showSetupPcCacheTriggerDialog',
   'showSetup10MinTriggerDialog', 'showSetupDaily15hTriggerDialog', 'showResetPhanTichDialog', 'showResetChiTietCongNoDialog',
-  'showWebhookInfoDialog', 'showKhoaDinhDangTextDialog', 'showChonVungDialog', 'showGenerateThongSoDialog', 'showKetNoiFileChinhDialog'];
+  'showKhoaDinhDangTextDialog', 'showChonVungDialog', 'showGenerateThongSoDialog', 'showKetNoiFileChinhDialog'];
 const ENTRY_POINTS = ['doGet', 'onOpen', 'api', 'thongTinDangNhap', 'dangXuat', 'nhanPhienDangNhap'];
 
 /** Main app (owner deployment) + helpers to act as different visitors. */
@@ -311,10 +311,13 @@ test('menu functions check the email of the person using the Sheet', () => {
 test('doGet no longer runs business actions from a bare link', () => {
   const { run, actAs } = setup();
   actAs('');
-  for (const action of ['tach_phieu', 'lap_de_nghi', 'tim_phieu_can', 'tra_cuu_hop_dong']) {
-    const out = JSON.parse(run('doGet')({ parameter: { action } }).text);
+  for (const action of ['tach_phieu', 'lap_de_nghi', 'tim_phieu_can', 'tra_cuu_hop_dong', 'lam_moi_cache']) {
+    const out = JSON.parse(run('doGet')({ parameter: { action, secret: 'bat-ky' } }).text);
     assert.equal(out.status, 'error', action);
   }
+  // Webhook làm mới cache đã bỏ (2026.9.9): không còn chức năng xem link / mã bí mật.
+  assert.equal(run('typeof API_ROUTES.getWebhookInfoForWeb'), 'undefined');
+  assert.equal(run('typeof showWebhookInfoDialog'), 'undefined');
 });
 
 test('changed PhieuCan_DN column layout raises a warning until an admin confirms it', () => {
