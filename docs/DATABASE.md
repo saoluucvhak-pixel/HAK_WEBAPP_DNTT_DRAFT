@@ -73,6 +73,8 @@ Trạng thái hiển thị: Số tiền ≤ 0 → *Chưa ĐNTT*; > 0 và cột 2
 | Danh Mục NH / `UNC_NGANHANG_HAK` | B Tên đầy đủ · C Tên ngắn (tra khi tạo UNC) |
 | `DATA<năm>` | Bản sao 5 sheet sổ của năm đã khóa sổ (giữ tên sheet) |
 
+**Developer Metadata trên file Phiếu Cân (2026.9.10):** khóa `HAK_KHOA_SO_NAM_DANG_CHAY`, hiển thị `DOCUMENT`, giá trị `{"nam","batDau","ung":"DNTT"}` — chỉ tồn tại trong lúc Khóa Sổ Năm thật đang chạy; webapp nhập kho (QL_NHAPKHO) thấy cờ (< 10 phút) thì tạm dừng ghi phiếu cân.
+
 ## 4. Script Properties (cấu hình)
 
 | Khóa | Ý nghĩa |

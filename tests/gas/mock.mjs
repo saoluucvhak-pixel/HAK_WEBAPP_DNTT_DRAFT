@@ -189,6 +189,29 @@ export class MockSpreadsheet {
     this.id = id;
     this.name = name || id;
     this.sheets = new Map();
+    this.developerMetadata = [];   // Developer Metadata cấp spreadsheet
+  }
+  // Developer Metadata cấp spreadsheet (đủ cho cờ "đang khóa sổ" dùng chung giữa các dự án).
+  addDeveloperMetadata(key, value, visibility) {
+    const list = this.developerMetadata;
+    const md = {
+      key, value: value == null ? null : String(value), visibility: visibility || 'DOCUMENT',
+      getKey() { return this.key; },
+      getValue() { return this.value; },
+      getVisibility() { return this.visibility; },
+      remove() { const i = list.indexOf(md); if (i >= 0) list.splice(i, 1); },
+    };
+    list.push(md);
+    return this;
+  }
+  getDeveloperMetadata() { return this.developerMetadata.slice(); }
+  createDeveloperMetadataFinder() {
+    let key = null;
+    const finder = {
+      withKey(k) { key = k; return finder; },
+      find: () => this.developerMetadata.filter(md => key == null || md.key === key),
+    };
+    return finder;
   }
   addSheet(name, rows) {
     const sh = new MockSheet(name, rows, this);
@@ -277,6 +300,7 @@ export function createGasEnvironment({ activeSpreadsheet, spreadsheets = [], pro
     },
     flush: () => {},
     WrapStrategy: { WRAP: 'WRAP', CLIP: 'CLIP', OVERFLOW: 'OVERFLOW' },
+    DeveloperMetadataVisibility: { DOCUMENT: 'DOCUMENT', PROJECT: 'PROJECT' },
     getUi: () => {
       if (!identity.uiAvailable) throw new Error('Cannot call SpreadsheetApp.getUi() from this context.');
       return {

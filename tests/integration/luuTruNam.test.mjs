@@ -202,3 +202,62 @@ test('re-exporting a payment report of a closed year still lists its transfers i
   const chiTiet = run('_gomChiTietChuyenKhoan_')(hoSoNam);
   assert.equal(chiTiet.length, 2, 'detail rows come from the archive file');
 });
+
+// Cờ "đang khóa sổ" (2026.9.10): Developer Metadata cấp spreadsheet trên file Phiếu Cân,
+// để webapp nhập kho (QL_NHAPKHO, dự án khác) tạm dừng trong lúc khóa sổ xóa dòng PhieuCan_DN.
+const KHOA_CO = 'HAK_KHOA_SO_NAM_DANG_CHAY';
+const coKhoaSo = w => w.pc.createDeveloperMetadataFinder().withKey(KHOA_CO).find();
+
+test('a real close flags the weigh-ticket file while deleting rows and removes the flag afterwards', () => {
+  const { run, w } = world();
+  w.pc.addDeveloperMetadata(KHOA_CO, JSON.stringify({ nam: 1999, batDau: 0, ung: 'DNTT' }), 'DOCUMENT'); // cờ cũ sót lại
+  const pc = w.pc.getSheetByName('PhieuCan_DN');
+  const xoa = pc.deleteRows.bind(pc);
+  const thay = [];
+  pc.deleteRows = (...a) => {
+    thay.push(Array.from(coKhoaSo(w), md => ({ vis: md.getVisibility(), ...JSON.parse(md.getValue()) })));
+    return xoa(...a);
+  };
+  const luc = Date.now();
+  const kq = run('webKhoaSoNam_')(Y, true);
+  assert.equal(kq.success, true, kq.message);
+  assert.ok(thay.length > 0, 'PhieuCan_DN rows were deleted');
+  thay.forEach(co => {
+    assert.equal(co.length, 1, 'exactly one flag');
+    assert.equal(co[0].vis, 'DOCUMENT');
+    assert.equal(co[0].nam, Y);
+    assert.equal(co[0].ung, 'DNTT');
+    assert.ok(co[0].batDau >= luc && co[0].batDau <= Date.now(), 'batDau is the run time');
+  });
+  assert.equal(coKhoaSo(w).length, 0, 'flag removed after the close');
+});
+
+test('the preview does not flag the weigh-ticket file', () => {
+  const { run, w } = world();
+  const pc = w.pc.getSheetByName('PhieuCan_DN');
+  let thay = null;
+  const doc = pc.getDataRange.bind(pc);
+  pc.getDataRange = () => { thay = thay || coKhoaSo(w).length; return doc(); };
+  assert.equal(run('webKhoaSoNam_')(Y, false).xemTruoc, true);
+  assert.equal(thay || 0, 0);
+  assert.equal(coKhoaSo(w).length, 0);
+});
+
+test('a close failing while deleting weigh tickets still removes the flag', () => {
+  const { run, w } = world();
+  const pc = w.pc.getSheetByName('PhieuCan_DN');
+  let coLucLoi = -1;
+  pc.deleteRows = () => { coLucLoi = coKhoaSo(w).length; throw new Error('Hết thời gian'); };
+  const kq = run('webKhoaSoNam_')(Y, true);
+  assert.equal(kq.success, false);
+  assert.equal(coLucLoi, 1, 'flag was set when the failure happened');
+  assert.equal(coKhoaSo(w).length, 0, 'flag removed after the failure');
+});
+
+test('a failure setting the flag does not block the close', () => {
+  const { run, w } = world();
+  w.pc.addDeveloperMetadata = () => { throw new Error('Không có quyền'); };
+  const kq = run('webKhoaSoNam_')(Y, true);
+  assert.equal(kq.success, true, kq.message);
+  assert.equal(w.pc.getSheetByName(`PhieuCan_DN_${Y}`).getLastRow(), 3);
+});

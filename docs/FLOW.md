@@ -48,6 +48,8 @@ Lỗi giữa chừng → `LOI_CHOT_THANH_TOAN`; bấm Duyệt lại cùng hồ s
    ─► chọn ở Tạo Mới/Sửa (gợi ý) ─► "giữ tạm" khi nằm trong CT_DRAFT
    ─► Duyệt: khóa (OK / Đóng TT / Y) ─► Mở Đóng TT: mở khóa (Test giá)
    ─► Khóa sổ năm: phiếu đã trả chuyển sang PhieuCan_DN_<năm>; phiếu chưa trả ở lại = công nợ đầu năm
+                  (trong lúc chạy thật: cờ Developer Metadata HAK_KHOA_SO_NAM_DANG_CHAY
+                   trên file Phiếu Cân -> QL_NHAPKHO tạm dừng ghi; gỡ khi xong/lỗi)
 ```
 
 ## 5. Hợp đồng & ngân hàng

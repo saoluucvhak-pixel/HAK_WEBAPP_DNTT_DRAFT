@@ -2,6 +2,18 @@
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/). Phiên bản theo `NĂM.ĐỢT.SỬA`; thay đổi làm đổi hành vi nghiệp vụ (⚖️) sẽ tăng số ĐỢT và ghi rõ đã được người dùng đồng ý.
 
+## [2026.9.10] — Cờ "đang khóa sổ" cho webapp nhập kho
+
+### Added
+- Khi chạy **Khóa Sổ Năm thật** (không phải xem trước), file **Phiếu Cân** được gắn cờ Developer Metadata cấp spreadsheet để webapp nhập kho **QL_NHAPKHO** (dự án Apps Script khác) tạm dừng import / nhập tay / tính giá phiếu cân trong lúc khóa sổ đang xóa dòng khỏi `PhieuCan_DN` — tránh ghi lệch dòng.
+  - Quy ước dùng chung (QL_NHAPKHO đã đọc đúng, không được đổi): khóa `HAK_KHOA_SO_NAM_DANG_CHAY`, hiển thị `DOCUMENT`, giá trị `{"nam": <năm>, "batDau": <Date.now()>, "ung": "DNTT"}`; bên đọc coi cờ hết hiệu lực sau 10 phút.
+  - Hàm mới `_voiCoKhoaSo_(nam, fn)` + `_goCoKhoaSo_(ss)`: xóa cờ cũ cùng khóa → gắn cờ → chạy khóa sổ → gỡ cờ trong `finally` (khóa sổ lỗi giữa chừng cũng gỡ).
+  - Đặt/gỡ cờ lỗi chỉ ghi log, **không** chặn khóa sổ. Xem trước không gắn cờ.
+- Không đổi nghiệp vụ, số liệu hay cấu trúc sheet.
+
+### Tests
+- 113 test (+4 trong `luuTruNam`): cờ đúng 1, đúng năm/giờ/DOCUMENT lúc xóa dòng và gỡ sau khi xong; xem trước không gắn cờ; `deleteRows` lỗi → `success = false` và không còn cờ; gắn cờ lỗi vẫn khóa sổ được. Mock hỗ trợ `addDeveloperMetadata`, `createDeveloperMetadataFinder`, `DeveloperMetadataVisibility`.
+
 ## [2026.9.9] — Bỏ webhook làm mới cache (người dùng yêu cầu)
 
 ### Removed

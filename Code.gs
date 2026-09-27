@@ -1,6 +1,6 @@
 /**
  * ============================================================
- * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.9
+ * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.10
  * Lịch sử thay đổi: CHANGELOG.md · Kiến trúc: docs/ARCHITECTURE.md
  * ------------------------------------------------------------
  * *** QUAN TRỌNG - CẦN LÀM TRƯỚC KHI DÙNG BẢN NÀY (chỉ 1 LẦN DUY NHẤT
@@ -1917,9 +1917,52 @@ function webKhoaSoNam_(namInput, chayThat) {
     const nam = Number(namInput);
     const namNay = Number(Utilities.formatDate(new Date(), "GMT+7", "yyyy"));
     if (!/^\d{4}$/.test(String(namInput).trim()) || nam < 2000 || nam >= namNay) return { success: false, message: `❌ Chỉ khóa sổ được năm đã kết thúc (trước năm ${namNay}).` };
-    return _chayTrongKhoa_(() => _khoaSoNamNoLock_(nam, !!chayThat, Date.now()));
+    // Chạy thật: gắn cờ "đang khóa sổ" lên file Phiếu Cân suốt lúc chạy. Xem trước: không gắn.
+    if (!chayThat) return _chayTrongKhoa_(() => _khoaSoNamNoLock_(nam, false, Date.now()));
+    return _chayTrongKhoa_(() => _voiCoKhoaSo_(nam, () => _khoaSoNamNoLock_(nam, true, Date.now())));
   } catch (e) {
     return { success: false, message: "❌ " + _loiChoNguoiDung_(e) };
+  }
+}
+
+// ------------------------------------------------------------
+// CỜ "ĐANG KHÓA SỔ" (2026.9.10) - báo cho webapp nhập kho (QL_NHAPKHO, dự án
+// Apps Script khác) tạm dừng import / nhập tay / tính giá phiếu cân trong lúc
+// khóa sổ đang xóa dòng khỏi PhieuCan_DN (tránh ghi lệch dòng).
+// QUY ƯỚC DÙNG CHUNG - QL_NHAPKHO đã đọc đúng như sau, KHÔNG được đổi:
+//  - Developer Metadata cấp SPREADSHEET của file Phiếu Cân (CFG.PC_SS_ID).
+//  - Khóa KHOA_SO_CO_KEY; hiển thị DOCUMENT (PROJECT thì dự án khác không thấy).
+//  - Giá trị JSON {nam, batDau: Date.now(), ung: "DNTT"}. Bên đọc coi cờ hết
+//    hiệu lực sau 10 phút (phòng trường hợp cờ sót lại khi script bị ngắt đột ngột).
+// Đặt/gỡ cờ lỗi -> chỉ ghi log, KHÔNG chặn khóa sổ. Cờ gỡ trong finally nên
+// khóa sổ lỗi giữa chừng cũng không để cờ lại.
+// ------------------------------------------------------------
+const KHOA_SO_CO_KEY = "HAK_KHOA_SO_NAM_DANG_CHAY";
+
+/** Xóa mọi Developer Metadata có khóa KHOA_SO_CO_KEY trên spreadsheet `ss`. */
+function _goCoKhoaSo_(ss) {
+  ss.createDeveloperMetadataFinder().withKey(KHOA_SO_CO_KEY).find().forEach(md => md.remove());
+}
+
+/** Chạy fn() trong lúc file Phiếu Cân mang cờ "đang khóa sổ" năm `nam`; luôn gỡ cờ khi xong. */
+function _voiCoKhoaSo_(nam, fn) {
+  let ssPC = null;
+  try {
+    ssPC = SpreadsheetApp.openById(CFG.PC_SS_ID);
+    _goCoKhoaSo_(ssPC); // bỏ cờ cũ sót lại -> luôn chỉ có đúng 1 cờ
+    ssPC.addDeveloperMetadata(KHOA_SO_CO_KEY, JSON.stringify({ nam: Number(nam), batDau: Date.now(), ung: "DNTT" }),
+      SpreadsheetApp.DeveloperMetadataVisibility.DOCUMENT);
+  } catch (e) {
+    console.warn("Không đặt được cờ khóa sổ trên file Phiếu Cân: " + (e && e.message));
+  }
+  try {
+    return fn();
+  } finally {
+    try {
+      if (ssPC) _goCoKhoaSo_(ssPC);
+    } catch (e) {
+      console.warn("Không gỡ được cờ khóa sổ trên file Phiếu Cân: " + (e && e.message));
+    }
   }
 }
 function _khoaSoNamNoLock_(nam, chayThat, batDau) {
