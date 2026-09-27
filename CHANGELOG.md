@@ -2,6 +2,16 @@
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/). Phiên bản theo `NĂM.ĐỢT.SỬA`; thay đổi làm đổi hành vi nghiệp vụ (⚖️) sẽ tăng số ĐỢT và ghi rõ đã được người dùng đồng ý.
 
+## [2026.9.13] — Xuất MISA trở lại đúng mẫu cũ (người dùng báo 27/09/2026)
+
+### Fixed
+- **Báo Cáo MISA › 📥 Xuất file MISA** trở lại như bản 2026.8: file **“XUAT MISA (…)”** có sheet `XuatMISA` **đúng mẫu nhập MISA — 33 cột, dòng tiêu đề chép nguyên từ Update_NganHang_DN**, cột chữ giữ số 0 đầu (Số phiếu cân, TK, CCCD, STK, Số HĐ). Từ khi chuyển sang lọc theo ngày, nút này chỉ còn xuất bảng tóm tắt 9 cột, không nhập được vào MISA.
+- Bảng tóm tắt 9 cột vẫn giữ, ở sheet thứ 2 `TomTat`. Màn hình và file xuất dùng chung 1 hàm lọc (`_locMisaTheoNgay_`) nên luôn cùng số dòng.
+- Danh sách cột chữ của mẫu MISA khai báo 1 chỗ (`MISA_COT_CHU`), dùng chung cho ghi tự động lúc Duyệt, Tạo lại MISA và file xuất.
+
+### Tests
+- 101 test (thêm `misa.test.mjs`: 33 cột, tiêu đề, lọc theo ngày TT, số 0 đầu, sheet tóm tắt, khớp màn hình).
+
 ## [2026.9.7 → 2026.9.12] — Đồng bộ từ code trên main (commit “UPDATE270920265”, 27/09/2026)
 
 Code.gs / Index.html đã được cập nhật trực tiếp trên main; mục này ghi lại theo chú thích phiên bản trong code và phần so sánh với 2026.9.6.
