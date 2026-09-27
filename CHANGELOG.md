@@ -2,6 +2,11 @@
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/). Phiên bản theo `NĂM.ĐỢT.SỬA`; thay đổi làm đổi hành vi nghiệp vụ (⚖️) sẽ tăng số ĐỢT và ghi rõ đã được người dùng đồng ý.
 
+## [Chưa phát hành] — chỉ thêm test (code web app không đổi, vẫn 2026.9.17)
+
+### Tests
+- 112 test. Thêm `triggers.test.mjs`: 3 trigger tự động (7:30/13:00, 15:00, 10 phút) chạy được khi **không có ai đăng nhập** và khi người chạy **không có trong danh sách phân quyền** — phân quyền chỉ áp dụng cho lời gọi từ trình duyệt (`api`). Đã thử cố ý gắn kiểm tra quyền vào trigger 15:00 → test đỏ.
+
 ## [2026.9.17] — Báo Cáo MISA: cảnh báo hồ sơ đã chốt thiếu dòng MISA + “Tạo bổ sung” (người dùng đồng ý 27/09/2026)
 
 ### Added
