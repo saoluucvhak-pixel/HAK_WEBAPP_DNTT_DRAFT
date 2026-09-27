@@ -2,6 +2,45 @@
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/). Phiên bản theo `NĂM.ĐỢT.SỬA`; thay đổi làm đổi hành vi nghiệp vụ (⚖️) sẽ tăng số ĐỢT và ghi rõ đã được người dùng đồng ý.
 
+## [2026.9.7] — Rà soát toàn hệ thống: chặn trả 2 lần trong 1 lượt Duyệt, giao diện tối / in / bàn phím
+
+Báo cáo đầy đủ: `docs/REVIEW_2026_09.md` (kiến trúc, 34 mục lỗi R-01…R-34, đề xuất tính năng). Không đổi schema dữ liệu, không đổi quy trình thanh toán.
+
+### Fixed
+- **R-01 (CRITICAL) Trả tiền 2 lần trong cùng lượt Duyệt**: 1 phiếu cân nằm ở 2 dòng Nháp (2 hồ sơ, hoặc 2 lần trong 1 hồ sơ — vd sửa tay File Nháp) được Duyệt cùng lượt thì cả 2 đều được ghi vào sổ (kiểm tra cũ chỉ so với sổ đã chốt). Nay mọi hồ sơ có phiếu trùng trong lượt bị giữ lại, báo rõ phiếu nào, ghi `CHAN_TRA_HAI_LAN`; các hồ sơ khác vẫn chốt.
+- **R-02 Mở Đóng TT không mở khóa đủ phiếu cân**: Duyệt khóa theo cột W (Số CT) nhưng Mở Đóng TT tìm theo cột A và chỉ 1 dòng/số → phiếu có 2 cột khác nhau hoặc nhiều dòng vẫn bị khóa “Đóng TT”. Nay dùng chung 1 hàm (`_dongPhieuCanTheoSo_`, cột W, mọi dòng).
+- **R-03 Đồng bộ tên khách hàng** (Hệ Thống › Đối soát) tìm sai cột / thiếu dòng — cùng nguyên nhân R-02.
+- **R-04 Xóa hồ sơ Nháp** xóa dòng ChiTietDNTT/ChiTietUNC (lịch sử UNC) **không sao lưu**, từng dòng một. Nay sao lưu vào `SYS_SaoLuuDongXoa` (hành động `XOA_NHAP`, khôi phục được ở Hệ Thống) và xóa theo khối.
+- **R-07 Chi tiết công nợ theo phiếu cân “đến ngày D”** vẫn tính các phiếu đã trả ĐÚNG ngày D (ngày TT lưu 12:00 so với mốc 00:00). Nay so theo ngày giờ VN.
+- **R-21** Tình hình thanh toán hằng ngày sắp sai thứ tự khi khoảng ngày qua nhiều tháng.
+- **R-22** Sheet “Thông Số” hiện link mặc định trong code thay vì link đang dùng (đã đổi ở Cài đặt).
+- Client: “Khách lẻ” (có dấu) bị coi là khác tên chủ rừng khi Lưu (R-19); `var(--border)` chưa khai báo làm mất viền ở Cài đặt (R-20); `<a><button>` lồng nhau, thiếu `rel="noopener"` (R-23).
+
+### Changed (hiệu năng, không đổi kết quả)
+- 1 lượt chạy mở File Chính **1 lần** (`getMainSs_` nhớ theo ID trong lượt) — trước đây mỗi lần ghi nhật ký/tra “Lần TT”… lại `openById` (~0,1–0,5 s/lần).
+- Tổng hợp 112 đọc sheet “Lần TT” 1 lần/lượt (trước: mỗi hồ sơ mới); ghi lịch sử UNC không đọc Script Properties theo từng dòng; xuất báo cáo Phân tích ghi 1 lệnh/bảng.
+- Tạo file báo cáo: `_taoFileBaoCao_` (DriveApp `moveTo`) thay 10 bản sao dùng `addFile/removeFile` (API lỗi thời).
+
+### Added — Giao diện
+- **Chế độ tối** theo hệ điều hành + nút “🌓 Giao diện” (Tự động / Sáng / Tối) ở chân thanh bên.
+- **Bản in** (Ctrl+P): chỉ phần nội dung, ẩn menu/nút, lặp tiêu đề bảng.
+- **Bàn phím & trình đọc màn hình**: menu, tab con, dòng bấm được dùng Tab + Enter/Space; Esc đóng hộp thoại/Trợ lý AI; focus vào hộp thoại và trả lại khi đóng; `lang="vi"`, `role`/`aria-*`, `aria-live` cho thông báo; viền focus rõ; tôn trọng “giảm chuyển động”.
+- **Màn hình nhỏ**: bảng rộng cuộn ngang trong thẻ (trước tràn ra ngoài), hộp thoại toàn màn hình trên điện thoại.
+- Hộp thoại “Xuất Excel thành công” dùng chung (`_hienKetQuaXuat_`).
+
+### Removed
+- Mã chết không có route/không nơi gọi (R-26): `searchChuRungNames_`, `getNguoiDeNghiInfo_`, `getNguoiNhanTienOptions_`, `getSoHopDongOptions_`, `getChuRungContext_`, `_hdNccActiveData_`, `HD_TRANG_THAI_LOAI_TRU`, `MISA_DEFAULT_KEYS`, `UNC_DEFAULT_KEYS`, `CFG.FOLDER_REPORT_ID`, client `doSetupDraft` (đã được thay bằng cache trình duyệt từ mục AG).
+
+### Tests
+- 108 test Node (thêm 9 trong `review202609.test.mjs` — **cả 9 thất bại trên 2026.9.6**).
+- Mới: 5 test giao diện Playwright (`tests/ui/giaoDien.ui.mjs`): mọi trang không lỗi JS + chống XSS, chế độ tối, 375/768 px không tràn, bàn phím/Esc/ARIA, bản in.
+
+### Docs
+- Mới: `docs/REVIEW_2026_09.md`, `API.md`, `DATABASE.md`, `FLOW.md`, `SECURITY.md`, `DEPLOY.md`, `INSTALL.md`, `USER_GUIDE.md`, `ADMIN_GUIDE.md`, `DEVELOPER_GUIDE.md`, `TEST_REPORT.md`.
+
+### Kiểm chứng trên Google thật (sau khi Deploy)
+Xem `docs/DEPLOY.md` › “Riêng v2026.9.7”.
+
 ## [2026.9.6] — Ngày đề nghị, % tiến độ, đo hiệu năng
 
 ### Added

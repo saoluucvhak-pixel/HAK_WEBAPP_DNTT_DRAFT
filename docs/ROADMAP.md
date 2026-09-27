@@ -11,6 +11,10 @@
 | P5 | Multi-tenant, Notification, Audit UI, Backup/Restore UI, Import/Export, Template, Plugin, Online Update | ⏳ | – |
 | – | ⚖️ Công nợ theo CCCD + Tên (M-04) | ✅ Hoàn thành | 2026.8.0 |
 | – | ⚖️ Khóa sổ năm 1 thao tác (Phiếu Cân + ĐNTT cùng lúc, file DATA<năm>), báo cáo đọc năm đã khóa sổ | ✅ Hoàn thành | 2026.9.0 → 2026.9.1 |
+| – | 🔎 Rà soát toàn hệ thống (R-01…R-34), chặn trả 2 lần trong lượt Duyệt, giao diện tối/in/bàn phím, 12 tài liệu | ✅ Hoàn thành | 2026.9.7 |
+| P4a | Giao diện: dark mode, print, a11y bàn phím/ARIA, bảng cuộn ngang | ✅ Hoàn thành (phần CSS/a11y của P4) | 2026.9.7 |
 | P6 | Dashboard/Report Builder, Print Designer, e-Sign, API, OCR, AI đa provider, Offline/Sync | ⏳ | – |
+
+Đề xuất tiếp theo (chờ người dùng chọn — `REVIEW_2026_09.md` §GĐ6, mục ⭐): R-05 Mở Đóng TT nguyên tử, R-06 nhật ký không mất âm thầm, R-11 giới hạn webhook, sao lưu File Chính hằng tuần, email cảnh báo, biểu đồ 12 tháng, phân trang tab MISA/Chi tiết/UNC, menu thu gọn trên điện thoại.
 
 Quy trình mỗi Phase: backup → deployment thử nghiệm → nghiệm thu Phụ lục C (PROJECT_ANALYSIS) → người dùng duyệt → triển khai → cập nhật ARCHITECTURE / CHANGELOG / TODO / VERSION / ROADMAP.
