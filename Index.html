@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="vi">
 <head>
   <base target="_top">
   <meta charset="utf-8">
@@ -26,6 +26,9 @@
       --white:#ffffff;
       --radius:10px;
       --shadow:0 1px 2px rgba(31,41,55,.06), 0 4px 14px rgba(31,41,55,.05);
+      --border:var(--line); /* v2026.9.7: tên cũ còn dùng ở vài chỗ - trước đây chưa khai báo nên viền bị mất */
+      --focus:#2563eb;
+      color-scheme:light;
     }
     *{box-sizing:border-box;}
     html,body{margin:0;padding:0;height:100%;}
@@ -170,7 +173,7 @@
       transition:border-color .15s ease, box-shadow .15s ease;
     }
     input:focus, select:focus, textarea:focus{
-      outline:none; border-color:var(--moss); box-shadow:0 0 0 3px var(--moss-light); background:#fff;
+      outline:none; border-color:var(--moss); box-shadow:0 0 0 3px var(--moss-light); background:var(--white);
     }
     .field{margin-bottom:14px;}
     .hint-text{font-size:11.5px; color:var(--ink-soft); margin-top:4px;}
@@ -198,6 +201,7 @@
     .btn.ghost{background:transparent; border-color:transparent;}
     .btn.ghost:hover{background:var(--paper-2);}
     .btn.sm{padding:5px 10px; font-size:12px;}
+    a.btn{text-decoration:none;}
     .btn:disabled{opacity:.45; cursor:not-allowed;}
 
     table{width:100%; border-collapse:collapse; font-size:13px;}
@@ -284,7 +288,7 @@
     }
     .modal-bg.show{display:flex;}
     .modal{
-      background:#fff; border-radius:12px; width:100%; max-width:560px;
+      background:var(--white); color:var(--ink); border-radius:12px; width:100%; max-width:560px;
       box-shadow:0 20px 60px rgba(0,0,0,.25); animation:pop .15s ease;
     }
     @keyframes pop{from{opacity:0; transform:translateY(8px) scale(.98);} to{opacity:1; transform:none;}}
@@ -427,6 +431,76 @@
     .nguoi-dung-chip .vai-tro{display:inline-block; font-size:11px; font-weight:600; padding:1px 8px; border-radius:10px; background:var(--timber-light); color:var(--timber); margin-top:2px;}
     .nguoi-dung-chip .dang-xuat{margin-top:6px; background:transparent; color:#e5e7eb; border:1px solid rgba(255,255,255,.3); border-radius:6px; padding:3px 10px; font-size:12px; cursor:pointer;}
     .nguoi-dung-chip .dang-xuat:hover{background:rgba(255,255,255,.08);}
+    /* ============================================================
+       v2026.9.7 - GIAO DIỆN: chế độ tối, bàn phím / trình đọc màn hình,
+       giảm chuyển động, bảng cuộn ngang trên điện thoại, bản in.
+       Chỉ đổi biến màu + bổ sung quy tắc, không đổi bố cục sẵn có.
+       ============================================================ */
+    /* Chế độ tối: theo máy (data-theme="auto" hoặc chưa chọn) hoặc chọn tay. */
+    @media (prefers-color-scheme: dark){
+      :root:not([data-theme="light"]){
+        --paper:#0f172a; --paper-2:#1e293b; --ink:#e5e7eb; --ink-soft:#94a3b8; --line:#334155;
+        --forest:#020617; --forest-2:#1e293b; --accent:#60a5fa; --moss:#4ade80; --moss-light:#14532d;
+        --timber:#f59e0b; --timber-light:#422006; --danger:#f87171; --danger-light:#450a0a; --white:#111827;
+        --shadow:0 1px 2px rgba(0,0,0,.4), 0 4px 14px rgba(0,0,0,.35); --focus:#93c5fd; color-scheme:dark;
+      }
+    }
+    :root[data-theme="dark"]{
+      --paper:#0f172a; --paper-2:#1e293b; --ink:#e5e7eb; --ink-soft:#94a3b8; --line:#334155;
+      --forest:#020617; --forest-2:#1e293b; --accent:#60a5fa; --moss:#4ade80; --moss-light:#14532d;
+      --timber:#f59e0b; --timber-light:#422006; --danger:#f87171; --danger-light:#450a0a; --white:#111827;
+      --shadow:0 1px 2px rgba(0,0,0,.4), 0 4px 14px rgba(0,0,0,.35); --focus:#93c5fd; color-scheme:dark;
+    }
+    #loading-overlay{background:color-mix(in srgb, var(--paper) 94%, transparent);}
+    .btn.primary:hover{filter:brightness(1.08);}
+
+    /* Bàn phím: viền rõ khi di chuyển bằng Tab (không hiện khi bấm chuột). */
+    :focus-visible{outline:2px solid var(--focus); outline-offset:2px;}
+    .nav-item:focus-visible, .subtab:focus-visible{outline:2px solid var(--focus); outline-offset:-2px;}
+    .sr-only{position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0;}
+    .theme-toggle{margin-top:8px; background:transparent; color:#cbd5e1; border:1px solid rgba(255,255,255,.25); border-radius:6px; padding:3px 10px; font-size:11.5px; cursor:pointer;}
+    .theme-toggle:hover{background:rgba(255,255,255,.08);}
+
+    /* Người dùng chọn giảm chuyển động trong hệ điều hành. */
+    @media (prefers-reduced-motion: reduce){
+      *, *::before, *::after{animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important; scroll-behavior:auto !important;}
+    }
+
+    /* Bảng rộng hơn khung tự cuộn ngang trong thẻ (trước đây tràn ra ngoài thẻ) -
+       trừ thẻ có hộp gợi ý tìm kiếm (hộp đó nổi ra ngoài thẻ). */
+    .card:not(:has(.suggest-box)), .modal-body{overflow-x:auto;}
+    .grid > *{min-width:0;}
+    /* Máy tính bảng / điện thoại. */
+    @media (max-width:900px){
+
+      .topbar{flex-wrap:wrap; gap:8px;}
+      .topbar .actions{flex-wrap:wrap;}
+      .sticky-actionbar{flex-wrap:wrap; gap:8px;}
+    }
+    @media (max-width:640px){
+      .modal-bg{padding:0;}
+      .modal{border-radius:0; min-height:100vh;}
+      .modal-body{max-height:none;}
+      #toast-wrap{left:12px; right:12px;}
+      .toast{max-width:none;}
+      .stat .value{font-size:21px;}
+    }
+
+    /* Bản in (Ctrl+P): chỉ phần nội dung, nền trắng, không nút bấm. */
+    @media print{
+      :root{--paper:#fff; --paper-2:#fff; --white:#fff; --ink:#000; --ink-soft:#333; --line:#999; --shadow:none;}
+      body{display:block; background:#fff; color:#000;}
+      .sidebar, #topbar-actions, .sticky-actionbar, #chatbotNut, #chatbotHop, #toast-wrap, #loading-overlay,
+      .modal-bg, .subtabs, button, .btn, input[type=checkbox], .nav-badge{display:none !important;}
+      .topbar{position:static; border:none; padding:0 0 8px;}
+      .content{padding:0;}
+      .card, .stat{box-shadow:none; border:1px solid #999; break-inside:avoid;}
+      table{font-size:11px;}
+      thead{display:table-header-group;}
+      tr{break-inside:avoid;}
+      a{color:#000; text-decoration:none;}
+      details{display:block;} details > *{display:block;}
+    }
   </style>
 </head>
 <body data-phien="<?= phien ?>" data-loi-dang-nhap="<?= loiDangNhap ?>" data-trang-dau="<?= trangDau ?>" class="chua-dang-nhap">
@@ -439,20 +513,20 @@
         <div class="sub">Quản lý thanh toán</div>
       </div>
     </div>
-    <nav id="nav">
-      <div class="nav-item" data-page="dashboard"><span class="ic">🏠</span> Trang chủ</div>
+    <nav id="nav" aria-label="Điều hướng chính">
+      <div class="nav-item" role="button" tabindex="0" data-page="dashboard"><span class="ic">🏠</span> Trang chủ</div>
       <div class="nav-sep"></div>
-      <div class="nav-item" data-page="draft"><span class="ic">📋</span> Danh Sách ĐNTT <span class="nav-badge hidden" id="badge-draft">0</span></div>
+      <div class="nav-item" role="button" tabindex="0" data-page="draft"><span class="ic">📋</span> Danh Sách ĐNTT <span class="nav-badge hidden" id="badge-draft">0</span></div>
       <div class="nav-sep"></div>
-      <div class="nav-item" data-page="report"><span class="ic">📊</span> Báo Cáo Thanh Toán</div>
-      <div class="nav-item" data-page="debt"><span class="ic">💰</span> Báo Cáo Công Nợ Khách Hàng Gỗ Keo</div>
+      <div class="nav-item" role="button" tabindex="0" data-page="report"><span class="ic">📊</span> Báo Cáo Thanh Toán</div>
+      <div class="nav-item" role="button" tabindex="0" data-page="debt"><span class="ic">💰</span> Báo Cáo Công Nợ Khách Hàng Gỗ Keo</div>
       <div class="nav-sep"></div>
-      <div class="nav-item" data-page="huongdan"><span class="ic">📖</span> Hướng Dẫn Sử Dụng</div>
-      <div class="nav-item" data-page="hethong"><span class="ic">🩺</span> Hệ Thống</div>
-      <div class="nav-item" data-page="settings"><span class="ic">⚙️</span> Cài đặt / Nháp</div>
+      <div class="nav-item" role="button" tabindex="0" data-page="huongdan"><span class="ic">📖</span> Hướng Dẫn Sử Dụng</div>
+      <div class="nav-item" role="button" tabindex="0" data-page="hethong"><span class="ic">🩺</span> Hệ Thống</div>
+      <div class="nav-item" role="button" tabindex="0" data-page="settings"><span class="ic">⚙️</span> Cài đặt / Nháp</div>
     </nav>
     <div class="nguoi-dung-chip" id="nguoi-dung-chip"></div>
-    <div class="sidebar-footer">Hệ thống Quản Lý Thanh Toán · v2026.9.6</div>
+    <div class="sidebar-footer">Hệ thống Quản Lý Thanh Toán · v2026.9.12<br><button type="button" class="theme-toggle" id="theme-toggle" aria-label="Đổi giao diện sáng / tối">🌓 Giao diện: Tự động</button></div>
   </aside>
 
   <main class="main">
@@ -468,22 +542,22 @@
     </div>
   </main>
 
-  <div id="loading-overlay"><div class="spinner"></div><div class="msg" id="loading-msg">Đang xử lý...</div>
+  <div id="loading-overlay" role="status" aria-live="polite"><div class="spinner" aria-hidden="true"></div><div class="msg" id="loading-msg">Đang xử lý...</div>
     <div class="tien-do"><div class="tien-do-thanh" id="loading-thanh"></div></div><div class="tien-do-chu" id="loading-tien-do"></div></div>
-  <div id="toast-wrap"></div>
-  <div class="modal-bg" id="modal-bg"><div class="modal" id="modal"></div></div>
+  <div id="toast-wrap" role="status" aria-live="polite"></div>
+  <div class="modal-bg" id="modal-bg"><div class="modal" id="modal" role="dialog" aria-modal="true" tabindex="-1"></div></div>
 
   <!-- MỚI (theo yêu cầu): widget chatbot AI nổi -->
-  <div id="chatbotNut" title="Hỏi Trợ Lý AI">🤖</div>
-  <div id="chatbotHop">
+  <div id="chatbotNut" title="Hỏi Trợ Lý AI" role="button" tabindex="0" aria-label="Mở Trợ Lý AI" aria-controls="chatbotHop">🤖</div>
+  <div id="chatbotHop" role="dialog" aria-label="Trợ Lý AI">
     <div id="chatbotDauTrang">🤖 Trợ Lý AI
-      <span><span id="chatbotXoaNguCanh" title="Xóa ngữ cảnh, hỏi câu hoàn toàn mới">🔄</span><span id="chatbotDong">✕</span></span>
+      <span><span id="chatbotXoaNguCanh" role="button" tabindex="0" aria-label="Xóa ngữ cảnh" title="Xóa ngữ cảnh, hỏi câu hoàn toàn mới">🔄</span><span id="chatbotDong" role="button" tabindex="0" aria-label="Đóng Trợ Lý AI">✕</span></span>
     </div>
-    <div id="chatbotNoiDung">
+    <div id="chatbotNoiDung" aria-live="polite">
       <div class="chatbot-tin chatbot-tin-bot">Xin chào! Mình là trợ lý AI của Hệ Thống Quản Lý Thanh Toán HAK - hỏi mình về cách dùng webapp, quy trình thanh toán, tình hình hồ sơ hôm nay (số liệu tổng quan), hoặc bất cứ điều gì khác.</div>
     </div>
     <div id="chatbotGoNhap">
-      <input id="chatbotOInput" placeholder="Gõ câu hỏi...">
+      <input id="chatbotOInput" placeholder="Gõ câu hỏi..." aria-label="Câu hỏi cho Trợ Lý AI">
       <button id="chatbotNutGui">Gửi</button>
     </div>
   </div>
@@ -885,12 +959,91 @@ function call(fnName, args, loadingMsg){
   });
 }
 
-function openModal(html){
-  document.getElementById('modal').innerHTML = html;
-  document.getElementById('modal-bg').classList.add('show');
+/** Nút mở file (Drive) trong tab mới - thẻ <a> mang kiểu nút (trước đây
+ * <a><button> lồng nhau: sai HTML, bàn phím phải Tab 2 lần). */
+function nutMoFile_(url, nhan, lop, kieu){
+  return `<a class="${esc(lop || 'btn primary')}" href="${esc(url)}" target="_blank" rel="noopener"${kieu ? ` style="${esc(kieu)}"` : ''}>${esc(nhan)}</a>`;
 }
-function closeModal(){ document.getElementById('modal-bg').classList.remove('show'); }
+/** Hộp thoại "Xuất Excel thành công" dùng chung cho mọi nút xuất Excel
+ * (thay 6 bản sao y hệt). moTa(): trả câu mô tả HTML (đã esc nếu chứa dữ
+ * liệu) - là hàm vì chỉ được đọc res.count/res.message khi xuất thành công. */
+function _hienKetQuaXuat_(res, moTa){
+  if (!(res && res.success)) { toast('❌ ' + (res && res.message || 'Xuất Excel thất bại.'), 'err'); return; }
+  openModal(`<div class="modal-head"><h3>Xuất Excel thành công</h3><button class="x" onclick="closeModal()" aria-label="Đóng">&times;</button></div>
+    <div class="modal-body"><p>${moTa()}</p>
+    ${nutMoFile_(res.url, 'Mở file Excel')}</div>
+    <div class="modal-foot"><button class="btn ghost" onclick="closeModal()">Đóng</button></div>`);
+}
+
+let _truocKhiMoModal_ = null; // phần tử đang được chọn trước khi mở modal - trả lại focus khi đóng
+function openModal(html){
+  const modal = document.getElementById('modal');
+  if (!document.getElementById('modal-bg').classList.contains('show')) _truocKhiMoModal_ = document.activeElement;
+  modal.innerHTML = html;
+  const tieuDe = modal.querySelector('.modal-head h3');
+  if (tieuDe) { tieuDe.id = 'modal-tieu-de'; modal.setAttribute('aria-labelledby', 'modal-tieu-de'); }
+  document.getElementById('modal-bg').classList.add('show');
+  const oDau = modal.querySelector('input:not([disabled]), select, textarea, .modal-foot .btn');
+  (oDau || modal).focus();
+}
+function closeModal(){
+  document.getElementById('modal-bg').classList.remove('show');
+  if (_truocKhiMoModal_ && document.body.contains(_truocKhiMoModal_)) _truocKhiMoModal_.focus();
+  _truocKhiMoModal_ = null;
+}
 document.getElementById('modal-bg').addEventListener('click', e => { if(e.target.id==='modal-bg') closeModal(); });
+
+/* ---------- Bàn phím & trình đọc màn hình (v2026.9.7) ----------
+ * Menu, tab con và dòng bấm được là <div>/<tr> nên tự gắn role="button" +
+ * tabindex cho mọi phần tử mới vẽ, và cho Enter/Space bấm như chuột.
+ * Esc đóng hộp thoại / Trợ lý AI. */
+const BAM_DUOC_BANG_PHIM = '.subtab, tr.clickable, .suggest-item';
+function _ganBamDuoc_(goc){
+  goc.querySelectorAll(BAM_DUOC_BANG_PHIM).forEach(el => {
+    if (el.hasAttribute('tabindex')) return;
+    el.setAttribute('tabindex', '0');
+    el.setAttribute('role', 'button');
+  });
+}
+['content', 'modal'].forEach(id => {
+  const goc = document.getElementById(id);
+  new MutationObserver(() => _ganBamDuoc_(goc)).observe(goc, { childList: true, subtree: true });
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    if (document.getElementById('modal-bg').classList.contains('show')) { closeModal(); return; }
+    const hop = document.getElementById('chatbotHop');
+    if (hop && hop.classList.contains('mo')) { hop.classList.remove('mo'); document.getElementById('chatbotNut').focus(); }
+    return;
+  }
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  const el = e.target;
+  if (!el || el.getAttribute('role') !== 'button' || /^(BUTTON|A|INPUT|SELECT|TEXTAREA)$/.test(el.tagName)) return;
+  e.preventDefault();
+  // Gợi ý tìm kiếm chạy theo sự kiện mousedown (xem hanhDongKhi) - giả lập đúng sự kiện đó.
+  el.dispatchEvent(new MouseEvent(el.dataset.hdSuKien === 'mousedown' ? 'mousedown' : 'click', { bubbles: true }));
+});
+
+/* ---------- Giao diện sáng / tối (v2026.9.7) ----------
+ * Tự động theo máy; bấm nút ở chân thanh bên để chọn Sáng / Tối / Tự động.
+ * Chỉ là tùy chọn hiển thị trên máy này (localStorage), không gửi lên máy chủ. */
+const GIAO_DIEN_KHOA = 'hak_giao_dien';
+const GIAO_DIEN_NHAN = { auto: 'Tự động', light: 'Sáng', dark: 'Tối' };
+let _giaoDienHienTai_ = 'auto'; // giữ trong bộ nhớ - localStorage có thể bị chặn (chế độ ẩn danh, trang nhúng)
+function _apDungGiaoDien_(che){
+  _giaoDienHienTai_ = che in GIAO_DIEN_NHAN ? che : 'auto';
+  if (che === 'light' || che === 'dark') document.documentElement.setAttribute('data-theme', che);
+  else document.documentElement.removeAttribute('data-theme');
+  const nut = document.getElementById('theme-toggle');
+  if (nut) nut.textContent = '🌓 Giao diện: ' + GIAO_DIEN_NHAN[che in GIAO_DIEN_NHAN ? che : 'auto'];
+}
+function doiGiaoDien(){
+  const tiep = { auto: 'light', light: 'dark', dark: 'auto' }[_giaoDienHienTai_] || 'auto';
+  try { localStorage.setItem(GIAO_DIEN_KHOA, tiep); } catch(e) {}
+  _apDungGiaoDien_(tiep);
+}
+try { _apDungGiaoDien_(localStorage.getItem(GIAO_DIEN_KHOA) || 'auto'); } catch(e) { _apDungGiaoDien_('auto'); }
+document.getElementById('theme-toggle').addEventListener('click', doiGiaoDien);
 
 /* ============================================================
  * NAVIGATION
@@ -920,7 +1073,10 @@ function goTo(page){
   // ĐNTT/Tạo Mới mới phóng to font (kể cả modal mở ra từ trang này) -
   // xem CSS ".dntt-lg" ở đầu file.
   document.body.classList.toggle('dntt-lg', page === 'draft');
-  document.querySelectorAll('.nav-item').forEach(el => el.classList.toggle('active', el.dataset.page===page));
+  document.querySelectorAll('.nav-item').forEach(el => {
+    el.classList.toggle('active', el.dataset.page===page);
+    if (el.dataset.page === page) el.setAttribute('aria-current', 'page'); else el.removeAttribute('aria-current');
+  });
   const meta = PAGES[page];
   document.getElementById('page-title').textContent = meta.title;
   document.getElementById('page-desc').textContent = meta.desc;
@@ -1672,7 +1828,7 @@ function renderCreateStep3(body){
  * rừng đang chọn (không chặn, chỉ hỏi xác nhận trước khi lưu). */
 function submitCreate(){
   const d = state.createData;
-  const genericNames = new Set(['KH','KL','KHACHLE']);
+  const genericNames = new Set(['KH','KL','KHACHLE','KHÁCHLẺ']); // khớp TEN_KHACH_CHUNG (Code.gs) - standardizeClient giữ dấu
   const nameStd = standardizeClient(d.hoTenChuRung);
   const mismatched = d.phieuCan.filter(p => {
     const khStd = standardizeClient(p.khachHang);
@@ -1929,9 +2085,9 @@ function doInBaoCaoDNTT(){
   call('exportBaoCaoDNTTFromDraft', [ids], 'Đang xuất Báo Cáo ĐNTT...').then(res => {
     if (res && res.success) {
       toast(res.message || '✅ Đã xuất Báo Cáo ĐNTT.');
-      openModal(`<div class="modal-head"><h3>In Báo Cáo ĐNTT thành công</h3><button class="x" onclick="closeModal()">&times;</button></div>
+      openModal(`<div class="modal-head"><h3>In Báo Cáo ĐNTT thành công</h3><button class="x" onclick="closeModal()" aria-label="Đóng">&times;</button></div>
         <div class="modal-body"><p>Báo cáo ĐNTT (chưa chốt) đã được tạo trong Google Drive.</p>
-        <a href="${res.url}" target="_blank"><button class="btn primary">Mở file Báo Cáo ĐNTT</button></a></div>
+        ${nutMoFile_(res.url, 'Mở file Báo Cáo ĐNTT', 'btn primary')}</div>
         <div class="modal-foot"><button class="btn ghost" onclick="closeModal()">Đóng</button></div>`);
     } else {
       toast('❌ ' + (res && res.message || 'Xuất Báo Cáo ĐNTT thất bại.'), 'err');
@@ -1946,7 +2102,7 @@ function openCreateUNCModal(){
   if (!ids.length) { toast('Vui lòng chọn ít nhất 1 hồ sơ.', 'warn'); return; }
   const iso = todayISOVN();
   openModal(`
-    <div class="modal-head"><h3>Tạo File UNC (${ids.length} hồ sơ)</h3><button class="x" onclick="closeModal()">&times;</button></div>
+    <div class="modal-head"><h3>Tạo File UNC (${ids.length} hồ sơ)</h3><button class="x" onclick="closeModal()" aria-label="Đóng">&times;</button></div>
     <div class="modal-body">
       <p style="font-size:13px">Tạo file Excel Ủy Nhiệm Chi để nộp ngân hàng chuyển tiền - CHƯA ghi vào sổ sách chính thức (chưa Đóng Thanh Toán).</p>
       <div class="field"><label>Ngày hiệu lực</label><input type="date" id="unc-ngay" value="${iso}"></div>
@@ -1973,10 +2129,10 @@ function submitCreateUNC(){
   call('webCreateUNCFromDraft', [ids, ngay, tkTrichNo, tkThuPhi], 'Đang tạo file UNC...').then(res => {
     if (res && res.success) {
       closeModal();
-      openModal(`<div class="modal-head"><h3>Tạo File UNC thành công</h3><button class="x" onclick="closeModal()">&times;</button></div>
+      openModal(`<div class="modal-head"><h3>Tạo File UNC thành công</h3><button class="x" onclick="closeModal()" aria-label="Đóng">&times;</button></div>
         <div class="modal-body"><p>Đã tạo file UNC với ${res.count} dòng.</p>
         ${res.canhBaoTrung ? `<p style="color:#b00;font-size:13px">${esc(res.canhBaoTrung)}</p>` : ''}
-        <a href="${res.url}" target="_blank"><button class="btn primary">Mở file UNC</button></a></div>
+        ${nutMoFile_(res.url, 'Mở file UNC', 'btn primary')}</div>
         <div class="modal-foot"><button class="btn ghost" onclick="closeModal()">Đóng</button></div>`);
     } else {
       toast('❌ ' + (res && res.message || 'Tạo file UNC thất bại.'), 'err');
@@ -1995,7 +2151,7 @@ function viewDraftDetail(idKey){
     if (!r) { toast('Không tìm thấy hồ sơ.', 'err'); return; }
     const editable = r.soTien > 0 && !r.daXacNhan; // mục W: chỉ "Chờ ĐNTT" mới cho sửa/xóa
     openModal(`
-      <div class="modal-head"><h3>Chi tiết hồ sơ ${esc(r.idKey)}</h3><button class="x" onclick="closeModal()">&times;</button></div>
+      <div class="modal-head"><h3>Chi tiết hồ sơ ${esc(r.idKey)}</h3><button class="x" onclick="closeModal()" aria-label="Đóng">&times;</button></div>
       <div class="modal-body">
         <div class="kv"><span class="k">Chủ rừng</span><span class="v">${esc(r.chuRung)}</span></div>
         <div class="kv"><span class="k">Trạng thái</span><span class="v">${r.soTien>0 ? (r.daXacNhan ? '<span class="badge ready dot">Đang ĐNTT</span>' : '<span class="badge wait dot">Chờ ĐNTT</span>') : '<span class="badge pending dot">Chưa ĐNTT</span>'}</span></div>
@@ -2116,7 +2272,7 @@ function editDraftRecord(idKey){
   call('getDraftRecordDetail', [idKey], 'Đang tải...').then(r => {
     if (!r) { toast('Không tìm thấy hồ sơ.', 'err'); return; }
     openModal(`
-      <div class="modal-head"><h3>Sửa hồ sơ ${esc(r.idKey)}</h3><button class="x" onclick="closeModal()">&times;</button></div>
+      <div class="modal-head"><h3>Sửa hồ sơ ${esc(r.idKey)}</h3><button class="x" onclick="closeModal()" aria-label="Đóng">&times;</button></div>
       <div class="modal-body">
         <div class="field"><label>Chủ rừng</label><input type="text" id="e-chuRung" value="${esc(r.chuRung)}"></div>
         <div class="field"><label>Người nhận</label><input type="text" id="e-nguoiNhan" value="${esc(r.nguoiNhan)}"></div>
@@ -2165,7 +2321,7 @@ function openConfirmPaymentModal(){
     const label = isUS ? 'Ngày thanh toán (mm/dd/yyyy)' : 'Ngày thanh toán (dd/mm/yyyy)';
     const defVal = isUS ? `${mm}/${dd}/${yyyy}` : `${dd}/${mm}/${yyyy}`;
     openModal(`
-      <div class="modal-head"><h3>Đóng Thanh Toán (${ids.length} hồ sơ)</h3><button class="x" onclick="closeModal()">&times;</button></div>
+      <div class="modal-head"><h3>Đóng Thanh Toán (${ids.length} hồ sơ)</h3><button class="x" onclick="closeModal()" aria-label="Đóng">&times;</button></div>
       <div class="modal-body">
         <p style="font-size:13px">Dữ liệu sẽ được ghi vào sheet chính thức, khóa Phiếu Cân vĩnh viễn, và xóa khỏi File Nháp.</p>
         <div class="field"><label>${label}</label><input type="text" id="pay-date" value="${defVal}"></div>
@@ -2323,14 +2479,7 @@ function renderMisaResultTable(){
 function doExportMisaTheoNgay(){
   const f = document.getElementById('misa-from').value, t = document.getElementById('misa-to').value;
   call('exportMisaTheoNgayExcel', [f, t], 'Đang xuất Excel...').then(res => {
-    if (res && res.success) {
-      openModal(`<div class="modal-head"><h3>Xuất Excel thành công</h3><button class="x" onclick="closeModal()">&times;</button></div>
-        <div class="modal-body"><p>${esc(res.message || ('Đã xuất ' + res.count + ' dòng.'))}</p>
-        <a href="${res.url}" target="_blank"><button class="btn primary">Mở file Excel</button></a></div>
-        <div class="modal-foot"><button class="btn ghost" onclick="closeModal()">Đóng</button></div>`);
-    } else {
-      toast('❌ ' + (res && res.message || 'Xuất Excel thất bại.'), 'err');
-    }
+    _hienKetQuaXuat_(res, () => `${esc(res.message || ('Đã xuất ' + res.count + ' dòng.'))}`);
   });
 }
 
@@ -2421,14 +2570,7 @@ function renderChiTietResultTable(){
 function doExportChiTietDNTT(){
   const f = document.getElementById('chitiet-from').value, t = document.getElementById('chitiet-to').value;
   call('exportChiTietDNTTDaChotExcel', [f, t], 'Đang xuất Excel...').then(res => {
-    if (res && res.success) {
-      openModal(`<div class="modal-head"><h3>Xuất Excel thành công</h3><button class="x" onclick="closeModal()">&times;</button></div>
-        <div class="modal-body"><p>${esc(res.message || ('Đã xuất ' + res.count + ' dòng.'))}</p>
-        <a href="${res.url}" target="_blank"><button class="btn primary">Mở file Excel</button></a></div>
-        <div class="modal-foot"><button class="btn ghost" onclick="closeModal()">Đóng</button></div>`);
-    } else {
-      toast('❌ ' + (res && res.message || 'Xuất Excel thất bại.'), 'err');
-    }
+    _hienKetQuaXuat_(res, () => `${esc(res.message || ('Đã xuất ' + res.count + ' dòng.'))}`);
   });
 }
 
@@ -2514,14 +2656,7 @@ function renderBaoCaoUncResultTable(){
 function doExportBaoCaoUnc(){
   const f = document.getElementById('baocaounc-from').value, t = document.getElementById('baocaounc-to').value;
   call('exportLichSuUNCExcel', [f, t], 'Đang xuất Excel...').then(res => {
-    if (res && res.success) {
-      openModal(`<div class="modal-head"><h3>Xuất Excel thành công</h3><button class="x" onclick="closeModal()">&times;</button></div>
-        <div class="modal-body"><p>Đã xuất ${res.count} dòng.</p>
-        <a href="${res.url}" target="_blank"><button class="btn primary">Mở file Excel</button></a></div>
-        <div class="modal-foot"><button class="btn ghost" onclick="closeModal()">Đóng</button></div>`);
-    } else {
-      toast('❌ ' + (res && res.message || 'Xuất Excel thất bại.'), 'err');
-    }
+    _hienKetQuaXuat_(res, () => `Đã xuất ${res.count} dòng.`);
   });
 }
 function doDongBoChiTietLichSu(){
@@ -2735,9 +2870,9 @@ function exportReport(){
   call('webExportReport', [selectedRows, dateRange], 'Đang xuất báo cáo...').then(res => {
     if (res && res.success) {
       toast('✅ Đã xuất báo cáo thành công.');
-      openModal(`<div class="modal-head"><h3>Xuất báo cáo thành công</h3><button class="x" onclick="closeModal()">&times;</button></div>
+      openModal(`<div class="modal-head"><h3>Xuất báo cáo thành công</h3><button class="x" onclick="closeModal()" aria-label="Đóng">&times;</button></div>
         <div class="modal-body"><p>Báo cáo (${selectedRows.length} dòng) đã được tạo trong Google Drive.</p>
-        <a href="${res.url}" target="_blank"><button class="btn primary">Mở file báo cáo</button></a>
+        ${nutMoFile_(res.url, 'Mở file báo cáo', 'btn primary')}
         <p class="muted" style="font-size:12px;margin-top:8px">Cần xuất file nộp ngân hàng/MISA? Sang tab "Báo Cáo Kết Xuất MISA" (dùng lại đúng lựa chọn này).</p>
         </div>
         <div class="modal-foot"><button class="btn ghost" onclick="closeModal()">Đóng</button></div>`);
@@ -3212,11 +3347,11 @@ function clearPhanTichSubFilter(){
 function doExportPhanTich(){
   call('exportPhanTichNhapTTBaoCao', [state.phanTichFrom, state.phanTichTo], 'Đang xuất báo cáo Excel + PDF...').then(res => {
     if (res && res.success) {
-      openModal(`<div class="modal-head"><h3>Xuất báo cáo thành công</h3><button class="x" onclick="closeModal()">&times;</button></div>
+      openModal(`<div class="modal-head"><h3>Xuất báo cáo thành công</h3><button class="x" onclick="closeModal()" aria-label="Đóng">&times;</button></div>
         <div class="modal-body">
           <p>Báo cáo tổng hợp từ ${esc(state.phanTichFrom)} đến ${esc(state.phanTichTo)} đã được tạo.</p>
-          <a href="${res.excelUrl}" target="_blank"><button class="btn primary" style="width:100%;margin-bottom:8px">📊 Mở file Excel</button></a>
-          <a href="${res.pdfUrl}" target="_blank"><button class="btn" style="width:100%">📄 Mở file PDF</button></a>
+          ${nutMoFile_(res.excelUrl, '📊 Mở file Excel', 'btn primary', 'width:100%;margin-bottom:8px')}
+          ${res.pdfUrl ? nutMoFile_(res.pdfUrl, '📄 Mở file PDF', 'btn', 'width:100%') : `<p class="muted">⚠️ ${esc(res.canhBao || 'Không tạo được file PDF.')}</p>`}
         </div>
         <div class="modal-foot"><button class="btn ghost" onclick="closeModal()">Đóng</button></div>`);
     } else {
@@ -3340,14 +3475,7 @@ function goCtcnPage(p){ state.ctcnPage = p; renderCtcnTable(); }
 
 function doExportCtcn(){
   call('exportChiTietCongNoPhieuCanExcel', [state.ctcnNgay, state.ctcnFilters || {}], 'Đang xuất Excel...').then(res => {
-    if (res && res.success) {
-      openModal(`<div class="modal-head"><h3>Xuất Excel thành công</h3><button class="x" onclick="closeModal()">&times;</button></div>
-        <div class="modal-body"><p>Đã xuất ${res.count} dòng.</p>
-        <a href="${res.url}" target="_blank"><button class="btn primary">Mở file Excel</button></a></div>
-        <div class="modal-foot"><button class="btn ghost" onclick="closeModal()">Đóng</button></div>`);
-    } else {
-      toast('❌ ' + (res && res.message || 'Xuất Excel thất bại.'), 'err');
-    }
+    _hienKetQuaXuat_(res, () => `Đã xuất ${res.count} dòng.`);
   });
 }
 
@@ -3469,14 +3597,7 @@ function goThtPage(p){ state.thtPage = p; renderThtTable(); }
 
 function doExportTht(){
   call('exportTinhHinhThanhToanExcel', [state.thtFrom, state.thtTo, state.thtFilters || {}], 'Đang xuất Excel...').then(res => {
-    if (res && res.success) {
-      openModal(`<div class="modal-head"><h3>Xuất Excel thành công</h3><button class="x" onclick="closeModal()">&times;</button></div>
-        <div class="modal-body"><p>Đã xuất ${res.count} dòng.</p>
-        <a href="${res.url}" target="_blank"><button class="btn primary">Mở file Excel</button></a></div>
-        <div class="modal-foot"><button class="btn ghost" onclick="closeModal()">Đóng</button></div>`);
-    } else {
-      toast('❌ ' + (res && res.message || 'Xuất Excel thất bại.'), 'err');
-    }
+    _hienKetQuaXuat_(res, () => `Đã xuất ${res.count} dòng.`);
   });
 }
 
@@ -3781,7 +3902,8 @@ const NHAN_HANH_DONG = {
   XAC_NHAN_HEADER_PHIEU_CAN: '✅ Xác Nhận Cột Phiếu Cân',
   KHOI_PHUC_DONG_DA_XOA: '♻️ Khôi Phục Dòng Đã Xóa',
   CAU_HINH_LUU_TRU_NAM: '🗄️ File Lưu Trữ Theo Năm',
-  KHOA_SO_NAM: '🔒 Khóa Sổ Năm'
+  KHOA_SO_NAM: '🔒 Khóa Sổ Năm',
+  XOA_NHAP: '🗑️ Xóa hồ sơ Nháp'
 };
 function doKhoaSoNam(chayThat){
   const box = document.getElementById('khoaso-result');
@@ -3941,7 +4063,6 @@ function renderSettings(){
         </div>
         <button class="btn" style="margin-top:8px" onclick="doResetPhanTich()">🧹 Xóa Sạch &amp; Nạp Lại Phân Tích NG-ĐL</button>
         <button class="btn" style="margin-top:8px" onclick="doResetChiTietCongNo()">🧹 Xóa Sạch &amp; Nạp Lại Chi Tiết Công Nợ PC</button>
-        <button class="btn" style="margin-top:8px" onclick="doShowWebhookInfo()">🔑 Xem Link Webhook Làm Mới Cache Tức Thì</button>
         <div style="margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
           <button class="btn" onclick="doKhoaDinhDangText()">🔒 Khóa Định Dạng TEXT/Ngày (CCCD/STK/Số HĐ/Timestamp...)</button>
           <span id="badge-formatlock" class="badge dot">Đang kiểm tra...</span>
@@ -4397,14 +4518,7 @@ function doDongBoTenKhachHang(){
 }
 function doXuatDoiSoatExcel(){
   call('exportDoiSoatTenKhachHangExcel', [state.doiSoatRows || []], 'Đang xuất Excel...').then(res => {
-    if (res && res.success) {
-      openModal(`<div class="modal-head"><h3>Xuất Excel thành công</h3><button class="x" onclick="closeModal()">&times;</button></div>
-        <div class="modal-body"><p>Đã xuất ${res.count} dòng.</p>
-        <a href="${res.url}" target="_blank"><button class="btn primary">Mở file Excel</button></a></div>
-        <div class="modal-foot"><button class="btn ghost" onclick="closeModal()">Đóng</button></div>`);
-    } else {
-      toast('❌ ' + (res && res.message || 'Xuất Excel thất bại.'), 'err');
-    }
+    _hienKetQuaXuat_(res, () => `Đã xuất ${res.count} dòng.`);
   });
 }
 
@@ -4580,11 +4694,6 @@ function doRevokeLink(key, email){
   });
 }
 
-function doSetupDraft(){
-  call('setupDraftSpreadsheet', [], 'Đang kiểm tra File Nháp...').then(res => {
-    handleResult(res, () => renderSettings());
-  });
-}
 function openDraftFileLink(){
   call('setupDraftSpreadsheet', [], null).then(res => { if (res.url) window.open(res.url, '_blank'); });
 }
@@ -4638,20 +4747,6 @@ function doResetChiTietCongNo(){
   if (!confirm('Xóa sạch toàn bộ dữ liệu Chi Tiết Công Nợ theo Phiếu Cân hiện có để nạp lại từ đầu? Không mất số liệu gốc (Phiếu Cân vẫn còn nguyên).')) return;
   call('webResetChiTietCongNoSheet', [], 'Đang xóa sạch và chuẩn bị nạp lại...').then(res => handleResult(res));
 }
-function doShowWebhookInfo(){
-  call('getWebhookInfoForWeb', [], 'Đang tạo link...').then(res => {
-    if (!res || !res.success) { toast('❌ ' + (res && res.message || 'Không lấy được link.'), 'err'); return; }
-    openModal(`<div class="modal-head"><h3>Webhook Làm Mới Cache Tức Thì</h3><button class="x" onclick="closeModal()">&times;</button></div>
-      <div class="modal-body" style="font-size:13px;line-height:1.6">
-        <p><b>Bước 1:</b> Mở Apps Script Editor của file <b>PhieuCan_DN</b> (và tương tự cho file <b>HD_NCC</b>), dán đoạn code sau vào 1 file .gs mới:</p>
-        <textarea readonly style="width:100%;height:110px;font-family:monospace;font-size:12px">${esc(res.script)}</textarea>
-        <p><b>Bước 2:</b> Menu bên trái "Trình kích hoạt" (Triggers) → "+ Thêm trình kích hoạt" → chọn hàm <b>onChangeLamMoiCache</b> → Loại sự kiện: <b>"Khi thay đổi trang tính" (On change)</b> → Lưu.</p>
-        <p style="color:#b00">⚠️ Lặp lại y hệt ở CẢ file HD_NCC (dùng chung 1 đoạn code này).</p>
-        <p class="muted" style="font-size:12px">Dùng "On change" (không phải "On edit") để không gọi quá nhiều lần khi sửa hàng loạt ô cùng lúc.</p>
-      </div>
-      <div class="modal-foot"><button class="btn ghost" onclick="closeModal()">Đóng</button></div>`);
-  });
-}
 function doKhoaDinhDangText(){
   if (!confirm('Khóa định dạng cho các cột CCCD/STK/Số HĐ/Số Phiếu Cân (TEXT) và Timestamp/Ngày (dd/MM/yyyy) trên cả Draft và bản chính? Việc này chỉ ngăn lỗi xảy ra THÊM từ bây giờ, KHÔNG tự phục hồi dữ liệu cũ đã bị sai (nếu có).')) return;
   call('webKhoaDinhDangTextTatCa', [], 'Đang khóa định dạng...').then(res => handleResult(res, () => loadFormatLockStatus()));
@@ -4675,7 +4770,11 @@ window.addEventListener('DOMContentLoaded', function khoiTaoChatbotWidget_() {
   elInput.addEventListener('keyup', function (e) { if (e.key === 'Enter') chatbotGuiCauHoi(); });
 });
 
-function toggleChatbot(){ document.getElementById('chatbotHop').classList.toggle('mo'); }
+function toggleChatbot(){
+  const mo = document.getElementById('chatbotHop').classList.toggle('mo');
+  document.getElementById('chatbotNut').setAttribute('aria-expanded', String(mo));
+  if (mo) document.getElementById('chatbotOInput').focus();
+}
 
 var chatbotLichSu_ = [];
 
