@@ -1,6 +1,6 @@
 /**
  * ============================================================
- * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.13
+ * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.14
  * Lịch sử thay đổi: CHANGELOG.md · Kiến trúc: docs/ARCHITECTURE.md
  * ------------------------------------------------------------
  * *** QUAN TRỌNG - CẦN LÀM TRƯỚC KHI DÙNG BẢN NÀY (chỉ 1 LẦN DUY NHẤT
@@ -2821,6 +2821,10 @@ function _ghiLichSuUNC_(filteredRows, uncCfg, toDate, toDateXuat, fileUrl) {
     });
     if (rows.length) {
       _chayTrongKhoa_(() => {
+        // Tạo lại UNC cho hồ sơ đã có: THAY dòng cũ của đúng các hồ sơ đó (sao lưu
+        // trước, khôi phục được) - Báo Cáo UNC mỗi hồ sơ 1 dòng, như ChiTietDNTT.
+        const idTaoLai = new Set(rows.map(r => String(r[0] || "").trim()).filter(Boolean));
+        if (idTaoLai.size) _saoLuuVaXoaDong_(sh, r => idTaoLai.has(String(r[0] || "").trim()), "TAO_LAI_UNC", _maThaoTacMoi_("TAO_LAI_UNC"));
         const startRow = sh.getLastRow() + 1;
         sh.getRange(startRow, 1, rows.length, CHITIET_UNC_HEADERS.length).setValues(_dongAnToan_(rows));
       });
@@ -2972,6 +2976,9 @@ function getLichSuUNC_(fDate, tDate) {
   const GIOI_HAN_KET_QUA = 1000;
   const results = [];
   let daQuaXaFDate = false;
+  // Mỗi hồ sơ chỉ lấy lần tạo UNC MỚI NHẤT (dữ liệu do bản cũ ghi có thể còn
+  // nhiều dòng cho 1 hồ sơ vì mỗi lần tạo lại đều ghi thêm).
+  const daCoHoSo = new Set();
   // Xét 1 dòng (duyệt từ mới về cũ); trả về false khi phải dừng.
   const xet = r => {
     const d = r[14]; // Thời gian tạo
@@ -2979,6 +2986,11 @@ function getLichSuUNC_(fDate, tDate) {
     const iso = Utilities.formatDate(d, "GMT+7", "yyyy-MM-dd");
     if (fDate && iso < fDate) { daQuaXaFDate = true; return false; }
     if (tDate && iso > tDate) return true;
+    const idHoSo = String(r[0] || "").trim();
+    if (idHoSo) {
+      if (daCoHoSo.has(idHoSo)) return true;
+      daCoHoSo.add(idHoSo);
+    }
     results.push({
       idHeThong: String(r[0] || ""), soTT: r[1], phuongThuc: String(r[2] || ""),
       tenNguoiNhan: String(r[4] || ""), soTK: String(r[5] || "").replace(/'/g, ""),
@@ -3137,7 +3149,7 @@ function _kiemTraTrungUNC_(filteredRows) {
     });
     if (idDaCoUNC.size === 0) return "";
     const soLuong = idDaCoUNC.size;
-    return `⚠️ ${soLuong} hồ sơ trong lần tạo này ĐÃ TỪNG có UNC trước đó (xem "Lịch Sử Tạo File UNC" ở Hệ Thống để đối chiếu) - kiểm tra kỹ tránh nộp ngân hàng trùng lặp nếu đây không phải là tạo lại có chủ ý.`;
+    return `⚠️ ${soLuong} hồ sơ trong lần tạo này ĐÃ TỪNG có UNC trước đó - Báo Cáo UNC giữ bản mới này thay cho bản cũ (bản cũ được sao lưu ở Hệ Thống › Khôi Phục). Kiểm tra kỹ tránh nộp ngân hàng trùng lặp nếu đây không phải là tạo lại có chủ ý.`;
   } catch (e) {
     return ""; // Không chặn tạo UNC nếu kiểm tra trùng lỗi
   }

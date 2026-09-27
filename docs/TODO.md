@@ -57,6 +57,7 @@ Trạng thái: ✅ xong · 🟡 một phần · ⏳ chưa làm · ⚖️ cần n
 - ✅ 2026.8.2: Giao diện “Khôi phục từ SYS_SaoLuuDongXoa” (hoàn tất C-07).
 - ⏳ Kiểm chứng trên Google Sheets thật: `getRangeList().setValue()` và `deleteRows()` với dữ liệu lớn (mock đã kiểm chứng logic).
 - ✅ Khóa sổ năm (quy trình người dùng): kiểm chứng công nợ đầu năm = phiếu chưa trả mang sang (test `khoaSoNam`); không cần bộ nhớ đệm 6 tháng.
+- ✅ 2026.9.14: Tạo lại UNC thay dòng cũ trong ChiTietUNC; Báo Cáo UNC mỗi hồ sơ 1 dòng (mới nhất).
 - ✅ 2026.9.13: Xuất MISA theo ngày trở lại đúng mẫu nhập MISA 33 cột như bản 2026.8 (+ sheet tóm tắt).
 - ✅ 2026.9.7 → 2026.9.12 (cập nhật trực tiếp trên main): an toàn Mở Đóng TT, chặn trùng phiếu trong lượt Duyệt, số dạng chữ VN, cờ khóa sổ cho QL_NHAPKHO, giao diện tối / bàn phím, bỏ webhook — xem CHANGELOG.
 - ✅ 2026.9.6: Ngày đề nghị ở Danh sách ĐNTT, % tiến độ màn hình chờ, Hệ Thống › Hiệu Năng (đo thật), Duyệt bớt 1 lượt đọc Phiếu Cân + CT.
