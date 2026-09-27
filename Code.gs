@@ -1,6 +1,6 @@
 /**
  * ============================================================
- * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.2
+ * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.6
  * Lịch sử thay đổi: CHANGELOG.md · Kiến trúc: docs/ARCHITECTURE.md
  * ------------------------------------------------------------
  * *** QUAN TRỌNG - CẦN LÀM TRƯỚC KHI DÙNG BẢN NÀY (chỉ 1 LẦN DUY NHẤT
@@ -929,11 +929,14 @@ function logAction_(actionType, refId, detail) {
 // thẳng được. Menu trong Sheet dùng email thật của người bấm menu.
 // Chủ script luôn là Quản trị (không thể tự khóa mình ra ngoài).
 // ============================================================
-const VAI_TRO = { ADMIN: "ADMIN", KE_TOAN: "KE_TOAN", XEM: "XEM" };
-const VAI_TRO_NHAN = { ADMIN: "Quản trị", KE_TOAN: "Kế toán", XEM: "Chỉ xem" };
-const QUYEN = { XEM: "XEM", NGHIEP_VU: "NGHIEP_VU", QUAN_TRI: "QUAN_TRI" };
+const VAI_TRO = { ADMIN: "ADMIN", KE_TOAN_TONG_HOP: "KE_TOAN_TONG_HOP", KE_TOAN: "KE_TOAN", XEM: "XEM" };
+const VAI_TRO_NHAN = { ADMIN: "Quản trị", KE_TOAN_TONG_HOP: "Kế toán tổng hợp", KE_TOAN: "Kế toán", XEM: "Chỉ xem" };
+// HE_THONG: toàn bộ trang Hệ Thống (đối soát, bảo trì, Mở Đóng TT, khôi phục,
+// khóa sổ năm...). QUAN_TRI: thêm Cài đặt, người dùng, Cổng đăng nhập.
+const QUYEN = { XEM: "XEM", NGHIEP_VU: "NGHIEP_VU", HE_THONG: "HE_THONG", QUAN_TRI: "QUAN_TRI" };
 const QUYEN_THEO_VAI_TRO = {
-  ADMIN: [QUYEN.XEM, QUYEN.NGHIEP_VU, QUYEN.QUAN_TRI],
+  ADMIN: [QUYEN.XEM, QUYEN.NGHIEP_VU, QUYEN.HE_THONG, QUYEN.QUAN_TRI],
+  KE_TOAN_TONG_HOP: [QUYEN.XEM, QUYEN.NGHIEP_VU, QUYEN.HE_THONG],
   KE_TOAN: [QUYEN.XEM, QUYEN.NGHIEP_VU],
   XEM: [QUYEN.XEM]
 };
@@ -953,10 +956,15 @@ const AUTH_CFG = {
   CACHE_KEY_NGUOI_DUNG: "sys_nguoi_dung_v1",
   TIEN_TO_PHIEN: "phien_",
   TIEN_TO_NONCE: "sso_n_",
+  // Đăng nhập khi web app nằm trong trang khác (iframe): Cổng mở ở cửa sổ nhỏ,
+  // xong thì để phiên ở đây theo mã yêu cầu; khung nhúng hỏi lại bằng mã đó.
+  TIEN_TO_YEU_CAU: "dn_yc_",
+  YEU_CAU_TTL_GIAY: 600,
   LOI_DANG_NHAP: "[AUTH] ",         // client hiện màn hình đăng nhập
   LOI_QUYEN: "[QUYEN] "             // client chỉ báo lỗi, không đăng xuất
 };
 const MAU_MA_PHIEN = /^[0-9a-f]{64}$/;
+const MAU_MA_YEU_CAU = /^[0-9a-f]{32}$/;
 const MAU_EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 const MAU_URL_CONG_DANG_NHAP = /^https:\/\/script\.google\.com\/(a\/[^/]+\/)?macros\/s\/[\w-]+\/exec$/;
 
@@ -1080,7 +1088,8 @@ function _soSanhAnToan_(a, b) {
   return khac === 0;
 }
 
-/** Xác minh mã từ Cổng đăng nhập: đúng chữ ký, còn hạn, chưa dùng. Trả về email. */
+/** Xác minh mã từ Cổng đăng nhập: đúng chữ ký, còn hạn, chưa dùng. Trả về
+ * { email, yeuCau } - yeuCau: mã yêu cầu của khung nhúng (nằm trong phần đã ký). */
 function _xacMinhSso_(token) {
   const secret = PropertiesService.getScriptProperties().getProperty(AUTH_CFG.PROP_SSO_SECRET);
   if (!secret) throw new Error("Cổng đăng nhập chưa được cấu hình.");
@@ -1100,7 +1109,7 @@ function _xacMinhSso_(token) {
   cache.put(AUTH_CFG.TIEN_TO_NONCE + nonce, "1", AUTH_CFG.SSO_NONCE_TTL_GIAY);
   const email = _chuanHoaEmail_(payload.email);
   if (!MAU_EMAIL.test(email)) throw new Error("Mã đăng nhập không có email hợp lệ.");
-  return email;
+  return { email, yeuCau: MAU_MA_YEU_CAU.test(String(payload.yc || "")) ? payload.yc : "" };
 }
 
 /** Mã nguồn Cổng đăng nhập (dán vào 1 dự án Apps Script riêng). */
@@ -1117,10 +1126,11 @@ var SSO_HIEU_LUC_MS = ${AUTH_CFG.SSO_HIEU_LUC_MS};
 function doGet(e) {
   var email = String(Session.getActiveUser().getEmail() || "").trim().toLowerCase();
   var trang = String((e && e.parameter && e.parameter.trang) || "");
+  var yc = String((e && e.parameter && e.parameter.yc) || "");  // mã yêu cầu khi đăng nhập từ trang nhúng
   if (!email) {
     return HtmlService.createHtmlOutput('<p style="font-family:Arial;padding:24px">Không xác định được tài khoản Google. Hãy đăng nhập Google rồi mở lại link này.</p>');
   }
-  var payload = JSON.stringify({ email: email, exp: Date.now() + SSO_HIEU_LUC_MS, n: Utilities.getUuid() });
+  var payload = JSON.stringify({ email: email, exp: Date.now() + SSO_HIEU_LUC_MS, n: Utilities.getUuid(), yc: /^[0-9a-f]{32}$/.test(yc) ? yc : "" });
   var p64 = Utilities.base64EncodeWebSafe(payload, Utilities.Charset.UTF_8);
   var sig = Utilities.base64EncodeWebSafe(Utilities.computeHmacSha256Signature(p64, SSO_SECRET));
   var url = APP_URL + "?sso=" + encodeURIComponent(p64 + "." + sig) + (/^[A-Za-z]{1,30}$/.test(trang) ? "&trang=" + trang : "");
@@ -1157,6 +1167,135 @@ function thongTinDangNhap(phien) {
   };
 }
 
+// ============================================================
+// ĐO HIỆU NĂNG THẬT (2026.9.6): mỗi lần chạy từ HIEU_NANG_NGUONG_MS trở lên
+// (chức năng web qua api(), trigger) ghi 1 dòng vào SYS_HieuNang (File Nháp).
+// Quá giờ (Google dừng ở 6 phút): lời gọi từ web do trình duyệt báo lại; trigger
+// phát hiện ở lần chạy sau nhờ dấu "đang chạy" (mỗi trigger 1 Script Property).
+// Lần chạy nhanh không ghi gì - không làm chậm thêm.
+// ============================================================
+const HIEU_NANG_SHEET = "SYS_HieuNang";
+const HIEU_NANG_HEADERS = ["Thời gian", "Chức năng", "Số giây", "Người dùng", "Kết quả", "Ghi chú"];
+const HIEU_NANG_NGUONG_MS = 3000;
+const HIEU_NANG_TOI_DA_DONG = 5000;          // giữ 5.000 lần gần nhất
+const HIEU_NANG_GIOI_HAN_MS = 6 * 60 * 1000;  // giới hạn mỗi lần chạy của Apps Script
+const HIEU_NANG_TRIGGER_TIEN_TO = "HN_TRIGGER_DANG_CHAY_";
+const HIEU_NANG_KET_QUA = { OK: "OK", LOI: "Lỗi", QUA_GIO: "Quá giờ" };
+
+function _sheetHieuNang_() {
+  const { ss } = getDraftSheets_();
+  let sh = ss.getSheetByName(HIEU_NANG_SHEET);
+  if (!sh) {
+    sh = ss.insertSheet(HIEU_NANG_SHEET);
+    sh.getRange(1, 1, 1, HIEU_NANG_HEADERS.length).setValues([HIEU_NANG_HEADERS]).setFontWeight("bold");
+    sh.setFrozenRows(1);
+  }
+  return sh;
+}
+function _ghiHieuNang_(chucNang, soMs, ketQua, ghiChu) {
+  try {
+    const sh = _sheetHieuNang_();
+    const nd = _nguoiDungHienTai_ || _xacDinhNguoiDung_();
+    sh.getRange(sh.getLastRow() + 1, 1, 1, HIEU_NANG_HEADERS.length).setValues(_dongAnToan_([[
+      new Date(), chucNang, Math.round(soMs / 100) / 10, (nd && nd.email) || "", ketQua, String(ghiChu || "").slice(0, 300)
+    ]]));
+    const du = sh.getLastRow() - 1 - HIEU_NANG_TOI_DA_DONG;
+    if (du > 500) sh.deleteRows(2, du); // xóa theo đợt, không phải mỗi lần ghi
+  } catch (e) { /* đo hiệu năng không được làm hỏng chức năng chính */ }
+}
+/** ghiChu: chuỗi, hoặc lỗi (chỉ lấy câu thông báo - nhật ký lỗi đã do nơi xử lý lỗi ghi). */
+function _ghiNeuCham_(chucNang, batDau, ketQua, ghiChu) {
+  const soMs = Date.now() - batDau;
+  if (soMs < HIEU_NANG_NGUONG_MS) return;
+  _ghiHieuNang_(chucNang, soMs, ketQua, ghiChu && typeof ghiChu === "object" ? String(ghiChu.message || ghiChu) : ghiChu);
+}
+/** Chạy 1 trigger có đo thời gian; ghi các lần trước bị Google dừng giữa chừng. */
+function _chayTriggerCoDo_(ten, fn) {
+  _ghiTriggerQuaGio_();
+  const props = PropertiesService.getScriptProperties();
+  const batDau = Date.now();
+  props.setProperty(HIEU_NANG_TRIGGER_TIEN_TO + ten, String(batDau));
+  try {
+    const ketQua = fn();
+    _ghiNeuCham_("Trigger: " + ten, batDau, HIEU_NANG_KET_QUA.OK, "");
+    return ketQua;
+  } catch (e) {
+    _ghiNeuCham_("Trigger: " + ten, batDau, HIEU_NANG_KET_QUA.LOI, e);
+    throw e;
+  } finally {
+    props.deleteProperty(HIEU_NANG_TRIGGER_TIEN_TO + ten);
+  }
+}
+function _ghiTriggerQuaGio_() {
+  const props = PropertiesService.getScriptProperties();
+  const tatCa = props.getProperties();
+  Object.keys(tatCa).filter(k => k.indexOf(HIEU_NANG_TRIGGER_TIEN_TO) === 0).forEach(k => {
+    const batDau = Number(tatCa[k]);
+    if (!(Date.now() - batDau > HIEU_NANG_GIOI_HAN_MS + 60000)) return; // còn có thể đang chạy
+    _ghiHieuNang_("Trigger: " + k.slice(HIEU_NANG_TRIGGER_TIEN_TO.length), HIEU_NANG_GIOI_HAN_MS, HIEU_NANG_KET_QUA.QUA_GIO,
+      "Bị Google dừng ở giới hạn 6 phút, bắt đầu lúc " + Utilities.formatDate(new Date(batDau), "GMT+7", "dd/MM/yyyy HH:mm"));
+    props.deleteProperty(k);
+  });
+}
+/** #Web: trình duyệt báo 1 lời gọi bị Google dừng vì quá 6 phút. */
+function ghiQuaGioTrinhDuyet_(tenHam, soGiay) {
+  if (!Object.prototype.hasOwnProperty.call(API_ROUTES, tenHam)) return { success: false };
+  const giay = Math.max(0, Math.min(3600, Number(soGiay) || 0));
+  _ghiHieuNang_(tenHam, giay * 1000, HIEU_NANG_KET_QUA.QUA_GIO, "Google dừng lời gọi (quá giới hạn thời gian chạy)");
+  return { success: true };
+}
+/** #Web (Hệ Thống): chức năng chạy chậm / quá giờ trong khoảng ngày, chậm nhất trước. */
+function getHieuNangForWeb_(fDate, tDate) {
+  _ghiTriggerQuaGio_();
+  const sh = _sheetHieuNang_();
+  const lr = sh.getLastRow();
+  const dong = (lr > 1 ? sh.getRange(2, 1, lr - 1, HIEU_NANG_HEADERS.length).getValues() : [])
+    .filter(r => r[0] instanceof Date && _inDateRange_(r[0], fDate, tDate));
+  const nhom = new Map();
+  dong.forEach(r => {
+    const ten = String(r[1]);
+    if (!nhom.has(ten)) nhom.set(ten, { chucNang: ten, soLan: 0, tongGiay: 0, lauNhat: 0, quaGio: 0, loi: 0, ganNhat: null });
+    const o = nhom.get(ten), giay = utils.parseNum(r[2]);
+    o.soLan++; o.tongGiay += giay; o.lauNhat = Math.max(o.lauNhat, giay);
+    if (r[4] === HIEU_NANG_KET_QUA.QUA_GIO) o.quaGio++;
+    if (r[4] === HIEU_NANG_KET_QUA.LOI) o.loi++;
+    if (!o.ganNhat || r[0] > o.ganNhat) o.ganNhat = r[0];
+  });
+  return {
+    nguongGiay: HIEU_NANG_NGUONG_MS / 1000,
+    tongHop: Array.from(nhom.values())
+      .map(o => ({ chucNang: o.chucNang, soLan: o.soLan, tbGiay: Math.round(o.tongGiay / o.soLan * 10) / 10, lauNhat: o.lauNhat, quaGio: o.quaGio, loi: o.loi,
+        ganNhat: Utilities.formatDate(o.ganNhat, "GMT+7", "dd/MM/yyyy HH:mm") }))
+      .sort((a, b) => b.quaGio - a.quaGio || b.lauNhat - a.lauNhat),
+    ganDay: dong.slice(-50).reverse().map(r => ({ thoiGian: Utilities.formatDate(r[0], "GMT+7", "dd/MM/yyyy HH:mm:ss"), chucNang: String(r[1]),
+      giay: utils.parseNum(r[2]), nguoiDung: String(r[3]), ketQua: String(r[4]), ghiChu: String(r[5]) }))
+  };
+}
+
+/** Đăng nhập từ trang nhúng: cửa sổ nhỏ (Cổng -> web app ?sso) để lại phiên /
+ * lỗi theo mã yêu cầu cho khung nhúng lấy, rồi tự đóng. */
+function _trangDangNhapNhung_(yeuCau, phien, loi) {
+  CacheService.getScriptCache().put(AUTH_CFG.TIEN_TO_YEU_CAU + yeuCau, JSON.stringify(phien ? { phien } : { loi }), AUTH_CFG.YEU_CAU_TTL_GIAY);
+  const noiDung = phien
+    ? '<h2 style="color:#1f6f43">✅ Đăng nhập thành công</h2><p>Quay lại trang đang dùng - cửa sổ này tự đóng.</p>'
+    : '<h2 style="color:#b00">Không đăng nhập được</h2><p>' + String(loi).replace(/[&<>"']/g, c => "&#" + c.charCodeAt(0) + ";") + '</p>';
+  return HtmlService.createHtmlOutput('<div style="font-family:Arial,sans-serif;padding:32px;text-align:center">' + noiDung
+    + '<button onclick="window.top.close()" style="margin-top:12px;padding:10px 20px">Đóng cửa sổ</button></div>'
+    + (phien ? '<script>setTimeout(function () { try { window.top.close(); } catch (e) {} }, 1200);</script>' : ''))
+    .setTitle("Đăng nhập HAK");
+}
+/** CÔNG KHAI: khung nhúng lấy phiên theo mã yêu cầu của mình (dùng 1 lần).
+ * Trả {phien}, {loi}, hoặc {} khi chưa đăng nhập xong. */
+function nhanPhienDangNhap(yeuCau) {
+  if (!MAU_MA_YEU_CAU.test(String(yeuCau || ""))) return {};
+  const cache = CacheService.getScriptCache();
+  const khoa = AUTH_CFG.TIEN_TO_YEU_CAU + yeuCau;
+  const raw = cache.get(khoa);
+  if (!raw) return {};
+  cache.remove(khoa);
+  try { return JSON.parse(raw); } catch (e) { return {}; }
+}
+
 /** CÔNG KHAI: hủy phiên (chỉ xóa đúng mã phiên được gửi lên). */
 function dangXuat(phien) {
   if (MAU_MA_PHIEN.test(String(phien || ""))) CacheService.getScriptCache().remove(AUTH_CFG.TIEN_TO_PHIEN + phien);
@@ -1176,7 +1315,15 @@ function api(phien, tenHam, thamSo) {
       _nguoiDungHienTai_ = { email, vaiTro: _vaiTroCua_(email) };
     }
     _yeuCauQuyen_(route.quyen);
-    return route.fn.apply(null, Array.isArray(thamSo) ? thamSo : []);
+    const batDau = Date.now();
+    try {
+      const ketQua = route.fn.apply(null, Array.isArray(thamSo) ? thamSo : []);
+      _ghiNeuCham_(tenHam, batDau, HIEU_NANG_KET_QUA.OK, "");
+      return ketQua;
+    } catch (e) {
+      _ghiNeuCham_(tenHam, batDau, HIEU_NANG_KET_QUA.LOI, e);
+      throw e;
+    }
   } catch (e) {
     if (e && LOI_LAP_TRINH.indexOf(e.name) !== -1) throw new Error(_loiChoNguoiDung_(e));
     throw e;
@@ -1188,12 +1335,13 @@ function api(phien, tenHam, thamSo) {
 /** Bảng phân quyền duy nhất: tên chức năng (trình duyệt gọi) -> hàm nội bộ + quyền cần có.
  * Chức năng không có trong bảng này thì KHÔNG gọi được từ web app. */
 const API_ROUTES = (() => {
-  const X = QUYEN.XEM, N = QUYEN.NGHIEP_VU, Q = QUYEN.QUAN_TRI;
+  const X = QUYEN.XEM, N = QUYEN.NGHIEP_VU, H = QUYEN.HE_THONG, Q = QUYEN.QUAN_TRI;
   const r = (fn, quyen) => ({ fn, quyen });
   return {
     // --- Chung, Trang chủ, Trợ lý AI ---
     getAppSetupStatus: r(getAppSetupStatus_, X),
     getDashboardStats: r(getDashboardStats_, X),
+    ghiQuaGioTrinhDuyet: r(ghiQuaGioTrinhDuyet_, X),
     getDraftBadgeCount: r(getDraftBadgeCount_, X),
     TRA_LOI_CHATBOT: r(TRA_LOI_CHATBOT_, X),
 
@@ -1249,31 +1397,32 @@ const API_ROUTES = (() => {
     webCreateUNCFromDraft: r(webCreateUNCFromDraft_, N),
     webConfirmPayment: r(webConfirmPayment_, N),
 
-    // --- Hệ thống: đối soát, bảo trì, sửa dữ liệu đã chốt (Quản trị) ---
-    getDoiSoatTenKhachHang: r(getDoiSoatTenKhachHang_, Q),
-    webDongBoTenKhachHang: r(webDongBoTenKhachHang_, Q),
-    exportDoiSoatTenKhachHangExcel: r(exportDoiSoatTenKhachHangExcel_, Q),
-    getKiemTraDoiChieuBaoTri: r(getKiemTraDoiChieuBaoTri_, Q),
-    webXoaCTMoCoi: r(webXoaCTMoCoi_, Q),
-    webXoaSrcMoCoi: r(webXoaSrcMoCoi_, Q),
-    webXoaMoCoiChiTietDNTT: r(webXoaMoCoiChiTietDNTT_, Q),
-    webXoaMoCoiChiTietUNC: r(webXoaMoCoiChiTietUNC_, Q),
-    runFillMissingBankOnly: r(runFillMissingBankOnly, Q),
-    timChuRungDaChot: r(timChuRungDaChot_, Q),
-    webMoDongThanhToanTheoHoSo: r(webMoDongThanhToanTheoHoSo_, Q),
-    getLichSuSuaDoi: r(getLichSuSuaDoi_, Q),
-    getDanhSachSaoLuuXoa: r(getDanhSachSaoLuuXoa_, Q),
-    webKhoiPhucSaoLuuXoa: r(webKhoiPhucSaoLuuXoa_, Q),
-    dongBoChiTietDNTTTuDauLichSu: r(dongBoChiTietDNTTTuDauLichSu_, Q),
-    webTaoLaiMisaTheoNgay: r(webTaoLaiMisaTheoNgay_, Q),
-    webTaoLaiUNCTheoNgay: r(webTaoLaiUNCTheoNgay_, Q),
+    // --- Hệ thống: đối soát, bảo trì, sửa dữ liệu đã chốt (Quản trị + Kế toán tổng hợp) ---
+    getDoiSoatTenKhachHang: r(getDoiSoatTenKhachHang_, H),
+    webDongBoTenKhachHang: r(webDongBoTenKhachHang_, H),
+    exportDoiSoatTenKhachHangExcel: r(exportDoiSoatTenKhachHangExcel_, H),
+    getKiemTraDoiChieuBaoTri: r(getKiemTraDoiChieuBaoTri_, H),
+    webXoaCTMoCoi: r(webXoaCTMoCoi_, H),
+    webXoaSrcMoCoi: r(webXoaSrcMoCoi_, H),
+    webXoaMoCoiChiTietDNTT: r(webXoaMoCoiChiTietDNTT_, H),
+    webXoaMoCoiChiTietUNC: r(webXoaMoCoiChiTietUNC_, H),
+    runFillMissingBankOnly: r(runFillMissingBankOnly, H),
+    timChuRungDaChot: r(timChuRungDaChot_, H),
+    webMoDongThanhToanTheoHoSo: r(webMoDongThanhToanTheoHoSo_, H),
+    getLichSuSuaDoi: r(getLichSuSuaDoi_, H),
+    getDanhSachSaoLuuXoa: r(getDanhSachSaoLuuXoa_, H),
+    webKhoiPhucSaoLuuXoa: r(webKhoiPhucSaoLuuXoa_, H),
+    dongBoChiTietDNTTTuDauLichSu: r(dongBoChiTietDNTTTuDauLichSu_, H),
+    webTaoLaiMisaTheoNgay: r(webTaoLaiMisaTheoNgay_, H),
+    webTaoLaiUNCTheoNgay: r(webTaoLaiUNCTheoNgay_, H),
+    webKhoaSoNam: r(webKhoaSoNam_, H),
+    getHieuNangForWeb: r(getHieuNangForWeb_, H),
 
     // --- Cài đặt (Quản trị) ---
     getMainSsInfoForWeb: r(getMainSsInfoForWeb_, Q),
     webSetMainSsId: r(webSetMainSsId_, Q),
     getLuuTruNamForWeb: r(getLuuTruNamForWeb_, Q),
     webSetLuuTruNam: r(webSetLuuTruNam_, Q),
-    webKhoaSoNam: r(webKhoaSoNam_, Q),
     setupDraftSpreadsheet: r(setupDraftSpreadsheet_, Q),
     getConfigLinksForSettings: r(getConfigLinksForSettings_, Q),
     webSetSwappableLink: r(webSetSwappableLink_, Q),
@@ -1414,13 +1563,16 @@ function doGet(e) {
   tpl.loiDangNhap = "";
   tpl.trangDau = TRANG_MO_THANG.indexOf(String(thamSo.trang || "")) !== -1 ? String(thamSo.trang) : "";
   if (thamSo.sso) {
+    let yeuCau = "";
     try {
-      const email = _xacMinhSso_(thamSo.sso);
+      const xacMinh = _xacMinhSso_(thamSo.sso);
+      const email = xacMinh.email;
+      yeuCau = xacMinh.yeuCau;
       const vaiTro = _vaiTroCua_(email);
       _nguoiDungHienTai_ = { email, vaiTro };
       if (vaiTro) {
         tpl.phien = _taoPhien_(email);
-        logAction_("DANG_NHAP", email, "Đăng nhập qua Cổng đăng nhập Gmail.");
+        logAction_("DANG_NHAP", email, "Đăng nhập qua Cổng đăng nhập Gmail" + (yeuCau ? " (từ trang nhúng)." : "."));
       } else {
         tpl.loiDangNhap = `Tài khoản ${email} chưa được cấp quyền hoặc đã bị khóa - liên hệ Quản trị để được thêm vào hệ thống.`;
         logAction_("DANG_NHAP_BI_TU_CHOI", email, "Email chưa được cấp quyền / đã khóa.");
@@ -1430,6 +1582,7 @@ function doGet(e) {
     } finally {
       _nguoiDungHienTai_ = null;
     }
+    if (yeuCau) return _trangDangNhapNhung_(yeuCau, tpl.phien, tpl.loiDangNhap);
   }
   return tpl.evaluate()
       .setTitle("QUẢN LÝ THANH TOÁN HAK")
@@ -4394,9 +4547,10 @@ function runConfirmPayment_(selectedIds, payDateStr) {
     // Chặn TRẢ 2 LẦN (đọc thẳng CT thật, không qua cache): hồ sơ có phiếu cân
     // đã chốt ở 1 hồ sơ KHÁC thì không chốt - cả hồ sơ, không chốt nửa vời.
     const skippedDaTra = [];
+    const ctLr = shCTReal.getLastRow();
+    const ctThatLucDau = ctLr > 1 ? shCTReal.getRange(2, 1, ctLr - 1, 22).getValues() : []; // dùng lại khi cập nhật Phân Tích cuối lượt
     {
-      const ctLr = shCTReal.getLastRow();
-      const daTra = _phieuCanDaTraThat_(ctLr > 1 ? shCTReal.getRange(2, 1, ctLr - 1, 22).getValues() : []);
+      const daTra = _phieuCanDaTraThat_(ctThatLucDau);
       validIds.slice().forEach(id => {
         const trung = draftCTAll.filter(r => String(r[1] || "").trim() === id).map(r => String(r[11] || "").trim())
           .filter(so => { const idDaTra = daTra.get(utils.standardize(so)); return idDaTra && idDaTra !== id; });
@@ -4538,6 +4692,9 @@ function runConfirmPayment_(selectedIds, payDateStr) {
     // PhieuCan_DN có người khác cùng nhập liệu - không được ghi đè cả sheet).
     const pcKeySet = new Set();
     ctToCommit.forEach(row => { if (row[11]) pcKeySet.add(utils.standardize(row[11])); });
+    // Giữ dòng Phiếu Cân trước khi khóa (bộ nhớ đệm bị xóa ngay sau đó): khóa chỉ
+    // đổi 3 ô trạng thái, Phân Tích Nhập/TT cuối lượt không dùng các ô này.
+    const pcTruocKhoa = _pcData_();
     _khoaPhieuCanDaTra_(shPC, pcKeySet);
 
     // 7. DỌN DẸP FILE NHÁP - chỉ giữ lại các hồ sơ CHƯA chốt (ghi đè
@@ -4568,7 +4725,7 @@ function runConfirmPayment_(selectedIds, payDateStr) {
         const d = row[20];
         if (d instanceof Date) ngayBiAnhHuong.add(Utilities.formatDate(d, "GMT+7", "yyyy-MM-dd"));
       });
-      if (ngayBiAnhHuong.size) _refreshPhanTichNhapTTChoDanhSachNgayNoLock_(Array.from(ngayBiAnhHuong)); // dùng bản KHÔNG khóa - hàm này đang chạy TRONG lượt đã giữ sysLock rồi, tránh khóa lồng nhau
+      if (ngayBiAnhHuong.size) _refreshPhanTichNhapTTChoDanhSachNgayNoLock_(Array.from(ngayBiAnhHuong), { pc: pcTruocKhoa, ct: ctThatLucDau.concat(ctCanGhi) }); // dùng bản KHÔNG khóa - hàm này đang chạy TRONG lượt đã giữ sysLock rồi, tránh khóa lồng nhau
     } catch (e) { /* không chặn luồng chính nếu làm mới báo cáo công nợ lỗi */ }
     return msg;
   } catch (e) {
@@ -5395,10 +5552,14 @@ function refreshPhanTichNhapTTChoKhoang_(fDate, tDate) {
   return refreshPhanTichNhapTTChoDanhSachNgay_(ngayList);
 }
 
-function _refreshPhanTichNhapTTChoDanhSachNgayNoLock_(ngayList) {
+/** duLieu (tùy chọn) = { pc, ct }: dòng PhieuCan_DN và CT thật nơi gọi đã có
+ * sẵn (vd Duyệt vừa đọc) - không đọc lại lần 2. Chỉ dùng khi các ngày không
+ * thuộc năm đã khóa sổ (khi đó phải đọc thêm file lưu trữ). */
+function _refreshPhanTichNhapTTChoDanhSachNgayNoLock_(ngayList, duLieu) {
   const ngaySet = new Set(ngayList);
   const dsNgay = Array.from(ngaySet).sort();
   const tuNgay = dsNgay[0] || "", denNgay = dsNgay[dsNgay.length - 1] || "";
+  const dungDuLieuSan = !!duLieu && !_namLuuTruTrongKhoang_(tuNgay, "").length;
   const dmNgMap = _getDmNgMap_();
   const pcMap = new Map(); // SO_CT -> {tenNG, tenDL} (dùng để tra khi gộp phần Thanh Toán)
   const byNgay = new Map(); // ngayStr -> { ngNhap:Map, dlNhap:Map, ngTT:Map, dlTT:Map, tongKLNhap, tongGiaTriNhap, tongKLTT, tongGiaTriTT }
@@ -5416,7 +5577,7 @@ function _refreshPhanTichNhapTTChoDanhSachNgayNoLock_(ngayList) {
   };
 
   // 1 LƯỢT quét PhieuCan_DN cho ĐÚNG danh sách ngày cần (phần "Nhập")
-  _pcGopLuuTru_(tuNgay, "").forEach(r => {
+  (dungDuLieuSan ? duLieu.pc : _pcGopLuuTru_(tuNgay, "")).forEach(r => {
     const soCT = String(r[PC_COL.SO_CT] || "").trim();
     const tenNG = _tenNguonGoc_(r[PC_COL.NGUON_GOC], dmNgMap);
     const tenDL = String(r[PC_COL.DAI_LY] || "").trim() || "(Chưa rõ ĐL)";
@@ -5439,7 +5600,7 @@ function _refreshPhanTichNhapTTChoDanhSachNgayNoLock_(ngayList) {
 
   // 1 LƯỢT quét CT thật cho ĐÚNG danh sách ngày cần (phần "Thanh Toán")
   try {
-    _ctGopLuuTru_(tuNgay, denNgay, true).forEach(r => {
+    (dungDuLieuSan ? duLieu.ct : _ctGopLuuTru_(tuNgay, denNgay, true)).forEach(r => {
       const ngayTT = r[20];
       if (!(ngayTT instanceof Date)) return;
       const ngayStr = Utilities.formatDate(ngayTT, "GMT+7", "yyyy-MM-dd");
@@ -5843,7 +6004,11 @@ function exportTinhHinhThanhToanExcel_(fDate, tDate, filters) {
   }
 }
 
+/** Trigger "Làm mới dữ liệu 7:30/13:00" - đo thời gian chạy (xem _chayTriggerCoDo_). */
 function dailyRefreshAllCaches_() {
+  return _chayTriggerCoDo_("dailyRefreshAllCaches_", _dailyRefreshAllCachesThucHien_);
+}
+function _dailyRefreshAllCachesThucHien_() {
   const cache = refreshAllDraftCaches_();
   const range = _defaultCongNoRange_();
   // mục 7: Tiến Độ Hợp Đồng giờ TÍNH LUÔN Công Nợ theo Hợp Đồng trong
@@ -6068,7 +6233,11 @@ function _tuNgayTongHop15h_(ngayHomQua, homNay) {
   return ngayHomQua < dauThang ? ngayHomQua : dauThang;
 }
 
+/** Trigger "Tổng hợp 15h" - đo thời gian chạy (xem _chayTriggerCoDo_). */
 function daily15hRefresh_() {
+  return _chayTriggerCoDo_("daily15hRefresh_", _daily15hRefreshThucHien_);
+}
+function _daily15hRefreshThucHien_() {
   const now = new Date();
   // SỬA THÊM (an toàn hơn với múi giờ Project): trước đây dùng
   // homQua.setDate(homQua.getDate()-1) - .getDate()/.setDate() diễn giải
@@ -6552,7 +6721,11 @@ function webSetupPcCacheAutoRefreshTrigger_() {
  * Lại"...) vẫn gọi thẳng refreshAllDraftCaches_() như cũ, không bị giới
  * hạn giờ.
  */
+/** Trigger "Làm mới 10 phút" - đo thời gian chạy (xem _chayTriggerCoDo_). */
 function refreshAllDraftCaches10Min_() {
+  return _chayTriggerCoDo_("refreshAllDraftCaches10Min_", _refreshAllDraftCaches10MinThucHien_);
+}
+function _refreshAllDraftCaches10MinThucHien_() {
   const now = new Date();
   const h = now.getHours(), m = now.getMinutes();
   const tuGioTro = (h > 7) || (h === 7 && m >= 30);   // từ 7:30 trở đi
@@ -6927,7 +7100,36 @@ function refreshCongNoCache_(fDate, tDate, khRows) {
   const rows = khRows || _computeDebtByCustomerLive_(fDate, tDate);
   _writeCongNoKhSheet_(rows);
   _setCongNoCacheMeta_(fDate, tDate);
+  const macDinh = _defaultCongNoRange_();
+  if (fDate === _clampReportRange_(macDinh.fDate, macDinh.tDate) && tDate === macDinh.tDate) _luuCongNoTrangChu_(rows);
   return { kh: rows.length };
+}
+
+// Trang chủ chỉ cần Tổng nợ + Top 5: lưu gọn (vài trăm byte) mỗi khi công nợ
+// khoảng mặc định được tính (trigger 7:30/13:00, nút Cập nhật, Báo cáo Công
+// nợ khoảng mặc định) -> mở Trang chủ không phải tính lại công nợ.
+const TRANG_CHU_CONG_NO_PROP = "TRANG_CHU_CONG_NO";
+function _luuCongNoTrangChu_(rows) {
+  const dangNo = rows.filter(r => r.congNo > 0);
+  _ghiJsonProp_(TRANG_CHU_CONG_NO_PROP, {
+    tongNo: dangNo.reduce((s, r) => s + r.congNo, 0),
+    top5: dangNo.slice(0, 5).map(r => ({ khachHang: r.khachHang, khoa: r.khoa, congNo: r.congNo })),
+    capNhatLuc: Utilities.formatDate(new Date(), "GMT+7", "dd/MM/yyyy HH:mm")
+  });
+}
+/** Số "đơn xin" cũ (nhập tay ở DNTT_GK_DN) chưa xử lý - dùng cho Trợ lý AI. */
+function _demNguonChoXuLy_() {
+  try {
+    return _srcThatDataCache_().filter(r => !utils.isBlank(r[0]) && String(r[17]).toUpperCase() !== "Y" && String(r[14]) !== "Đóng TT").length;
+  } catch (e) { return 0; }
+}
+/** Tổng nợ + Top 5 cho Trang chủ; chưa có thì tính 1 lần (khoảng mặc định). */
+function _congNoTrangChu_() {
+  const daLuu = _docJsonProp_(TRANG_CHU_CONG_NO_PROP);
+  if (daLuu.capNhatLuc) return daLuu;
+  const range = _defaultCongNoRange_();
+  getDebtByCustomer_(range.fDate, range.tDate);
+  return _docJsonProp_(TRANG_CHU_CONG_NO_PROP);
 }
 
 /** #1+#3 (bản CÔNG KHAI cho Web App): đọc snapshot nếu khoảng ngày khớp
@@ -6954,6 +7156,7 @@ function getDebtByCustomer_(fDate, tDate) {
  * khoảng ngày khớp và đọc được đúng số liệu vừa làm mới. */
 function webRunCongNoRefreshNow_(fDate, tDate) {
   try {
+    if (!fDate || !tDate) ({ fDate, tDate } = _defaultCongNoRange_()); // Trang chủ: khoảng mặc định
     const fClamped = _clampReportRange_(fDate, tDate);
     const rows = _computeDebtByCustomerLive_(fClamped, tDate);
     refreshCongNoCache_(fClamped, tDate, rows);
@@ -7830,10 +8033,9 @@ function getDashboardStats_() {
     mainSetup: !!PropertiesService.getScriptProperties().getProperty('MAIN_SS_ID'), // MỚI: để Web App biết hiện form cấu hình File Chính nếu chưa có
     muiGio: _kiemTraMuiGio_(), // MỚI: cảnh báo nếu múi giờ project sai (ảnh hưởng toàn bộ lịch chạy nền)
     draftCount: 0, draftReady: 0, draftPending: 0, draftTotalTien: 0,
-    nguonChoXuLy: 0,
     klMuaThangKg: 0, tienMuaThang: 0, klThanhToanThangTan: 0, tienThanhToanThang: 0,
     muaTheoNguonGoc: [], muaTheoDaiLy: [],
-    tongNoGoKeo: 0, top5KhachHangNo: []
+    tongNoGoKeo: 0, top5KhachHangNo: [], congNoCapNhatLuc: ""
   };
   try {
     const list = getDraftListSummary_();
@@ -7843,31 +8045,12 @@ function getDashboardStats_() {
     result.draftTotalTien = list.reduce((s, x) => s + (x.sanSangChot ? x.soTien : 0), 0);
   } catch (e) { /* File Nháp chưa thiết lập -> giữ giá trị mặc định */ }
 
+  // Tổng nợ + Top 5: số đã tổng hợp (xem _luuCongNoTrangChu_), không tính lại công nợ khi mở trang.
   try {
-    // SỬA (tối ưu tốc độ - "lưu trữ nhiều thì chậm load"): trước đây đọc
-    // thẳng TOÀN BỘ DNTT_GK_DN thật (sổ nguồn lưu MỌI hồ sơ từ trước đến
-    // giờ, kể cả đã Đóng TT) mỗi lần mở Trang chủ - càng nhiều lịch sử
-    // càng chậm. Dùng lại cache dùng chung đã có sẵn cho đúng sheet này
-    // (_srcThatDataCache_(), TTL 90s, đã được xóa ngay mỗi khi CT/Src/112
-    // thật thay đổi - xem _invalidateCtSrc112Cache_()) thay vì tự đọc.
-    const data = _srcThatDataCache_();
-    result.nguonChoXuLy = data.filter(r => !utils.isBlank(r[0]) && String(r[17]).toUpperCase() !== "Y" && String(r[14]) !== "Đóng TT").length;
-  } catch (e) {}
-
-  // MỚI (theo yêu cầu - "Tổng nợ tiền gỗ keo và 5 khách hàng còn nợ
-  // nhiều nhất"): dùng lại ĐÚNG getDebtByCustomer_() đã có (mục AB) với
-  // khoảng ngày MẶC ĐỊNH của Công Nợ (_defaultCongNoRange_(), 90 ngày -
-  // cũng CHÍNH LÀ khoảng trigger 7:30/13:00 đang giữ cache) - nên phần
-  // lớn trường hợp Trang chủ đọc thẳng snapshot có sẵn (nhanh), không
-  // phải quét lại PhieuCan_DN/CT thật lần nữa. rows trả về đã sắp giảm
-  // dần theo congNo sẵn từ _computeDebtByCustomerLive_() nên chỉ cần lọc
-  // dương (đang nợ, bỏ qua khách đã trả dư/âm) rồi lấy 5 dòng đầu.
-  try {
-    const range = _defaultCongNoRange_();
-    const debtRows = getDebtByCustomer_(range.fDate, range.tDate);
-    const dangNo = debtRows.filter(r => r.congNo > 0);
-    result.tongNoGoKeo = dangNo.reduce((s, r) => s + r.congNo, 0);
-    result.top5KhachHangNo = dangNo.slice(0, 5).map(r => ({ khachHang: r.khachHang, khoa: r.khoa, congNo: r.congNo }));
+    const cn = _congNoTrangChu_();
+    result.tongNoGoKeo = cn.tongNo || 0;
+    result.top5KhachHangNo = cn.top5 || [];
+    result.congNoCapNhatLuc = cn.capNhatLuc || "";
   } catch (e) {}
 
   // "Tháng này" (mua, thanh toán, theo Nguồn gốc / Đại lý) lấy từ
@@ -7932,9 +8115,13 @@ function getDraftListSummary_() {
     // tính tiền, chưa Xác Nhận) / "dang_dntt" (đã Xác Nhận, chờ Duyệt).
     const trangThaiKey = !sanSangChot ? "cho_tinh" : (daXacNhan ? "dang_dntt" : "cho_dntt");
     const trangThaiLabel = !sanSangChot ? "Chưa ĐNTT" : (daXacNhan ? "Đang ĐNTT" : "Chờ ĐNTT");
+    // Ngày đề nghị: cột Q của 112 Nháp; hồ sơ tạo từ bản cũ lấy ở cột V của CT Nháp.
+    const ngayDN = r[16] instanceof Date ? r[16] : (details.find(d => d[21] instanceof Date) || [])[21];
     return {
       idKey: id,
       timestamp: utils.formatDate(r[1]),
+      ngayDeNghi: ngayDN instanceof Date ? utils.formatDate(ngayDN) : "",
+      ngayDeNghiISO: ngayDN instanceof Date ? Utilities.formatDate(ngayDN, "GMT+7", "yyyy-MM-dd") : "",
       chuRung: String(r[2] || ""),
       nguoiNhan: String(r[3] || ""),
       nganHang: String(r[4] || ""),
@@ -8966,7 +9153,7 @@ function showSetupDaily15hTriggerDialog() {
 // (không đổi so với 2026.3 - vẫn dùng để vá dữ liệu LỊCH SỬ đã chốt)
 // ============================================================
 function runFillMissingBankOnly() {
-  _yeuCauQuyen_(QUYEN.QUAN_TRI);
+  _yeuCauQuyen_(QUYEN.HE_THONG);
   let lock;
   try {
     lock = sysLock.acquire();
@@ -9305,6 +9492,7 @@ function _chatbotTraLoiDuPhong_(cauHoi) {
 function _layNgayVaSoLieuThatChoChatbot_() {
   try {
     const stats = getDashboardStats_();
+    stats.nguonChoXuLy = _demNguonChoXuLy_();
     const list = getDraftListSummary_();
     const dem = { cho_tinh: 0, cho_dntt: 0, dang_dntt: 0 };
     list.forEach(r => { if (dem[r.trangThaiKey] !== undefined) dem[r.trangThaiKey]++; });
