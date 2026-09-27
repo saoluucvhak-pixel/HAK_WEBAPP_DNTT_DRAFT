@@ -526,7 +526,7 @@
       <div class="nav-item" role="button" tabindex="0" data-page="settings"><span class="ic">⚙️</span> Cài đặt / Nháp</div>
     </nav>
     <div class="nguoi-dung-chip" id="nguoi-dung-chip"></div>
-    <div class="sidebar-footer">Hệ thống Quản Lý Thanh Toán · v2026.9.14<br><button type="button" class="theme-toggle" id="theme-toggle" aria-label="Đổi giao diện sáng / tối">🌓 Giao diện: Tự động</button></div>
+    <div class="sidebar-footer">Hệ thống Quản Lý Thanh Toán · v2026.9.17<br><button type="button" class="theme-toggle" id="theme-toggle" aria-label="Đổi giao diện sáng / tối">🌓 Giao diện: Tự động</button></div>
   </aside>
 
   <main class="main">
@@ -2420,6 +2420,7 @@ function renderMisaTab(){
         <div class="field"><label>Người thụ hưởng</label><select id="misa-f-thuhuong"><option value="">-- Tất cả --</option></select></div>
       </div>
     </div>
+    <div class="card hidden" id="misa-thieu-card" style="border-color:var(--timber)"></div>
     <div class="card"><div id="misa-result"></div></div>`;
   loadMisaTab();
 }
@@ -2435,9 +2436,45 @@ function loadMisaTab(){
     state.misaTruncated = ketQua && ketQua.truncated;
     state.misaTotal = ketQua && ketQua.total;
     state.misaFilters = {};
+    renderMisaThieu(ketQua && ketQua.thieu);
     renderMisaFilterOptions();
     renderMisaResultTable();
   });
+}
+/** Cảnh báo hồ sơ đã chốt trong khoảng ngày chưa có dòng MISA + nút Tạo bổ sung. */
+function renderMisaThieu(thieu){
+  const card = document.getElementById('misa-thieu-card');
+  if (!card) return;
+  if (!thieu || (!thieu.loi && !thieu.soPhieu)) { card.classList.add('hidden'); card.innerHTML = ''; return; }
+  card.classList.remove('hidden');
+  if (thieu.loi) { card.innerHTML = `<div class="hint-text">⚠️ Chưa kiểm tra được hồ sơ thiếu MISA: ${esc(thieu.loi)}</div>`; return; }
+  const conNua = thieu.soPhieu > thieu.phieu.length ? `<p class="muted" style="font-size:12px">Hiển thị ${thieu.phieu.length}/${thieu.soPhieu} phiếu đầu.</p>` : '';
+  const nut = coQuyen('NGHIEP_VU')
+    ? `<button class="btn accent" style="margin-top:8px" onclick="doTaoBoSungMisa()">➕ Tạo bổ sung</button>`
+    : '<p class="muted" style="font-size:12px">Liên hệ Kế toán để tạo bổ sung.</p>';
+  card.innerHTML = `<h3 style="margin-top:0">⚠️ ${thieu.soPhieu} phiếu cân của ${thieu.soHoSo} hồ sơ đã chốt chưa có dòng MISA</h3>
+    <p class="muted" style="font-size:13px">Hồ sơ đã Đóng Thanh Toán trong khoảng ngày nhưng chưa có trong Update_NganHang_DN (vd lần tự động ghi lúc Duyệt bị lỗi, hoặc dòng đã bị xóa). “Tạo bổ sung” chỉ ghi các phiếu còn thiếu, không tạo trùng.</p>${conNua}
+    <div style="overflow-x:auto"><table><thead><tr><th>Ngày TT</th><th>Số phiếu cân</th><th>Chủ rừng</th><th>Thành tiền</th><th>Mã hồ sơ</th></tr></thead><tbody>
+      ${thieu.phieu.map(p => `<tr><td class="mono">${esc(p.ngayTT)}</td><td class="mono">${esc(p.soPhieuCan)}</td><td>${esc(p.chuRung)}</td><td class="num">${fmtMoney(p.thanhTien)}</td><td class="mono">${esc(p.idHeThong)}</td></tr>`).join('')}
+    </tbody></table></div>${nut}<div id="misa-bosung-result" style="margin-top:8px"></div>`;
+}
+function doTaoBoSungMisa(){
+  if (!coQuyen('NGHIEP_VU')) { toast('❌ Tài khoản của bạn không có quyền tạo bổ sung MISA.', 'err'); return; }
+  const f = document.getElementById('misa-from').value, t = document.getElementById('misa-to').value;
+  const box = document.getElementById('misa-bosung-result');
+  let tong = 0;
+  box.innerHTML = '<div class="hint-text">⏳ Đang tạo bổ sung...</div>';
+  function chayMotLan(){
+    call('webTaoBoSungMisa', [f, t], null).then(res => {
+      if (!res || !res.success) { box.innerHTML = `<div class="hint-text">⚠️ ${esc((res && res.message) || 'Thất bại.')} (đã ghi ${tong} dòng trước khi lỗi)</div>`; return; }
+      tong += res.count || 0;
+      // Không ghi được dòng nào mà vẫn còn thiếu -> dừng, tránh lặp mãi.
+      if (!res.xong && res.count) { box.innerHTML = `<div class="hint-text">⏳ ${esc(res.message)}</div>`; chayMotLan(); return; }
+      toast(res.xong ? `✅ Đã tạo bổ sung ${tong} dòng MISA.` : res.message, res.xong ? 'ok' : 'warn');
+      loadMisaTab();
+    });
+  }
+  chayMotLan();
 }
 function renderMisaFilterOptions(){
   const card = document.getElementById('misa-filter-card');
@@ -2713,6 +2750,40 @@ function doTaoLaiMisaTheoNgay(){
     });
   }
   chayMotLot();
+}
+
+function _thamSoDonDepMisa(){
+  return ['che', 'from', 'to'].map(k => document.getElementById('dondepmisa-' + k).value);
+}
+/** Đổi điều kiện sau khi xem trước -> bỏ kết quả cũ (nút Xóa chỉ đi với đúng điều kiện đã xem). */
+function _xoaKetQuaDonDepMisa(){ document.getElementById('dondepmisa-result').innerHTML = ''; }
+/** chayThat = false: xem trước (không đổi dữ liệu); true: xóa sau khi xác nhận. */
+function doDonDepMisa(chayThat){
+  const [che, f, t] = _thamSoDonDepMisa();
+  if (!f || !t) { toast('Vui lòng chọn đủ Từ ngày/Đến ngày.', 'warn'); return; }
+  const box = document.getElementById('dondepmisa-result');
+  if (chayThat) {
+    const nhan = document.getElementById('dondepmisa-che').selectedOptions[0].textContent;
+    if (!confirm(`Xóa các dòng MISA "${nhan}" có Ngày CK ${f} → ${t}?\n\nDòng bị xóa được sao lưu, khôi phục được ở Hệ Thống › Khôi Phục Dữ Liệu Đã Xóa.`)) return;
+  }
+  box.innerHTML = `<div class="empty"><div class="ic">⏳</div>${chayThat ? 'Đang xóa...' : 'Đang quét...'}</div>`;
+  call('webDonDepMisa', [che, f, t, !!chayThat], null).then(res => {
+    if (!res || !res.success) {
+      box.innerHTML = `<div class="empty"><div class="ic">⚠️</div>${esc((res && res.message) || 'Thất bại.')}</div>`;
+      return;
+    }
+    if (!res.xemTruoc) {
+      box.innerHTML = `<p><b>${esc(res.message)}</b></p>`;
+      toast(res.message, 'ok');
+      return;
+    }
+    if (!res.soDong) { box.innerHTML = `<div class="empty"><div class="ic">✅</div>${esc(res.message)}</div>`; return; }
+    const dongHtml = res.dong.map(d => `<tr><td>${esc(d.soPhieuCan)}</td><td>${esc(d.ngayHachToan)}</td><td>${esc(d.hoTenChuRung)}</td><td class="num">${fmtMoney(d.thanhTien)}</td><td>${esc(d.lyDo)}</td></tr>`).join('');
+    const conNua = res.soDong > res.dong.length ? `<p class="muted" style="font-size:12px">Hiển thị ${res.dong.length}/${res.soDong} dòng đầu.</p>` : '';
+    box.innerHTML = `<p><b>${esc(res.message)}</b></p>${conNua}
+      <div style="overflow-x:auto"><table><thead><tr><th>Số phiếu cân</th><th>Ngày hạch toán</th><th>Chủ rừng</th><th>Thành tiền</th><th>Lý do</th></tr></thead><tbody>${dongHtml}</tbody></table></div>
+      <button class="btn danger" style="margin-top:8px" onclick="doDonDepMisa(true)">🗑️ Xóa ${res.soDong} dòng</button>`;
+  });
 }
 
 function doTaoLaiUncTheoNgay(){
@@ -3809,6 +3880,19 @@ function renderHeThong(){
       </div>
       <button class="btn" style="background:var(--timber);color:#fff;border-color:var(--timber)" onclick="doTaoLaiMisaTheoNgay()">🔧 Tạo Lại Ngay</button>
       <div id="taolaimisa-result" style="margin-top:10px"></div>
+      <h4 style="margin:18px 0 6px">🧹 Dọn Dẹp MISA</h4>
+      <p class="muted" style="font-size:13px">Xóa dòng thừa trong Update_NganHang_DN theo khoảng Ngày CK. Luôn bấm <b>Xem trước</b> để kiểm tra danh sách; khi xóa, dòng được sao lưu và khôi phục được ở <b>Khôi Phục Dữ Liệu Đã Xóa</b>.</p>
+      <div class="grid cols-3">
+        <div class="field"><label>Loại dòng cần xóa</label><select id="dondepmisa-che" onchange="_xoaKetQuaDonDepMisa()">
+          <option value="trung">Trùng Số phiếu cân (giữ dòng đầu)</option>
+          <option value="moCoi">Mồ côi (Số phiếu cân không còn trong sổ đã chốt)</option>
+          <option value="tatCa">Tất cả dòng trong khoảng ngày</option>
+        </select></div>
+        <div class="field"><label>Từ ngày (Ngày CK)</label><input type="date" id="dondepmisa-from" value="${isoDaysAgoVN(7)}" onchange="_xoaKetQuaDonDepMisa()"></div>
+        <div class="field"><label>Đến ngày</label><input type="date" id="dondepmisa-to" value="${todayISOVN()}" onchange="_xoaKetQuaDonDepMisa()"></div>
+      </div>
+      <button class="btn" onclick="doDonDepMisa(false)">🔍 Xem trước</button>
+      <div id="dondepmisa-result" style="margin-top:10px"></div>
     </div>
     <div class="card" style="border-color:var(--timber)">
       <h3>🔧 Tạo Lại UNC (dự phòng, theo khoảng ngày)</h3>
@@ -3904,7 +3988,8 @@ const NHAN_HANH_DONG = {
   CAU_HINH_LUU_TRU_NAM: '🗄️ File Lưu Trữ Theo Năm',
   KHOA_SO_NAM: '🔒 Khóa Sổ Năm',
   XOA_NHAP: '🗑️ Xóa hồ sơ Nháp',
-  TAO_LAI_UNC: '🔁 Tạo lại UNC (thay bản cũ)'
+  TAO_LAI_UNC: '🔁 Tạo lại UNC (thay bản cũ)',
+  XOA_MISA: '🧹 Dọn MISA'
 };
 function doKhoaSoNam(chayThat){
   const box = document.getElementById('khoaso-result');

@@ -1,4 +1,4 @@
-# ARCHITECTURE — HAK Quản Lý Thanh Toán (v2026.9.14)
+# ARCHITECTURE — HAK Quản Lý Thanh Toán (v2026.9.17)
 
 > Tài liệu sống: cập nhật mỗi khi đổi module, lớp, luồng dữ liệu hoặc schema.
 > Phân tích chi tiết hiện trạng: `docs/PROJECT_ANALYSIS.md`. Kiến trúc đích: `docs/REFACTOR_PLAN.md` §3–§4.
@@ -61,6 +61,10 @@ Quy tắc bắt buộc cho mọi code mới: **không đọc cả sheet rồi gh
 | Đã khôi phục | thời điểm + người khôi phục — mỗi dòng chỉ khôi phục 1 lần |
 
 Khôi phục (`webKhoiPhucSaoLuuXoa_`, Hệ Thống › Khôi Phục Dữ Liệu Đã Xóa): ghi lại cuối sheet gốc (`_giaTriKhoiPhuc_`: ISO → Date, chữ giữ dạng chữ); dòng về `DNTT_GK_DN_CT` phải qua kiểm tra chống trả 2 lần (phiếu không có trong sổ chốt / hồ sơ Nháp) rồi `_khoaPhieuCanDaTra_` (dùng chung với Duyệt).
+
+Thiếu MISA (`_misaThieu_`, hiện trong `getMisaDataTheoNgay_().thieu`): dòng CT (`_ctGopLuuTru_`) có Ngày CK trong khoảng mà Số phiếu cân không có trong `_laySoPhieuCanDaCoTrongMisa_`. `webTaoBoSungMisa_(f, t)` (Nghiệp vụ) lấy hồ sơ từ `get112ViewData_("", "")` theo mã (Ngày ĐN của 112 có thể khác Ngày CK), mỗi lần ≤ `MISA_BO_SUNG_HO_SO_MOI_LAN` hồ sơ → `_gomChiTietChuyenKhoan_` → `_ghiMisaChuaCo_` (chung với Tạo lại MISA; kiểm tra trùng + ghi trong `_chayTrongKhoa_`).
+
+Dọn dẹp MISA (`webDonDepMisa_(che, f, t, chayThat)`, Hệ Thống): `_boChonMisaDonDep_` trả lý do xóa cho từng dòng `Update_NganHang_DN` — `trung` (Số phiếu cân lặp lại, giữ lần đầu trong file), `moCoi` (không có trong `_ctGopLuuTru_("", "", true)`; bỏ qua dòng không có Số phiếu cân), `tatCa`; luôn giới hạn theo Ngày CK bằng `_boLocNgayMisa_` (chung với Báo Cáo MISA / file xuất). `chayThat = false` chỉ xem trước; `true` quét lại trong `_chayTrongKhoa_` rồi `_saoLuuVaXoaDong_(…, "XOA_MISA", mã)`.
 
 ## 4. Chốt thanh toán — trình tự & tính chạy lại (`runConfirmPayment`)
 

@@ -1,6 +1,6 @@
 /**
  * ============================================================
- * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.14
+ * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.17
  * Lịch sử thay đổi: CHANGELOG.md · Kiến trúc: docs/ARCHITECTURE.md
  * ------------------------------------------------------------
  * *** QUAN TRỌNG - CẦN LÀM TRƯỚC KHI DÙNG BẢN NÀY (chỉ 1 LẦN DUY NHẤT
@@ -936,7 +936,8 @@ function logAction_(actionType, refId, detail) {
       sh.getRange(1, 1, 1, 5).setFontWeight("bold").setBackground("#d9d9d9");
       sh.setColumnWidths(1, 5, 180);
     }
-    sh.appendRow(_dongAnToan_([[new Date(), _emailNguoiThucHien_() || "N/A", actionType, refId, detail]])[0]);
+    // Mã hồ sơ / mã lỗi giữ dạng CHỮ: mã toàn chữ số (vd "01234567") không bị đổi thành số, mất số 0 đầu.
+    sh.appendRow(_dongAnToan_([[new Date(), _emailNguoiThucHien_() || "N/A", actionType, refId, detail]], [3])[0]);
   } catch (e) {
     // Không chặn luồng chính nếu ghi log lỗi. v2026.9.11 (R-06): nhưng không
     // để mất âm thầm - ghi vào nhật ký thực thi của Apps Script (Executions)
@@ -1445,6 +1446,8 @@ const API_ROUTES = (() => {
     webKhoiPhucSaoLuuXoa: r(webKhoiPhucSaoLuuXoa_, H),
     dongBoChiTietDNTTTuDauLichSu: r(dongBoChiTietDNTTTuDauLichSu_, H),
     webTaoLaiMisaTheoNgay: r(webTaoLaiMisaTheoNgay_, H),
+    webDonDepMisa: r(webDonDepMisa_, H),
+    webTaoBoSungMisa: r(webTaoBoSungMisa_, N),
     webTaoLaiUNCTheoNgay: r(webTaoLaiUNCTheoNgay_, H),
     webKhoaSoNam: r(webKhoaSoNam_, H),
     getHieuNangForWeb: r(getHieuNangForWeb_, H),
@@ -2388,7 +2391,7 @@ function webSetUncConfig_(values) {
 // LIỆU TÀI CHÍNH ĐÃ CHỐT" khi ghi log nhưng trước đây KHÔNG hiện ra ở
 // trang audit trail này - vẫn nằm trong sheet log nhưng vô hình với
 // người xem trang "Lịch Sử Sửa Đổi".
-const LICH_SU_SUA_DOI_ACTIONS = new Set(["MO_DONG_THANH_TOAN", "DOI_SOAT_DONG_BO_TEN", "VA_NGAN_HANG_112", "XOA_MO_COI_CHITIET_DNTT", "XOA_MO_COI_CHITIET_UNC", "XOA_MO_COI_CT_THAT", "XOA_MO_COI_SRC_THAT", "SUA_TEN_KH_PHIEU_CAN", "PHAN_QUYEN", "CAU_HINH_DANG_NHAP", "CANH_BAO_HEADER_PC", "XAC_NHAN_HEADER_PHIEU_CAN", "CHAN_TRA_HAI_LAN", "KHOI_PHUC_DONG_DA_XOA", "CAU_HINH_LUU_TRU_NAM", "KHOA_SO_NAM"]);
+const LICH_SU_SUA_DOI_ACTIONS = new Set(["MO_DONG_THANH_TOAN", "DOI_SOAT_DONG_BO_TEN", "VA_NGAN_HANG_112", "XOA_MO_COI_CHITIET_DNTT", "XOA_MO_COI_CHITIET_UNC", "XOA_MO_COI_CT_THAT", "XOA_MO_COI_SRC_THAT", "SUA_TEN_KH_PHIEU_CAN", "PHAN_QUYEN", "CAU_HINH_DANG_NHAP", "CANH_BAO_HEADER_PC", "XAC_NHAN_HEADER_PHIEU_CAN", "CHAN_TRA_HAI_LAN", "KHOI_PHUC_DONG_DA_XOA", "CAU_HINH_LUU_TRU_NAM", "KHOA_SO_NAM", "XOA_MISA"]);
 /**
  * SỬA (theo yêu cầu - "cho xem theo ngày, không phải cứ nối dài"): giờ
  * lọc theo khoảng ngày (fDate/tDate, dạng yyyy-MM-dd) thay vì luôn hiện
@@ -2865,6 +2868,26 @@ const MISA_SO_COT = 33;
 const MISA_COT_CHU = [2, 3, 4, 5, 9, 12, 15, 32];
 const MISA_GIOI_HAN_DONG = 2000;
 
+/** Hàm (dòng Update_NganHang_DN) -> Ngày CK thuộc [fDate, tDate] hay không. Dùng
+ * chung cho màn Báo Cáo MISA, file xuất và dọn dẹp - cùng 1 cách hiểu ngày.
+ * SỬA LỖI (rà soát phát hiện): trước đây lọc theo ngày bằng cách parse LẠI
+ * chuỗi "Ngày hạch toán" (cột C, TEXT theo Vùng Định Dạng Báo Cáo Xuất Excel
+ * LÚC GHI) theo Vùng Định Dạng HIỆN TẠI - đổi Vùng Xuất sau khi đã có dữ liệu
+ * thì dòng cũ bị đọc nhầm ngày/tháng hoặc rơi khỏi báo cáo. Giờ tra "Ngày CK"
+ * THẬT từ CT (kể cả năm đã khóa sổ) theo Số phiếu cân; chỉ dòng không tra được
+ * (nhập tay ngoài luồng app) mới parse chuỗi cũ làm phương án dự phòng. */
+function _boLocNgayMisa_(fDate, tDate) {
+  const ngayCkBySoPhieuCan = new Map();
+  _ctGopLuuTru_(fDate, tDate).forEach(ctRow => {
+    const soP = String(ctRow[11] || "").replace(/'/g, "").trim();
+    if (soP && ctRow[20] instanceof Date) ngayCkBySoPhieuCan.set(utils.standardize(soP), ctRow[20]);
+  });
+  return r => {
+    const ngayCkThat = ngayCkBySoPhieuCan.get(utils.standardize(String(r[4] || "").replace(/^'/, "").trim()));
+    const iso = ngayCkThat ? Utilities.formatDate(ngayCkThat, "GMT+7", "yyyy-MM-dd") : _parseNgayXuatVeIso_(r[2]);
+    return !!iso && (!fDate || iso >= fDate) && (!tDate || iso <= tDate);
+  };
+}
 /** Dòng Update_NganHang_DN (đủ 33 cột, như trong file) có Ngày CK thuộc
  * [fDate, tDate] - dùng chung cho màn Báo Cáo MISA và file xuất. */
 function _locMisaTheoNgay_(fDate, tDate) {
@@ -2872,34 +2895,11 @@ function _locMisaTheoNgay_(fDate, tDate) {
   const shUpdateNH = ssNH.getSheetByName("Update_NganHang_DN");
   if (!shUpdateNH || shUpdateNH.getLastRow() < 2) return { tieuDe: [], dong: [], total: 0, truncated: false };
   const data = shUpdateNH.getRange(2, 1, shUpdateNH.getLastRow() - 1, MISA_SO_COT).getValues();
-
-  // SỬA LỖI (rà soát phát hiện): trước đây lọc theo ngày bằng cách
-  // parse LẠI chuỗi "Ngày hạch toán" (cột C, đã lưu dạng TEXT theo
-  // Vùng Định Dạng Báo Cáo Xuất Excel LÚC GHI) theo Vùng Định Dạng
-  // HIỆN TẠI (_parseNgayXuatVeIso_) - nếu ai đó đổi cài đặt Vùng Xuất
-  // (Cài Đặt) SAU KHI đã có dữ liệu cũ, các dòng cũ bị đọc NHẦM
-  // ngày/tháng (nếu ngày ≤ 12) hoặc bị loại khỏi mọi kết quả lọc (nếu
-  // ngày > 12, ra chuỗi ISO không hợp lệ) - mất dữ liệu khỏi báo cáo mà
-  // không có cảnh báo gì. Giờ tra lại "Ngày CK" THẬT (Date object,
-  // không mơ hồ) từ CT thật theo Số phiếu cân - không phụ thuộc cài
-  // đặt Vùng Xuất còn đang là gì. Chỉ dòng NÀO không tra được (vd nhập
-  // tay ngoài luồng app, không gắn với CT thật nào) mới dùng lại cách
-  // parse chuỗi cũ làm phương án dự phòng.
-  const ngayCkBySoPhieuCan = new Map();
-  _ctGopLuuTru_(fDate, tDate).forEach(ctRow => {
-    const soP = String(ctRow[11] || "").replace(/'/g, "").trim();
-    if (soP && ctRow[20] instanceof Date) ngayCkBySoPhieuCan.set(utils.standardize(soP), ctRow[20]);
-  });
-
+  const trongKhoang = _boLocNgayMisa_(fDate, tDate);
   const dong = [];
   let tongKhop = 0;
   data.forEach(r => {
-    const soPhieuCanRow = String(r[4] || "").replace(/^'/, "").trim();
-    const ngayCkThat = ngayCkBySoPhieuCan.get(utils.standardize(soPhieuCanRow));
-    const iso = ngayCkThat ? Utilities.formatDate(ngayCkThat, "GMT+7", "yyyy-MM-dd") : _parseNgayXuatVeIso_(r[2]);
-    if (!iso) return;
-    if (fDate && iso < fDate) return;
-    if (tDate && iso > tDate) return;
+    if (!trongKhoang(r)) return;
     tongKhop++;
     if (dong.length < MISA_GIOI_HAN_DONG) dong.push(r);
   });
@@ -2907,6 +2907,64 @@ function _locMisaTheoNgay_(fDate, tDate) {
     tieuDe: shUpdateNH.getRange(1, 1, 1, MISA_SO_COT).getValues()[0],
     dong, total: tongKhop, truncated: tongKhop > MISA_GIOI_HAN_DONG
   };
+}
+// ------------------------------------------------------------
+// DỌN DẸP MISA (Hệ Thống, cạnh "Tạo Lại MISA") - luôn xem trước, sao lưu
+// trước khi xóa (Hệ Thống › Khôi Phục), chỉ trong khoảng Ngày CK đã chọn.
+// ------------------------------------------------------------
+const MISA_DON_DEP = { TRUNG: "trung", MO_COI: "moCoi", TAT_CA: "tatCa" };
+const MISA_DON_DEP_XEM_TOI_DA = 200;
+
+/** Hàm (dòng) -> lý do xóa ("" = giữ), đi theo thứ tự dòng trong file (dòng
+ * trùng: giữ lần xuất hiện ĐẦU TIÊN trong cả file). Tạo mới cho mỗi lượt quét. */
+function _boChonMisaDonDep_(che, fDate, tDate) {
+  const trongKhoang = _boLocNgayMisa_(fDate, tDate);
+  const soCua = r => utils.standardize(String(r[4] || "").replace(/'/g, "").trim());
+  if (che === MISA_DON_DEP.TAT_CA) return r => trongKhoang(r) ? "Trong khoảng ngày đã chọn" : "";
+  if (che === MISA_DON_DEP.MO_COI) {
+    // Đọc thẳng sổ đang mở (không qua cache): hồ sơ vừa Duyệt không bị coi là mồ côi.
+    const daChot = new Set(_ctGopLuuTru_("", "", true).map(r => utils.standardize(String(r[11] || "").replace(/'/g, "").trim())).filter(Boolean));
+    // Dòng không có Số phiếu cân (nhập tay ngoài app) không coi là mồ côi.
+    return r => soCua(r) && trongKhoang(r) && !daChot.has(soCua(r)) ? "Số phiếu cân không còn trong sổ đã chốt" : "";
+  }
+  if (che === MISA_DON_DEP.TRUNG) {
+    const daGap = new Set();
+    return r => {
+      const so = soCua(r);
+      if (!so) return "";
+      const trung = daGap.has(so);
+      daGap.add(so);
+      return trung && trongKhoang(r) ? "Trùng Số phiếu cân (giữ dòng đầu)" : "";
+    };
+  }
+  throw new Error("Chế độ dọn dẹp không hợp lệ.");
+}
+/** #Web (Hệ Thống): dọn Update_NganHang_DN. chayThat = false -> chỉ xem trước. */
+function webDonDepMisa_(che, fDate, tDate, chayThat) {
+  try {
+    if (!fDate || !tDate) return { success: false, message: "❌ Chọn đủ Từ ngày / Đến ngày." };
+    const shNH = _sheetMisa_();
+    if (!chayThat) {
+      const lyDoCua = _boChonMisaDonDep_(che, fDate, tDate);
+      const lr = shNH.getLastRow();
+      const dong = [];
+      (lr > 1 ? shNH.getRange(2, 1, lr - 1, MISA_SO_COT).getValues() : []).forEach(r => {
+        const lyDo = lyDoCua(r);
+        if (lyDo) dong.push(Object.assign(_tomTatDongMisa_(r), { lyDo }));
+      });
+      return { success: true, xemTruoc: true, soDong: dong.length, dong: dong.slice(0, MISA_DON_DEP_XEM_TOI_DA),
+        message: dong.length ? `Sẽ xóa ${dong.length} dòng MISA (có sao lưu).` : "Không có dòng nào cần xóa." };
+    }
+    const maThaoTac = _maThaoTacMoi_("XOA_MISA");
+    const soXoa = _chayTrongKhoa_(() => {
+      const lyDoCua = _boChonMisaDonDep_(che, fDate, tDate); // quét lại dữ liệu mới nhất ngay lúc xóa
+      return _saoLuuVaXoaDong_(shNH, r => !!lyDoCua(r), "XOA_MISA", maThaoTac);
+    });
+    logAction_("XOA_MISA", maThaoTac, `Dọn MISA (${che}) Ngày CK ${fDate} → ${tDate}: xóa ${soXoa} dòng Update_NganHang_DN (đã sao lưu).`);
+    return { success: true, soDong: soXoa, message: `✅ Đã xóa ${soXoa} dòng MISA. Khôi phục được ở Hệ Thống › Khôi Phục Dữ Liệu Đã Xóa.` };
+  } catch (e) {
+    return { success: false, message: "❌ " + _loiChoNguoiDung_(e) };
+  }
 }
 /** Dòng MISA (33 cột) -> dòng tóm tắt cho màn hình / sheet Tóm tắt. */
 function _tomTatDongMisa_(r) {
@@ -2922,10 +2980,71 @@ function _tomTatDongMisa_(r) {
     soHD: String(r[32] || "").replace(/^'/, "").trim()
   };
 }
+// ------------------------------------------------------------
+// HỒ SƠ ĐÃ CHỐT CHƯA CÓ DÒNG MISA (Báo Cáo MISA › Tạo bổ sung) - vd lần tự
+// động ghi lúc Duyệt bị lỗi, hoặc dòng MISA đã bị xóa tay.
+// ------------------------------------------------------------
+const MISA_THIEU_XEM_TOI_DA = 50;
+const MISA_BO_SUNG_HO_SO_MOI_LAN = 150;
+
+/** Phiếu cân đã chốt (sổ CT, kể cả năm đã khóa sổ) có Ngày CK trong [fDate,
+ * tDate] - cùng cách hiểu ngày với màn Báo Cáo MISA - mà Số phiếu cân chưa có ở
+ * bất kỳ dòng nào của Update_NganHang_DN (cùng cách so trùng với lúc ghi). */
+function _misaThieu_(shUpdateNH, fDate, tDate) {
+  const daCo = _laySoPhieuCanDaCoTrongMisa_(shUpdateNH);
+  const phieu = [];
+  _ctGopLuuTru_(fDate, tDate).forEach(ct => {
+    if (utils.isBlank(ct[0]) || utils.isBlank(ct[1]) || !(ct[20] instanceof Date)) return;
+    const iso = Utilities.formatDate(ct[20], "GMT+7", "yyyy-MM-dd");
+    const k = utils.standardize(ct[11]);
+    if ((fDate && iso < fDate) || (tDate && iso > tDate) || !k || daCo.has(k)) return;
+    phieu.push({ idHeThong: String(ct[1]).trim(), soPhieuCan: String(ct[11]).replace(/'/g, "").trim(), ngayTT: utils.formatDate(ct[20]), chuRung: String(ct[3] || ""), thanhTien: utils.parseNum(ct[16]) });
+  });
+  return { phieu, idHoSo: new Set(phieu.map(x => x.idHeThong)) };
+}
+function _sheetMisa_() {
+  const sh = SpreadsheetApp.openById(CFG.UPDATE_NH_SS_ID).getSheetByName("Update_NganHang_DN");
+  if (!sh) throw new Error("Không tìm thấy sheet Update_NganHang_DN.");
+  return sh;
+}
+/** #Web (Nghiệp vụ): ghi dòng MISA còn thiếu cho hồ sơ đã chốt trong khoảng ngày.
+ * Mỗi lần tối đa MISA_BO_SUNG_HO_SO_MOI_LAN hồ sơ; conLai > 0 thì trình duyệt gọi
+ * tiếp (mỗi lần tính lại từ đầu nên không cần vị trí lô). */
+function webTaoBoSungMisa_(fDate, tDate) {
+  try {
+    if (!fDate || !tDate) return { success: false, message: "❌ Chọn đủ Từ ngày / Đến ngày." };
+    const shNH = _sheetMisa_();
+    const { idHoSo } = _misaThieu_(shNH, fDate, tDate);
+    if (!idHoSo.size) return { success: true, count: 0, conLai: 0, xong: true, message: "✅ Không còn hồ sơ đã chốt nào thiếu dòng MISA." };
+    // Thông tin người nhận (kể cả sửa tay) lấy từ sổ 112 theo mã hồ sơ, không theo
+    // ngày: Ngày ĐN (cột ngày của 112) có thể khác Ngày CK đang lọc.
+    const hoSo = get112ViewData_("", "").filter(h => idHoSo.has(h.idHeThong));
+    if (!hoSo.length) return { success: false, message: `❌ Không tìm thấy hồ sơ ${Array.from(idHoSo).join(", ")} trong sổ 112 - không đủ thông tin người nhận để ghi MISA.` };
+    const loNay = hoSo.slice(0, MISA_BO_SUNG_HO_SO_MOI_LAN);
+    const daGhi = _ghiMisaChuaCo_(shNH, _gomChiTietChuyenKhoan_(loNay));
+    const conLai = hoSo.length - loNay.length;
+    logAction_("TAO_BO_SUNG_MISA", "-", `Tạo bổ sung MISA (${fDate} - ${tDate}): ${loNay.length} hồ sơ, ghi ${daGhi.length} dòng.`);
+    return {
+      success: true, count: daGhi.length, conLai, xong: conLai === 0,
+      message: conLai ? `Đã ghi ${daGhi.length} dòng, còn ${conLai} hồ sơ - đang làm tiếp...` : `✅ Đã tạo bổ sung ${daGhi.length} dòng MISA.`
+    };
+  } catch (e) {
+    return { success: false, message: "❌ " + _loiChoNguoiDung_(e) };
+  }
+}
+
 function getMisaDataTheoNgay_(fDate, tDate) {
   try {
     const kq = _locMisaTheoNgay_(fDate, tDate);
-    return { items: kq.dong.map(_tomTatDongMisa_), total: kq.total, truncated: kq.truncated };
+    // Kiểm tra thiếu lỗi thì vẫn trả dữ liệu MISA (chỉ không có cảnh báo).
+    let thieu = null;
+    try {
+      const t = _misaThieu_(_sheetMisa_(), fDate, tDate);
+      thieu = { soPhieu: t.phieu.length, soHoSo: t.idHoSo.size, phieu: t.phieu.slice(0, MISA_THIEU_XEM_TOI_DA) };
+    } catch (e) {
+      thieu = { loi: _loiChoNguoiDung_(e) };
+    }
+    return { items: kq.dong.map(_tomTatDongMisa_), total: kq.total, truncated: kq.truncated, thieu };
   } catch (e) {
     return { items: [], total: 0, truncated: false, error: "❌ Lỗi: " + _loiChoNguoiDung_(e) };
   }
@@ -4149,6 +4268,42 @@ function _laySoPhieuCanDaCoTrongMisa_(shUpdateNH) {
  * khi xong, tránh timeout với khoảng ngày rộng/nhiều hồ sơ. Dùng lại
  * ĐÚNG logic _gomChiTietChuyenKhoan_() + loại trùng đã có.
  */
+/** Ghi vào Update_NganHang_DN các dòng (từ _gomChiTietChuyenKhoan_) có Số
+ * phiếu cân CHƯA có trong file - kiểm tra trùng + ghi trong cùng 1 khóa (v2026.6:
+ * 2 lượt chạy song song không thể cùng thấy "chưa có" rồi cùng ghi trùng).
+ * Dùng chung cho Tạo lại MISA (Hệ Thống) và Tạo bổ sung (Báo Cáo MISA). */
+function _ghiMisaChuaCo_(shUpdateNH, tempRows) {
+  return _chayTrongKhoa_(() => {
+    const soPDaCo = _laySoPhieuCanDaCoTrongMisa_(shUpdateNH);
+    const chuaCo = tempRows.filter(item => !soPDaCo.has(utils.standardize(item.bank.soPhieuCan)));
+    if (chuaCo.length > 0) {
+      const bankInfo = getCompanyBankInfo_();
+      const bankUpdateRows = chuaCo.map(item => {
+        const b = item.bank;
+        const row = new Array(33).fill("");
+        row[0] = ""; row[1] = 0;
+        row[2] = b.ngayCK; row[3] = b.ngayCK;
+        row[4] = _chu_(b.soPhieuCan);
+        row[5] = _chu_(bankInfo.account); row[6] = bankInfo.name; row[7] = bankInfo.code;
+        row[8] = b.noiDung || ("Thanh toán phiếu cân " + b.soPhieuCan);
+        // SỬA LỖI (rà soát phát hiện): STK/Ngân hàng/Tên thụ hưởng (cột
+        // 12/13/14) trước đây LUÔN lấy mặc định hợp đồng (b.hd[15/16/10])
+        // - dùng b.stk/b.nganHang/b.tenThuHuong (đã ưu tiên giá trị SỬA
+        // TAY nếu có - xem _gomChiTietChuyenKhoan_()) để khớp đúng với
+        // tiền đã chuyển thật (UNC).
+        row[9] = _chu_(_chuanHoaCCCD_(b.hd[6])); row[10] = b.hd[4]; row[11] = b.hd[5];
+        row[12] = _chu_(b.stk || ""); row[13] = b.nganHang; row[14] = b.tenThuHuong;
+        row[15] = _chu_(_chuanHoaCCCD_(b.hd[11])); row[19] = "VND"; row[21] = b.noiDung;
+        row[22] = "33111"; row[23] = "1121"; row[24] = b.thanhTien; row[32] = _chu_(b.soHD);
+        return row;
+      });
+      const startRow = Math.max(2, shUpdateNH.getLastRow() + 1);
+      shUpdateNH.getRange(startRow, 1, bankUpdateRows.length, 33).setValues(_dongAnToan_(bankUpdateRows));
+      _lockTextCols_(shUpdateNH, MISA_COT_CHU.map(i => i + 1), startRow + bankUpdateRows.length + 5);
+    }
+    return chuaCo;
+  });
+}
 function webTaoLaiMisaTheoNgay_(fDate, tDate, offset, gioiHanMoiLan) {
   try {
     const GIOI_HAN = Math.max(20, Math.min(300, parseInt(gioiHanMoiLan, 10) || 150));
@@ -4163,38 +4318,7 @@ function webTaoLaiMisaTheoNgay_(fDate, tDate, offset, gioiHanMoiLan) {
     const shUpdateNH = ssNH.getSheetByName("Update_NganHang_DN");
     if (!shUpdateNH) return { success: false, message: "❌ Không tìm thấy sheet Update_NganHang_DN." };
 
-    // v2026.6: kiểm tra trùng + ghi thêm trong cùng 1 khóa - 2 lượt chạy
-    // song song không thể cùng thấy "chưa có" rồi cùng ghi trùng.
-    const tempRowsChuaCo = _chayTrongKhoa_(() => {
-      const soPDaCo = _laySoPhieuCanDaCoTrongMisa_(shUpdateNH);
-      const chuaCo = tempRows.filter(item => !soPDaCo.has(utils.standardize(item.bank.soPhieuCan)));
-      if (chuaCo.length > 0) {
-        const bankInfo = getCompanyBankInfo_();
-        const bankUpdateRows = chuaCo.map(item => {
-          const b = item.bank;
-          const row = new Array(33).fill("");
-          row[0] = ""; row[1] = 0;
-          row[2] = b.ngayCK; row[3] = b.ngayCK;
-          row[4] = _chu_(b.soPhieuCan);
-          row[5] = _chu_(bankInfo.account); row[6] = bankInfo.name; row[7] = bankInfo.code;
-          row[8] = b.noiDung || ("Thanh toán phiếu cân " + b.soPhieuCan);
-          // SỬA LỖI (rà soát phát hiện): STK/Ngân hàng/Tên thụ hưởng (cột
-          // 12/13/14) trước đây LUÔN lấy mặc định hợp đồng (b.hd[15/16/10])
-          // - dùng b.stk/b.nganHang/b.tenThuHuong (đã ưu tiên giá trị SỬA
-          // TAY nếu có - xem _gomChiTietChuyenKhoan_()) để khớp đúng với
-          // tiền đã chuyển thật (UNC).
-          row[9] = _chu_(_chuanHoaCCCD_(b.hd[6])); row[10] = b.hd[4]; row[11] = b.hd[5];
-          row[12] = _chu_(b.stk || ""); row[13] = b.nganHang; row[14] = b.tenThuHuong;
-          row[15] = _chu_(_chuanHoaCCCD_(b.hd[11])); row[19] = "VND"; row[21] = b.noiDung;
-          row[22] = "33111"; row[23] = "1121"; row[24] = b.thanhTien; row[32] = _chu_(b.soHD);
-          return row;
-        });
-        const startRow = Math.max(2, shUpdateNH.getLastRow() + 1);
-        shUpdateNH.getRange(startRow, 1, bankUpdateRows.length, 33).setValues(_dongAnToan_(bankUpdateRows));
-        _lockTextCols_(shUpdateNH, MISA_COT_CHU.map(i => i + 1), startRow + bankUpdateRows.length + 5);
-      }
-      return chuaCo;
-    });
+    const tempRowsChuaCo = _ghiMisaChuaCo_(shUpdateNH, tempRows);
 
     const offsetMoi = offset + loNay.length;
     const conLai = Math.max(0, dsHoSo.length - offsetMoi);
@@ -4296,8 +4420,18 @@ function _tuDongXuatMisaKhiDong_(rowsChiTietY) {
   }
 }
 
-function _gomChiTietChuyenKhoan_(filteredRows) {
+/** Dòng sổ đã chốt (CT, kể cả năm đã khóa sổ) của các hồ sơ `filteredRows`
+ * (từ get112ViewData_) - dùng chung cho Tạo lại MISA / báo cáo và kiểm tra
+ * "hồ sơ đã chốt chưa có dòng MISA". */
+function _ctDongCuaHoSo_(filteredRows) {
   const idSet = new Set(filteredRows.map(r => r.idHeThong));
+  const ngayTT = filteredRows.map(r => r.ngayISO).filter(Boolean).sort();
+  const tuNgay = ngayTT[0], denNgay = ngayTT[ngayTT.length - 1];
+  const ctData = tuNgay ? _ctGopLuuTru_(tuNgay, denNgay) : _ctThatDataCache_();
+  return ctData.filter(ctRow => !utils.isBlank(ctRow[0]) && !utils.isBlank(ctRow[1]) && idSet.has(String(ctRow[1]).trim()));
+}
+
+function _gomChiTietChuyenKhoan_(filteredRows) {
   // SỬA (tối ưu tốc độ - theo yêu cầu "Xuất Báo Cáo Gỗ Keo chạy rất
   // chậm"): trước đây đọc TRỰC TIẾP KHÔNG CACHE toàn bộ CT thật mỗi lần
   // xuất - đây là nguyên nhân chính gây chậm khi CT thật đã tích lũy
@@ -4310,7 +4444,7 @@ function _gomChiTietChuyenKhoan_(filteredRows) {
   // của đúng các năm đó; hồ sơ năm đang mở thì chỉ đọc sổ đang mở như cũ.
   const ngayTT = filteredRows.map(r => r.ngayISO).filter(Boolean).sort();
   const tuNgay = ngayTT[0], denNgay = ngayTT[ngayTT.length - 1];
-  const ctData = tuNgay ? _ctGopLuuTru_(tuNgay, denNgay) : _ctThatDataCache_();
+  const ctData = _ctDongCuaHoSo_(filteredRows);
 
   // SỬA (tối ưu tốc độ): dùng cache chung _pcData_()/_hdNccFullData_()
   // thay vì đọc trực tiếp không cache mỗi lần.
@@ -4321,33 +4455,30 @@ function _gomChiTietChuyenKhoan_(filteredRows) {
 
   let tempRows = [];
   ctData.forEach(ctRow => {
-    if (utils.isBlank(ctRow[0]) || utils.isBlank(ctRow[1])) return;
     let parentId = String(ctRow[1]).trim();
-    if (idSet.has(parentId)) {
-      let pc = mapPC.get(utils.standardize(ctRow[11])) || new Array(30).fill("");
-      let hd = mapHD.get(utils.standardize(ctRow[19])) || new Array(30).fill("");
-      let parentInfo = filteredRows.find(f => f.idHeThong === parentId);
-      // SỬA LỖI (rà soát phát hiện): trước đây "Tên người thụ hưởng"/
-      // "Ngân hàng"/"Số tài khoản" LUÔN lấy mặc định hợp đồng (hd[10]/
-      // hd[16]/hd[15]) - nếu hồ sơ có sửa tay người nhận/STK/ngân hàng
-      // khác mặc định (nút "Sửa" ở Draft 112), UNC (tiền chuyển thật)
-      // dùng đúng giá trị đã sửa (parentInfo, lấy từ get112ViewData_()),
-      // nhưng báo cáo/MISA ở đây lại ghi theo mặc định hợp đồng - lệch
-      // với tiền đã chuyển thật. Ưu tiên parentInfo (đã có thể sửa tay),
-      // chỉ rơi về mặc định HD_NCC khi không có parentInfo.
-      const { tenThuHuong, nganHangThat, stkThat } = _resolveNguoiNhanTien_(parentInfo, hd);
+    let pc = mapPC.get(utils.standardize(ctRow[11])) || new Array(30).fill("");
+    let hd = mapHD.get(utils.standardize(ctRow[19])) || new Array(30).fill("");
+    let parentInfo = filteredRows.find(f => f.idHeThong === parentId);
+    // SỬA LỖI (rà soát phát hiện): trước đây "Tên người thụ hưởng"/
+    // "Ngân hàng"/"Số tài khoản" LUÔN lấy mặc định hợp đồng (hd[10]/
+    // hd[16]/hd[15]) - nếu hồ sơ có sửa tay người nhận/STK/ngân hàng
+    // khác mặc định (nút "Sửa" ở Draft 112), UNC (tiền chuyển thật)
+    // dùng đúng giá trị đã sửa (parentInfo, lấy từ get112ViewData_()),
+    // nhưng báo cáo/MISA ở đây lại ghi theo mặc định hợp đồng - lệch
+    // với tiền đã chuyển thật. Ưu tiên parentInfo (đã có thể sửa tay),
+    // chỉ rơi về mặc định HD_NCC khi không có parentInfo.
+    const { tenThuHuong, nganHangThat, stkThat } = _resolveNguoiNhanTien_(parentInfo, hd);
 
-      tempRows.push({
-        data: [
-          0, parentInfo?.soLan, _chu_(ctRow[11]), _formatNgayXuat_(ctRow[20]), _formatNgayXuat_(pc[PC_COL.NGAY_CAN_1]),
-          pc[PC_COL.DAI_LY], _chu_(ctRow[19]), pc[PC_COL.BIEN_SO_1], ctRow[3], _chu_(_chuanHoaCCCD_(hd[6])), tenThuHuong, _chu_(_chuanHoaCCCD_(hd[11])),
-          hd[5], hd[18], pc[PC_COL.GIO_CAN_1], pc[PC_COL.GIO_CAN_2], utils.parseNum(pc[PC_COL.CAN_LAN_1]), utils.parseNum(pc[PC_COL.CAN_LAN_2]),
-          utils.parseNum(pc[PC_COL.KL_KG]), utils.parseNum(pc[PC_COL.KL_KG])/1000, utils.parseNum(pc[PC_COL.DON_GIA_TC]),
-          utils.parseNum(pc[PC_COL.THANH_TIEN]), pc[PC_COL.NGUON_GOC], nganHangThat, _chu_(stkThat), ctRow[2]
-        ],
-        bank: { ngayCK: _formatNgayXuat_(ctRow[20]), soPhieuCan: ctRow[11], noiDung: parentInfo?.noiDungCK, thanhTien: ctRow[16], soHD: ctRow[19], hd: hd, tenThuHuong: tenThuHuong, nganHang: nganHangThat, stk: stkThat }
-      });
-    }
+    tempRows.push({
+      data: [
+        0, parentInfo?.soLan, _chu_(ctRow[11]), _formatNgayXuat_(ctRow[20]), _formatNgayXuat_(pc[PC_COL.NGAY_CAN_1]),
+        pc[PC_COL.DAI_LY], _chu_(ctRow[19]), pc[PC_COL.BIEN_SO_1], ctRow[3], _chu_(_chuanHoaCCCD_(hd[6])), tenThuHuong, _chu_(_chuanHoaCCCD_(hd[11])),
+        hd[5], hd[18], pc[PC_COL.GIO_CAN_1], pc[PC_COL.GIO_CAN_2], utils.parseNum(pc[PC_COL.CAN_LAN_1]), utils.parseNum(pc[PC_COL.CAN_LAN_2]),
+        utils.parseNum(pc[PC_COL.KL_KG]), utils.parseNum(pc[PC_COL.KL_KG])/1000, utils.parseNum(pc[PC_COL.DON_GIA_TC]),
+        utils.parseNum(pc[PC_COL.THANH_TIEN]), pc[PC_COL.NGUON_GOC], nganHangThat, _chu_(stkThat), ctRow[2]
+      ],
+      bank: { ngayCK: _formatNgayXuat_(ctRow[20]), soPhieuCan: ctRow[11], noiDung: parentInfo?.noiDungCK, thanhTien: ctRow[16], soHD: ctRow[19], hd: hd, tenThuHuong: tenThuHuong, nganHang: nganHangThat, stk: stkThat }
+    });
   });
   return tempRows;
 }

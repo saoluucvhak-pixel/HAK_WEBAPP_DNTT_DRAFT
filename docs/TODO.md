@@ -75,6 +75,11 @@ Trạng thái: ✅ xong · 🟡 một phần · ⏳ chưa làm · ⚖️ cần n
 - ✅ 2026.8.2: Giao diện “Khôi phục từ SYS_SaoLuuDongXoa” (hoàn tất C-07).
 - ⏳ Kiểm chứng trên Google Sheets thật: `getRangeList().setValue()` và `deleteRows()` với dữ liệu lớn (mock đã kiểm chứng logic).
 - ✅ Khóa sổ năm (quy trình người dùng): kiểm chứng công nợ đầu năm = phiếu chưa trả mang sang (test `khoaSoNam`); không cần bộ nhớ đệm 6 tháng.
+- ✅ 2026.9.16: Nhật ký thao tác giữ dạng chữ cho Mã hồ sơ / mã lỗi (không mất số 0 đầu).
+- ✅ 2026.9.15: Hệ Thống › Dọn Dẹp MISA (trùng / mồ côi / tất cả trong khoảng Ngày CK), xem trước + sao lưu. UNC không cần nút xóa riêng (xem CHANGELOG).
+- ✅ Kiểm chứng: trigger không bị phân quyền chặn (test `triggers.test.mjs`).
+- ✅ Kiểm chứng: cờ “đang khóa sổ” trên file Phiếu Cân đặt/gỡ đúng (test `luuTruNam`). ⏳ Phía QL_NHAPKHO (dự án khác) cần đọc cờ theo quy ước trong Code.gs (khóa, DOCUMENT, hết hiệu lực sau 10 phút).
+- ✅ 2026.9.17: Báo Cáo MISA cảnh báo phiếu đã chốt chưa có dòng MISA + nút “Tạo bổ sung”. Mở Đóng TT vẫn xóa dòng MISA (người dùng chọn không giữ).
 - ✅ 2026.9.14: Tạo lại UNC thay dòng cũ trong ChiTietUNC; Báo Cáo UNC mỗi hồ sơ 1 dòng (mới nhất).
 - ✅ 2026.9.13: Xuất MISA theo ngày trở lại đúng mẫu nhập MISA 33 cột như bản 2026.8 (+ sheet tóm tắt).
 - ✅ 2026.9.7 → 2026.9.12 (cập nhật trực tiếp trên main): an toàn Mở Đóng TT, chặn trùng phiếu trong lượt Duyệt, số dạng chữ VN, cờ khóa sổ cho QL_NHAPKHO, giao diện tối / bàn phím, bỏ webhook — xem CHANGELOG.

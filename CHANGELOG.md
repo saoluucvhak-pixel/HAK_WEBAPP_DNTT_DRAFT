@@ -2,6 +2,53 @@
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/). Phiên bản theo `NĂM.ĐỢT.SỬA`; thay đổi làm đổi hành vi nghiệp vụ (⚖️) sẽ tăng số ĐỢT và ghi rõ đã được người dùng đồng ý.
 
+## [Chưa phát hành] — chỉ thêm test (code web app không đổi, vẫn 2026.9.17)
+
+### Tests
+- 114 test. Thêm 2 test **cờ “đang khóa sổ”** trên file Phiếu Cân (Developer Metadata `HAK_KHOA_SO_NAM_DANG_CHAY`, có từ 2026.9.10 nhưng trước đây chưa được kiểm chứng — mock chưa hỗ trợ nên lệnh đặt cờ lỗi và bị bỏ qua trong test): suốt lúc xóa dòng PhieuCan_DN có đúng 1 cờ `{nam, batDau, ung: "DNTT"}` hiển thị DOCUMENT; xem trước không đặt cờ; xong thì gỡ; lỗi giữa chừng vẫn gỡ; cờ sót từ lần bị ngắt được thay. Đã thử bỏ đặt cờ / bỏ gỡ cờ → test đỏ. Mock thêm Developer Metadata cấp spreadsheet.
+- Thêm `triggers.test.mjs`: 3 trigger tự động (7:30/13:00, 15:00, 10 phút) chạy được khi **không có ai đăng nhập** và khi người chạy **không có trong danh sách phân quyền** — phân quyền chỉ áp dụng cho lời gọi từ trình duyệt (`api`). Đã thử cố ý gắn kiểm tra quyền vào trigger 15:00 → test đỏ.
+
+## [2026.9.17] — Báo Cáo MISA: cảnh báo hồ sơ đã chốt thiếu dòng MISA + “Tạo bổ sung” (người dùng đồng ý 27/09/2026)
+
+### Added
+- **Báo Cáo MISA › 🔍 Xem** kiểm tra thêm: phiếu cân **đã chốt** (sổ CT, kể cả năm đã khóa sổ) có **Ngày CK** trong khoảng đang xem mà Số phiếu cân **chưa có** dòng nào trong `Update_NganHang_DN` (vd lần tự động ghi lúc Duyệt bị lỗi, hoặc dòng đã bị xóa). Có thì hiện khung ⚠️ “N phiếu cân của M hồ sơ đã chốt chưa có dòng MISA” kèm danh sách (tối đa 50 dòng).
+- Nút **➕ Tạo bổ sung** (vai trò Kế toán trở lên; Chỉ xem chỉ thấy cảnh báo): chỉ ghi các phiếu còn thiếu, không tạo trùng; thông tin người nhận lấy từ sổ 112 theo mã hồ sơ (kể cả sửa tay), giống Tạo lại MISA. Tự làm theo lô 150 hồ sơ tới khi xong, rồi tải lại màn hình.
+- Kiểm tra thiếu bị lỗi thì màn MISA vẫn hiện dữ liệu, chỉ báo “chưa kiểm tra được”.
+
+### Changed
+- Ghi dòng MISA còn thiếu (kiểm tra trùng + ghi trong 1 khóa) tách thành `_ghiMisaChuaCo_`, dùng chung cho Tạo lại MISA (Hệ Thống) và Tạo bổ sung. Lấy dòng CT của các hồ sơ tách thành `_ctDongCuaHoSo_` (dùng trong `_gomChiTietChuyenKhoan_`).
+
+### Giữ nguyên (người dùng quyết định 27/09/2026)
+- **Mở Đóng TT vẫn xóa dòng MISA** của hồ sơ (có sao lưu) — không giữ lại.
+
+### Tests
+- 110 test (thêm 2 test: phát hiện phiếu thiếu, Tạo bổ sung chỉ ghi phiếu thiếu + giữ số 0 đầu STK, chạy lại không ghi thêm; quyền Nghiệp vụ). Test phân quyền trang nhận biết hàm có chặn `coQuyen(...)` ở đầu.
+
+## [2026.9.16] — Nhật ký thao tác giữ số 0 đầu của mã (phát hiện khi chạy test lặp lại)
+
+### Fixed
+- Cột **Mã hồ sơ** của `NhatKyThaoTac` ghi không khóa dạng chữ: mã toàn chữ số (vd mã lỗi `01234567`, khoảng 2% số mã lỗi) bị Google Sheets đổi thành số, mất số 0 đầu → Quản trị tra mã lỗi người dùng báo không ra. Nay `logAction_` luôn ghi cột này dạng chữ (`_dongAnToan_(…, [3])`).
+
+### Tests
+- 108 test. Thêm test mã lỗi toàn chữ số (thất bại trên 2026.9.15) — trước đây test lỗi hệ thống thỉnh thoảng đỏ vì đúng lỗi này.
+- `uncHistory.test.mjs` lấy “hôm nay” theo giờ VN như code (trước lấy theo UTC nên đỏ từ 0 giờ đến 7 giờ sáng VN).
+
+## [2026.9.15] — Nút Dọn Dẹp MISA (người dùng yêu cầu 27/09/2026)
+
+### Added
+- Hệ Thống › **🔧 Tạo Lại MISA** có thêm phần **🧹 Dọn Dẹp MISA** (vai trò có quyền Hệ Thống): xóa dòng thừa trong `Update_NganHang_DN` theo khoảng **Ngày CK**, chọn 1 trong 3 loại:
+  - **Trùng Số phiếu cân** — giữ dòng xuất hiện đầu tiên trong file, xóa các dòng lặp lại;
+  - **Mồ côi** — Số phiếu cân không còn trong sổ đã chốt (kể cả năm đã khóa sổ); dòng nhập tay không có Số phiếu cân thì giữ;
+  - **Tất cả trong khoảng ngày** — dùng trước khi Tạo lại MISA cho sạch.
+- Luôn **Xem trước** (danh sách + lý do, không đổi dữ liệu) rồi mới hiện nút **Xóa N dòng** (có xác nhận). Đổi loại/ngày sau khi xem thì phải xem lại. Lúc xóa quét lại dữ liệu mới nhất trong khóa hệ thống; dòng bị xóa **sao lưu** và khôi phục được ở Hệ Thống › Khôi Phục (nhãn “🧹 Dọn MISA”), ghi Lịch Sử Sửa Đổi.
+- Lọc ngày của Báo Cáo MISA, file xuất và Dọn dẹp dùng chung 1 hàm (`_boLocNgayMisa_`).
+
+### Không thêm nút xóa cho UNC
+- `ChiTietUNC` là dấu vết file UNC đã gửi ngân hàng. Dòng trùng đã được xử lý từ 2026.9.14 (tạo lại thì thay bản cũ, báo cáo chỉ hiện bản mới nhất); dòng của hồ sơ không còn tồn tại đã có Bảo Trì › Xóa Mồ Côi ChiTietUNC.
+
+### Tests
+- 107 test (thêm 4 test Dọn dẹp MISA: xem trước không đổi dữ liệu, trùng giữ dòng đầu + khôi phục giữ số 0 đầu, mồ côi bỏ qua dòng nhập tay, chỉ trong khoảng ngày, từ chối thiếu ngày / chế độ lạ).
+
 ## [2026.9.14] — Báo Cáo UNC không nhân dòng khi tạo lại UNC (người dùng báo 27/09/2026)
 
 ### Fixed
