@@ -2,6 +2,15 @@
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/). Phiên bản theo `NĂM.ĐỢT.SỬA`; thay đổi làm đổi hành vi nghiệp vụ (⚖️) sẽ tăng số ĐỢT và ghi rõ đã được người dùng đồng ý.
 
+## [2026.9.7] — Đồng bộ Khóa sổ năm với webapp nhập kho (QL_NHAPKHO)
+
+### Added
+- Khi **Khóa Sổ Năm** chạy thật, file Phiếu Cân được gắn cờ `HAK_KHOA_SO_NAM_DANG_CHAY` (Developer Metadata, hiển thị DOCUMENT; giá trị `{nam, batDau, ung}`) và luôn gỡ khi xong, kể cả khi lỗi giữa chừng. Webapp nhập kho (dự án Apps Script khác, khóa hệ thống 2 bên không chặn được nhau) thấy cờ thì tạm dừng import / nhập tay / tính giá, tránh ghi nhầm dòng trong lúc Khóa sổ xóa dòng khỏi `PhieuCan_DN`. Xem trước không gắn cờ. Lỗi đặt/gỡ cờ không chặn Khóa sổ; webapp nhập kho bỏ qua cờ cũ hơn 10 phút.
+- Không đổi nghiệp vụ, số liệu hay cấu trúc sheet.
+
+### Tests
+- 101 test (thêm 2 trong `luuTruNam`: cờ có mặt đúng lúc xóa dòng phiếu cân và được gỡ sau đó, xem trước không gắn cờ; cờ được gỡ khi Khóa sổ lỗi giữa chừng).
+
 ## [2026.9.6] — Ngày đề nghị, % tiến độ, đo hiệu năng
 
 ### Added

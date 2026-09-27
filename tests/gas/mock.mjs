@@ -189,6 +189,20 @@ export class MockSpreadsheet {
     this.id = id;
     this.name = name || id;
     this.sheets = new Map();
+    this.metadata = [];
+  }
+  addDeveloperMetadata(key, value, visibility) {
+    const list = this.metadata;
+    const m = { key, value: value == null ? null : String(value), visibility, getKey: () => key, getValue: () => m.value,
+      getVisibility: () => visibility, remove() { const i = list.indexOf(m); if (i >= 0) list.splice(i, 1); } };
+    list.push(m);
+    if (this.onAddMetadata) this.onAddMetadata(m);
+    return this;
+  }
+  createDeveloperMetadataFinder() {
+    let key = null;
+    const finder = { withKey: k => { key = k; return finder; }, find: () => this.metadata.filter(m => key === null || m.key === key) };
+    return finder;
   }
   addSheet(name, rows) {
     const sh = new MockSheet(name, rows, this);
@@ -277,6 +291,7 @@ export function createGasEnvironment({ activeSpreadsheet, spreadsheets = [], pro
     },
     flush: () => {},
     WrapStrategy: { WRAP: 'WRAP', CLIP: 'CLIP', OVERFLOW: 'OVERFLOW' },
+    DeveloperMetadataVisibility: { DOCUMENT: 'DOCUMENT', PROJECT: 'PROJECT' },
     getUi: () => {
       if (!identity.uiAvailable) throw new Error('Cannot call SpreadsheetApp.getUi() from this context.');
       return {

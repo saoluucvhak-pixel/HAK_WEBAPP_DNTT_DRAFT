@@ -202,3 +202,36 @@ test('re-exporting a payment report of a closed year still lists its transfers i
   const chiTiet = run('_gomChiTietChuyenKhoan_')(hoSoNam);
   assert.equal(chiTiet.length, 2, 'detail rows come from the archive file');
 });
+
+// Đồng bộ với QL_NHAPKHO: trong lúc khóa sổ thật, file Phiếu Cân mang cờ
+// "HAK_KHOA_SO_NAM_DANG_CHAY" (DOCUMENT) để webapp nhập kho tạm dừng ghi PhieuCan_DN.
+test('the real close flags the weigh-ticket file while deleting rows, then clears the flag; the preview never flags', () => {
+  const { run, w } = world();
+  const pc = w.pc.getSheetByName('PhieuCan_DN');
+  const coLucXoa = [];
+  const xoaGoc = pc.deleteRows.bind(pc);
+  pc.deleteRows = (...a) => { coLucXoa.push(w.pc.createDeveloperMetadataFinder().withKey('HAK_KHOA_SO_NAM_DANG_CHAY').find().map(m => JSON.parse(m.getValue()))); return xoaGoc(...a); };
+
+  run('webKhoaSoNam_')(Y, false);
+  assert.equal(w.pc.metadata.length, 0, 'preview sets no flag');
+
+  const kq = run('webKhoaSoNam_')(Y, true);
+  assert.equal(kq.success, true, kq.message);
+  assert.ok(coLucXoa.length > 0, 'rows were deleted from PhieuCan_DN');
+  coLucXoa.forEach(ds => {
+    assert.equal(ds.length, 1, 'exactly one flag while deleting');
+    assert.equal(ds[0].nam, Y);
+    assert.ok(Date.now() - ds[0].batDau < 60000);
+  });
+  assert.equal(w.pc.metadata[0] === undefined, true, 'flag removed after the close');
+  assert.equal(w.pc.metadata.length, 0);
+});
+
+test('the flag is removed even when the close fails midway', () => {
+  const { run, w } = world();
+  const pc = w.pc.getSheetByName('PhieuCan_DN');
+  pc.deleteRows = () => { throw new Error('Service Spreadsheets timed out'); };
+  const kq = run('webKhoaSoNam_')(Y, true);
+  assert.equal(kq.success, false);
+  assert.equal(w.pc.metadata.length, 0);
+});

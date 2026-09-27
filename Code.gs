@@ -1,6 +1,6 @@
 /**
  * ============================================================
- * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.6
+ * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.7
  * Lịch sử thay đổi: CHANGELOG.md · Kiến trúc: docs/ARCHITECTURE.md
  * ------------------------------------------------------------
  * *** QUAN TRỌNG - CẦN LÀM TRƯỚC KHI DÙNG BẢN NÀY (chỉ 1 LẦN DUY NHẤT
@@ -1914,13 +1914,41 @@ function _demTheoSheetPc_(ds) {
     .sort((a, b) => a[0] - b[0]).map(([nam, soDong]) => ({ tenSheet: "PhieuCan_DN_" + nam, soDong }));
 }
 
+// ĐỒNG BỘ VỚI QL_NHAPKHO (webapp nhập kho, dự án Apps Script KHÁC - khóa hệ
+// thống 2 bên không chặn được nhau): trong lúc Khóa sổ chạy thật, gắn cờ lên
+// file Phiếu Cân để QL_NHAPKHO tạm dừng import / nhập tay / tính giá (các thao
+// tác đó ghi PhieuCan_DN theo số dòng, còn Khóa sổ thì xóa dòng). Cờ là
+// Developer Metadata hiển thị DOCUMENT (dự án khác đọc được), giá trị
+// {nam, batDau, ung}; QL bỏ qua cờ cũ hơn 10 phút. Đổi khóa/định dạng phải đổi
+// đồng thời ở repo QL_NHAPKHO_HAK_WEBAPP (CO_KHOA_SO_DNTT_KEY_).
+const CO_KHOA_SO_KEY = "HAK_KHOA_SO_NAM_DANG_CHAY";
+function _goCoKhoaSo_(ssPC) {
+  ssPC.createDeveloperMetadataFinder().withKey(CO_KHOA_SO_KEY).find().forEach(m => m.remove());
+}
+/** Chạy fn() với cờ "đang khóa sổ" trên file Phiếu Cân; luôn gỡ cờ. Lỗi đặt/gỡ cờ không chặn khóa sổ. */
+function _voiCoKhoaSo_(nam, fn) {
+  let ssPC = null;
+  try {
+    ssPC = SpreadsheetApp.openById(CFG.PC_SS_ID);
+    _goCoKhoaSo_(ssPC);
+    ssPC.addDeveloperMetadata(CO_KHOA_SO_KEY, JSON.stringify({ nam, batDau: Date.now(), ung: "DNTT" }), SpreadsheetApp.DeveloperMetadataVisibility.DOCUMENT);
+  } catch (e) { ssPC = null; }
+  try {
+    return fn();
+  } finally {
+    if (ssPC) { try { _goCoKhoaSo_(ssPC); } catch (e) { /* QL tự bỏ qua cờ quá 10 phút */ } }
+  }
+}
+
 /** #Web (Quản trị): Khóa sổ năm `nam`. chayThat = false -> chỉ xem trước. */
 function webKhoaSoNam_(namInput, chayThat) {
   try {
     const nam = Number(namInput);
     const namNay = Number(Utilities.formatDate(new Date(), "GMT+7", "yyyy"));
     if (!/^\d{4}$/.test(String(namInput).trim()) || nam < 2000 || nam >= namNay) return { success: false, message: `❌ Chỉ khóa sổ được năm đã kết thúc (trước năm ${namNay}).` };
-    return _chayTrongKhoa_(() => _khoaSoNamNoLock_(nam, !!chayThat, Date.now()));
+    return _chayTrongKhoa_(() => chayThat
+      ? _voiCoKhoaSo_(nam, () => _khoaSoNamNoLock_(nam, true, Date.now()))
+      : _khoaSoNamNoLock_(nam, false, Date.now()));
   } catch (e) {
     return { success: false, message: "❌ " + _loiChoNguoiDung_(e) };
   }
