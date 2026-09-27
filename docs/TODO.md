@@ -57,6 +57,7 @@ Trạng thái: ✅ xong · 🟡 một phần · ⏳ chưa làm · ⚖️ cần n
 - ✅ 2026.8.2: Giao diện “Khôi phục từ SYS_SaoLuuDongXoa” (hoàn tất C-07).
 - ⏳ Kiểm chứng trên Google Sheets thật: `getRangeList().setValue()` và `deleteRows()` với dữ liệu lớn (mock đã kiểm chứng logic).
 - ✅ Khóa sổ năm (quy trình người dùng): kiểm chứng công nợ đầu năm = phiếu chưa trả mang sang (test `khoaSoNam`); không cần bộ nhớ đệm 6 tháng.
+- ✅ 2026.9.3: Trang chủ không tính lại công nợ khi mở (đọc bản tổng hợp), không che màn hình.
 - ✅ 2026.9.1: Khóa sổ năm là **1 thao tác** (tự tạo DATA<năm>, chuyển sổ ĐNTT + phiếu cân cùng lúc, tự đăng ký) — người dùng yêu cầu 26/09/2026.
 - ✅ 2026.9.0: Báo cáo tự đọc năm đã khóa sổ.
 - 🚫 QL_NHAPKHO bỏ “Chốt sổ năm” (người dùng quyết định 26/09/2026): khóa sổ chỉ làm ở ĐNTT; sheet `PhieuCan_DN_<năm>` chỉ do nút “Chuyển Phiếu Cân Đã Khóa Sổ” tạo. Không sửa repo QL_NHAPKHO.

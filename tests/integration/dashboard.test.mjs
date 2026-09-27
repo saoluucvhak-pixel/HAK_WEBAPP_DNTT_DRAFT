@@ -42,3 +42,28 @@ test('once the summary sheet covers the month, opening the home page does not re
   assert.equal(doc, 0, 'PhieuCan_DN must not be read');
   assert.equal(s.klMuaThangKg, 17000);
 });
+
+test('the home page debt figures come from the stored summary, not a fresh debt calculation', () => {
+  const { w, run } = world();
+  const r = run('_defaultCongNoRange_')();
+  const live = Array.from(run('_computeDebtByCustomerLive_')(r.fDate, r.tDate)).filter(x => x.congNo > 0);
+  const s1 = run('getDashboardStats_')(); // lần đầu: chưa có bản tổng hợp -> tính 1 lần
+  assert.equal(s1.tongNoGoKeo, live.reduce((a, x) => a + x.congNo, 0));
+  assert.ok(s1.congNoCapNhatLuc, 'shows when the figures were computed');
+
+  // Sau khi Duyệt (xóa snapshot) hoặc có người xem Công nợ khoảng khác: Trang chủ vẫn không tính lại.
+  run('_invalidateCongNoCache_')();
+  run('getDebtByCustomer_')('2020-01-01', '2020-02-01');
+  run('_invalidatePcCache_')(); run('_invalidateCtSrc112Cache_')();
+  let doc = 0;
+  [w.pc.getSheetByName('PhieuCan_DN'), w.main.getSheetByName('DNTT_GK_DN_CT'), w.main.getSheetByName('DNTT_GK_DN')].forEach(sh => {
+    const goc = sh.getRange.bind(sh); sh.getRange = (...a) => { doc++; return goc(...a); };
+  });
+  const s2 = run('getDashboardStats_')();
+  assert.equal(doc, 0, 'PhieuCan_DN and the payment books are not read');
+  assert.equal(s2.tongNoGoKeo, s1.tongNoGoKeo);
+
+  // Nút "Cập nhật ngay" tính lại khoảng mặc định.
+  assert.match(run('webRunCongNoRefreshNow_')(), /^✅/);
+  assert.ok(doc > 0);
+});

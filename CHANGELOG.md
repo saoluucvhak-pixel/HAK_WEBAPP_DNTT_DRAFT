@@ -2,6 +2,16 @@
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/). Phiên bản theo `NĂM.ĐỢT.SỬA`; thay đổi làm đổi hành vi nghiệp vụ (⚖️) sẽ tăng số ĐỢT và ghi rõ đã được người dùng đồng ý.
 
+## [2026.9.3] — Trang chủ mở nhanh
+
+### Fixed
+- **Trang chủ tải rất lâu**: “Tổng nợ / Top 5 khách hàng nợ” tính lại TOÀN BỘ công nợ (đọc cả PhieuCan_DN + sổ đã chốt, ~720 nghìn ô với 15.000 phiếu) mỗi khi vừa Duyệt, sang ngày mới trước trigger 7:30, hoặc có người xem Báo cáo Công nợ khoảng ngày khác. Nay Trang chủ đọc bản tổng hợp gọn (Tổng nợ + Top 5) lưu mỗi lần công nợ khoảng mặc định được tính (trigger 7:30/13:00, nút Cập nhật, Báo cáo Công nợ khoảng mặc định) — chỉ còn đọc ~17 nghìn ô của File Nháp, không mở file Phiếu Cân / File Chính.
+- Trang chủ không còn che cả màn hình khi tải; ghi rõ thời điểm tổng hợp công nợ + nút **🔄 Cập nhật ngay**.
+- Bỏ lượt đọc cả sheet DNTT_GK_DN mỗi lần mở Trang chủ (số “đơn xin cũ chưa xử lý” chỉ Trợ lý AI dùng — nay chỉ tính khi hỏi AI).
+
+### Tests
+- 93 test (thêm 1; thất bại trên 2026.9.2).
+
 ## [2026.9.2] — Xuất lại Báo cáo Thanh toán của năm đã khóa sổ
 
 ### Fixed

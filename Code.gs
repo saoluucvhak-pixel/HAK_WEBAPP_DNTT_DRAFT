@@ -1,6 +1,6 @@
 /**
  * ============================================================
- * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.2
+ * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.3
  * Lịch sử thay đổi: CHANGELOG.md · Kiến trúc: docs/ARCHITECTURE.md
  * ------------------------------------------------------------
  * *** QUAN TRỌNG - CẦN LÀM TRƯỚC KHI DÙNG BẢN NÀY (chỉ 1 LẦN DUY NHẤT
@@ -6927,7 +6927,36 @@ function refreshCongNoCache_(fDate, tDate, khRows) {
   const rows = khRows || _computeDebtByCustomerLive_(fDate, tDate);
   _writeCongNoKhSheet_(rows);
   _setCongNoCacheMeta_(fDate, tDate);
+  const macDinh = _defaultCongNoRange_();
+  if (fDate === _clampReportRange_(macDinh.fDate, macDinh.tDate) && tDate === macDinh.tDate) _luuCongNoTrangChu_(rows);
   return { kh: rows.length };
+}
+
+// Trang chủ chỉ cần Tổng nợ + Top 5: lưu gọn (vài trăm byte) mỗi khi công nợ
+// khoảng mặc định được tính (trigger 7:30/13:00, nút Cập nhật, Báo cáo Công
+// nợ khoảng mặc định) -> mở Trang chủ không phải tính lại công nợ.
+const TRANG_CHU_CONG_NO_PROP = "TRANG_CHU_CONG_NO";
+function _luuCongNoTrangChu_(rows) {
+  const dangNo = rows.filter(r => r.congNo > 0);
+  _ghiJsonProp_(TRANG_CHU_CONG_NO_PROP, {
+    tongNo: dangNo.reduce((s, r) => s + r.congNo, 0),
+    top5: dangNo.slice(0, 5).map(r => ({ khachHang: r.khachHang, khoa: r.khoa, congNo: r.congNo })),
+    capNhatLuc: Utilities.formatDate(new Date(), "GMT+7", "dd/MM/yyyy HH:mm")
+  });
+}
+/** Số "đơn xin" cũ (nhập tay ở DNTT_GK_DN) chưa xử lý - dùng cho Trợ lý AI. */
+function _demNguonChoXuLy_() {
+  try {
+    return _srcThatDataCache_().filter(r => !utils.isBlank(r[0]) && String(r[17]).toUpperCase() !== "Y" && String(r[14]) !== "Đóng TT").length;
+  } catch (e) { return 0; }
+}
+/** Tổng nợ + Top 5 cho Trang chủ; chưa có thì tính 1 lần (khoảng mặc định). */
+function _congNoTrangChu_() {
+  const daLuu = _docJsonProp_(TRANG_CHU_CONG_NO_PROP);
+  if (daLuu.capNhatLuc) return daLuu;
+  const range = _defaultCongNoRange_();
+  getDebtByCustomer_(range.fDate, range.tDate);
+  return _docJsonProp_(TRANG_CHU_CONG_NO_PROP);
 }
 
 /** #1+#3 (bản CÔNG KHAI cho Web App): đọc snapshot nếu khoảng ngày khớp
@@ -6954,6 +6983,7 @@ function getDebtByCustomer_(fDate, tDate) {
  * khoảng ngày khớp và đọc được đúng số liệu vừa làm mới. */
 function webRunCongNoRefreshNow_(fDate, tDate) {
   try {
+    if (!fDate || !tDate) ({ fDate, tDate } = _defaultCongNoRange_()); // Trang chủ: khoảng mặc định
     const fClamped = _clampReportRange_(fDate, tDate);
     const rows = _computeDebtByCustomerLive_(fClamped, tDate);
     refreshCongNoCache_(fClamped, tDate, rows);
@@ -7830,10 +7860,9 @@ function getDashboardStats_() {
     mainSetup: !!PropertiesService.getScriptProperties().getProperty('MAIN_SS_ID'), // MỚI: để Web App biết hiện form cấu hình File Chính nếu chưa có
     muiGio: _kiemTraMuiGio_(), // MỚI: cảnh báo nếu múi giờ project sai (ảnh hưởng toàn bộ lịch chạy nền)
     draftCount: 0, draftReady: 0, draftPending: 0, draftTotalTien: 0,
-    nguonChoXuLy: 0,
     klMuaThangKg: 0, tienMuaThang: 0, klThanhToanThangTan: 0, tienThanhToanThang: 0,
     muaTheoNguonGoc: [], muaTheoDaiLy: [],
-    tongNoGoKeo: 0, top5KhachHangNo: []
+    tongNoGoKeo: 0, top5KhachHangNo: [], congNoCapNhatLuc: ""
   };
   try {
     const list = getDraftListSummary_();
@@ -7843,31 +7872,12 @@ function getDashboardStats_() {
     result.draftTotalTien = list.reduce((s, x) => s + (x.sanSangChot ? x.soTien : 0), 0);
   } catch (e) { /* File Nháp chưa thiết lập -> giữ giá trị mặc định */ }
 
+  // Tổng nợ + Top 5: số đã tổng hợp (xem _luuCongNoTrangChu_), không tính lại công nợ khi mở trang.
   try {
-    // SỬA (tối ưu tốc độ - "lưu trữ nhiều thì chậm load"): trước đây đọc
-    // thẳng TOÀN BỘ DNTT_GK_DN thật (sổ nguồn lưu MỌI hồ sơ từ trước đến
-    // giờ, kể cả đã Đóng TT) mỗi lần mở Trang chủ - càng nhiều lịch sử
-    // càng chậm. Dùng lại cache dùng chung đã có sẵn cho đúng sheet này
-    // (_srcThatDataCache_(), TTL 90s, đã được xóa ngay mỗi khi CT/Src/112
-    // thật thay đổi - xem _invalidateCtSrc112Cache_()) thay vì tự đọc.
-    const data = _srcThatDataCache_();
-    result.nguonChoXuLy = data.filter(r => !utils.isBlank(r[0]) && String(r[17]).toUpperCase() !== "Y" && String(r[14]) !== "Đóng TT").length;
-  } catch (e) {}
-
-  // MỚI (theo yêu cầu - "Tổng nợ tiền gỗ keo và 5 khách hàng còn nợ
-  // nhiều nhất"): dùng lại ĐÚNG getDebtByCustomer_() đã có (mục AB) với
-  // khoảng ngày MẶC ĐỊNH của Công Nợ (_defaultCongNoRange_(), 90 ngày -
-  // cũng CHÍNH LÀ khoảng trigger 7:30/13:00 đang giữ cache) - nên phần
-  // lớn trường hợp Trang chủ đọc thẳng snapshot có sẵn (nhanh), không
-  // phải quét lại PhieuCan_DN/CT thật lần nữa. rows trả về đã sắp giảm
-  // dần theo congNo sẵn từ _computeDebtByCustomerLive_() nên chỉ cần lọc
-  // dương (đang nợ, bỏ qua khách đã trả dư/âm) rồi lấy 5 dòng đầu.
-  try {
-    const range = _defaultCongNoRange_();
-    const debtRows = getDebtByCustomer_(range.fDate, range.tDate);
-    const dangNo = debtRows.filter(r => r.congNo > 0);
-    result.tongNoGoKeo = dangNo.reduce((s, r) => s + r.congNo, 0);
-    result.top5KhachHangNo = dangNo.slice(0, 5).map(r => ({ khachHang: r.khachHang, khoa: r.khoa, congNo: r.congNo }));
+    const cn = _congNoTrangChu_();
+    result.tongNoGoKeo = cn.tongNo || 0;
+    result.top5KhachHangNo = cn.top5 || [];
+    result.congNoCapNhatLuc = cn.capNhatLuc || "";
   } catch (e) {}
 
   // "Tháng này" (mua, thanh toán, theo Nguồn gốc / Đại lý) lấy từ
@@ -9305,6 +9315,7 @@ function _chatbotTraLoiDuPhong_(cauHoi) {
 function _layNgayVaSoLieuThatChoChatbot_() {
   try {
     const stats = getDashboardStats_();
+    stats.nguonChoXuLy = _demNguonChoXuLy_();
     const list = getDraftListSummary_();
     const dem = { cho_tinh: 0, cho_dntt: 0, dang_dntt: 0 };
     list.forEach(r => { if (dem[r.trangThaiKey] !== undefined) dem[r.trangThaiKey]++; });

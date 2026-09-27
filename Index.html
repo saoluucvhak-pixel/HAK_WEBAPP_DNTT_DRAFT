@@ -449,7 +449,7 @@
       <div class="nav-item" data-page="settings"><span class="ic">⚙️</span> Cài đặt / Nháp</div>
     </nav>
     <div class="nguoi-dung-chip" id="nguoi-dung-chip"></div>
-    <div class="sidebar-footer">Hệ thống Quản Lý Thanh Toán · v2026.9.2</div>
+    <div class="sidebar-footer">Hệ thống Quản Lý Thanh Toán · v2026.9.3</div>
   </aside>
 
   <main class="main">
@@ -891,6 +891,7 @@ function renderDashboard(){
       <h3>Tổng Nợ Tiền Gỗ Keo</h3>
       <div class="value" id="s-tong-no" style="font-family:'IBM Plex Mono',monospace; font-size:26px; font-weight:600; color:var(--danger)">–</div>
       <div class="muted" style="font-size:12px; margin-top:4px">VNĐ - cộng dồn công nợ còn lại của TẤT CẢ khách hàng (khoảng 90 ngày gần nhất), chỉ tính khách hàng còn nợ</div>
+      <div class="hint-text" id="s-congno-cap-nhat" style="margin-top:6px"></div>
     </div>
     <div class="card">
       <h3>Top 5 Khách Hàng Nợ Nhiều Nhất</h3>
@@ -918,7 +919,8 @@ function renderDashboard(){
   </div>
   <div id="dash-setup-warning"></div>`;
 
-  call('getDashboardStats', [], 'Đang tải dữ liệu...').then(s => {
+  // Không che cả màn hình: từng ô tự hiện khi có số, người dùng vẫn chuyển trang được.
+  call('getDashboardStats', [], null).then(s => {
     document.getElementById('s-draft').textContent = s.draftCount;
     document.getElementById('s-ready').textContent = s.draftReady;
     document.getElementById('s-pending').textContent = s.draftPending;
@@ -933,6 +935,9 @@ function renderDashboard(){
       + (s.thangNayCapNhatLuc ? ` - lần gần nhất: ${esc(s.thangNayCapNhatLuc)}` : '')
       + '. <button class="btn sm ghost" onclick="doCapNhatThangNay()">🔄 Cập nhật ngay</button>';
     document.getElementById('s-tong-no').textContent = fmtMoney(s.tongNoGoKeo);
+    document.getElementById('s-congno-cap-nhat').innerHTML = 'Công nợ tổng hợp lúc 7:30 và 13:00 hằng ngày'
+      + (s.congNoCapNhatLuc ? ` - lần gần nhất: ${esc(s.congNoCapNhatLuc)}` : '')
+      + '. <button class="btn sm ghost" onclick="doCapNhatCongNoTrangChu()">🔄 Cập nhật ngay</button>';
     document.getElementById('dash-top5-no').innerHTML = _renderDashTop5NoTable_(s.top5KhachHangNo);
     if (!s.draftSetup) {
       document.getElementById('dash-setup-warning').innerHTML = `
@@ -4472,6 +4477,9 @@ function doRunDaily15hNow(){
  * rồi quay lại bấm "Xem" lần nữa. */
 function doCapNhatThangNay(){
   call('webRunDaily15hRefreshNow', [], 'Đang cập nhật số liệu tháng này...').then(res => handleResult(res, renderDashboard));
+}
+function doCapNhatCongNoTrangChu(){
+  call('webRunCongNoRefreshNow', [], 'Đang tính lại công nợ...').then(res => handleResult(res, renderDashboard));
 }
 function doDongBoNgayBaoCao(tab){
   call('webRunDaily15hRefreshNow', [], 'Đang đồng bộ ngay...').then(res => {

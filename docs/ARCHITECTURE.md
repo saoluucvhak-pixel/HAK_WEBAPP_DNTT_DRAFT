@@ -1,4 +1,4 @@
-# ARCHITECTURE — HAK Quản Lý Thanh Toán (v2026.9.2)
+# ARCHITECTURE — HAK Quản Lý Thanh Toán (v2026.9.3)
 
 > Tài liệu sống: cập nhật mỗi khi đổi module, lớp, luồng dữ liệu hoặc schema.
 > Phân tích chi tiết hiện trạng: `docs/PROJECT_ANALYSIS.md`. Kiến trúc đích: `docs/REFACTOR_PLAN.md` §3–§4.
@@ -112,6 +112,8 @@ Lỗi: `api()` và các hàm trả `{success:false, message}` dùng `_loiChoNguo
 | `ChiTietCongNoPhieuCan_DRAFT` | 15h (ngày hôm qua) | Chi tiết công nợ theo phiếu cân (ngày hôm qua), Trợ lý AI |
 
 Quy tắc: màn hình mở thường xuyên đọc snapshot, không quét PhieuCan_DN. `_pcData_()` (bộ nhớ đệm 90 giây, tối đa 3,6 MB) chỉ dùng khi tính snapshot, khi chọn khoảng ngày khác mặc định, sổ chi tiết, đối soát/bảo trì và các bước cần chi tiết vài phiếu (Duyệt, Báo cáo ĐNTT, Mở Đóng TT).
+
+- Trang chủ: “tháng này” đọc PhanTichNhapTT_DRAFT; **Tổng nợ + Top 5** đọc Script Property `TRANG_CHU_CONG_NO` (`_luuCongNoTrangChu_`, ghi trong `refreshCongNoCache_` khi khoảng = `_defaultCongNoRange_`). Chỉ tính công nợ khi chưa từng có bản tổng hợp hoặc bấm “Cập nhật ngay” (`webRunCongNoRefreshNow_()` không tham số = khoảng mặc định). Sau Duyệt số trên Trang chủ cập nhật ở lần trigger kế tiếp (có ghi giờ).
 
 ## 4e. Khóa sổ năm (quy trình của người dùng, 26/09/2026)
 
