@@ -115,8 +115,11 @@ test('no page calls a function that needs more permission than the page itself',
   const tooHigh = [];
   names.forEach(n => {
     if (level[n] === undefined) return;
+    // A function that starts by refusing users without a permission runs at that level.
+    const chan = /^function [^\n]*\n\s*if \(!coQuyen\('(\w+)'\)\) \{[^\n]*return; \}/.exec(fns[n]);
+    const lv = chan ? Math.max(level[n], LV[chan[1]]) : level[n];
     for (const c of fns[n].matchAll(/call\('([A-Za-z0-9_]+)'/g)) {
-      if (LV[routes[c[1]].quyen] > level[n]) tooHigh.push(`${n} → ${c[1]} (${routes[c[1]].quyen})`);
+      if (LV[routes[c[1]].quyen] > lv) tooHigh.push(`${n} → ${c[1]} (${routes[c[1]].quyen})`);
     }
   });
   assert.deepEqual(tooHigh, []);

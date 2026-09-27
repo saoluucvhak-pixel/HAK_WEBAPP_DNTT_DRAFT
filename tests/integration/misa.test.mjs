@@ -99,3 +99,46 @@ test('MISA cleanup rejects a missing date or an unknown mode', () => {
   assert.equal(run('webDonDepMisa_')('trung', '', '2026-09-30', false).success, false);
   assert.equal(run('webDonDepMisa_')('khac', '2026-09-01', '2026-09-30', false).success, false);
 });
+
+// Báo Cáo MISA: cảnh báo hồ sơ đã chốt chưa có dòng MISA + Tạo bổ sung.
+function worldDaChot() {
+  const w = buildWorld();
+  const code = loadCode(w.options);
+  assert.match(code.run('runConfirmPayment_')(['A1'], '26/09/2026'), /^✅/);
+  // Ngày ĐN của hồ sơ (sổ 112 cột Q) - thực tế luôn có, dữ liệu mẫu để trống.
+  w.main.getSheetByName('DNTT_GK_DN_112').data.slice(1).forEach(r => { r[16] = D('2026-09-20'); });
+  const nh = w.updateNh.getSheetByName('Update_NganHang_DN');
+  return { w, nh, ...code };
+}
+const soTrongMisa = nh => nh.rows(33).slice(1).map(r => String(r[4]).replace(/^'/, '')).sort();
+
+test('the MISA screen flags closed tickets that have no MISA row, and "Tạo bổ sung" writes only those', () => {
+  const { run, nh } = worldDaChot();
+  const xem = () => run('getMisaDataTheoNgay_')('2026-09-26', '2026-09-26');
+  assert.equal(xem().thieu.soPhieu, 0, 'approval wrote every MISA row');
+
+  const truoc = nh.rows(33).slice(1).find(r => String(r[4]).includes('PC001')).slice();
+  nh.data.splice(nh.data.findIndex(r => String(r[4]).includes('PC001')), 1); // như lần tự động ghi bị lỗi / bị xóa tay
+  const thieu = xem().thieu;
+  assert.deepEqual([thieu.soPhieu, thieu.soHoSo, thieu.phieu[0].soPhieuCan, thieu.phieu[0].idHeThong], [1, 1, 'PC001', 'A1']);
+  assert.equal(xem().items.length, 1, 'the MISA rows themselves are still shown');
+
+  const kq = run('webTaoBoSungMisa_')('2026-09-26', '2026-09-26');
+  assert.equal(kq.success, true, kq.message);
+  assert.deepEqual([kq.count, kq.xong], [1, true]);
+  assert.deepEqual(soTrongMisa(nh), ['PC001', 'PC002'], 'only the missing ticket is written, no duplicate of PC002');
+  const moi = nh.rows(33).slice(1).find(r => String(r[4]).includes('PC001'));
+  assert.deepEqual([moi[4], moi[24]].map(String), [truoc[4], truoc[24]].map(String), 'same ticket and amount as the original row');
+  assert.equal(String(moi[12]).replace(/^'/, ''), '0123456789', 'account of the record (sổ 112), leading zero kept');
+  assert.equal(xem().thieu.soPhieu, 0);
+
+  const lan2 = run('webTaoBoSungMisa_')('2026-09-26', '2026-09-26');
+  assert.deepEqual([lan2.count, lan2.xong], [0, true]);
+  assert.deepEqual(soTrongMisa(nh), ['PC001', 'PC002'], 'running again writes nothing');
+});
+
+test('"Tạo bổ sung" is an accounting action (view-only users cannot run it)', () => {
+  const { run } = worldDaChot();
+  assert.equal(run('API_ROUTES').webTaoBoSungMisa.quyen, 'NGHIEP_VU');
+  assert.equal(run('webTaoBoSungMisa_')('', '2026-09-26').success, false);
+});

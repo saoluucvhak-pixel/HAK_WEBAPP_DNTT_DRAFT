@@ -2,6 +2,22 @@
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/). Phiên bản theo `NĂM.ĐỢT.SỬA`; thay đổi làm đổi hành vi nghiệp vụ (⚖️) sẽ tăng số ĐỢT và ghi rõ đã được người dùng đồng ý.
 
+## [2026.9.17] — Báo Cáo MISA: cảnh báo hồ sơ đã chốt thiếu dòng MISA + “Tạo bổ sung” (người dùng đồng ý 27/09/2026)
+
+### Added
+- **Báo Cáo MISA › 🔍 Xem** kiểm tra thêm: phiếu cân **đã chốt** (sổ CT, kể cả năm đã khóa sổ) có **Ngày CK** trong khoảng đang xem mà Số phiếu cân **chưa có** dòng nào trong `Update_NganHang_DN` (vd lần tự động ghi lúc Duyệt bị lỗi, hoặc dòng đã bị xóa). Có thì hiện khung ⚠️ “N phiếu cân của M hồ sơ đã chốt chưa có dòng MISA” kèm danh sách (tối đa 50 dòng).
+- Nút **➕ Tạo bổ sung** (vai trò Kế toán trở lên; Chỉ xem chỉ thấy cảnh báo): chỉ ghi các phiếu còn thiếu, không tạo trùng; thông tin người nhận lấy từ sổ 112 theo mã hồ sơ (kể cả sửa tay), giống Tạo lại MISA. Tự làm theo lô 150 hồ sơ tới khi xong, rồi tải lại màn hình.
+- Kiểm tra thiếu bị lỗi thì màn MISA vẫn hiện dữ liệu, chỉ báo “chưa kiểm tra được”.
+
+### Changed
+- Ghi dòng MISA còn thiếu (kiểm tra trùng + ghi trong 1 khóa) tách thành `_ghiMisaChuaCo_`, dùng chung cho Tạo lại MISA (Hệ Thống) và Tạo bổ sung. Lấy dòng CT của các hồ sơ tách thành `_ctDongCuaHoSo_` (dùng trong `_gomChiTietChuyenKhoan_`).
+
+### Giữ nguyên (người dùng quyết định 27/09/2026)
+- **Mở Đóng TT vẫn xóa dòng MISA** của hồ sơ (có sao lưu) — không giữ lại.
+
+### Tests
+- 110 test (thêm 2 test: phát hiện phiếu thiếu, Tạo bổ sung chỉ ghi phiếu thiếu + giữ số 0 đầu STK, chạy lại không ghi thêm; quyền Nghiệp vụ). Test phân quyền trang nhận biết hàm có chặn `coQuyen(...)` ở đầu.
+
 ## [2026.9.16] — Nhật ký thao tác giữ số 0 đầu của mã (phát hiện khi chạy test lặp lại)
 
 ### Fixed

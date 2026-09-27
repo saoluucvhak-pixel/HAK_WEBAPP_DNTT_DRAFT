@@ -526,7 +526,7 @@
       <div class="nav-item" role="button" tabindex="0" data-page="settings"><span class="ic">⚙️</span> Cài đặt / Nháp</div>
     </nav>
     <div class="nguoi-dung-chip" id="nguoi-dung-chip"></div>
-    <div class="sidebar-footer">Hệ thống Quản Lý Thanh Toán · v2026.9.16<br><button type="button" class="theme-toggle" id="theme-toggle" aria-label="Đổi giao diện sáng / tối">🌓 Giao diện: Tự động</button></div>
+    <div class="sidebar-footer">Hệ thống Quản Lý Thanh Toán · v2026.9.17<br><button type="button" class="theme-toggle" id="theme-toggle" aria-label="Đổi giao diện sáng / tối">🌓 Giao diện: Tự động</button></div>
   </aside>
 
   <main class="main">
@@ -2420,6 +2420,7 @@ function renderMisaTab(){
         <div class="field"><label>Người thụ hưởng</label><select id="misa-f-thuhuong"><option value="">-- Tất cả --</option></select></div>
       </div>
     </div>
+    <div class="card hidden" id="misa-thieu-card" style="border-color:var(--timber)"></div>
     <div class="card"><div id="misa-result"></div></div>`;
   loadMisaTab();
 }
@@ -2435,9 +2436,45 @@ function loadMisaTab(){
     state.misaTruncated = ketQua && ketQua.truncated;
     state.misaTotal = ketQua && ketQua.total;
     state.misaFilters = {};
+    renderMisaThieu(ketQua && ketQua.thieu);
     renderMisaFilterOptions();
     renderMisaResultTable();
   });
+}
+/** Cảnh báo hồ sơ đã chốt trong khoảng ngày chưa có dòng MISA + nút Tạo bổ sung. */
+function renderMisaThieu(thieu){
+  const card = document.getElementById('misa-thieu-card');
+  if (!card) return;
+  if (!thieu || (!thieu.loi && !thieu.soPhieu)) { card.classList.add('hidden'); card.innerHTML = ''; return; }
+  card.classList.remove('hidden');
+  if (thieu.loi) { card.innerHTML = `<div class="hint-text">⚠️ Chưa kiểm tra được hồ sơ thiếu MISA: ${esc(thieu.loi)}</div>`; return; }
+  const conNua = thieu.soPhieu > thieu.phieu.length ? `<p class="muted" style="font-size:12px">Hiển thị ${thieu.phieu.length}/${thieu.soPhieu} phiếu đầu.</p>` : '';
+  const nut = coQuyen('NGHIEP_VU')
+    ? `<button class="btn accent" style="margin-top:8px" onclick="doTaoBoSungMisa()">➕ Tạo bổ sung</button>`
+    : '<p class="muted" style="font-size:12px">Liên hệ Kế toán để tạo bổ sung.</p>';
+  card.innerHTML = `<h3 style="margin-top:0">⚠️ ${thieu.soPhieu} phiếu cân của ${thieu.soHoSo} hồ sơ đã chốt chưa có dòng MISA</h3>
+    <p class="muted" style="font-size:13px">Hồ sơ đã Đóng Thanh Toán trong khoảng ngày nhưng chưa có trong Update_NganHang_DN (vd lần tự động ghi lúc Duyệt bị lỗi, hoặc dòng đã bị xóa). “Tạo bổ sung” chỉ ghi các phiếu còn thiếu, không tạo trùng.</p>${conNua}
+    <div style="overflow-x:auto"><table><thead><tr><th>Ngày TT</th><th>Số phiếu cân</th><th>Chủ rừng</th><th>Thành tiền</th><th>Mã hồ sơ</th></tr></thead><tbody>
+      ${thieu.phieu.map(p => `<tr><td class="mono">${esc(p.ngayTT)}</td><td class="mono">${esc(p.soPhieuCan)}</td><td>${esc(p.chuRung)}</td><td class="num">${fmtMoney(p.thanhTien)}</td><td class="mono">${esc(p.idHeThong)}</td></tr>`).join('')}
+    </tbody></table></div>${nut}<div id="misa-bosung-result" style="margin-top:8px"></div>`;
+}
+function doTaoBoSungMisa(){
+  if (!coQuyen('NGHIEP_VU')) { toast('❌ Tài khoản của bạn không có quyền tạo bổ sung MISA.', 'err'); return; }
+  const f = document.getElementById('misa-from').value, t = document.getElementById('misa-to').value;
+  const box = document.getElementById('misa-bosung-result');
+  let tong = 0;
+  box.innerHTML = '<div class="hint-text">⏳ Đang tạo bổ sung...</div>';
+  function chayMotLan(){
+    call('webTaoBoSungMisa', [f, t], null).then(res => {
+      if (!res || !res.success) { box.innerHTML = `<div class="hint-text">⚠️ ${esc((res && res.message) || 'Thất bại.')} (đã ghi ${tong} dòng trước khi lỗi)</div>`; return; }
+      tong += res.count || 0;
+      // Không ghi được dòng nào mà vẫn còn thiếu -> dừng, tránh lặp mãi.
+      if (!res.xong && res.count) { box.innerHTML = `<div class="hint-text">⏳ ${esc(res.message)}</div>`; chayMotLan(); return; }
+      toast(res.xong ? `✅ Đã tạo bổ sung ${tong} dòng MISA.` : res.message, res.xong ? 'ok' : 'warn');
+      loadMisaTab();
+    });
+  }
+  chayMotLan();
 }
 function renderMisaFilterOptions(){
   const card = document.getElementById('misa-filter-card');
