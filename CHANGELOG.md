@@ -2,6 +2,22 @@
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/). Phiên bản theo `NĂM.ĐỢT.SỬA`; thay đổi làm đổi hành vi nghiệp vụ (⚖️) sẽ tăng số ĐỢT và ghi rõ đã được người dùng đồng ý.
 
+## [2026.9.15] — Nút Dọn Dẹp MISA (người dùng yêu cầu 27/09/2026)
+
+### Added
+- Hệ Thống › **🔧 Tạo Lại MISA** có thêm phần **🧹 Dọn Dẹp MISA** (vai trò có quyền Hệ Thống): xóa dòng thừa trong `Update_NganHang_DN` theo khoảng **Ngày CK**, chọn 1 trong 3 loại:
+  - **Trùng Số phiếu cân** — giữ dòng xuất hiện đầu tiên trong file, xóa các dòng lặp lại;
+  - **Mồ côi** — Số phiếu cân không còn trong sổ đã chốt (kể cả năm đã khóa sổ); dòng nhập tay không có Số phiếu cân thì giữ;
+  - **Tất cả trong khoảng ngày** — dùng trước khi Tạo lại MISA cho sạch.
+- Luôn **Xem trước** (danh sách + lý do, không đổi dữ liệu) rồi mới hiện nút **Xóa N dòng** (có xác nhận). Đổi loại/ngày sau khi xem thì phải xem lại. Lúc xóa quét lại dữ liệu mới nhất trong khóa hệ thống; dòng bị xóa **sao lưu** và khôi phục được ở Hệ Thống › Khôi Phục (nhãn “🧹 Dọn MISA”), ghi Lịch Sử Sửa Đổi.
+- Lọc ngày của Báo Cáo MISA, file xuất và Dọn dẹp dùng chung 1 hàm (`_boLocNgayMisa_`).
+
+### Không thêm nút xóa cho UNC
+- `ChiTietUNC` là dấu vết file UNC đã gửi ngân hàng. Dòng trùng đã được xử lý từ 2026.9.14 (tạo lại thì thay bản cũ, báo cáo chỉ hiện bản mới nhất); dòng của hồ sơ không còn tồn tại đã có Bảo Trì › Xóa Mồ Côi ChiTietUNC.
+
+### Tests
+- 107 test (thêm 4 test Dọn dẹp MISA: xem trước không đổi dữ liệu, trùng giữ dòng đầu + khôi phục giữ số 0 đầu, mồ côi bỏ qua dòng nhập tay, chỉ trong khoảng ngày, từ chối thiếu ngày / chế độ lạ).
+
 ## [2026.9.14] — Báo Cáo UNC không nhân dòng khi tạo lại UNC (người dùng báo 27/09/2026)
 
 ### Fixed

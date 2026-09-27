@@ -39,3 +39,63 @@ test('the MISA export is the 33-column MISA import layout, filtered by payment d
   // Màn hình Báo Cáo MISA vẫn ra đúng dòng như file xuất.
   assert.deepEqual(Array.from(run('getMisaDataTheoNgay_')('2026-09-01', '2026-09-30').items, x => x.soPhieuCan), ['PC001']);
 });
+
+// Dọn dẹp MISA (Hệ Thống): xem trước không đổi dữ liệu; xóa có sao lưu, khôi
+// phục được; chỉ trong khoảng Ngày CK đã chọn.
+function worldDonDep() {
+  const ctx = world();
+  const nh = ctx.w.updateNh.getSheetByName('Update_NganHang_DN');
+  const dong = (so, ngay, tien) => { const r = new Array(33).fill(''); r[2] = ngay; r[4] = so; r[5] = '0011001234567'; r[24] = tien; return r; };
+  nh.data.push(
+    dong('PC001', '05/09/2026', 999),   // trùng PC001 (dòng đầu là 1e6)
+    dong('PC009', '10/09/2026', 3e6),   // mồ côi: không có trong sổ đã chốt
+    dong('', '10/09/2026', 4e6));       // nhập tay, không có Số phiếu cân
+  return { ...ctx, nh };
+}
+const soVaTien = nh => nh.rows(33).slice(1).map(r => r[4] + ':' + r[24]);
+
+test('MISA cleanup, duplicates: preview changes nothing, delete keeps the first row and can be restored', () => {
+  const { run, nh } = worldDonDep();
+  const truoc = soVaTien(nh);
+  const xem = run('webDonDepMisa_')('trung', '2026-09-01', '2026-09-30', false);
+  assert.equal(xem.success, true, xem.message);
+  assert.equal(xem.soDong, 1);
+  assert.deepEqual([xem.dong[0].soPhieuCan, xem.dong[0].thanhTien], ['PC001', 999]);
+  assert.match(xem.dong[0].lyDo, /Trùng/);
+  assert.deepEqual(soVaTien(nh), truoc, 'preview does not change data');
+
+  const kq = run('webDonDepMisa_')('trung', '2026-09-01', '2026-09-30', true);
+  assert.equal(kq.success, true, kq.message);
+  assert.equal(kq.soDong, 1);
+  assert.deepEqual(soVaTien(nh), ['PC001:1000000', 'PC002:2000000', 'PC009:3000000', ':4000000']);
+  assert.equal(nh.rows(33)[1][5], '0011001234567', 'leading zero kept on remaining rows');
+
+  const ds = run('getDanhSachSaoLuuXoa_')();
+  assert.equal(ds[0].hanhDong, 'XOA_MISA');
+  assert.equal(run('webKhoiPhucSaoLuuXoa_')(ds[0].ma).success, true);
+  assert.deepEqual(soVaTien(nh).sort(), truoc.slice().sort(), 'restored');
+  const khoiPhuc = nh.rows(33).slice(1).find(r => r[24] === 999);
+  assert.equal(khoiPhuc[5], '0011001234567', 'restored row keeps leading zero');
+});
+
+test('MISA cleanup, orphans: only rows whose ticket is not in the closed ledger; manual rows are kept', () => {
+  const { run, nh } = worldDonDep();
+  const kq = run('webDonDepMisa_')('moCoi', '2026-09-01', '2026-09-30', true);
+  assert.equal(kq.success, true, kq.message);
+  assert.equal(kq.soDong, 1);
+  assert.deepEqual(soVaTien(nh), ['PC001:1000000', 'PC002:2000000', 'PC001:999', ':4000000']);
+});
+
+test('MISA cleanup, all rows in range: only the chosen payment dates are touched', () => {
+  const { run, nh } = worldDonDep();
+  assert.equal(run('webDonDepMisa_')('trung', '2026-10-01', '2026-10-31', false).soDong, 0, 'duplicate outside the range is not touched');
+  const kq = run('webDonDepMisa_')('tatCa', '2026-09-01', '2026-09-30', true);
+  assert.equal(kq.soDong, 4);
+  assert.deepEqual(soVaTien(nh), ['PC002:2000000']);
+});
+
+test('MISA cleanup rejects a missing date or an unknown mode', () => {
+  const { run } = worldDonDep();
+  assert.equal(run('webDonDepMisa_')('trung', '', '2026-09-30', false).success, false);
+  assert.equal(run('webDonDepMisa_')('khac', '2026-09-01', '2026-09-30', false).success, false);
+});
