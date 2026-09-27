@@ -1,6 +1,6 @@
 /**
  * ============================================================
- * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.11
+ * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.12
  * Lịch sử thay đổi: CHANGELOG.md · Kiến trúc: docs/ARCHITECTURE.md
  * ------------------------------------------------------------
  * *** QUAN TRỌNG - CẦN LÀM TRƯỚC KHI DÙNG BẢN NÀY (chỉ 1 LẦN DUY NHẤT
@@ -2566,7 +2566,10 @@ function webMoDongThanhToanTheoHoSo_(chuRungInput, ngayDongTTInput, lanTTInput) 
       return { success: false, message: "❌ Không tìm thấy dòng CT nào thuộc hồ sơ này - dữ liệu có thể không nhất quán, chạy Bảo Trì để kiểm tra trước." };
     }
 
-    // ===== 4. TẠO LẠI Y HỆT TRONG FILE NHÁP (Src + 112 + từng CT con) =====
+    // ===== 4. DỰNG SẴN (trong bộ nhớ) hồ sơ mới cho File Nháp =====
+    // v2026.9.12 (R-05): trước đây ghi Nháp TRƯỚC rồi mới xóa khỏi sổ chính -
+    // lỗi giữa chừng để hồ sơ nằm ở CẢ Nháp lẫn sổ chính. Nay: dựng sẵn mọi
+    // dòng -> XÓA khỏi sổ chính (có sao lưu) -> rồi mới GHI Nháp (bước 5b).
     const newId = Utilities.getUuid().split('-')[0];
     const now = new Date();
     const { shCT: shDraftCT, sh112: shDraft112, shSrc: shDraftSrc } = getDraftSheets_();
@@ -2575,7 +2578,6 @@ function webMoDongThanhToanTheoHoSo_(chuRungInput, ngayDongTTInput, lanTTInput) 
     newSrcRow[0] = newId; newSrcRow[1] = now;
     newSrcRow[12] = newId; // ID_112 trỏ tới 112 mới
     newSrcRow[14] = ""; newSrcRow[15] = ""; newSrcRow[16] = ""; newSrcRow[17] = ""; // Trạng thái/Mã Lần TT/Ngày Đóng TT/Đã Xử Lý -> để trống (Chờ ĐNTT)
-    shDraftSrc.appendRow(_dongAnToan_([newSrcRow], COT_CHU.SRC)[0]);
 
     const id112Moi = Utilities.formatDate(now, "GMT+7", "yyyyMMddHHmmss") + ("0000" + Math.floor(Math.random() * 10000)).slice(-4);
     let new112Row;
@@ -2595,7 +2597,6 @@ function webMoDongThanhToanTheoHoSo_(chuRungInput, ngayDongTTInput, lanTTInput) 
     new112Row[16] = now; // Ngày ĐN mới
     new112Row[18] = ""; new112Row[19] = ""; new112Row[20] = ""; new112Row[21] = ""; new112Row[23] = ""; // Lần TT/Ngày dự kiến/Đã chốt/Đủ ĐK/Trạng Thái -> để trống
     new112Row[22] = id112Moi;
-    shDraft112.appendRow(_dongAnToan_([new112Row], COT_CHU.H112)[0]);
 
     const pcMap = utils.buildIndexMap(_pcData_(), PC_COL.SO_CT, true);
     const dsPhieuCanGoc = [];
@@ -2614,19 +2615,24 @@ function webMoDongThanhToanTheoHoSo_(chuRungInput, ngayDongTTInput, lanTTInput) 
       const { row: draftCtRow } = buildDraftCtRow_(newId, stt + 1, soP, srcInfoChoCt, pcMap);
       draftCtRowsMoi.push(draftCtRow);
     });
-    // v2026.6: ghi toàn bộ CT con vào Nháp bằng 1 lệnh (trước đây appendRow
-    // từng dòng - lỗi giữa chừng để lại hồ sơ Nháp thiếu phiếu cân).
-    shDraftCT.getRange(shDraftCT.getLastRow() + 1, 1, draftCtRowsMoi.length, draftCtRowsMoi[0].length).setValues(_dongAnToan_(draftCtRowsMoi, COT_CHU.CT));
 
-    // ===== 5. XÓA KHỎI BẢN CHÍNH =====
+    // ===== 5a. XÓA KHỎI BẢN CHÍNH (trước khi ghi Nháp - R-05) =====
     // v2026.6: đọc lại dữ liệu MỚI NHẤT ngay lúc xóa và xóa theo ĐÚNG ID
     // (không dùng vị trí dòng đã đọc từ trước - tránh xóa nhầm dòng nếu
     // sheet vừa bị chèn/xóa dòng), sao lưu nguyên dòng trước khi xóa.
     const id112Cha = String(h112Row[0] || "").trim();
     const maThaoTac = _maThaoTacMoi_("MO_DONG_THANH_TOAN");
-    _saoLuuVaXoaDong_(shCT, r => String(r[1] || "").trim() === idCha, "MO_DONG_THANH_TOAN", maThaoTac);
-    _saoLuuVaXoaDong_(shSrc, r => String(r[0] || "").trim() === idCha, "MO_DONG_THANH_TOAN", maThaoTac);
-    if (id112Cha) _saoLuuVaXoaDong_(sh112, r => String(r[0] || "").trim() === id112Cha, "MO_DONG_THANH_TOAN", maThaoTac);
+    let daXoaSoChinh = 0;
+    try {
+      daXoaSoChinh += _saoLuuVaXoaDong_(shCT, r => String(r[1] || "").trim() === idCha, "MO_DONG_THANH_TOAN", maThaoTac);
+      daXoaSoChinh += _saoLuuVaXoaDong_(shSrc, r => String(r[0] || "").trim() === idCha, "MO_DONG_THANH_TOAN", maThaoTac);
+      if (id112Cha) _saoLuuVaXoaDong_(sh112, r => String(r[0] || "").trim() === id112Cha, "MO_DONG_THANH_TOAN", maThaoTac);
+    } catch (eXoa) {
+      // Chưa ghi gì vào Nháp. Đã xóa được 1 phần -> chỉ đường Khôi phục.
+      _invalidateCtSrc112Cache_();
+      const huongDan = daXoaSoChinh ? ` Một phần hồ sơ đã bị xóa (đã sao lưu) → Hệ Thống › Khôi phục, chọn lần xóa mã ${maThaoTac} để trả về như cũ.` : " Sổ chính chưa bị thay đổi.";
+      return { success: false, message: `❌ Không xóa được hồ sơ khỏi sổ chính: ${_loiChoNguoiDung_(eXoa)}. Chưa tạo hồ sơ Nháp.${huongDan}` };
+    }
 
     // MỚI (theo yêu cầu - "3 bảng con phải thay đổi theo bảng mẹ"):
     // ChiTietDNTT, ChiTietUNC, Update_NganHang_DN đều là BẢNG CON của
@@ -2635,6 +2641,29 @@ function webMoDongThanhToanTheoHoSo_(chuRungInput, ngayDongTTInput, lanTTInput) 
     // "mồ côi" (đã Mở Đóng nhưng vẫn còn hiện trong báo cáo/lịch sử như
     // thể vẫn đang chốt).
     const ketQuaDonDep = _donDep3BangConKhiMoDong_(idCha, soPhieuCanLienQuan, maThaoTac);
+
+    // ===== 5b. GHI hồ sơ mới vào File Nháp (sau khi đã xóa khỏi sổ chính) =====
+    // Lỗi ở bước này: hồ sơ chỉ còn trong sao lưu -> dọn phần Nháp ghi dở rồi
+    // báo mã thao tác để Khôi phục (Hệ Thống › Khôi phục) trả lại như cũ.
+    try {
+      shDraftSrc.appendRow(_dongAnToan_([newSrcRow], COT_CHU.SRC)[0]);
+      shDraft112.appendRow(_dongAnToan_([new112Row], COT_CHU.H112)[0]);
+      // Ghi toàn bộ CT con bằng 1 lệnh (không để hồ sơ Nháp thiếu phiếu cân).
+      shDraftCT.getRange(shDraftCT.getLastRow() + 1, 1, draftCtRowsMoi.length, draftCtRowsMoi[0].length).setValues(_dongAnToan_(draftCtRowsMoi, COT_CHU.CT));
+    } catch (eNhap) {
+      [[shDraftCT, 1], [shDraft112, 0], [shDraftSrc, 0]].forEach(([sh, cot]) => {
+        try {
+          const lr = sh.getLastRow();
+          if (lr < 2) return;
+          const dong = [];
+          sh.getRange(2, cot + 1, lr - 1, 1).getValues().forEach((r, k) => { if (String(r[0] || "").trim() === newId) dong.push(k + 2); });
+          _nhomDongLienTiep_(dong).reverse().forEach(([a, b]) => sh.deleteRows(a, b - a + 1));
+        } catch (eDon) { /* dọn Nháp ghi dở lỗi - hồ sơ Nháp dở (nếu còn) xóa tay được */ }
+      });
+      logAction_("LOI_MO_DONG_THANH_TOAN", idCha, `Đã xóa khỏi sổ chính (sao lưu mã ${maThaoTac}) nhưng ghi File Nháp lỗi: ${eNhap && eNhap.message}`);
+      _invalidateCtSrc112Cache_();
+      return { success: false, message: `❌ Đã xóa hồ sơ khỏi sổ chính (đã sao lưu) nhưng KHÔNG ghi được vào File Nháp: ${_loiChoNguoiDung_(eNhap)} → Vào Hệ Thống › Khôi phục, chọn lần xóa mã ${maThaoTac} để trả hồ sơ về như cũ, rồi thử Mở Đóng TT lại.` };
+    }
 
     // ===== 6. MỞ KHÓA TẤT CẢ Phiếu Cân liên quan =====
     let soDaMoKhoa = 0;

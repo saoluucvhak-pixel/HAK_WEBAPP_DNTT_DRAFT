@@ -2,6 +2,20 @@
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/). Phiên bản theo `NĂM.ĐỢT.SỬA`; thay đổi làm đổi hành vi nghiệp vụ (⚖️) sẽ tăng số ĐỢT và ghi rõ đã được người dùng đồng ý.
 
+## [2026.9.12] — Mở Đóng TT: xóa trước, ghi Nháp sau (R-05, người dùng đồng ý)
+
+### Changed
+- **Thứ tự Mở Đóng Thanh Toán** (`webMoDongThanhToanTheoHoSo_`): trước đây ghi hồ sơ mới vào File Nháp **trước** rồi mới xóa khỏi sổ chính — lỗi giữa chừng để hồ sơ nằm ở **cả** Nháp lẫn sổ chính (phải dọn tay; tiền không bị trả 2 lần nhờ Duyệt chặn). Nay:
+  1. Dựng sẵn hồ sơ Nháp trong bộ nhớ (chưa ghi).
+  2. Sao lưu + xóa khỏi sổ chính (CT, DNTT_GK_DN, 112) và 3 bảng con (ChiTietDNTT, ChiTietUNC, MISA) — như cũ.
+  3. **Rồi mới** ghi hồ sơ vào Nháp; sau đó mở khóa phiếu cân, tính lại báo cáo — như cũ.
+- Lỗi ở bước xóa: chưa ghi gì vào Nháp; nếu đã xóa được 1 phần thì thông báo nêu **mã thao tác** để Khôi phục.
+- Lỗi ở bước ghi Nháp: tự dọn dòng Nháp ghi dở, ghi nhật ký `LOI_MO_DONG_THANH_TOAN`, thông báo nêu mã thao tác → Hệ Thống › Khôi phục trả hồ sơ về sổ chính như cũ (không bị chặn “trả 2 lần” vì Nháp không còn bản sao).
+- Kết quả khi chạy thành công **không đổi** (cùng dữ liệu, cùng sao lưu, cùng thông báo).
+
+### Tests
+- 118 test (+2 trong `reopenAndMaintenance`, đều thất bại trên 2026.9.11): xóa sổ chính lỗi → không có hồ sơ Nháp; ghi Nháp lỗi → không còn dòng Nháp dở, thông báo có mã thao tác, Khôi phục trả đủ CT/112.
+
 ## [2026.9.11] — Rà soát lại: 3 lỗi nhỏ
 
 ### Fixed

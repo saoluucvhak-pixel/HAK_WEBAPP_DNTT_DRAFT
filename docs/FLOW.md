@@ -35,7 +35,7 @@ Lỗi giữa chừng → `LOI_CHOT_THANH_TOAN`; bấm Duyệt lại cùng hồ s
 
 | Thao tác | Luồng | Hoàn tác |
 |---|---|---|
-| Mở Đóng TT (`webMoDongThanhToanTheoHoSo_`) | Tìm đúng 1 hồ sơ (Chủ rừng + Ngày Đóng TT + Lần TT) → tạo lại hồ sơ mới trong Nháp (Chờ ĐNTT) → sao lưu + xóa Src/CT/112/ChiTietDNTT/ChiTietUNC/MISA → mở khóa mọi dòng phiếu cân (cột W), Trạng thái “Test giá” → tính lại Phân tích | Khôi phục theo mã thao tác (từ chối nếu gây trả 2 lần) |
+| Mở Đóng TT (`webMoDongThanhToanTheoHoSo_`) | Tìm đúng 1 hồ sơ (Chủ rừng + Ngày Đóng TT + Lần TT) → dựng sẵn hồ sơ Nháp trong bộ nhớ → sao lưu + xóa Src/CT/112/ChiTietDNTT/ChiTietUNC/MISA → **rồi mới** ghi hồ sơ mới vào Nháp (Chờ ĐNTT; 2026.9.12 — lỗi ghi Nháp thì báo mã thao tác để Khôi phục) → mở khóa mọi dòng phiếu cân (cột W), Trạng thái “Test giá” → tính lại Phân tích | Khôi phục theo mã thao tác (từ chối nếu gây trả 2 lần) |
 | Xóa mồ côi (Bảo trì) | Đọc lại mới nhất, xóa theo ID, sao lưu | Khôi phục |
 | Đồng bộ tên KH | Sửa cột Khách hàng PhieuCan_DN theo CT (cột W, mọi dòng); nhật ký tên cũ → mới | Nhật ký |
 | Vá ngân hàng 112 | Chỉ ô Ngân hàng đang trống, tra HD_STK | Nhật ký |

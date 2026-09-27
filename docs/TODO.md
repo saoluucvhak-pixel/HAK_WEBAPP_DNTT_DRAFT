@@ -51,7 +51,7 @@ Trạng thái: ✅ xong · 🟡 một phần · ⏳ chưa làm · ⚖️ cần n
 | R-07, R-21, R-22 | Công nợ phiếu cân ngày D; sắp xếp Tình hình TT; Thông Số | ✅ 2026.9.7 |
 | R-08, R-09, R-10 | Mở File Chính 1 lần/lượt; `_taoFileBaoCao_`; bỏ đọc lặp | ✅ 2026.9.7 |
 | R-19, R-20, R-23…R-26 | Client, a11y, dark/print, mã chết | ✅ 2026.9.7 |
-| R-05 | Mở Đóng TT nguyên tử | ⏳ ⚖️ |
+| R-05 | Mở Đóng TT nguyên tử | ✅ 2026.9.12 ⚖️ (người dùng đồng ý 27/09/2026) |
 | R-06 | `logAction_` lỗi âm thầm | ✅ 2026.9.11 |
 | R-11, R-12 | Webhook: giới hạn tần suất, so sánh an toàn | ✅ 2026.9.9 — bỏ hẳn webhook (người dùng yêu cầu) |
 | R-14, R-18 | Đọc số dạng chữ VN; PDF lỗi | ✅ 2026.9.11 |
