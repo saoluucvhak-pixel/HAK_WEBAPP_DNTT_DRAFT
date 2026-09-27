@@ -1,4 +1,4 @@
-# ARCHITECTURE — HAK Quản Lý Thanh Toán (v2026.9.6)
+# ARCHITECTURE — HAK Quản Lý Thanh Toán (v2026.9.12)
 
 > Tài liệu sống: cập nhật mỗi khi đổi module, lớp, luồng dữ liệu hoặc schema.
 > Phân tích chi tiết hiện trạng: `docs/PROJECT_ANALYSIS.md`. Kiến trúc đích: `docs/REFACTOR_PLAN.md` §3–§4.
@@ -139,6 +139,7 @@ Hệ Thống › **🔒 Khóa Sổ Năm** (`webKhoaSoNam_(nam, chayThat)`, Quả
 3. Phiếu cân: Số phiếu có trong CT các năm đã khóa sổ (kể cả N) và không còn trong sổ đang mở → `PhieuCan_DN_<năm NGÀY CÂN>` (cùng quy ước QL_NHAPKHO). Sổ đã khóa là căn cứ “đã trả” (không cần ID_DNTT = Đóng TT). Mọi dòng cùng Số phiếu đi cùng nhau; thiếu ngày cân → ở lại, liệt kê. Lô 500 Số phiếu: chép phần còn thiếu → `flush` → xóa.
 4. Chạy lại an toàn: file DATA đang tạo dở lưu ở `KHOA_SO_DANG_LAM` (dùng lại, không tạo file thứ 2); dòng sổ có mã hồ sơ đã ở DATA không chép lại; phiếu đếm theo Số phiếu ở sheet đích. Hết ~4 phút thì dừng, bấm lại để làm tiếp. Chưa xóa xong khỏi File Chính thì **chưa đăng ký** (báo cáo không cộng trùng).
 5. Mở Đóng TT từ chối Ngày Đóng TT thuộc năm đã khóa sổ.
+5b. Trong lúc chạy thật, file Phiếu Cân mang **cờ “đang khóa sổ”** (Developer Metadata cấp spreadsheet, khóa `HAK_KHOA_SO_NAM_DANG_CHAY`, hiển thị DOCUMENT, giá trị `{nam, batDau, ung:"DNTT"}`; gỡ trong `finally`) để QL_NHAPKHO tạm dừng import / nhập tay / tính giá — bên đọc coi cờ hết hiệu lực sau 10 phút (2026.9.10, `_voiCoKhoaSo_`).
 6. Khóa sổ **chỉ làm ở ĐNTT**: QL_NHAPKHO bỏ “Chốt sổ năm” (người dùng quyết định 26/09/2026), chỉ còn đọc các sheet `PhieuCan_DN_<năm>`.
 7. Cài đặt › File lưu trữ theo năm (`webSetLuuTruNam_`): chỉ xem / trỏ lại file (vd file bị di chuyển); từ chối nếu thiếu sheet sổ, là File Chính, hoặc File Chính còn dòng CT cùng ID_CT.
 

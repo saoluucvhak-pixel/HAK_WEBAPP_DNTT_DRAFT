@@ -20,7 +20,7 @@ const XEM = 'xem@gmail.com';
 const MENU_FUNCTIONS = ['runProcessDetail', 'runCreate112', 'showPayDialog', 'showAddPaymentDialog', 'showOpenDraftDialog',
   'showDeleteDraftDialog', 'runFillMissingBankOnly', 'showRefreshPcCacheDialog', 'showSetupPcCacheTriggerDialog',
   'showSetup10MinTriggerDialog', 'showSetupDaily15hTriggerDialog', 'showResetPhanTichDialog', 'showResetChiTietCongNoDialog',
-  'showWebhookInfoDialog', 'showKhoaDinhDangTextDialog', 'showChonVungDialog', 'showGenerateThongSoDialog', 'showKetNoiFileChinhDialog'];
+  'showKhoaDinhDangTextDialog', 'showChonVungDialog', 'showGenerateThongSoDialog', 'showKetNoiFileChinhDialog'];
 const ENTRY_POINTS = ['doGet', 'onOpen', 'api', 'thongTinDangNhap', 'dangXuat', 'nhanPhienDangNhap'];
 
 /** Main app (owner deployment) + helpers to act as different visitors. */

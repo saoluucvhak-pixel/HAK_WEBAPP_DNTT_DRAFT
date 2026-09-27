@@ -2,6 +2,35 @@
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/). Phiên bản theo `NĂM.ĐỢT.SỬA`; thay đổi làm đổi hành vi nghiệp vụ (⚖️) sẽ tăng số ĐỢT và ghi rõ đã được người dùng đồng ý.
 
+## [2026.9.7 → 2026.9.12] — Đồng bộ từ code trên main (commit “UPDATE270920265”, 27/09/2026)
+
+Code.gs / Index.html đã được cập nhật trực tiếp trên main; mục này ghi lại theo chú thích phiên bản trong code và phần so sánh với 2026.9.6.
+
+### Fixed
+- **Mở Đóng TT** (9.12, R-05): xóa khỏi sổ chính (có sao lưu) TRƯỚC rồi mới ghi hồ sơ Nháp; lỗi giữa chừng không còn để hồ sơ nằm ở cả 2 nơi — báo rõ mã thao tác để Khôi phục. Mở khóa phiếu cân tìm theo cột Số phiếu cân (SO_CT) — đúng cột Duyệt đã khóa, mọi dòng cùng số (9.7).
+- **Duyệt**: chặn thêm trường hợp 1 phiếu cân nằm ở 2 dòng Nháp trong CÙNG lượt Duyệt (2 hồ sơ, hoặc 2 lần trong 1 hồ sơ).
+- **Công nợ theo phiếu cân tại 1 ngày** (9.7): so theo ngày giờ VN — phiếu trả đúng ngày đang xem không còn bị tính là nợ.
+- **Tình hình thanh toán**: sắp theo ngày thật (trước đây so chuỗi dd/MM/yyyy, sai khi qua nhiều tháng).
+- **Xóa hồ sơ Nháp** (9.7): dọn ChiTietDNTT / ChiTietUNC có sao lưu (khôi phục được, nhãn “🗑️ Xóa hồ sơ Nháp”), xóa theo khối.
+- **Đối soát tên KH** (9.7): tra theo cột Số phiếu cân, sửa mọi dòng cùng số.
+- **Số dạng chữ kiểu Việt Nam** (9.11, R-14): `utils.parseNum` đọc đúng “1.234.567”, “12,5”… (trước: 1,234 và 125).
+- **Xuất PDF** (9.11, R-18): Google trả lỗi thì không lưu trang lỗi thành .pdf; báo cáo tổng hợp vẫn trả file Excel kèm cảnh báo.
+- Nhật ký lỗi ghi (9.11, R-06): ghi thất bại thì ghi vào nhật ký thực thi Apps Script, không mất âm thầm.
+- Sheet Thông Số (9.7): hiện link file ĐANG DÙNG (đã đổi ở Cài đặt), không phải mặc định trong code.
+
+### Changed
+- **Báo cáo ĐNTT** (9.8): in theo thời gian lập hồ sơ; Bảng kê chi tiết cùng thứ tự hồ sơ.
+- **Khóa sổ năm** (9.10): cờ “đang khóa sổ” trên file Phiếu Cân cho QL_NHAPKHO (xem ARCHITECTURE §4e).
+- Tạo file báo cáo dùng `moveTo` thư mục (thay addFile/removeFile đã lỗi thời); mở File Chính 1 lần mỗi lượt chạy; Tổng hợp 112 đọc “Lần TT” 1 lần.
+- **Giao diện** (9.7): chế độ sáng / tối (nút ở chân thanh bên), điều khiển bằng bàn phím + trình đọc màn hình, giảm chuyển động, bảng cuộn ngang trên điện thoại, bản in gọn; nút mở file là thẻ link đúng chuẩn.
+
+### Removed
+- **Webhook làm mới cache tức thì** (9.9, người dùng yêu cầu): bỏ `?action=lam_moi_cache`, menu “🔑 Xem Link Webhook…”, nút ở Cài đặt. Đoạn onChange cũ còn cài ở file Phiếu Cân / HD_NCC chỉ nhận lỗi, không làm gì.
+- Code không còn dùng: `searchChuRungNames_`, `getChuRungContext_`, `getNguoiDeNghiInfo_`, `getSoHopDongOptions_`, `getNguoiNhanTienOptions_`, `_hdNccActiveData_`…
+
+### Tests
+- 100 test: bỏ `showWebhookInfoDialog` khỏi danh sách hàm công khai; thêm test đọc số dạng chữ kiểu Việt Nam.
+
 ## [2026.9.6] — Ngày đề nghị, % tiến độ, đo hiệu năng
 
 ### Added

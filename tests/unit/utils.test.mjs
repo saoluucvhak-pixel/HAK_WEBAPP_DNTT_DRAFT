@@ -23,6 +23,18 @@ test('utils.parseNum keeps numbers and strips non-numeric characters', () => {
   assert.equal(p(NaN), 0);
 });
 
+test('utils.parseNum reads Vietnamese-formatted text numbers (2026.9.11)', () => {
+  const p = run('utils.parseNum');
+  assert.equal(p('1.234.567'), 1234567, 'dots as thousand separators');
+  assert.equal(p('1.234.567,5'), 1234567.5);
+  assert.equal(p('1,234,567.5'), 1234567.5);
+  assert.equal(p('12,5'), 12.5, 'one comma not followed by 3 digits = decimal');
+  assert.equal(p('1,234'), 1234, 'one comma followed by 3 digits = thousands (unchanged)');
+  assert.equal(p('1.5'), 1.5, 'one dot = decimal (unchanged)');
+  assert.equal(p('15.000.000 đ'), 15000000);
+  assert.equal(p('-2.500'), -2.5);
+});
+
 test('utils.isBlank', () => {
   const b = run('utils.isBlank');
   assert.equal(b(''), true);
