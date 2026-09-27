@@ -8,7 +8,7 @@ function world() {
   const w = buildWorld();
   return { w, ...loadCode(w.options) };
 }
-const homNay = () => new Date().toISOString().slice(0, 10);
+const homNay = () => new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 10); // ngày theo giờ VN, như code
 const cuaA1 = w => w.main.getSheetByName('ChiTietUNC').rows(18).slice(1).filter(r => r[0] === 'A1');
 
 test('creating the UNC again for the same record replaces its history row (old row backed up)', () => {

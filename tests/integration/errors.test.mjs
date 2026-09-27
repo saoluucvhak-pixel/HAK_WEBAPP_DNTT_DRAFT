@@ -44,3 +44,14 @@ test('login and permission errors pass through the router unchanged', () => {
   const { run } = setup();
   assert.throws(() => run('api')('khong-hop-le', 'getDashboardStats', []), /^Error: \[AUTH\]/);
 });
+
+test('an all-digit error code keeps its leading zero in the log (found as a 2% flaky run)', () => {
+  const world = buildWorld();
+  const { env, run } = loadCode({ ...world.options, owner: OWNER });
+  env._identity.activeUser = OWNER;
+  env.Utilities.getUuid = () => '01234567-0000-4000-8000-000000000000';
+  run('refreshAllDraftCaches_ = function () { const x = null; return x.pc; }');
+  assert.match(run('api')('', 'webRefreshPhieuCanCache', []).message, /mã 01234567/);
+  const entry = world.main.getSheetByName('NhatKyThaoTac').rows().slice(1).find(r => r[2] === 'LOI_HE_THONG');
+  assert.equal(entry[3], '01234567');
+});

@@ -57,6 +57,7 @@ Trạng thái: ✅ xong · 🟡 một phần · ⏳ chưa làm · ⚖️ cần n
 - ✅ 2026.8.2: Giao diện “Khôi phục từ SYS_SaoLuuDongXoa” (hoàn tất C-07).
 - ⏳ Kiểm chứng trên Google Sheets thật: `getRangeList().setValue()` và `deleteRows()` với dữ liệu lớn (mock đã kiểm chứng logic).
 - ✅ Khóa sổ năm (quy trình người dùng): kiểm chứng công nợ đầu năm = phiếu chưa trả mang sang (test `khoaSoNam`); không cần bộ nhớ đệm 6 tháng.
+- ✅ 2026.9.16: Nhật ký thao tác giữ dạng chữ cho Mã hồ sơ / mã lỗi (không mất số 0 đầu).
 - ✅ 2026.9.15: Hệ Thống › Dọn Dẹp MISA (trùng / mồ côi / tất cả trong khoảng Ngày CK), xem trước + sao lưu. UNC không cần nút xóa riêng (xem CHANGELOG).
 - ❓ Chờ người dùng: Mở Đóng TT có giữ dòng MISA không (hiện xóa, có sao lưu); màn Xem MISA có cảnh báo “hồ sơ đã chốt chưa có dòng MISA” + nút Tạo bù không.
 - ✅ 2026.9.14: Tạo lại UNC thay dòng cũ trong ChiTietUNC; Báo Cáo UNC mỗi hồ sơ 1 dòng (mới nhất).

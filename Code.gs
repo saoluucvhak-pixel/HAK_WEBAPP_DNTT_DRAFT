@@ -1,6 +1,6 @@
 /**
  * ============================================================
- * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.15
+ * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.16
  * Lịch sử thay đổi: CHANGELOG.md · Kiến trúc: docs/ARCHITECTURE.md
  * ------------------------------------------------------------
  * *** QUAN TRỌNG - CẦN LÀM TRƯỚC KHI DÙNG BẢN NÀY (chỉ 1 LẦN DUY NHẤT
@@ -936,7 +936,8 @@ function logAction_(actionType, refId, detail) {
       sh.getRange(1, 1, 1, 5).setFontWeight("bold").setBackground("#d9d9d9");
       sh.setColumnWidths(1, 5, 180);
     }
-    sh.appendRow(_dongAnToan_([[new Date(), _emailNguoiThucHien_() || "N/A", actionType, refId, detail]])[0]);
+    // Mã hồ sơ / mã lỗi giữ dạng CHỮ: mã toàn chữ số (vd "01234567") không bị đổi thành số, mất số 0 đầu.
+    sh.appendRow(_dongAnToan_([[new Date(), _emailNguoiThucHien_() || "N/A", actionType, refId, detail]], [3])[0]);
   } catch (e) {
     // Không chặn luồng chính nếu ghi log lỗi. v2026.9.11 (R-06): nhưng không
     // để mất âm thầm - ghi vào nhật ký thực thi của Apps Script (Executions)

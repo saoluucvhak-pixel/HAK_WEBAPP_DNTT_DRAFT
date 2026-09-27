@@ -2,6 +2,15 @@
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/). Phiên bản theo `NĂM.ĐỢT.SỬA`; thay đổi làm đổi hành vi nghiệp vụ (⚖️) sẽ tăng số ĐỢT và ghi rõ đã được người dùng đồng ý.
 
+## [2026.9.16] — Nhật ký thao tác giữ số 0 đầu của mã (phát hiện khi chạy test lặp lại)
+
+### Fixed
+- Cột **Mã hồ sơ** của `NhatKyThaoTac` ghi không khóa dạng chữ: mã toàn chữ số (vd mã lỗi `01234567`, khoảng 2% số mã lỗi) bị Google Sheets đổi thành số, mất số 0 đầu → Quản trị tra mã lỗi người dùng báo không ra. Nay `logAction_` luôn ghi cột này dạng chữ (`_dongAnToan_(…, [3])`).
+
+### Tests
+- 108 test. Thêm test mã lỗi toàn chữ số (thất bại trên 2026.9.15) — trước đây test lỗi hệ thống thỉnh thoảng đỏ vì đúng lỗi này.
+- `uncHistory.test.mjs` lấy “hôm nay” theo giờ VN như code (trước lấy theo UTC nên đỏ từ 0 giờ đến 7 giờ sáng VN).
+
 ## [2026.9.15] — Nút Dọn Dẹp MISA (người dùng yêu cầu 27/09/2026)
 
 ### Added
