@@ -1,6 +1,6 @@
 /**
  * ============================================================
- * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.43
+ * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.44
  * Lịch sử thay đổi: CHANGELOG.md · Kiến trúc: docs/ARCHITECTURE.md
  * ------------------------------------------------------------
  * *** QUAN TRỌNG - CẦN LÀM TRƯỚC KHI DÙNG BẢN NÀY (chỉ 1 LẦN DUY NHẤT
@@ -191,14 +191,22 @@ function getConfigLinksForSettings_() {
 /** MỚI: đổi 1 link bất kỳ trong danh sách "Link các file liên quan" -
  * dùng CHUNG 1 hàm cho mọi loại (Sheet hoặc Thư mục Drive) để "thực hiện
  * ở đơn vị khác" chỉ cần đổi đúng link tương ứng, không cần sửa code. */
-function webSetSwappableLink_(key, idOrUrl, type) {
+function webSetSwappableLink_(key, idOrUrl) {
   try {
+    // Rà soát 28/09/2026: chỉ nhận đúng các link khai báo ở _swappableLinkDefs_ (trước đây
+    // ghi được Script Property BẤT KỲ theo tên trình duyệt gửi lên, kể cả SSO_SECRET), loại
+    // (Sheet / Thư mục) lấy theo khai báo, không theo trình duyệt.
+    const def = _swappableLinkDefs_().find(d => d.key && d.key === key);
+    if (!def) return { success: false, message: "❌ Link này không đổi được ở đây." };
+    const type = def.type;
     const clean = String(idOrUrl || "").trim();
     if (!clean) return { success: false, message: "❌ Vui lòng nhập ID hoặc URL." };
     const m = type === "folder" ? clean.match(/\/folders\/([a-zA-Z0-9_-]+)/) : clean.match(/\/d\/([a-zA-Z0-9_-]+)/);
     const finalId = m ? m[1] : clean;
     const name = type === "folder" ? DriveApp.getFolderById(finalId).getName() : SpreadsheetApp.openById(finalId).getName();
+    const cu = _resolveLinkId_(def);
     PropertiesService.getScriptProperties().setProperty(key, finalId);
+    logAction_(HANH_DONG_CAU_HINH, key, `Đổi "${def.label}": ${cu || "(trống)"} → ${finalId} (${name})`);
     return { success: true, message: `✅ Đã đổi sang: "${name}".` };
   } catch (e) {
     return { success: false, message: "❌ Không mở được - kiểm tra lại ID/URL và quyền truy cập: " + _loiChoNguoiDung_(e) };
@@ -499,6 +507,38 @@ const COL_TRANG_THAI_DNTT = 23;
  * Sửa/Xóa - phải "Về Chờ ĐNTT" (runHuyXacNhanDNTT_) trước nếu cần sửa. */
 function _isRecordEditable_(row112) {
   return utils.parseNum(row112[6]) > 0 && String(row112[COL_TRANG_THAI_DNTT] || "").trim() !== "Đang ĐNTT";
+}
+
+// ------------------------------------------------------------
+// SỐ TIỀN HỒ SƠ PHẢI KHỚP PHIẾU CÂN (rà soát 28/09/2026): Số tiền (cột G sổ 112 Nháp) là số
+// chuyển khoản thật (UNC, Duyệt) do "Đề Nghị Thanh Toán (tính lại)" cộng từ Thành tiền các
+// phiếu cân (cột Q sổ CT Nháp). Thêm / Bỏ phiếu cân (hoặc sửa tay File Nháp) không tính lại
+// -> hồ sơ vẫn "Chờ ĐNTT" với số tiền cũ, Duyệt sẽ khóa phiếu cân là "đã trả" nhưng chuyển
+// sai tiền. Hồ sơ lệch không được Xác nhận / In Báo Cáo ĐNTT / Tạo UNC / Duyệt.
+// ------------------------------------------------------------
+const LECH_TIEN_CHO_PHEP = 1; // đồng - sai số làm tròn
+/** Mã hồ sơ -> tổng Thành tiền các dòng sổ CT Nháp (22 cột, cột B mã hồ sơ, cột Q Thành tiền). */
+function _tongTienCtTheoHoSo_(ctRows) {
+  const tong = new Map();
+  ctRows.forEach(r => {
+    const id = String(r[1] || "").trim();
+    if (id) tong.set(id, (tong.get(id) || 0) + utils.parseNum(r[16]));
+  });
+  return tong;
+}
+/** Tổng Thành tiền theo hồ sơ của sổ CT Nháp - chỉ đọc 2 cột cần (B, Q). */
+function _tongTienCtNhap_() {
+  const { shCT } = getDraftSheets_();
+  return _tongTienCtTheoHoSo_(_docCacCot_(shCT, [1, 16], 22));
+}
+/** Số tiền dòng 112 Nháp khác tổng Thành tiền phiếu cân của hồ sơ (quá LECH_TIEN_CHO_PHEP). */
+function _hoSoLechTien_(row112, tongTheoHoSo) {
+  const id = String(row112[0] || "").trim();
+  return Math.abs(utils.parseNum(row112[6]) - (tongTheoHoSo.get(id) || 0)) > LECH_TIEN_CHO_PHEP;
+}
+/** Câu báo chung cho hồ sơ lệch số tiền. */
+function _canhBaoLechTien_(ids) {
+  return `Số tiền chưa khớp tổng tiền phiếu cân (vừa Thêm / Bỏ phiếu cân hoặc sửa tay File Nháp) - bấm "📤 Đề Nghị Thanh Toán (tính lại)" trước: ${ids.join(", ")}`;
 }
 
 const utils = {
@@ -2317,7 +2357,9 @@ function webSetMainSsId_(id) {
     const m = clean.match(/\/d\/([a-zA-Z0-9_-]+)/);
     const finalId = m ? m[1] : clean;
     const ss = SpreadsheetApp.openById(finalId); // thử mở để xác nhận hợp lệ + có quyền truy cập
+    const cu = PropertiesService.getScriptProperties().getProperty('MAIN_SS_ID') || "";
     setMainSsId_(finalId);
+    logAction_(HANH_DONG_CAU_HINH, "MAIN_SS_ID", `Đổi File Chính: ${cu || "(trống)"} → ${finalId} (${ss.getName()})`);
     return { success: true, message: `✅ Đã kết nối File Chính: "${ss.getName()}".` };
   } catch (e) {
     return { success: false, message: "❌ Không mở được file - kiểm tra lại ID/URL và quyền truy cập: " + _loiChoNguoiDung_(e) };
@@ -2355,15 +2397,24 @@ function getCompanyBankInfo_() {
     code: _getMisaDefault_("COMPANY_BANK_CODE", CFG.COMPANY_BANK_CODE)
   };
 }
+/** Nhật ký "trước → sau" các trường cấu hình đã đổi (không ghi gì nếu không đổi). */
+function _ghiNhatKyCauHinh_(nhom, truoc, sau, nhan) {
+  const thayDoi = _moTaThayDoi_(
+    Object.fromEntries(Object.keys(nhan).map(k => [k, String(truoc[k] == null ? "" : truoc[k])])),
+    Object.fromEntries(Object.keys(nhan).map(k => [k, String(sau[k] == null ? "" : sau[k])])), nhan);
+  if (thayDoi) logAction_(HANH_DONG_CAU_HINH, nhom, thayDoi);
+}
 function getMisaDefaultsForWeb_() {
   return getCompanyBankInfo_();
 }
 function webSetMisaDefaults_(values) {
   try {
     values = values || {};
+    const truoc = getCompanyBankInfo_();
     if (values.account !== undefined) _setMisaDefault_("COMPANY_BANK_ACCOUNT", values.account);
     if (values.name !== undefined) _setMisaDefault_("COMPANY_BANK_NAME", values.name);
     if (values.code !== undefined) _setMisaDefault_("COMPANY_BANK_CODE", values.code);
+    _ghiNhatKyCauHinh_("MISA", truoc, getCompanyBankInfo_(), { account: "Số TK công ty", name: "Ngân hàng công ty", code: "Mã NH công ty" });
     return { success: true, message: "✅ Đã lưu giá trị mặc định xuất báo cáo MISA." };
   } catch (e) {
     return { success: false, message: "❌ Lỗi: " + _loiChoNguoiDung_(e) };
@@ -2422,7 +2473,9 @@ function getExportRegionInfoForWeb_() {
 }
 function webSetExportRegion_(region) {
   try {
+    const cu = _getExportRegion_();
     _setExportRegion_(region);
+    if (cu !== region) logAction_(HANH_DONG_CAU_HINH, "EXPORT_REGION_LOCALE", `Vùng định dạng file xuất: ${cu} → ${region}`);
     return { success: true, message: `✅ Đã đổi Vùng Định Dạng Báo Cáo Xuất sang "${region}".` };
   } catch (e) {
     return { success: false, message: "❌ " + _loiChoNguoiDung_(e) };
@@ -2465,11 +2518,13 @@ function getUncConfigForWeb_() {
 function webSetUncConfig_(values) {
   try {
     values = values || {};
+    const truoc = getUncConfig_();
     if (values.tkTrichNo !== undefined) _setUncDefault_("TK_TRICH_NO", values.tkTrichNo);
     if (values.tkThuPhi !== undefined) _setUncDefault_("TK_THU_PHI", values.tkThuPhi);
     if (values.benChiuPhi !== undefined) _setUncDefault_("BEN_CHIU_PHI", values.benChiuPhi);
     if (values.loaiTien !== undefined) _setUncDefault_("LOAI_TIEN", values.loaiTien);
     if (values.sheetDmNH !== undefined) _setUncDefault_("SHEET_DM_NH", values.sheetDmNH);
+    _ghiNhatKyCauHinh_("UNC", truoc, getUncConfig_(), { tkTrichNo: "TK trích nợ", tkThuPhi: "TK thu phí", benChiuPhi: "Bên chịu phí", loaiTien: "Loại tiền", sheetDmNH: "Sheet DM ngân hàng" });
     return { success: true, message: "✅ Đã lưu cấu hình UNC." };
   } catch (e) {
     return { success: false, message: "❌ Lỗi: " + _loiChoNguoiDung_(e) };
@@ -2507,9 +2562,13 @@ function webSetUncConfig_(values) {
 // LIỆU TÀI CHÍNH ĐÃ CHỐT" khi ghi log nhưng trước đây KHÔNG hiện ra ở
 // trang audit trail này - vẫn nằm trong sheet log nhưng vô hình với
 // người xem trang "Lịch Sử Sửa Đổi".
+/** Nhật ký mọi lần đổi cấu hình ở Cài đặt (trước → sau) - hiện ở Hệ Thống › Lịch sử sửa đổi. */
+const HANH_DONG_CAU_HINH = "CAU_HINH_HE_THONG";
 const LICH_SU_SUA_DOI_ACTIONS = new Set(["MO_DONG_THANH_TOAN", "DOI_SOAT_DONG_BO_TEN", "VA_NGAN_HANG_112", "XOA_MO_COI_CHITIET_DNTT", "XOA_MO_COI_CHITIET_UNC", "XOA_MO_COI_CT_THAT", "XOA_MO_COI_SRC_THAT", "SUA_TEN_KH_PHIEU_CAN", "PHAN_QUYEN", "CAU_HINH_DANG_NHAP", "CANH_BAO_HEADER_PC", "XAC_NHAN_HEADER_PHIEU_CAN", "CHAN_TRA_HAI_LAN", "KHOI_PHUC_DONG_DA_XOA", "CAU_HINH_LUU_TRU_NAM", "KHOA_SO_NAM", "XOA_MISA", "XOA_UNC",
   // Thao tác trên hồ sơ (người dùng yêu cầu 28/09/2026 - kèm "trước → sau" khi sửa):
-  "SUA_NHAP", "THEM_PHIEU_NHAP", "XOA_PHIEU_NHAP", "XOA_NHAP", "XAC_NHAN_DNTT", "HUY_XAC_NHAN_DNTT", "CHOT_THANH_TOAN"]);
+  "SUA_NHAP", "THEM_PHIEU_NHAP", "XOA_PHIEU_NHAP", "XOA_NHAP", "XAC_NHAN_DNTT", "HUY_XAC_NHAN_DNTT", "CHOT_THANH_TOAN",
+  // Đổi cấu hình ảnh hưởng tiền / sổ sách (TK công ty, UNC, link file, vùng định dạng...) - rà soát 28/09/2026.
+  "CAU_HINH_HE_THONG"]);
 /**
  * SỬA (theo yêu cầu - "cho xem theo ngày, không phải cứ nối dài"): giờ
  * lọc theo khoảng ngày (fDate/tDate, dạng yyyy-MM-dd) thay vì luôn hiện
@@ -2855,11 +2914,13 @@ function webCreateUNCFromDraft_(selectedIds, ngayHieuLuc, tkTrichNoOverride, tkT
     const data = sh112.getRange(2, 1, lastRow - 1, 24).getValues();
 
     const filteredRows = [];
-    const skippedNotConfirmed = [];
+    const skippedNotConfirmed = [], skippedLechTien = [];
+    const tongTienCt = _tongTienCtNhap_();
     data.forEach(r => {
       const id = String(r[0] || "").trim();
       if (!id || !idSet.has(id)) return;
       if (String(r[COL_TRANG_THAI_DNTT] || "").trim() !== "Đang ĐNTT") { skippedNotConfirmed.push(id); return; }
+      if (_hoSoLechTien_(r, tongTienCt)) { skippedLechTien.push(id); return; }
       filteredRows.push({
         idHeThong: id,
         chuRung: String(r[2] || ""),
@@ -2875,6 +2936,7 @@ function webCreateUNCFromDraft_(selectedIds, ngayHieuLuc, tkTrichNoOverride, tkT
     if (filteredRows.length === 0) {
       let msg = "❌ Không có hồ sơ nào ở trạng thái 'Đang ĐNTT' để tạo UNC (phải bấm 'Xác Nhận' trước).";
       if (skippedNotConfirmed.length) msg += ` Hồ sơ chưa Xác Nhận: ${skippedNotConfirmed.join(", ")}.`;
+      if (skippedLechTien.length) msg += ` ⛔ ${_canhBaoLechTien_(skippedLechTien)}.`;
       return { success: false, message: msg };
     }
 
@@ -2882,7 +2944,11 @@ function webCreateUNCFromDraft_(selectedIds, ngayHieuLuc, tkTrichNoOverride, tkT
     // MỚI (theo yêu cầu): cho phép gõ TK Trích Nợ/TK Thu Phí KHÁC với
     // cấu hình mặc định NGAY LÚC TẠO - chỉ áp dụng cho lần tạo NÀY,
     // không lưu lại cấu hình gốc ở Cài Đặt.
-    return runCreateUNCOnly_(filteredRows, toDate, String(tkTrichNoOverride || "").trim(), String(tkThuPhiOverride || "").trim());
+    const ketQua = runCreateUNCOnly_(filteredRows, toDate, String(tkTrichNoOverride || "").trim(), String(tkThuPhiOverride || "").trim());
+    if (ketQua.success && skippedLechTien.length) {
+      ketQua.canhBaoTrung = [ketQua.canhBaoTrung, `⛔ KHÔNG tạo UNC cho ${skippedLechTien.length} hồ sơ - ${_canhBaoLechTien_(skippedLechTien)}.`].filter(Boolean).join(" ");
+    }
+    return ketQua;
   } catch (e) {
     return { success: false, message: "❌ Lỗi: " + _loiChoNguoiDung_(e) };
   }
@@ -3895,7 +3961,9 @@ function getSheetLocaleInfoForWeb_() {
 
 function webSetRegion_(region) {
   try {
+    const cu = _getRegion_();
     _setRegion_(region);
+    if (cu !== region) logAction_(HANH_DONG_CAU_HINH, "REGION_LOCALE", `Vùng lãnh thổ: ${cu} → ${region}`);
     return { success: true, message: `✅ Đã đổi sang vùng "${region}". Hãy bấm "Khóa Định Dạng TEXT/Ngày..." lại 1 lần để áp dụng.` };
   } catch (e) {
     return { success: false, message: "❌ " + _loiChoNguoiDung_(e) };
@@ -5065,7 +5133,6 @@ function renderSheet2DetailFromDraft_(sheet, filteredRows, dateRange) {
   // SỬA (theo yêu cầu - file xuất ra cũng phải khóa): giống hệt
   // renderSheet2Detail_() - Số phiếu cân(3), Số hợp đồng(7), CCCD Chủ
   // rừng(10), CCCD Người thụ hưởng(12), Số tài khoản(25).
-  _lockTextCols_(sheet, [3, 4, 5, 7, 10, 12, 25], filteredRows.length + 5); // SỬA (tối ưu tốc độ): dùng đúng số dòng thực tế thay vì mặc định 2000
   sheet.getRange("A1:Z1").merge().setValue("BẢNG KÊ CHI TIẾT CHUYỂN KHOẢN (CHỜ DUYỆT - CHƯA CHỐT)").setFontSize(16).setFontWeight("bold").setHorizontalAlignment("center");
   sheet.getRange("A2:Z2").merge().setValue("Thời gian: " + dateRange).setFontStyle("italic").setHorizontalAlignment("center");
 
@@ -5105,6 +5172,10 @@ function renderSheet2DetailFromDraft_(sheet, filteredRows, dateRange) {
     tempRows.forEach((row, i) => { row.viTri = i; });
     tempRows.sort((a, b) => thuTuHoSo.get(a.idHoSo) - thuTuHoSo.get(b.idHoSo) || a.viTri - b.viTri);
     let finalRows = tempRows.map((row, index) => { const out = row.slice(); out[0] = index + 1; return out; });
+    // Khóa TEXT theo ĐÚNG số dòng phiếu cân của bảng (rà soát 28/09/2026: trước đây theo số hồ
+    // sơ - từ dòng thứ "số hồ sơ + 5" trở đi, ngày dạng chữ bị Sheets đọc lại thành ngày theo
+    // vùng của file mới, có thể lộn ngày/tháng như lỗi đã sửa ở renderSheet2Detail_).
+    _lockTextCols_(sheet, [3, 4, 5, 7, 10, 12, 25], 4 + finalRows.length + 5);
     const lastR = 5 + finalRows.length - 1;
     sheet.getRange(5, 1, finalRows.length, headers.length).setValues(_dongAnToan_(finalRows)).setBorder(true, true, true, true, true, true).setVerticalAlignment("middle");
     _canhLeTheoKieu_(sheet, 5, finalRows);
@@ -5217,12 +5288,14 @@ function runConfirmPayment_(selectedIds, payDateStr) {
     const draft112ById = new Map();
     draft112All.forEach(r => { const id = String(r[0] || "").trim(); if (id) draft112ById.set(id, r); });
 
-    const validIds = [], skippedNoData = [], skippedNotCalculated = [], skippedNotConfirmed = [];
+    const validIds = [], skippedNoData = [], skippedNotCalculated = [], skippedNotConfirmed = [], skippedLechTien = [];
+    const tongTienCt = _tongTienCtTheoHoSo_(draftCTAll);
     idSet.forEach(id => {
       const r112 = draft112ById.get(id);
       if (!r112) { skippedNoData.push(id); return; }
       if (utils.parseNum(r112[6]) <= 0) { skippedNotCalculated.push(id); return; }
       if (String(r112[COL_TRANG_THAI_DNTT] || "").trim() !== "Đang ĐNTT") { skippedNotConfirmed.push(id); return; }
+      if (_hoSoLechTien_(r112, tongTienCt)) { skippedLechTien.push(id); return; }
       validIds.push(id);
     });
 
@@ -5266,6 +5339,7 @@ function runConfirmPayment_(selectedIds, payDateStr) {
       if (skippedNoData.length) msg += ` Không tìm thấy trong File Nháp: ${skippedNoData.join(", ")}.`;
       if (skippedNotCalculated.length) msg += ` Chưa chạy "Tổng Hợp 112": ${skippedNotCalculated.join(", ")}.`;
       if (skippedNotConfirmed.length) msg += ` Chưa "Xác Nhận" ĐNTT: ${skippedNotConfirmed.join(", ")}.`;
+      if (skippedLechTien.length) msg += ` ⛔ ${_canhBaoLechTien_(skippedLechTien)}.`;
       return msg;
     }
     const validIdSet = new Set(validIds);
@@ -5409,6 +5483,7 @@ function runConfirmPayment_(selectedIds, payDateStr) {
     if (skippedNotCalculated.length) msg += ` ⚠️ Chưa chạy Tổng Hợp 112 (bỏ qua): ${skippedNotCalculated.join(", ")}.`;
     if (skippedNotConfirmed.length) msg += ` ⚠️ Chưa "Xác Nhận" ĐNTT (bỏ qua): ${skippedNotConfirmed.join(", ")}.`;
     if (skippedDaTra.length) msg += ` ⛔ KHÔNG chốt vì có phiếu cân ĐÃ ĐƯỢC THANH TOÁN ở hồ sơ khác hoặc bị TRÙNG trong lượt Duyệt (bỏ phiếu đó khỏi hồ sơ rồi Duyệt lại): ${skippedDaTra.join("; ")}.`;
+    if (skippedLechTien.length) msg += ` ⛔ KHÔNG chốt - ${_canhBaoLechTien_(skippedLechTien)}.`;
 
     const tongTienChot = the112ToCommit.reduce((t, r) => t + utils.parseNum(r[6]), 0);
     logAction_("CHOT_THANH_TOAN", validIds.join(","), `Duyệt (Đóng Thanh Toán) ${validIds.length} hồ sơ, ${ctToCommit.length} phiếu cân, tổng ${tongTienChot.toLocaleString("vi-VN")} đ, ngày TT ${dateForSheetStr}.`);
@@ -5866,9 +5941,26 @@ const REF_CACHE_TTL_SECONDS = 90;
 // cache.getAll() rồi ghép nối. Giới hạn tối đa MAX_CHUNKS mảnh (đủ cho
 // ~vài chục nghìn dòng) - nếu VẪN vượt quá, bỏ qua cache như cũ (không
 // chặn luồng chính, chỉ mất phần tăng tốc).
-const REF_CACHE_CHUNK_BYTES = 90000; // mỗi mảnh tối đa 90KB (chừa margin dưới giới hạn ~100KB của CacheService)
+const REF_CACHE_CHUNK_BYTES = 90000; // mỗi mảnh tối đa 90KB UTF-8 (chừa margin dưới giới hạn ~100KB của CacheService) - xem _chiaManhTheoByte_
 const REF_CACHE_MAX_CHUNKS = 40; // ~3.6MB dữ liệu thô tối đa - đủ cho vài chục nghìn dòng Phiếu Cân
 
+/** Cắt chuỗi thành các mảnh mà mỗi mảnh ≤ toiDaByte theo UTF-8 (giới hạn 100KB/khóa của
+ * CacheService tính theo byte). Rà soát 28/09/2026: trước đây cắt theo SỐ KÝ TỰ (90.000) -
+ * tên tiếng Việt có dấu 2-3 byte/ký tự làm mảnh vượt 100KB, putAll lỗi (bị bỏ qua) và bộ nhớ
+ * đệm âm thầm không bao giờ dùng được. Không cắt giữa 1 cặp ký tự đại diện (emoji...). */
+function _chiaManhTheoByte_(chuoi, toiDaByte) {
+  const manh = [];
+  let dau = 0, soByte = 0;
+  for (let i = 0; i < chuoi.length; i++) {
+    const c = chuoi.charCodeAt(i);
+    const laNuaSau = c >= 0xDC00 && c <= 0xDFFF;           // nửa sau cặp đại diện: đã tính ở nửa trước
+    const b = laNuaSau ? 0 : c < 0x80 ? 1 : c < 0x800 ? 2 : (c >= 0xD800 && c <= 0xDBFF) ? 4 : 3;
+    if (!laNuaSau && i > dau && soByte + b > toiDaByte) { manh.push(chuoi.slice(dau, i)); dau = i; soByte = 0; }
+    soByte += b;
+  }
+  if (dau < chuoi.length) manh.push(chuoi.slice(dau));
+  return manh;
+}
 function _serializeRowsForCache_(rows) {
   return rows.map(row => row.map(cell => (cell instanceof Date) ? { __d: cell.getTime() } : cell));
 }
@@ -5926,12 +6018,11 @@ function _getCachedRefDataQuaBoNhoDem_(cacheKey, fetchFn, ttlGiay) {
 
   try {
     const serialized = JSON.stringify(_serializeRowsForCache_(data));
-    const n = Math.ceil(serialized.length / REF_CACHE_CHUNK_BYTES);
+    const manh = _chiaManhTheoByte_(serialized, REF_CACHE_CHUNK_BYTES);
+    const n = manh.length;
     if (n > 0 && n <= REF_CACHE_MAX_CHUNKS) {
       const toPut = {};
-      for (let i = 0; i < n; i++) {
-        toPut[cacheKey + "_c" + i] = serialized.substr(i * REF_CACHE_CHUNK_BYTES, REF_CACHE_CHUNK_BYTES);
-      }
+      for (let i = 0; i < n; i++) toPut[cacheKey + "_c" + i] = manh[i];
       cache.putAll(toPut, ttlGiay || REF_CACHE_TTL_SECONDS);
       cache.put(cacheKey + "_meta", JSON.stringify({ n }), ttlGiay || REF_CACHE_TTL_SECONDS);
     }
@@ -8802,6 +8893,9 @@ function getDraftListSummary_() {
     // tính tiền, chưa Xác Nhận) / "dang_dntt" (đã Xác Nhận, chờ Duyệt).
     const trangThaiKey = !sanSangChot ? "cho_tinh" : (daXacNhan ? "dang_dntt" : "cho_dntt");
     const trangThaiLabel = !sanSangChot ? "Chưa ĐNTT" : (daXacNhan ? "Đang ĐNTT" : "Chờ ĐNTT");
+    // Số tiền đã tính nhưng lệch tổng phiếu cân (vừa Thêm / Bỏ phiếu cân) -> cần tính lại.
+    const tongTienPhieu = details.reduce((t, d) => t + utils.parseNum(d[16]), 0);
+    const canTinhLai = sanSangChot && Math.abs(soTien - tongTienPhieu) > LECH_TIEN_CHO_PHEP;
     // Ngày đề nghị: cột Q của 112 Nháp; hồ sơ tạo từ bản cũ lấy ở cột V của CT Nháp.
     const ngayDN = r[16] instanceof Date ? r[16] : (details.find(d => d[21] instanceof Date) || [])[21];
     return {
@@ -8822,6 +8916,8 @@ function getDraftListSummary_() {
       ghiChu: String(r[15] || ""),
       sanSangChot: sanSangChot,
       daXacNhan: daXacNhan,
+      canTinhLai: canTinhLai,
+      tongTienPhieu: tongTienPhieu,
       trangThaiKey: trangThaiKey,
       trangThaiLabel: trangThaiLabel
     };
@@ -9710,14 +9806,16 @@ function runXacNhanDNTT_(selectedIds, forceConfirm) {
     if (lastRow < 2) return { success: false, message: "⚠️ File Nháp trống." };
     const data = sh112.getRange(2, 1, lastRow - 1, 24).getValues();
 
-    const skippedNotCalculated = [], skippedNoData = [];
+    const skippedNotCalculated = [], skippedNoData = [], skippedLechTien = [];
     const foundIds = new Set();
     const dongXacNhan = [];
+    const tongTienCt = _tongTienCtNhap_();
     data.forEach((row, i) => {
       const id = String(row[0] || "").trim();
       if (!id || !idSet.has(id)) return;
       foundIds.add(id);
       if (utils.parseNum(row[6]) <= 0) { skippedNotCalculated.push(id); return; }
+      if (_hoSoLechTien_(row, tongTienCt)) { skippedLechTien.push(id); return; }
       dongXacNhan.push(i + 2);
     });
     idSet.forEach(id => { if (!foundIds.has(id)) skippedNoData.push(id); });
@@ -9736,6 +9834,7 @@ function runXacNhanDNTT_(selectedIds, forceConfirm) {
       msg = `✅ Đã Xác Nhận ${count} hồ sơ - chuyển sang trạng thái "Đang ĐNTT", có thể in Báo Cáo ĐNTT và chờ Duyệt để Đóng Thanh Toán.`;
     }
     if (skippedNotCalculated.length) msg += ` ⚠️ Chưa tính tiền (bỏ qua): ${skippedNotCalculated.join(", ")}.`;
+    if (skippedLechTien.length) msg += ` ⛔ Không Xác nhận - ${_canhBaoLechTien_(skippedLechTien)}.`;
     if (skippedNoData.length) msg += ` ⚠️ Không tìm thấy trong Nháp: ${skippedNoData.join(", ")}.`;
     logAction_("XAC_NHAN_DNTT", Array.from(idSet).join(","), `Xác Nhận ${count} hồ sơ.`);
     return { success: count > 0, message: msg };
@@ -9808,7 +9907,22 @@ function webExportReport_(rows, dateRange) {
   } catch (e) {
     return { success: false, message: e.message };
   }
-  return createFinalReportFromFilteredData_(rows, dateRange);
+  // Rà soát 28/09/2026: trình duyệt chỉ gửi MÃ hồ sơ đã chọn - số tiền, STK, người nhận
+  // đọc lại từ sổ 112 đã chốt (trước đây in thẳng dữ liệu trình duyệt gửi lên vào Bảng Đề
+  // Xuất chính thức: sửa được số tiền / STK trên file xuất). Giữ thứ tự trên màn hình.
+  try {
+    const theoMa = new Map(getReportList_(khoang[1], khoang[2]).map(h => [h.idHeThong, h]));
+    const ma = Array.from(new Set((Array.isArray(rows) ? rows : []).map(r => String((r && r.idHeThong) || "").trim()).filter(Boolean)));
+    const hoSo = ma.map(id => theoMa.get(id)).filter(Boolean);
+    if (!hoSo.length) return { success: false, message: "❌ Không có hồ sơ đã chốt nào trong khoảng ngày khớp các dòng đã chọn - bấm Xem báo cáo lại." };
+    const ketQua = createFinalReportFromFilteredData_(hoSo, dateRange);
+    ketQua.soHoSo = hoSo.length;
+    const boQua = ma.length - hoSo.length;
+    if (ketQua.success && boQua) ketQua.message = `⚠️ Đã xuất ${hoSo.length} hồ sơ; ${boQua} hồ sơ không còn trong sổ đã chốt (vừa Mở Đóng TT?) nên không xuất - bấm Xem báo cáo lại.`;
+    return ketQua;
+  } catch (e) {
+    return { success: false, message: "❌ Lỗi: " + _loiChoNguoiDung_(e) };
+  }
 }
 
 /**
@@ -9831,11 +9945,13 @@ function exportBaoCaoDNTTFromDraft_(selectedIds) {
     const data = sh112.getRange(2, 1, lastRow - 1, 24).getValues();
 
     const rows = [];
-    const skippedNotConfirmed = [];
+    const skippedNotConfirmed = [], skippedLechTien = [];
+    const tongTienCt = _tongTienCtNhap_();
     data.forEach(r => {
       const id = String(r[0] || "").trim();
       if (!id || !idSet.has(id)) return;
       if (String(r[COL_TRANG_THAI_DNTT] || "").trim() !== "Đang ĐNTT") { skippedNotConfirmed.push(id); return; }
+      if (_hoSoLechTien_(r, tongTienCt)) { skippedLechTien.push(id); return; }
       rows.push({
         idHeThong: id,
         ngayDN: utils.formatDate(r[16]),
@@ -9862,6 +9978,7 @@ function exportBaoCaoDNTTFromDraft_(selectedIds) {
     if (rows.length === 0) {
       let msg = "❌ Không có hồ sơ nào ở trạng thái 'Đang ĐNTT' để xuất báo cáo (phải bấm 'Xác Nhận' trước).";
       if (skippedNotConfirmed.length) msg += ` Hồ sơ chưa Xác Nhận: ${skippedNotConfirmed.join(", ")}.`;
+      if (skippedLechTien.length) msg += ` ⛔ ${_canhBaoLechTien_(skippedLechTien)}.`;
       return { success: false, message: msg };
     }
 
@@ -9906,6 +10023,7 @@ function exportBaoCaoDNTTFromDraft_(selectedIds) {
 
     let msg = `✅ Đã xuất Báo Cáo ĐNTT (${rows.length} hồ sơ - CHƯA chốt thanh toán chính thức, chỉ để in/trình duyệt).`;
     if (skippedNotConfirmed.length) msg += ` ⚠️ Bỏ qua (chưa Xác Nhận): ${skippedNotConfirmed.join(", ")}.`;
+    if (skippedLechTien.length) msg += ` ⛔ Bỏ qua - ${_canhBaoLechTien_(skippedLechTien)}.`;
     logAction_("XUAT_BAO_CAO_DNTT_NHAP", Array.from(idSet).join(","), `Xuất Báo Cáo ĐNTT nháp ${rows.length} hồ sơ - ${newSS.getUrl()}`);
     return { success: true, url: newSS.getUrl(), message: msg };
   } catch (e) {
@@ -10193,9 +10311,11 @@ function webSetChatbotApiKey_(apiKey) {
     const clean = String(apiKey || '').trim();
     if (!clean) {
       PropertiesService.getScriptProperties().deleteProperty('GEMINI_API_KEY');
+      logAction_(HANH_DONG_CAU_HINH, "GEMINI_API_KEY", "Xóa API key Gemini.");
       return { success: true, message: '✅ Đã xóa API key - chatbot sẽ dùng chế độ dự phòng (không AI).' };
     }
     PropertiesService.getScriptProperties().setProperty('GEMINI_API_KEY', clean);
+    logAction_(HANH_DONG_CAU_HINH, "GEMINI_API_KEY", "Đổi API key Gemini (không ghi giá trị key).");
     return { success: true, message: '✅ Đã lưu API key Gemini.' };
   } catch (e) {
     return { success: false, message: '❌ Lỗi: ' + _loiChoNguoiDung_(e) };

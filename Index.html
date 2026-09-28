@@ -592,7 +592,7 @@
       <div class="nav-item" role="button" tabindex="0" data-page="settings"><span class="ic">⚙️</span> Cài đặt / Nháp</div>
     </nav>
     <div class="nguoi-dung-chip" id="nguoi-dung-chip"></div>
-    <div class="sidebar-footer">Hệ thống Quản Lý Thanh Toán · v2026.9.43<br><button type="button" class="theme-toggle" id="theme-toggle" aria-label="Đổi giao diện sáng / tối">🌓 Giao diện: Tự động</button></div>
+    <div class="sidebar-footer">Hệ thống Quản Lý Thanh Toán · v2026.9.44<br><button type="button" class="theme-toggle" id="theme-toggle" aria-label="Đổi giao diện sáng / tối">🌓 Giao diện: Tự động</button></div>
   </aside>
 
   <main class="main">
@@ -873,7 +873,11 @@ function _phanTramUocTinh_(daChoMs, thuongLeMs){
   if (thuongLeMs > 0) return Math.min(95, Math.round(daChoMs / thuongLeMs * 100));
   return Math.round(90 * (1 - Math.exp(-daChoMs / 8000)));
 }
+// Số thao tác đang chờ có màn hình chờ: 2 thao tác chạy cùng lúc thì thao tác xong trước
+// không được ẩn màn hình khi thao tác kia còn chạy (trước đây ẩn ngay -> bấm được nút khác).
+let _soLuotCho_ = 0;
 function showLoading(msg, fnName){
+  _soLuotCho_++;
   document.getElementById('loading-msg').textContent = msg || 'Đang xử lý...';
   document.getElementById('loading-overlay').classList.add('show');
   clearInterval(_tienDo_ && _tienDo_.timer);
@@ -888,6 +892,8 @@ function showLoading(msg, fnName){
   _tienDo_ = { fnName, batDau, timer: setInterval(ve, 250) };
 }
 function hideLoading(thanhCong){
+  _soLuotCho_ = Math.max(0, _soLuotCho_ - 1);
+  if (_soLuotCho_ > 0) return; // còn thao tác khác đang chờ - giữ màn hình chờ
   if (_tienDo_) {
     clearInterval(_tienDo_.timer);
     if (thanhCong && _tienDo_.fnName) _ghiThoiGianChay_(_tienDo_.fnName, Date.now() - _tienDo_.batDau);
@@ -1771,7 +1777,7 @@ function renderSoHDOptions(){
   const list = d.soHopDongOptions;
   sel.innerHTML = (list.length?'<option value="">-- Chọn hợp đồng --</option>':'<option value="">Không có hợp đồng nào</option>') +
     list.map(h => `<option value="${esc(h.soHD)}" ${h.soHD===d.soHopDong?'selected':''}>${esc(h.soHD)} (ký ${esc(h.ngayKy)})</option>`).join('');
-  sel.addEventListener('change', onSoHDChange);
+  sel.onchange = onSoHDChange; // gán (không addEventListener): hàm này chạy lại trên cùng ô chọn -> không nhân bản lượt gọi máy chủ
   if (d.soHopDong) renderHopDongSummary();
 }
 
@@ -1783,7 +1789,7 @@ function renderNguoiNhanOptions(){
   const list = d.nguoiNhanOptions;
   sel.innerHTML = (list.length?'<option value="">-- Chọn người nhận --</option>':'<option value="">Không có dữ liệu Số TK (HD_STK)</option>') +
     list.map(n => `<option value="${esc(n)}" ${n===d.nguoiNhanTien?'selected':''}>${esc(n)}</option>`).join('');
-  sel.addEventListener('change', onNguoiNhanChange);
+  sel.onchange = onNguoiNhanChange;
   if (d.nguoiNhanTien) loadStkOptions();
 }
 
@@ -2042,7 +2048,7 @@ function loadStkOptions(){
     sel.disabled = list.length === 0;
     sel.innerHTML = (list.length?'<option value="">-- Chọn số tài khoản --</option>':'<option value="">Không có STK phù hợp</option>') +
       list.map(s => `<option value="${esc(s.stk)}|${esc(s.nganHang)}" ${(s.stk===d.soTKNhanTien && s.nganHang===d.nganHang)?'selected':''}>${esc(s.stk)} · ${esc(s.nganHang)}</option>`).join('');
-    sel.addEventListener('change', onStkChange);
+    sel.onchange = onStkChange;
   });
 }
 
@@ -2296,7 +2302,7 @@ function renderDraftTable(){
       <td class="num">${r.soLuongPhieu}</td>
       <td class="num">${fmtKl(r.klTongKg)}</td>
       <td class="num">${r.sanSangChot ? fmtMoney(r.soTien) : '–'}</td>
-      <td>${DRAFT_STATUS_BADGE[r.trangThaiKey] || esc(r.trangThaiLabel)}</td>
+      <td>${DRAFT_STATUS_BADGE[r.trangThaiKey] || esc(r.trangThaiLabel)}${r.canTinhLai ? `<br><span class="badge pending dot" title="Số tiền ${fmtMoney(r.soTien)} đ khác tổng phiếu cân ${fmtMoney(r.tongTienPhieu)} đ - bấm Đề Nghị Thanh Toán (tính lại)">⚠️ Cần tính lại</span>` : ''}</td>
       <td style="white-space:nowrap">${draftRowActionsHtml(r)}</td>
     </tr>`).join('')}
     </tbody>
@@ -3219,7 +3225,7 @@ function doTaoLaiUncTheoNgay(){
       tongDaTao += (res.count || 0);
       offset = res.offsetMoi || offset;
       if (res.url) links.push(res.url);
-      const dsLink = links.map((u, i) => `<a href="${u}" target="_blank">File ${i+1}</a>`).join(' · ');
+      const dsLink = links.map((u, i) => `<a href="${esc(u)}" target="_blank" rel="noopener">File ${i+1}</a>`).join(' · ');
       if (res.xong) {
         box.innerHTML = `<div class="empty"><div class="ic">✅</div>${esc(res.message)}<br>${dsLink}</div>`;
       } else {
@@ -3354,11 +3360,12 @@ function exportReport(){
   const f = document.getElementById('rp-from').value, t = document.getElementById('rp-to').value;
   if (!_khoangBaoCaoHopLe('rp')) return;
   const dateRange = `${f} - ${t}`;
-  call('webExportReport', [selectedRows, dateRange], 'Đang xuất báo cáo...').then(res => {
+  // Chỉ gửi mã hồ sơ - máy chủ đọc lại số tiền / STK / người nhận từ sổ đã chốt.
+  call('webExportReport', [selectedRows.map(r => ({ idHeThong: r.idHeThong })), dateRange], 'Đang xuất báo cáo...').then(res => {
     if (res && res.success) {
-      toast('✅ Đã xuất báo cáo thành công.');
+      toast(res.message || '✅ Đã xuất báo cáo thành công.', res.message ? 'warn' : null);
       openModal(`<div class="modal-head"><h3>Xuất báo cáo thành công</h3><button class="x" onclick="closeModal()" aria-label="Đóng">&times;</button></div>
-        <div class="modal-body"><p>Báo cáo (${selectedRows.length} dòng) đã được tạo trong Google Drive.</p>
+        <div class="modal-body"><p>Báo cáo (${res.soHoSo || selectedRows.length} dòng) đã được tạo trong Google Drive.</p>
         ${nutMoFile_(res.url, 'Mở file báo cáo', 'btn primary')}
         <p class="muted" style="font-size:12px;margin-top:8px">Cần xuất file nộp ngân hàng/MISA? Sang tab "Báo Cáo Kết Xuất MISA" (dùng lại đúng lựa chọn này).</p>
         </div>
@@ -4150,7 +4157,8 @@ function renderHuongDan(){
   <details class="card">
     <summary style="cursor:pointer;font-weight:700;font-size:15px">📄 Danh Sách ĐNTT (chờ duyệt)</summary>
     <div style="margin-top:10px;font-size:13px;line-height:1.7">
-      4 tab: <b>Tất cả</b>, <b>1·Chưa ĐNTT</b> (vừa tạo, chưa tính tiền), <b>2·Chờ ĐNTT</b> (đã tính tiền, có thể Sửa/Xóa), <b>3·Đang ĐNTT</b> (đã xác nhận, chờ Duyệt - có thể In Báo Cáo ĐNTT, Tạo File UNC, hoặc "Về Chờ ĐNTT").<br><br>
+      5 tab: <b>Tất cả</b>, <b>1·Chưa ĐNTT</b> (vừa tạo, chưa tính tiền), <b>2·Chờ ĐNTT</b> (đã tính tiền, có thể Sửa/Xóa), <b>3·Đang ĐNTT</b> (đã xác nhận, chờ Duyệt - có thể In Báo Cáo ĐNTT, Tạo File UNC, hoặc "Về Chờ ĐNTT"), <b>Đã có số tiền (2 + 3)</b>.<br><br>
+      <b>⚠️ Cần tính lại:</b> hồ sơ vừa Thêm / Bỏ phiếu cân có Số tiền chưa khớp tổng tiền phiếu cân - bấm "📤 Đề Nghị Thanh Toán (tính lại)" trước; hệ thống không cho Xác nhận, In, Tạo UNC hay Duyệt hồ sơ lệch tiền.<br><br>
       Nút hành động hiện đúng theo trạng thái của (các) dòng bạn đang chọn, không phải theo tab đang xem - vậy nên ở tab "Tất cả" bạn vẫn thấy đúng nút phù hợp với từng lựa chọn.<br><br>
       <b>🏦 Tạo File UNC:</b> tạo file Excel Ủy Nhiệm Chi để nộp ngân hàng chuyển tiền TRƯỚC khi Duyệt chính thức - dùng cho hồ sơ "Đang ĐNTT". Tham số (TK Trích Nợ/Thu Phí, Bên Chịu Phí...) cấu hình ở Cài Đặt. Mỗi lần tạo đều được lưu vết lại - xem lịch sử ở mục Hệ Thống.<br><br>
       <b>↻ Làm mới:</b> làm mới cache Phiếu Cân/Hợp Đồng rồi tải lại danh sách - dùng khi nghi ngờ dữ liệu chưa cập nhật kịp.
@@ -4172,7 +4180,7 @@ function renderHuongDan(){
   </details>
 
   <details class="card">
-    <summary style="cursor:pointer;font-weight:700;font-size:15px">💰 Báo Cáo Công Nợ Khách Hàng Gỗ Keo (8 mục)</summary>
+    <summary style="cursor:pointer;font-weight:700;font-size:15px">💰 Báo Cáo Công Nợ Khách Hàng Gỗ Keo (7 mục)</summary>
     <div style="margin-top:10px;font-size:13px;line-height:1.7">
       <b>1 · Công nợ theo Khách hàng</b> - tổng khối lượng nhập/đã trả/còn nợ theo từng khách hàng, trong 1 khoảng ngày.<br>
       <b>2 · Công nợ theo Hợp đồng</b> - tương tự nhưng theo từng hợp đồng (kể cả hợp đồng đã thanh lý).<br>
@@ -4485,7 +4493,8 @@ const NHAN_HANH_DONG = {
   XOA_PHIEU_NHAP: '➖ Bỏ phiếu cân',
   XAC_NHAN_DNTT: '✅ Xác nhận ĐNTT',
   HUY_XAC_NHAN_DNTT: '↩️ Về Chờ ĐNTT',
-  CHOT_THANH_TOAN: '📨 Duyệt (Đóng TT)'
+  CHOT_THANH_TOAN: '📨 Duyệt (Đóng TT)',
+  CAU_HINH_HE_THONG: '⚙️ Đổi cấu hình'
 };
 function doKhoaSoNam(chayThat){
   const box = document.getElementById('khoaso-result');
@@ -4862,7 +4871,7 @@ function loadMainSsInfo(){
     const el = document.getElementById('main-ss-info');
     if (!el) return;
     if (info && info.configured) {
-      el.innerHTML = `Đang dùng File Chính: <a href="${info.url}" target="_blank"><b>${esc(info.name)}</b></a>`;
+      el.innerHTML = `Đang dùng File Chính: <a href="${esc(info.url)}" target="_blank" rel="noopener"><b>${esc(info.name)}</b></a>`;
     } else {
       el.textContent = 'Không lấy được thông tin File Chính.';
     }

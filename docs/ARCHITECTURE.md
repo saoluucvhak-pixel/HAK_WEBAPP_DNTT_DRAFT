@@ -1,4 +1,4 @@
-# ARCHITECTURE — HAK Quản Lý Thanh Toán (v2026.9.43)
+# ARCHITECTURE — HAK Quản Lý Thanh Toán (v2026.9.44)
 
 > Tài liệu sống: cập nhật mỗi khi đổi module, lớp, luồng dữ liệu hoặc schema.
 > Phân tích chi tiết hiện trạng: `docs/PROJECT_ANALYSIS.md`. Kiến trúc đích: `docs/REFACTOR_PLAN.md` §3–§4.
@@ -75,6 +75,8 @@ Dọn dẹp MISA (`webDonDepMisa_(che, f, t, chayThat)`, Hệ Thống): `_boChon
 7. Dọn Nháp: ghi đè trước, xóa đuôi sau.
 
 Chặn trả 2 lần: trước bước 3, đọc thẳng CT thật (`_phieuCanDaTraThat_`); hồ sơ có phiếu cân đã chốt ở hồ sơ khác bị bỏ qua cả hồ sơ (`CHAN_TRA_HAI_LAN`). Tạo mới / Thêm phiếu cũng kiểm tra (`_chanPhieuCanDaTra_`). **Cache “phiếu cân chưa TT” chỉ để gợi ý, không dùng một mình để quyết định phiếu còn trả được.**
+
+Số tiền phải khớp phiếu cân (2026.9.44): Xác nhận, In Báo Cáo ĐNTT, Tạo UNC và Duyệt bỏ qua hồ sơ có Số tiền (cột G sổ 112 Nháp) khác tổng Thành tiền các dòng CT Nháp quá `LECH_TIEN_CHO_PHEP` (1 đ) — `_hoSoLechTien_`; Danh Sách ĐNTT gắn cờ `canTinhLai`. Thêm / Bỏ phiếu cân không tự tính lại nên luôn phải qua "Đề Nghị Thanh Toán (tính lại)".
 
 Lỗi ở bất kỳ bước nào → log `LOI_CHOT_THANH_TOAN`, người dùng bấm Duyệt lại cùng hồ sơ để hoàn tất (không trùng dữ liệu).
 
@@ -173,6 +175,7 @@ Chỉ khi khoảng ngày **chạm năm đã đăng ký**; báo cáo năm đang m
 - **CHỜ ĐỒNG BỘ**: trigger chạy qua `_chayTriggerCoDo_` (bật cờ `HN_TRIGGER_DANG_CHAY_<tên>`). `api()` thấy cờ còn hiệu lực (`_dongBoDangChay_`) thì trả `AUTH_CFG.LOI_DONG_BO` + JSON; `call()` ở trình duyệt chờ (`_choDongBo`, hỏi `getTrangThaiDongBo` mỗi `CHO_DONG_BO_MS`) rồi gọi lại. Route mới rất nhẹ / phục vụ việc chờ: `r(fn, quyen, KHONG_CHO)`. Trigger mới phải chạy qua `_chayTriggerCoDo_` và có tên trong `TEN_DONG_BO`.
 - **GIAO DIỆN (thiết kế 28/09/2026)**: 1 font `--font-chu` (Inter); cỡ chữ chỉ dùng thang `--fs-nho/phu/than/the/trang/so` trong `:root` — màn hình mới không đặt cỡ chữ rời. Tiêu đề màu `--ink`; `--accent` cho nút và số liệu.
 - **KHÔNG GHI LẠI KHI KHÔNG ĐỔI**: bản sao / snapshot trong File Nháp ghi qua `_ghiLaiMirror_` — so dấu vân tay nội dung + kích thước, giống thì không ghi (File Nháp bận ghi thì mọi thao tác đọc web phải chờ).
+- **Chia mảnh theo byte** (2026.9.44): `_chiaManhTheoByte_` cắt dữ liệu cache ≤ 90KB UTF-8/mảnh (giới hạn CacheService tính theo byte; chữ có dấu 2–3 byte).
 - **ĐỌC 1 LẦN TRONG 1 LƯỢT**: `_getCachedRefData_` / `_ctThatDocThang_` nhớ dữ liệu trong lượt chạy (`_DA_DOC_TRONG_LUOT_`, trả bản sao từng dòng). Quy tắc bắt buộc: **mọi chỗ ghi sổ phải gọi hàm xóa bộ nhớ đệm tương ứng ngay sau khi ghi** (`_invalidatePcCache_`, `_invalidateCtSrc112Cache_`, `_invalidateChunkedCache_`) — hàm đó xóa luôn bản nhớ trong lượt.
 - **DỌN DẸP** (MISA, UNC): `_donDep_(cấu hình, chayThat)` — xem trước, rồi trong khóa hệ thống quét lại, sao lưu (`_saoLuuVaXoaDong_`), xóa; mỗi sổ chỉ viết hàm chọn dòng (`_boChonMisaDonDep_`, `_boChonUncDonDep_`).
 - **KHOẢNG NGÀY BÁO CÁO** (⚖️ người dùng 28/09/2026): Báo Cáo Thanh Toán (Gỗ Keo, Chi Tiết, MISA, UNC) tối đa `KHOANG_BAO_CAO.SO_THANG` tháng. Trình duyệt: ô ngày `data-khoang-bao-cao`, `_khoangBaoCaoHopLe` ở mọi nút; máy chủ: route bọc `_theoKhoangBaoCao_`. Chức năng báo cáo MỚI có khoảng ngày trên trang này phải dùng cả hai. Khoảng 1 tháng bất kỳ (không theo tháng lịch); báo cáo Công Nợ không áp dụng (người dùng xác nhận).

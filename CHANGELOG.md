@@ -2,6 +2,25 @@
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/). Phiên bản theo `NĂM.ĐỢT.SỬA`; thay đổi làm đổi hành vi nghiệp vụ (⚖️) sẽ tăng số ĐỢT và ghi rõ đã được người dùng đồng ý.
 
+## [2026.9.44] — Rà soát toàn bộ mã nguồn: chặn chuyển sai tiền, báo cáo đọc lại từ sổ, bộ nhớ đệm tiếng Việt, nhật ký cấu hình (28/09/2026)
+
+Báo cáo rà soát đầy đủ (13 phần, chấm điểm, lộ trình): `docs/RA_SOAT_2026-09-28.md`. Bản này chỉ sửa lỗi - quy trình bình thường không đổi; các đề xuất đổi nghiệp vụ / phân quyền để người dùng quyết định (xem báo cáo).
+
+### Fixed
+- 🔴 **Chuyển sai tiền sau khi Thêm / Bỏ phiếu cân**: hồ sơ vẫn "Chờ ĐNTT" với **Số tiền cũ** (không tự tính lại) nên Xác nhận → Tạo UNC → Duyệt được với số tiền lệch tổng phiếu cân (vd bỏ 1 phiếu 1.000.000 đ vẫn chuyển 2.000.000 đ, phiếu cân bị khóa "đã trả"). Nay **Xác nhận, In Báo Cáo ĐNTT, Tạo UNC, Duyệt** đều từ chối hồ sơ có Số tiền khác tổng Thành tiền phiếu cân (sai số 1 đ) và nhắc bấm "Đề Nghị Thanh Toán (tính lại)"; Danh Sách ĐNTT hiện nhãn **⚠️ Cần tính lại** (`_hoSoLechTien_`, `canTinhLai`).
+- 🟠 **Xuất Báo Cáo Thanh Toán in số liệu do trình duyệt gửi lên** (số tiền, STK, người nhận) vào Bảng Đề Xuất chính thức - tài khoản Chỉ xem sửa được. Nay trình duyệt chỉ gửi mã hồ sơ, máy chủ đọc lại từ sổ 112 đã chốt (`webExportReport_`); hồ sơ vừa bị Mở Đóng TT (không còn trong sổ) được báo rõ thay vì xuất lặng lẽ thiếu.
+- 🟠 **Bộ nhớ đệm dữ liệu tham chiếu âm thầm không hoạt động với tên tiếng Việt**: chia mảnh theo số ký tự (90.000) trong khi giới hạn 100KB tính theo byte UTF-8 (chữ có dấu 2-3 byte) → mảnh quá cỡ, lưu lỗi, mọi lần đều đọc lại file. Nay chia theo byte (`_chiaManhTheoByte_`).
+- 🟠 **Cài đặt › Đổi link** ghi được Script Property **bất kỳ** theo tên trình duyệt gửi (kể cả `SSO_SECRET`). Nay chỉ nhận đúng các link khai báo, loại Sheet/Thư mục lấy theo khai báo.
+- 🟡 **Nhật ký cấu hình**: đổi Số TK / Ngân hàng công ty (MISA), cấu hình UNC, File Chính, link file, Vùng lãnh thổ, Vùng xuất, API key Gemini (không ghi giá trị key) nay ghi "trước → sau" (`CAU_HINH_HE_THONG`), hiện ở Hệ Thống › Lịch sử sửa đổi.
+- 🟡 **Tạo Mới bước 2**: đổi Số HĐ / Người nhận / STK nhiều lần làm **nhân bản trình xử lý** → mỗi lần đổi gọi máy chủ N lần. Nay gán 1 trình xử lý duy nhất.
+- 🟡 **Màn hình chờ**: 2 thao tác chạy cùng lúc thì thao tác xong trước ẩn màn hình chờ khi thao tác kia còn chạy. Nay đếm số thao tác đang chờ.
+- 🟡 **Báo Cáo ĐNTT (chờ duyệt) › Bảng Kê**: khóa TEXT theo số hồ sơ thay vì số phiếu cân - ngày dạng chữ ở các dòng sau có thể bị đọc lộn ngày/tháng (lỗi đã sửa ở bản đã chốt, bản chờ duyệt còn sót).
+- Hướng Dẫn: Danh Sách ĐNTT có 5 tab (ghi 4), Công nợ 7 mục (ghi 8); 2 link chưa thoát ký tự.
+
+### Tests
+- 205 test (thêm `raSoat2026_9_44.test.mjs`: chặn lệch tiền ở 4 bước, tính lại xong thì Duyệt đúng số, quy trình khớp tiền không đổi, xuất báo cáo không tin trình duyệt, chia mảnh theo byte + bộ nhớ đệm dùng được với tiếng Việt, đổi link chỉ theo khai báo, nhật ký cấu hình, không nhân bản trình xử lý, màn hình chờ đếm lượt, **mã trình duyệt không lỗi cú pháp** - trước đây không test nào bắt). Các test mới thất bại trên bản 2026.9.43. Kiểm tra trình duyệt (Chromium): nhãn "Cần tính lại" ở Danh Sách ĐNTT, không lỗi JS.
+- `nhatKySua.test.mjs`: test "bỏ phiếu cân rồi Duyệt" trước đây Duyệt **không tính lại** (chính là lỗi trên) - nay tính lại trước khi Xác nhận.
+
 ## [2026.9.43] — Tạo lại UNC theo Ngày CK (người dùng đồng ý 28/09/2026)
 
 ### Changed
