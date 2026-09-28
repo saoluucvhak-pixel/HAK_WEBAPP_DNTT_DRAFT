@@ -511,7 +511,7 @@
     }
   </style>
 </head>
-<body data-phien="<?= phien ?>" data-loi-dang-nhap="<?= loiDangNhap ?>" data-trang-dau="<?= trangDau ?>" class="chua-dang-nhap">
+<body data-phien="<?= phien ?>" data-loi-dang-nhap="<?= loiDangNhap ?>" data-trang-dau="<?= trangDau ?>" data-so-thang-bao-cao="<?= soThangBaoCao ?>" class="chua-dang-nhap">
 
   <aside class="sidebar">
     <div class="brand">
@@ -534,7 +534,7 @@
       <div class="nav-item" role="button" tabindex="0" data-page="settings"><span class="ic">⚙️</span> Cài đặt / Nháp</div>
     </nav>
     <div class="nguoi-dung-chip" id="nguoi-dung-chip"></div>
-    <div class="sidebar-footer">Hệ thống Quản Lý Thanh Toán · v2026.9.32<br><button type="button" class="theme-toggle" id="theme-toggle" aria-label="Đổi giao diện sáng / tối">🌓 Giao diện: Tự động</button></div>
+    <div class="sidebar-footer">Hệ thống Quản Lý Thanh Toán · v2026.9.33<br><button type="button" class="theme-toggle" id="theme-toggle" aria-label="Đổi giao diện sáng / tối">🌓 Giao diện: Tự động</button></div>
   </aside>
 
   <main class="main">
@@ -654,7 +654,7 @@ function renderPager(totalRows, page, onChangeFnName, size){
     <button class="btn ghost" style="padding:5px 10px" ${page>=totalPages?'disabled':''} onclick="${onChangeFnName}(${page+1})">Sau ›</button>
   </div>`;
 }
-/** Giới hạn 1 cặp input[type=date] tối đa ~3 tháng - tự co "Từ ngày" lại
+/** Công Nợ: giới hạn 1 cặp input[type=date] tối đa ~3 tháng - tự co "Từ ngày" lại
  * nếu người dùng chọn khoảng quá rộng, kèm cảnh báo. Trả về true nếu đã
  * tự điều chỉnh (để nơi gọi có thể thông báo thêm nếu muốn). */
 const MAX_RANGE_DAYS = 95;
@@ -671,6 +671,44 @@ function clampDateRange(fromId, toId){
   }
   return false;
 }
+/* ---------- Quy định khoảng ngày báo cáo (người dùng 28/09/2026) ----------
+ * Báo Cáo Thanh Toán (Gỗ Keo, Chi Tiết, MISA, UNC): mỗi lần xem / xuất chỉ trong phạm vi
+ * N tháng (máy chủ gửi qua trang - KHOANG_BAO_CAO.SO_THANG, máy chủ cũng kiểm tra lại).
+ * Ô ngày có data-khoang-bao-cao="<tiền tố>" (cặp <tiền tố>-from / <tiền tố>-to). */
+function _soThangBaoCao(){ return Number(document.body.dataset.soThangBaoCao) || 1; }
+/** "Đến ngày" xa nhất khi bắt đầu từ f (yyyy-mm-dd): f + N tháng - 1 ngày; ngày không có ở
+ * tháng đích -> cuối tháng đích. Cùng quy tắc với _denNgayToiDaBaoCao_ ở máy chủ. */
+function _denNgayToiDaBaoCao(f){
+  const [y, m, d] = f.split('-').map(Number), n = _soThangBaoCao();
+  const cuoiThangDich = new Date(Date.UTC(y, m - 1 + n + 1, 0));
+  const kq = d > cuoiThangDich.getUTCDate() ? cuoiThangDich : new Date(Date.UTC(y, m - 1 + n, d - 1));
+  return kq.toISOString().slice(0, 10);
+}
+/** Trước khi xem / xuất: đủ ngày, đúng thứ tự, không quá N tháng. Sai -> báo, trả false. */
+function _khoangBaoCaoHopLe(tienTo){
+  const f = document.getElementById(tienTo + '-from').value, t = document.getElementById(tienTo + '-to').value;
+  if (!f || !t) { toast('Vui lòng chọn đủ Từ ngày / Đến ngày.', 'warn'); return false; }
+  if (t < f) { toast('"Đến ngày" phải sau "Từ ngày".', 'warn'); return false; }
+  const toiDa = _denNgayToiDaBaoCao(f);
+  if (t > toiDa) { toast(`⚠️ Quy định: báo cáo chỉ trong phạm vi ${_soThangBaoCao()} tháng - từ ${_isoSangVN(f)} chỉ chọn được đến ${_isoSangVN(toiDa)}.`, 'warn'); return false; }
+  return true;
+}
+/** Khi chọn ngày: không nhận khoảng quá N tháng - báo và đưa "Đến ngày" về ngày xa nhất được phép. */
+document.addEventListener('change', e => {
+  const el = e.target;
+  if (!el.matches || !el.matches('input[type=date][data-khoang-bao-cao]')) return;
+  const tienTo = el.dataset.khoangBaoCao;
+  const fEl = document.getElementById(tienTo + '-from'), tEl = document.getElementById(tienTo + '-to');
+  if (!fEl || !tEl || !fEl.value || !tEl.value) return;
+  const toiDa = _denNgayToiDaBaoCao(fEl.value);
+  if (tEl.value > toiDa || (el === fEl && tEl.value < fEl.value)) {
+    tEl.value = toiDa;
+    toast(`⚠️ Quy định: báo cáo chỉ trong phạm vi ${_soThangBaoCao()} tháng - "Đến ngày" được đặt là ${_isoSangVN(toiDa)}.`, 'warn');
+  } else if (tEl.value < fEl.value) {
+    fEl.value = tEl.value;
+    toast('"Đến ngày" trước "Từ ngày" - đã đặt "Từ ngày" bằng "Đến ngày".', 'warn');
+  }
+});
 /** Ngày theo giờ GMT+7 (khớp múi giờ backend) - dùng cho MỌI ô ngày mặc
  * định. toISOString() trần là giờ UTC: trước 7h sáng sẽ ra ngày hôm qua. */
 function _vnNow_(){
@@ -2498,13 +2536,13 @@ function renderGoKeoTab(){
   body.innerHTML = `
     <div class="card">
       <div class="grid cols-3">
-        <div class="field"><label>Từ ngày</label><input type="date" id="rp-from" value="${isoDaysAgoVN(90)}"></div>
-        <div class="field"><label>Đến ngày</label><input type="date" id="rp-to" value="${todayISOVN()}"></div>
+        <div class="field"><label>Từ ngày</label><input type="date" id="rp-from" data-khoang-bao-cao="rp" value="${firstDayOfMonthStr(todayISOVN())}"></div>
+        <div class="field"><label>Đến ngày</label><input type="date" id="rp-to" data-khoang-bao-cao="rp" value="${todayISOVN()}"></div>
         <div class="field" style="display:flex; align-items:flex-end; gap:8px">
           <button class="btn primary" onclick="loadReport()">🔍 Xem báo cáo</button>
         </div>
       </div>
-      <div class="hint-text" style="margin-top:6px">Giới hạn tối đa ~3 tháng/lần xem để tải nhanh hơn - chọn khoảng khác rồi bấm lại nếu cần xem kỳ khác.</div>
+      <div class="hint-text" style="margin-top:6px">Quy định: báo cáo (Gỗ Keo, Chi Tiết, MISA, UNC) mỗi lần xem / xuất chỉ trong phạm vi 1 tháng - chọn quá sẽ được báo và không nhận.</div>
     </div>
     <div class="card hidden" id="report-filter-card">
       <div class="grid cols-4">
@@ -2532,8 +2570,8 @@ function renderMisaTab(){
       <h3>🏦 Báo Cáo MISA</h3>
       <p class="muted" style="font-size:13px">Xem/lọc dữ liệu Update_NganHang_DN theo khoảng ngày (Ngày hạch toán) - hồ sơ được <b>tự động ghi vào đây ngay khi Đóng Thanh Toán</b>, không cần bấm tay. Cần tạo lại cho hồ sơ cũ/dự phòng? Xem mục "Hệ Thống".</p>
       <div class="grid cols-3">
-        <div class="field"><label>Từ ngày</label><input type="date" id="misa-from" value="${isoDaysAgoVN(7)}"></div>
-        <div class="field"><label>Đến ngày</label><input type="date" id="misa-to" value="${todayISOVN()}"></div>
+        <div class="field"><label>Từ ngày</label><input type="date" id="misa-from" data-khoang-bao-cao="misa" value="${isoDaysAgoVN(7)}"></div>
+        <div class="field"><label>Đến ngày</label><input type="date" id="misa-to" data-khoang-bao-cao="misa" value="${todayISOVN()}"></div>
         <div class="field" style="display:flex;align-items:flex-end;gap:8px">
           <button class="btn primary" onclick="loadMisaTab()">🔍 Xem</button>
           <button class="btn accent" onclick="doExportMisaTheoNgay()" title="File theo mẫu nhập MISA (33 cột) + sheet tóm tắt">📥 Xuất file MISA</button>
@@ -2555,6 +2593,7 @@ function loadMisaTab(){
   const box = document.getElementById('misa-result');
   if (!box) return;
   const f = document.getElementById('misa-from').value, t = document.getElementById('misa-to').value;
+  if (!_khoangBaoCaoHopLe('misa')) return;
   document.getElementById('misa-filter-card').classList.add('hidden');
   box.innerHTML = '<div class="empty"><div class="ic">⏳</div>Đang tải...</div>';
   call('getMisaDataTheoNgay', [f, t], null).then(ketQua => {
@@ -2588,6 +2627,7 @@ function renderMisaThieu(thieu){
 function doTaoBoSungMisa(){
   if (!coQuyen('NGHIEP_VU')) { toast('❌ Tài khoản của bạn không có quyền tạo bổ sung MISA.', 'err'); return; }
   const f = document.getElementById('misa-from').value, t = document.getElementById('misa-to').value;
+  if (!_khoangBaoCaoHopLe('misa')) return;
   const box = document.getElementById('misa-bosung-result');
 
   if (!box) return; // đã rời tab trước khi dữ liệu về
@@ -2648,6 +2688,7 @@ function renderMisaResultTable(){
 }
 function doExportMisaTheoNgay(){
   const f = document.getElementById('misa-from').value, t = document.getElementById('misa-to').value;
+  if (!_khoangBaoCaoHopLe('misa')) return;
   call('exportMisaTheoNgayExcel', [f, t], 'Đang xuất file MISA...').then(res => {
     _hienKetQuaXuat_(res, () => `${esc(res.message || ('Đã xuất ' + res.count + ' dòng.'))}`);
   });
@@ -2666,8 +2707,8 @@ function renderChiTietTab(){
       <p class="muted" style="font-size:13px">Xem theo TỪNG PHIẾU CÂN - đọc trực tiếp từ dữ liệu đã tính sẵn (ChiTietDNTT), không cần join lại - nhanh hơn tab "Gỗ Keo". Lọc theo <b>Ngày CK</b> (ngày thanh toán - cùng ngày với Báo Cáo MISA). <b>Chỉ có dữ liệu từ khi tính năng này được bật</b> - hồ sơ chốt TRƯỚC đó sẽ không hiện ở đây, dùng tab "Gỗ Keo" cho lịch sử đầy đủ.</p>
       <div class="hint-text">Khác với tab "Gỗ Keo": tab đó xuất được file Excel định dạng in ấn đầy đủ (Bảng Đề Xuất + Bảng Kê Chi Tiết) cho TOÀN BỘ lịch sử; tab này chỉ để XEM/LỌC nhanh dữ liệu gần đây, xuất Excel đơn giản hơn.</div>
       <div class="grid cols-3">
-        <div class="field"><label>Từ ngày (Ngày CK)</label><input type="date" id="chitiet-from" value="${isoDaysAgoVN(7)}"></div>
-        <div class="field"><label>Đến ngày</label><input type="date" id="chitiet-to" value="${todayISOVN()}"></div>
+        <div class="field"><label>Từ ngày (Ngày CK)</label><input type="date" id="chitiet-from" data-khoang-bao-cao="chitiet" value="${isoDaysAgoVN(7)}"></div>
+        <div class="field"><label>Đến ngày</label><input type="date" id="chitiet-to" data-khoang-bao-cao="chitiet" value="${todayISOVN()}"></div>
         <div class="field" style="display:flex;align-items:flex-end;gap:8px">
           <button class="btn primary" onclick="loadChiTietTab()">🔍 Xem</button>
           <button class="btn accent" onclick="doExportChiTietDNTT()">📥 Xuất Excel</button>
@@ -2688,6 +2729,7 @@ function loadChiTietTab(){
   const box = document.getElementById('chitiet-result');
   if (!box) return;
   const f = document.getElementById('chitiet-from').value, t = document.getElementById('chitiet-to').value;
+  if (!_khoangBaoCaoHopLe('chitiet')) return;
   document.getElementById('chitiet-filter-card').classList.add('hidden');
   box.innerHTML = '<div class="empty"><div class="ic">⏳</div>Đang tải...</div>';
   call('getChiTietDNTTDaChot', [f, t], null).then(ketQua => {
@@ -2743,6 +2785,7 @@ function renderChiTietResultTable(){
 }
 function doExportChiTietDNTT(){
   const f = document.getElementById('chitiet-from').value, t = document.getElementById('chitiet-to').value;
+  if (!_khoangBaoCaoHopLe('chitiet')) return;
   call('exportChiTietDNTTDaChotExcel', [f, t], 'Đang xuất Excel...').then(res => {
     _hienKetQuaXuat_(res, () => `${esc(res.message || ('Đã xuất ' + res.count + ' dòng.'))}`);
   });
@@ -2758,8 +2801,8 @@ function renderBaoCaoUncTab(){
       <h3>🏦 Báo Cáo UNC</h3>
       <p class="muted" style="font-size:13px">Xem lại và xuất lại các lần đã tạo File UNC - dùng khi quên tải file gốc, hoặc cần gộp nhiều lần tạo trong 1 khoảng ngày thành 1 file duy nhất.</p>
       <div class="grid cols-3">
-        <div class="field"><label>Từ ngày</label><input type="date" id="baocaounc-from" value="${isoDaysAgoVN(7)}"></div>
-        <div class="field"><label>Đến ngày</label><input type="date" id="baocaounc-to" value="${todayISOVN()}"></div>
+        <div class="field"><label>Từ ngày</label><input type="date" id="baocaounc-from" data-khoang-bao-cao="baocaounc" value="${isoDaysAgoVN(7)}"></div>
+        <div class="field"><label>Đến ngày</label><input type="date" id="baocaounc-to" data-khoang-bao-cao="baocaounc" value="${todayISOVN()}"></div>
         <div class="field" style="display:flex;align-items:flex-end;gap:8px">
           <button class="btn primary" onclick="loadBaoCaoUncTab()">🔍 Xem</button>
           <button class="btn accent" onclick="doExportBaoCaoUnc()">📥 Xuất Excel</button>
@@ -2780,6 +2823,7 @@ function loadBaoCaoUncTab(){
   const box = document.getElementById('baocaounc-result');
   if (!box) return;
   const f = document.getElementById('baocaounc-from').value, t = document.getElementById('baocaounc-to').value;
+  if (!_khoangBaoCaoHopLe('baocaounc')) return;
   document.getElementById('baocaounc-filter-card').classList.add('hidden');
   box.innerHTML = '<div class="empty"><div class="ic">⏳</div>Đang tải...</div>';
   call('getLichSuUNC', [f, t], null).then(rows => {
@@ -2833,6 +2877,7 @@ function renderBaoCaoUncResultTable(){
 }
 function doExportBaoCaoUnc(){
   const f = document.getElementById('baocaounc-from').value, t = document.getElementById('baocaounc-to').value;
+  if (!_khoangBaoCaoHopLe('baocaounc')) return;
   call('exportLichSuUNCExcel', [f, t], 'Đang xuất Excel...').then(res => {
     _hienKetQuaXuat_(res, () => `Đã xuất ${res.count} dòng.`);
   });
@@ -2976,8 +3021,8 @@ function doTaoLaiUncTheoNgay(){
 
 
 function loadReport(){
-  clampDateRange('rp-from', 'rp-to');
   const f = document.getElementById('rp-from').value, t = document.getElementById('rp-to').value;
+  if (!_khoangBaoCaoHopLe('rp')) return;
   state.reportPage = 1;
   state.reportFilters = { chuRung:'', nguoiNhan:'', soHD:'', soLan:'' };
   call('getReportList', [f, t], 'Đang tải báo cáo...').then(rows => {
@@ -3095,6 +3140,7 @@ function exportReport(){
   const selectedRows = state.reportRows.filter(r => state.reportSelected.has(r.idHeThong));
   if (!selectedRows.length) { toast('Vui lòng chọn ít nhất 1 dòng để xuất báo cáo.', 'warn'); return; }
   const f = document.getElementById('rp-from').value, t = document.getElementById('rp-to').value;
+  if (!_khoangBaoCaoHopLe('rp')) return;
   const dateRange = `${f} - ${t}`;
   call('webExportReport', [selectedRows, dateRange], 'Đang xuất báo cáo...').then(res => {
     if (res && res.success) {

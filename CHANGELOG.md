@@ -2,6 +2,19 @@
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/). Phiên bản theo `NĂM.ĐỢT.SỬA`; thay đổi làm đổi hành vi nghiệp vụ (⚖️) sẽ tăng số ĐỢT và ghi rõ đã được người dùng đồng ý.
 
+## [2026.9.33] — ⚖️ Quy định: báo cáo chỉ trong phạm vi 1 tháng (người dùng yêu cầu 28/09/2026)
+
+### Changed
+- ⚖️ **Báo Cáo Thanh Toán** — 4 tab Gỗ Keo, Chi Tiết, MISA, UNC — mỗi lần **xem / xuất / in** chỉ trong phạm vi **1 tháng**: “Đến ngày” xa nhất = “Từ ngày” + 1 tháng − 1 ngày (01/09 → 30/09; 15/08 → 14/09; 31/01 → cuối tháng 2). Trước đây Gỗ Keo tự co về ~3 tháng, các tab khác không giới hạn.
+  - Khi chọn/gõ ngày làm khoảng quá 1 tháng: **thông báo và không nhận** — “Đến ngày” được đưa về ngày xa nhất được phép.
+  - Nút Xem / Xuất Excel / Xuất Báo Cáo kiểm tra lại, sai thì báo và không chạy.
+  - Máy chủ kiểm tra lại ở cổng API (`_theoKhoangBaoCao_`, `webExportReport_`) — gọi thẳng API cũng không vượt được. Hàm nội bộ, trigger, Hệ Thống (Tạo lại / Dọn dẹp MISA, UNC) và các báo cáo Công Nợ không đổi.
+  - Số tháng cấu hình 1 chỗ `KHOANG_BAO_CAO.SO_THANG` (máy chủ gửi xuống trang), quy tắc ngày giống hệt nhau ở trình duyệt và máy chủ (test so từng ngày 2024–2026).
+- Tab Gỗ Keo mở mặc định **từ đầu tháng hiện tại đến hôm nay** (trước: 90 ngày).
+
+### Tests
+- 163 test (thêm: ngày cuối tối đa, trình duyệt = máy chủ, cổng API từ chối > 1 tháng ở cả 7 chức năng xem/xuất + Xuất Báo Cáo, trang gắn quy định vào đủ ô ngày và nút). Kiểm tra trình duyệt: gõ ngày quá 1 tháng, bấm Xem khi sai.
+
 ## [2026.9.32] — Kiểm tra hiệu năng Báo Cáo Thanh Toán / Chi Tiết; xuất Excel Chi Tiết không còn cắt 2.000 dòng (người dùng yêu cầu 28/09/2026)
 
 ### Fixed

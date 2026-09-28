@@ -1,6 +1,6 @@
 /**
  * ============================================================
- * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.32
+ * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.33
  * Lịch sử thay đổi: CHANGELOG.md · Kiến trúc: docs/ARCHITECTURE.md
  * ------------------------------------------------------------
  * *** QUAN TRỌNG - CẦN LÀM TRƯỚC KHI DÙNG BẢN NÀY (chỉ 1 LẦN DUY NHẤT
@@ -374,7 +374,8 @@ function generateThongSoSheet_() {
     setRow(["Ngân hàng công ty", bankInfo.name, "Cài Đặt > Giá Trị Mặc Định MISA"]);
     setRow(["Mã ngân hàng công ty", bankInfo.code, "Cài Đặt > Giá Trị Mặc Định MISA"]);
   }
-  setRow(["Giới hạn khoảng ngày Báo Cáo/Công Nợ", CFG.MAX_REPORT_RANGE_DAYS + " ngày (~3 tháng)", "CFG.MAX_REPORT_RANGE_DAYS - tự co lại nếu chọn khoảng rộng hơn"]);
+  setRow(["Quy định khoảng ngày Báo Cáo Thanh Toán (Gỗ Keo, Chi Tiết, MISA, UNC)", KHOANG_BAO_CAO.SO_THANG + " tháng/lần xem, xuất", "KHOANG_BAO_CAO.SO_THANG - chọn quá thì báo và không nhận"]);
+  setRow(["Giới hạn khoảng ngày Công Nợ", CFG.MAX_REPORT_RANGE_DAYS + " ngày (~3 tháng)", "CFG.MAX_REPORT_RANGE_DAYS - tự co lại nếu chọn khoảng rộng hơn"]);
   setRow(["Khoảng Công Nợ mặc định (snapshot)", "90 ngày gần nhất", "_defaultCongNoRange_() - tính theo giờ GMT+7"]);
   setRow(["Số dòng/trang (phân trang Web App)", "20 dòng/trang", "PAGE_SIZE trong Index.html"]);
   row++;
@@ -1366,6 +1367,36 @@ function api(phien, tenHam, thamSo) {
 
 /** Bảng phân quyền duy nhất: tên chức năng (trình duyệt gọi) -> hàm nội bộ + quyền cần có.
  * Chức năng không có trong bảng này thì KHÔNG gọi được từ web app. */
+// ------------------------------------------------------------
+// QUY ĐỊNH KHOẢNG NGÀY BÁO CÁO (người dùng 28/09/2026): Báo Cáo Thanh Toán (Gỗ Keo, Chi
+// Tiết, MISA, UNC) xem và xuất chỉ trong phạm vi 1 tháng. Trình duyệt chặn khi chọn; cổng
+// API kiểm tra lại (hàm nội bộ, trigger không bị giới hạn).
+// ------------------------------------------------------------
+const KHOANG_BAO_CAO = { SO_THANG: 1 };
+/** "Đến ngày" xa nhất được chọn khi bắt đầu từ fDate (yyyy-MM-dd): fDate + SO_THANG tháng
+ * - 1 ngày (01/09 -> 30/09, 15/08 -> 14/09); ngày không có ở tháng đích (31/01) -> cuối
+ * tháng đích. Cùng quy tắc với _denNgayToiDaBaoCao ở trình duyệt. */
+function _denNgayToiDaBaoCao_(fDate) {
+  const [y, m, d] = String(fDate).split("-").map(Number);
+  const cuoiThangDich = new Date(Date.UTC(y, m - 1 + KHOANG_BAO_CAO.SO_THANG + 1, 0));
+  const kq = d > cuoiThangDich.getUTCDate() ? cuoiThangDich : new Date(Date.UTC(y, m - 1 + KHOANG_BAO_CAO.SO_THANG, d - 1));
+  return kq.toISOString().slice(0, 10);
+}
+/** Báo lỗi (dừng) nếu khoảng [fDate, tDate] không hợp lệ hoặc dài quá SO_THANG tháng. */
+function _kiemTraKhoangBaoCao_(fDate, tDate) {
+  const laNgay = v => /^\d{4}-\d{2}-\d{2}$/.test(String(v || ""));
+  if (!laNgay(fDate) || !laNgay(tDate)) throw new Error("Chọn đủ Từ ngày / Đến ngày.");
+  if (tDate < fDate) throw new Error('"Đến ngày" phải sau "Từ ngày".');
+  const toiDa = _denNgayToiDaBaoCao_(fDate);
+  if (tDate > toiDa) {
+    throw new Error(`Quy định: báo cáo chỉ trong phạm vi ${KHOANG_BAO_CAO.SO_THANG} tháng - từ ${_formatNgayXuat_(fDate)} chỉ chọn được đến ${_formatNgayXuat_(toiDa)}.`);
+  }
+}
+/** Bọc hàm báo cáo (fDate, tDate, ...) cho cổng API: kiểm tra khoảng ngày trước khi chạy. */
+function _theoKhoangBaoCao_(fn) {
+  return (fDate, tDate, ...khac) => { _kiemTraKhoangBaoCao_(fDate, tDate); return fn(fDate, tDate, ...khac); };
+}
+
 const API_ROUTES = (() => {
   const X = QUYEN.XEM, N = QUYEN.NGHIEP_VU, H = QUYEN.HE_THONG, Q = QUYEN.QUAN_TRI;
   const r = (fn, quyen) => ({ fn, quyen });
@@ -1378,14 +1409,14 @@ const API_ROUTES = (() => {
     TRA_LOI_CHATBOT: r(TRA_LOI_CHATBOT_, X),
 
     // --- Báo cáo thanh toán (xem + xuất Excel) ---
-    getReportList: r(getReportList_, X),
+    getReportList: r(_theoKhoangBaoCao_(getReportList_), X),
     webExportReport: r(webExportReport_, X),
-    getChiTietDNTTDaChot: r(getChiTietDNTTDaChot_, X),
-    exportChiTietDNTTDaChotExcel: r(exportChiTietDNTTDaChotExcel_, X),
-    getMisaDataTheoNgay: r(getMisaDataTheoNgay_, X),
-    exportMisaTheoNgayExcel: r(exportMisaTheoNgayExcel_, X),
-    getLichSuUNC: r(getLichSuUNC_, X),
-    exportLichSuUNCExcel: r(exportLichSuUNCExcel_, X),
+    getChiTietDNTTDaChot: r(_theoKhoangBaoCao_(getChiTietDNTTDaChot_), X),
+    exportChiTietDNTTDaChotExcel: r(_theoKhoangBaoCao_(exportChiTietDNTTDaChotExcel_), X),
+    getMisaDataTheoNgay: r(_theoKhoangBaoCao_(getMisaDataTheoNgay_), X),
+    exportMisaTheoNgayExcel: r(_theoKhoangBaoCao_(exportMisaTheoNgayExcel_), X),
+    getLichSuUNC: r(_theoKhoangBaoCao_(getLichSuUNC_), X),
+    exportLichSuUNCExcel: r(_theoKhoangBaoCao_(exportLichSuUNCExcel_), X),
 
     // --- Công nợ & phân tích (xem, xuất, tính lại số liệu báo cáo) ---
     getDebtByCustomer: r(getDebtByCustomer_, X),
@@ -1580,6 +1611,7 @@ function doGet(e) {
   const tpl = HtmlService.createTemplateFromFile('Index');
   tpl.phien = "";
   tpl.loiDangNhap = "";
+  tpl.soThangBaoCao = KHOANG_BAO_CAO.SO_THANG;
   tpl.trangDau = TRANG_MO_THANG.indexOf(String(thamSo.trang || "")) !== -1 ? String(thamSo.trang) : "";
   if (thamSo.sso) {
     let yeuCau = "";
@@ -9608,7 +9640,14 @@ function getReportList_(fDate, tDate) {
  * màn Báo Cáo của Web App.
  */
 function webExportReport_(rows, dateRange) {
-  return createFinalReportFromFilteredData_(rows, dateRange || "");
+  const khoang = /^(\d{4}-\d{2}-\d{2}) - (\d{4}-\d{2}-\d{2})$/.exec(String(dateRange || ""));
+  try {
+    if (!khoang) throw new Error("Chọn đủ Từ ngày / Đến ngày.");
+    _kiemTraKhoangBaoCao_(khoang[1], khoang[2]);
+  } catch (e) {
+    return { success: false, message: e.message };
+  }
+  return createFinalReportFromFilteredData_(rows, dateRange);
 }
 
 /**
