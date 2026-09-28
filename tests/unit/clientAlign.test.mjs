@@ -41,3 +41,13 @@ test('payment report: clicking a row opens the slip preview; its checkbox and bu
   assert.match(xem, /hanhDong\('inPhieuHoanThanh', res\.idKey, ngayISO\)/, 'print from the preview');
   assert.match(INDEX, /inPhieuHoanThanh, xemPhieuHoanThanh, doDonDep,/);
 });
+
+test('home page opens with the 5-step payment process, the same steps as the user guide', () => {
+  const trangChu = /function renderDashboard\(\)\{[\s\S]*?\n\}/.exec(INDEX)[0];
+  const dau = /c\.innerHTML = `([\s\S]*?)<div class="grid cols-4" id="dash-stats"/.exec(trangChu)[1];
+  assert.match(dau, /id="dash-quy-trinh"/, 'process card comes before the figures');
+  assert.match(dau, /QUY_TRINH_TT\.map/);
+  assert.match(/function renderHuongDan\(\)\{[\s\S]*?\n\}/.exec(INDEX)[0], /QUY_TRINH_TT\.map/, 'user guide uses the same list');
+  assert.equal((/const QUY_TRINH_TT = \[([\s\S]*?)\n\];/.exec(INDEX)[1].match(/\{ ten: /g) || []).length, 5);
+  assert.ok(INDEX.indexOf('const DRAFT_STATUS_BADGE') < INDEX.indexOf('const QUY_TRINH_TT'), 'badges defined before use');
+});

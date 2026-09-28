@@ -142,7 +142,8 @@
     .grid.cols-2{grid-template-columns:1fr 1fr;}
     .grid.cols-3{grid-template-columns:repeat(3,1fr);}
     .grid.cols-4{grid-template-columns:repeat(4,1fr);}
-    @media(max-width:900px){.grid.cols-2,.grid.cols-3,.grid.cols-4{grid-template-columns:1fr 1fr;}}
+    .grid.cols-5{grid-template-columns:repeat(5, minmax(0, 1fr));}
+    @media(max-width:900px){.grid.cols-2,.grid.cols-3,.grid.cols-4,.grid.cols-5{grid-template-columns:1fr 1fr;}}
     @media(max-width:640px){
       body{flex-direction:column;}
       .sidebar{width:100%; flex:0 0 auto; height:auto; position:relative; padding:14px;}
@@ -150,7 +151,7 @@
       .nav-item{flex:0 0 auto;}
       .sidebar-footer{display:none;}
       .topbar,.content{padding-left:16px; padding-right:16px;}
-      .grid.cols-2,.grid.cols-3,.grid.cols-4{grid-template-columns:1fr;}
+      .grid.cols-2,.grid.cols-3,.grid.cols-4,.grid.cols-5{grid-template-columns:1fr;}
     }
 
     .stat{
@@ -544,7 +545,7 @@
       <div class="nav-item" role="button" tabindex="0" data-page="settings"><span class="ic">⚙️</span> Cài đặt / Nháp</div>
     </nav>
     <div class="nguoi-dung-chip" id="nguoi-dung-chip"></div>
-    <div class="sidebar-footer">Hệ thống Quản Lý Thanh Toán · v2026.9.38<br><button type="button" class="theme-toggle" id="theme-toggle" aria-label="Đổi giao diện sáng / tối">🌓 Giao diện: Tự động</button></div>
+    <div class="sidebar-footer">Hệ thống Quản Lý Thanh Toán · v2026.9.39<br><button type="button" class="theme-toggle" id="theme-toggle" aria-label="Đổi giao diện sáng / tối">🌓 Giao diện: Tự động</button></div>
   </aside>
 
   <main class="main">
@@ -1304,9 +1305,37 @@ function _renderDashTop5NoTable_(rows){
     ${rows.map(r => `<tr class="clickable" ${hanhDong('goToLedgerFor', 'customer', r.khoa || r.khachHang)}><td>${esc(r.khachHang)}</td><td class="num debt-neg">${fmtMoney(r.congNo)}</td></tr>`).join('')}
   </tbody></table>`;
 }
+/** Nhãn trạng thái hồ sơ Nháp (Danh Sách ĐNTT, Quy trình thanh toán). */
+const DRAFT_STATUS_BADGE = {
+  cho_tinh: '<span class="badge pending dot">Chưa ĐNTT</span>',
+  cho_dntt: '<span class="badge wait dot">Chờ ĐNTT</span>',
+  dang_dntt: '<span class="badge ready dot">Đang ĐNTT</span>'
+};
+
+/** Quy trình thanh toán 5 bước - 1 nguồn dùng chung cho Trang chủ (gọn, đầu trang) và Hướng
+ * Dẫn Sử Dụng (bảng đầy đủ). ten: tên bước; viec: mô tả đầy đủ (HTML); oDau: làm ở đâu;
+ * sau: trạng thái sau khi xong (HTML). */
+const QUY_TRINH_TT = [
+  { ten: 'Tạo Mới', viec: '<b>Tạo Mới</b> - chọn Chủ rừng, Hợp đồng, chọn Phiếu cân cần thanh toán', oDau: 'Danh Sách ĐNTT → "➕ Tạo Mới"', sau: DRAFT_STATUS_BADGE.cho_tinh },
+  { ten: 'Đề Nghị Thanh Toán (tính tiền)', viec: '<b>Đề Nghị Thanh Toán (tính lại)</b> - hệ thống tự tính tiền, gộp theo Số HĐ, tự điền Ngân hàng', oDau: 'Danh Sách ĐNTT → nút "📤 Đề Nghị Thanh Toán"', sau: DRAFT_STATUS_BADGE.cho_dntt },
+  { ten: 'Xác Nhận chuyển ĐNTT', viec: 'Kiểm tra lại thông tin (Sửa nếu cần), rồi <b>Xác Nhận chuyển ĐNTT</b>', oDau: 'Tab "2 · Chờ ĐNTT" → chọn hồ sơ → "✅ Xác nhận"', sau: DRAFT_STATUS_BADGE.dang_dntt },
+  { ten: 'In Báo Cáo ĐNTT / Tạo UNC', viec: '<b>In Báo Cáo ĐNTT</b> để trình ký duyệt, hoặc <b>Tạo File UNC</b> để nộp ngân hàng chuyển tiền trước (chưa ghi vào sổ sách chính thức)', oDau: 'Tab "3 · Đang ĐNTT" → "🖨️ In Báo Cáo ĐNTT" / "🏦 Tạo File UNC"', sau: 'Không đổi trạng thái' },
+  { ten: 'Duyệt (Đóng Thanh Toán)', viec: '<b>Duyệt (Đóng Thanh Toán)</b> - nhập ngày thanh toán thực tế → ghi vào sổ sách CHÍNH THỨC, khóa Phiếu Cân vĩnh viễn', oDau: 'Tab "3 · Đang ĐNTT" → "📨 Duyệt"', sau: 'Chuyển sang "Báo Cáo Thanh Toán"' }
+];
+
 function renderDashboard(){
   const c = document.getElementById('content');
-  c.innerHTML = `<div class="grid cols-4" id="dash-stats">
+  c.innerHTML = `<div id="dash-setup-warning"></div>
+  <div class="card" id="dash-quy-trinh">
+    <h3>📋 Quy trình thanh toán (5 bước)</h3>
+    <div class="grid cols-5">
+      ${QUY_TRINH_TT.map((b, i) => `<div><b>${i + 1}. ${esc(b.ten)}</b>
+        <div class="muted" style="font-size:12.5px;margin-top:4px">${esc(b.oDau)}</div>
+        <div style="margin-top:6px;font-size:12.5px">→ ${b.sau}</div></div>`).join('')}
+    </div>
+    <div class="hint-text" style="margin-top:8px">Chi tiết từng bước: mục <a href="#" onclick="goTo('huongdan');return false">📖 Hướng Dẫn Sử Dụng</a>.</div>
+  </div>
+  <div class="grid cols-4" id="dash-stats" style="margin-top:14px">
     <div class="stat"><div class="label">Hồ sơ đang ở Nháp</div><div class="value" id="s-draft">–</div><div class="hint">Chưa chốt thanh toán</div></div>
     <div class="stat"><div class="label">Sẵn sàng chốt</div><div class="value" id="s-ready">–</div><div class="hint">Đã có Số tiền</div></div>
     <div class="stat"><div class="label">Chờ Đề Nghị TT</div><div class="value" id="s-pending">–</div><div class="hint">Chưa tính số tiền</div></div>
@@ -1341,16 +1370,7 @@ function renderDashboard(){
       <div id="dash-theo-dl"><div class="empty"><div class="ic">⏳</div>Đang tải...</div></div>
     </div>
   </div>
-  <div class="card" style="margin-top:18px">
-    <h3>Quy trình xử lý</h3>
-    <div class="grid cols-4">
-      <div><b>1. Tạo Đề Nghị</b><div class="muted" style="font-size:12.5px;margin-top:4px">Chọn phiếu cân, nhập thông tin, bấm Lưu → ghi vào sheet chính & tách vào Nháp (trạng thái "Chưa ĐNTT").</div></div>
-      <div><b>2. Tính Tiền → Chờ ĐNTT</b><div class="muted" style="font-size:12.5px;margin-top:4px">Bấm "Đề Nghị Thanh Toán" để tính Số tiền → hồ sơ chuyển "Chờ ĐNTT".</div></div>
-      <div><b>3. Xác Nhận → Đang ĐNTT</b><div class="muted" style="font-size:12.5px;margin-top:4px">Chọn hồ sơ, bấm "Xác Nhận" → in Báo Cáo ĐNTT (mẫu excel) để trình duyệt.</div></div>
-      <div><b>4. Duyệt → Đóng Thanh Toán</b><div class="muted" style="font-size:12.5px;margin-top:4px">Bấm "Duyệt", nhập ngày TT → copy về sheet chính & khóa Phiếu Cân.</div></div>
-    </div>
-  </div>
-  <div id="dash-setup-warning"></div>`;
+`;
 
   // Không che cả màn hình: từng ô tự hiện khi có số, người dùng vẫn chuyển trang được.
   call('getDashboardStats', [], null).then(s => {
@@ -2160,12 +2180,6 @@ function doLamMoiToanBo(){
     loadDraftList();
   });
 }
-
-const DRAFT_STATUS_BADGE = {
-  cho_tinh: '<span class="badge pending dot">Chưa ĐNTT</span>',
-  cho_dntt: '<span class="badge wait dot">Chờ ĐNTT</span>',
-  dang_dntt: '<span class="badge ready dot">Đang ĐNTT</span>'
-};
 
 function renderDraftTable(){
   document.querySelectorAll('#content > .subtabs .subtab').forEach(el => {
@@ -4021,11 +4035,7 @@ function renderHuongDan(){
     <h3>📋 QUY TRÌNH THỰC HIỆN THỦ TỤC THANH TOÁN (tóm tắt 5 bước)</h3>
     <p class="muted" style="font-size:13px">Đây là quy trình CHUẨN cho 1 hồ sơ đề nghị thanh toán, từ lúc tạo đến khi tiền được ghi nhận chính thức. Mỗi hồ sơ đi qua đúng thứ tự 5 bước này, không được bỏ bước hay đảo bước.</p>
     <table><thead><tr><th style="width:60px">Bước</th><th>Việc làm</th><th>Ở đâu</th><th>Trạng thái sau khi xong</th></tr></thead><tbody>
-      <tr><td class="mono">1</td><td><b>Tạo Mới</b> - chọn Chủ rừng, Hợp đồng, chọn Phiếu cân cần thanh toán</td><td>Danh Sách ĐNTT → "➕ Tạo Mới"</td><td><span class="badge pending dot">Chưa ĐNTT</span></td></tr>
-      <tr><td class="mono">2</td><td><b>Đề Nghị Thanh Toán (tính lại)</b> - hệ thống tự tính tiền, gộp theo Số HĐ, tự điền Ngân hàng</td><td>Danh Sách ĐNTT → nút "📤 Đề Nghị Thanh Toán"</td><td><span class="badge wait dot">Chờ ĐNTT</span></td></tr>
-      <tr><td class="mono">3</td><td>Kiểm tra lại thông tin (Sửa nếu cần), rồi <b>Xác Nhận chuyển ĐNTT</b></td><td>Tab "2 · Chờ ĐNTT" → chọn hồ sơ → "✅ Xác nhận"</td><td><span class="badge ready dot">Đang ĐNTT</span></td></tr>
-      <tr><td class="mono">4</td><td><b>In Báo Cáo ĐNTT</b> để trình ký duyệt, hoặc <b>Tạo File UNC</b> để nộp ngân hàng chuyển tiền trước (chưa ghi vào sổ sách chính thức)</td><td>Tab "3 · Đang ĐNTT" → "🖨️ In Báo Cáo ĐNTT" / "🏦 Tạo File UNC"</td><td>Không đổi trạng thái</td></tr>
-      <tr><td class="mono">5</td><td><b>Duyệt (Đóng Thanh Toán)</b> - nhập ngày thanh toán thực tế → ghi vào sổ sách CHÍNH THỨC, khóa Phiếu Cân vĩnh viễn</td><td>Tab "3 · Đang ĐNTT" → "📨 Duyệt"</td><td>Chuyển sang "Báo Cáo Thanh Toán"</td></tr>
+      ${QUY_TRINH_TT.map((b, i) => `<tr><td class="mono">${i + 1}</td><td>${b.viec}</td><td>${esc(b.oDau)}</td><td>${b.sau}</td></tr>`).join('')}
     </tbody></table>
     <p class="hint-text">⚠️ Chỉ có thể Sửa/Xóa hồ sơ khi đang ở trạng thái "Chờ ĐNTT". Muốn sửa hồ sơ "Đang ĐNTT", phải bấm "↩️ Về Chờ ĐNTT" trước.</p>
     <p class="hint-text">⚠️ Nếu phiếu cân được chọn có tên Khách hàng KHÁC với Chủ rừng của hồ sơ, hệ thống sẽ cảnh báo ở bước 1 (lúc Lưu) và bước 3 (lúc Xác Nhận) - đọc kỹ trước khi bấm tiếp tục.</p>

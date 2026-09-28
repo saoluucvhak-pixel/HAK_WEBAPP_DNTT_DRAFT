@@ -2,6 +2,15 @@
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/). Phiên bản theo `NĂM.ĐỢT.SỬA`; thay đổi làm đổi hành vi nghiệp vụ (⚖️) sẽ tăng số ĐỢT và ghi rõ đã được người dùng đồng ý.
 
+## [2026.9.39] — Trang chủ: Quy trình thanh toán lên đầu trang (người dùng yêu cầu 28/09/2026)
+
+### Changed
+- **Quy trình thanh toán (5 bước)** nằm **đầu Trang chủ** (trước các ô số liệu); mỗi bước: tên, làm ở đâu, trạng thái sau khi xong; kèm link sang Hướng Dẫn Sử Dụng. Cảnh báo “Chưa thiết lập File Nháp” (nếu có) hiện trên cùng.
+- Sửa nội dung cũ lệch thực tế: Trang chủ trước ghi 4 bước và bước 1 “ghi vào sheet chính” — hồ sơ mới chỉ vào File Nháp, chỉ ghi sổ chính khi Duyệt. Nay Trang chủ và Hướng Dẫn dùng **chung 1 danh sách** `QUY_TRINH_TT` (5 bước), không còn 2 bản viết tay khác nhau.
+
+### Tests
+- 183 test (thêm: Trang chủ mở đầu bằng quy trình, cùng danh sách với Hướng Dẫn).
+
 ## [2026.9.38] — Danh Sách ĐNTT: tổng tiền đang đề nghị, lọc tên khách hàng (người dùng yêu cầu 28/09/2026)
 
 ### Added
