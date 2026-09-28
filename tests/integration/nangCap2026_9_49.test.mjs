@@ -253,3 +253,20 @@ test('#13 browser: statement amounts / dates in bank formats are read correctly'
   assert.deepEqual(f._docCsv_('a;b\n"x;1";2\n'), [['a', 'b'], ['x;1', '2']], 'semicolon CSV with quotes');
   assert.match(INDEX, /cdnjs\.cloudflare\.com\/ajax\/libs\/xlsx\/0\.18\.5\/xlsx\.full\.min\.js/);
 });
+
+// ---------- #14 VietQR trên phiếu ----------
+test('#14 VietQR: bank names map to NAPAS BINs; the payment slip embeds the QR when available, prints without it otherwise', () => {
+  const { run, env } = theGioi();
+  const bin = run('_binNganHang_');
+  [['BIDV', '970418'], ['Ngân hàng TMCP Đầu tư và Phát triển Việt Nam', '970418'], ['Agribank - CN Quế Sơn', '970405'], ['Vietcombank', '970436'],
+    ['NH TMCP Sài Gòn - Hà Nội (SHB)', '970443'], ['MB Bank', '970422'], ['VietinBank', '970415'], ['Ngân hàng lạ', '']].forEach(([t, b]) => assert.equal(bin(t), b, t));
+  const url = run('_urlVietQr_')({ idKey: 'A1', nganHang: 'BIDV', stk: "'0123456789", soTien: 2000000, noiDungCK: 'Thanh toán tiền mua gỗ keo HĐ số HD01', nguoiNhan: 'Nguyễn Văn A' });
+  assert.equal(url, 'https://img.vietqr.io/image/970418-0123456789-compact.png?amount=2000000&addInfo=THANH%20TOAN%20TIEN%20MUA%20GO%20KEO%20HD%20SO%20HD01&accountName=NGUYEN%20VAN%20A');
+  assert.equal(run('_urlVietQr_')({ nganHang: 'Ngân hàng lạ', stk: '0123456789', soTien: 1 }), '');
+  // Mạng bị chặn trong môi trường test -> phiếu vẫn in, không có QR.
+  const html = run('_htmlPhieuChiTietThanhToan_')(Object.assign(run('getDraftRecordDetail_')('A1'), { anhQr: 'data:image/png;base64,AAAA' }), new Date(), 'PHIẾU');
+  assert.match(html, /<img src="data:image\/png;base64,AAAA"[^>]*alt="VietQR">/);
+  assert.equal(run('_anhVietQr_')({ nganHang: 'BIDV', stk: '0123456789', soTien: 5, idKey: 'A1', nguoiNhan: 'A' }), '', 'network error -> no QR, no crash');
+  env.PropertiesService.getScriptProperties().setProperty('PHIEU_VIETQR', '0');
+  assert.equal(run('_urlVietQr_')({ nganHang: 'BIDV', stk: '0123456789', soTien: 5 }), '', 'can be turned off');
+});

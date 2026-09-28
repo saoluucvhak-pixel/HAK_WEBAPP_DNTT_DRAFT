@@ -9391,10 +9391,67 @@ const PHIEU_CT_TT = {
   SO_LE_KL: 3
 };
 
+// ------------------------------------------------------------
+// #14 VIETQR TRÊN PHIẾU (nâng cấp 28/09/2026): quét bằng app ngân hàng để kiểm tra nhanh đúng
+// STK + số tiền + người nhận (và chuyển nếu muốn). Ảnh QR theo chuẩn VietQR (NAPAS) lấy từ dịch
+// vụ ảnh VietQR, nhúng vào PDF; ngân hàng không nhận diện được / lỗi mạng -> phiếu không có QR.
+// Tắt: Script Property PHIEU_VIETQR = "0". Dịch vụ nhận STK, số tiền, nội dung, tên người nhận.
+// ------------------------------------------------------------
+/** Mã BIN NAPAS theo ngân hàng - khóa là tên viết tắt / tên đầy đủ đã chuẩn hóa (không dấu). */
+const VIETQR_BIN = [
+  ["970436", ["vietcombank", "vcb", "ngoai thuong"]], ["970415", ["vietinbank", "ctg", "icb", "cong thuong"]],
+  ["970418", ["bidv", "dau tu va phat trien"]], ["970405", ["agribank", "vba", "nong nghiep va phat trien nong thon"]],
+  ["970407", ["techcombank", "tcb", "ky thuong"]], ["970422", ["mbbank", "mb bank", "mb", "quan doi"]],
+  ["970416", ["acb", "a chau"]], ["970432", ["vpbank", "viet nam thinh vuong"]], ["970403", ["sacombank", "stb", "sai gon thuong tin"]],
+  ["970423", ["tpbank", "tien phong"]], ["970441", ["vib", "quoc te"]], ["970443", ["shb", "sai gon ha noi"]],
+  ["970437", ["hdbank", "phat trien tp"]], ["970440", ["seabank", "dong nam a"]], ["970448", ["ocb", "phuong dong"]],
+  ["970426", ["msb", "maritime", "hang hai"]], ["970431", ["eximbank", "xuat nhap khau"]], ["970449", ["lpbank", "lienvietpostbank", "loc phat"]],
+  ["970428", ["nam a bank", "namabank", "nam a"]], ["970409", ["bac a bank", "bacabank", "bac a"]], ["970427", ["vietabank", "viet a"]],
+  ["970452", ["kienlongbank", "kien long"]], ["970412", ["pvcombank", "dai chung"]], ["970438", ["baovietbank", "bao viet"]],
+  ["970400", ["saigonbank", "sai gon cong thuong"]], ["970425", ["abbank", "an binh"]], ["970419", ["ncb", "quoc dan"]],
+  ["970406", ["donga bank", "dong a"]], ["970433", ["vietbank", "viet nam thuong tin"]], ["970408", ["gpbank", "dau khi toan cau"]],
+  ["970414", ["oceanbank", "dai duong"]], ["970430", ["pgbank", "thinh vuong va phat trien"]], ["970429", ["scb", "sai gon"]],
+  ["970446", ["co-opbank", "coopbank", "hop tac xa"]]
+];
+/** BIN của tên ngân hàng (tự do: "BIDV", "Ngân hàng TMCP Đầu tư và Phát triển VN"...); "" nếu không rõ. */
+function _binNganHang_(ten) {
+  const t = " " + _boDauTimKiem_(ten) + " ";
+  if (!t.trim()) return "";
+  let tot = null;
+  VIETQR_BIN.forEach(([bin, khoa]) => khoa.forEach(k => {
+    // Khóa ngắn (mb, vib...) phải là cả từ; ưu tiên khóa dài nhất (tránh "sai gon" ăn nhầm "sai gon ha noi").
+    if (t.indexOf(" " + k + " ") !== -1 && (!tot || k.length > tot.k.length)) tot = { bin, k };
+  }));
+  return tot ? tot.bin : "";
+}
+function _boDauTimKiem_(s) {
+  return String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D")
+    .toLowerCase().replace(/[^a-z0-9-]+/g, " ").replace(/(^|\s)-+(?=\s|$)/g, " ").replace(/\s+/g, " ").trim(); // "-" chỉ giữ trong từ (co-opbank)
+}
+/** Link ảnh VietQR của hồ sơ `r` (STK, ngân hàng, số tiền, nội dung); "" nếu thiếu / tắt. */
+function _urlVietQr_(r) {
+  if (PropertiesService.getScriptProperties().getProperty("PHIEU_VIETQR") === "0") return "";
+  const bin = _binNganHang_(r.nganHang), stk = String(r.stk || "").replace(/\D/g, ""), tien = Math.round(utils.parseNum(r.soTien));
+  if (!bin || stk.length < 6 || tien <= 0) return "";
+  const noiDung = _boDauTimKiem_(r.noiDungCK || ("Thanh toan " + r.idKey)).toUpperCase().slice(0, 50);
+  return `https://img.vietqr.io/image/${bin}-${stk}-compact.png?amount=${tien}&addInfo=${encodeURIComponent(noiDung)}&accountName=${encodeURIComponent(_boDauTimKiem_(r.nguoiNhan).toUpperCase())}`;
+}
+/** Ảnh QR dạng data URI để nhúng PDF; "" nếu không lấy được (phiếu vẫn in). */
+function _anhVietQr_(r) {
+  const url = _urlVietQr_(r);
+  if (!url) return "";
+  try {
+    const res = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
+    if (res.getResponseCode() !== 200) return "";
+    return "data:image/png;base64," + Utilities.base64Encode(res.getBlob().getBytes());
+  } catch (e) { return ""; }
+}
+
 /** Dựng phiếu PDF của hồ sơ `r` theo `loai` (PHIEU_CT_TT.DE_NGHI / HOAN_THANH), lưu vào
  * thư mục Báo cáo, ghi nhật ký, trả link. */
 function _luuPhieuPdf_(r, loai) {
   const tenFile = loai.TEN_FILE + " " + r.idKey;
+  r.anhQr = _anhVietQr_(r);
   const pdf = Utilities.newBlob(_htmlPhieuChiTietThanhToan_(r, new Date(), loai.TIEU_DE), "text/html", tenFile + ".html")
     .getAs("application/pdf").setName(tenFile + ".pdf");
   const pdfUrl = DriveApp.getFolderById(getReportFolderId_()).createFile(pdf).getUrl();
@@ -9494,6 +9551,9 @@ function _htmlPhieuChiTietThanhToan_(r, luc, tieuDe) {
       ${dong("Nội dung chuyển khoản", e(r.noiDungCK) || "—")}
       ${dong("Ghi chú", dienGiai.length ? dienGiai.map(e).join("<br>") : "—")}
     </table>
+    ${r.anhQr ? `<table style="border:none;margin-bottom:12px"><tr><td style="border:none;width:170px"><img src="${r.anhQr}" width="160" height="160" alt="VietQR"></td>
+      <td style="border:none;vertical-align:middle;font-size:${BANG_DE_XUAT.CO_CHU - 1}pt"><b>Mã VietQR</b> - quét bằng ứng dụng ngân hàng để kiểm tra đúng
+      Số tài khoản ${e(r.stk)}, người nhận ${e(r.nguoiNhan)} và số tiền ${so(r.soTien, 0)} đ trước khi chuyển.</td></tr></table>` : ""}
     <table class="pc">
       <tr><th>STT</th><th>Số phiếu cân</th><th>KL (Tấn)</th><th>Thành tiền (đ)</th></tr>
       ${r.chiTiet.map((d, i) => `<tr><td class="so">${i + 1}</td><td>${e(d.soPhieuCan)}</td><td class="so">${so(d.klTan, soLeKl)}</td><td class="so">${so(d.thanhTien, 0)}</td></tr>`).join("")}
