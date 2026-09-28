@@ -1601,6 +1601,7 @@ const API_ROUTES = (() => {
     getDraftListSummary: r(getDraftListSummary_, N, CHI_DOC),
     getDraftRecordDetail: r(getDraftRecordDetail_, N, CHI_DOC),
     getLichSuHoSo: r(getLichSuHoSo_, N, CHI_DOC),
+    timKiemNhanh: r(timKiemNhanh_, N, CHI_DOC),
     webInPhieuChiTietThanhToan: r(webInPhieuChiTietThanhToan_, N),
     webInPhieuHoanThanhThanhToan: r(webInPhieuHoanThanhThanhToan_, X),
     getPhieuHoanThanh: r(getPhieuHoanThanh_, X, CHI_DOC),
@@ -2701,6 +2702,43 @@ function getLichSuSuaDoi_(fDate, tDate) {
     endRow = startRow - 1;
   }
   return results; // đã ở thứ tự mới -> cũ (do đọc ngược từ cuối lên) - đúng ý "mới nhất lên đầu"
+}
+
+/** #8 nâng cấp (28/09/2026): tìm nhanh toàn hệ thống - mã hồ sơ, số phiếu cân, STK, Số HĐ hoặc tên
+ * (không dấu, chứa chuỗi) trong hồ sơ Nháp và sổ đã chốt đang mở (năm đã khóa sổ: tra ở Báo cáo).
+ * Tối đa TIM_NHANH_TOI_DA kết quả, Nháp trước; mỗi kết quả nói rõ khớp theo gì. */
+const TIM_NHANH_TOI_DA = 30;
+function timKiemNhanh_(tuKhoa) {
+  const q = utils.standardize(String(tuKhoa || "").replace(/'/g, "").trim());
+  if (q.length < 2) return { ketQua: [], thongBao: "Gõ ít nhất 2 ký tự." };
+  const giong = v => { const s = utils.standardize(String(v == null ? "" : v).replace(/'/g, "")); return !!s && s.indexOf(q) !== -1; };
+  const kq = [];
+  const them = x => { if (kq.length < TIM_NHANH_TOI_DA && !kq.some(k => k.loai === x.loai && k.idKey === x.idKey)) kq.push(x); };
+  getDraftListSummary_().forEach(r => {
+    const phieu = (r.danhSachPhieuCan || []).find(giong);
+    const khop = giong(r.idKey) ? "Mã hồ sơ" : phieu ? "Số phiếu cân " + phieu : giong(r.stk) ? "Số tài khoản"
+      : giong(r.soHD) ? "Số HĐ" : (giong(r.chuRung) || giong(r.nguoiNhan)) ? "Tên" : "";
+    if (khop) them({ loai: "nhap", idKey: r.idKey, chuRung: r.chuRung, soHD: r.soHD, stk: r.stk, soTien: r.soTien, trangThai: r.trangThaiLabel, ngay: r.ngayDeNghi, khop });
+  });
+  const h112 = _h112ThatDataCache_();
+  const theoId = new Map(h112.map(r => [String(r[0] || "").trim(), r]));
+  const themChot = (r, khop) => them({ loai: "chot", idKey: String(r[0]).trim(), chuRung: String(r[2] || ""), soHD: String(r[8] || "").replace(/'/g, ""),
+    stk: String(r[5] || "").replace(/'/g, ""), soTien: utils.parseNum(r[6]), trangThai: "Đã thanh toán",
+    ngay: r[16] instanceof Date ? utils.formatDate(r[16]) : "", ngayISO: r[16] instanceof Date ? Utilities.formatDate(r[16], "GMT+7", "yyyy-MM-dd") : "", khop });
+  for (let i = h112.length - 1; i >= 0 && kq.length < TIM_NHANH_TOI_DA; i--) { // mới nhất trước
+    const r = h112[i];
+    const khop = giong(r[0]) ? "Mã hồ sơ" : giong(r[5]) ? "Số tài khoản" : giong(r[8]) ? "Số HĐ" : (giong(r[2]) || giong(r[3])) ? "Tên" : "";
+    if (khop) themChot(r, khop);
+  }
+  if (kq.length < TIM_NHANH_TOI_DA) {
+    const ct = _ctThatDataCache_();
+    for (let i = ct.length - 1; i >= 0 && kq.length < TIM_NHANH_TOI_DA; i--) {
+      if (!giong(ct[i][11])) continue;
+      const r = theoId.get(String(ct[i][1] || "").trim());
+      if (r) themChot(r, "Số phiếu cân " + String(ct[i][11]).replace(/'/g, ""));
+    }
+  }
+  return { ketQua: kq, thongBao: kq.length >= TIM_NHANH_TOI_DA ? `Hiện ${TIM_NHANH_TOI_DA} kết quả đầu - gõ cụ thể hơn để thu hẹp.` : "" };
 }
 
 /** #4 nâng cấp (28/09/2026): lịch sử của ĐÚNG 1 hồ sơ - mọi dòng Nhật Ký Thao Tác có Mã hồ sơ là

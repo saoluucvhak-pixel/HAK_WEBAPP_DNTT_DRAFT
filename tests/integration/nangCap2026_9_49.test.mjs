@@ -181,3 +181,18 @@ test('#7 the home page gets a 30-day buy / pay trend and debt ageing from pre-ag
   assert.match(INDEX, /--series-1:#2a78d6; --series-2:#eb6834;/);
   assert.match(INDEX, /<summary style="cursor:pointer;font-size:13px">Xem bảng số liệu<\/summary>/, 'table view');
 });
+
+// ---------- #8 Tìm nhanh ----------
+test('#8 quick search finds draft and closed records by id, ticket, account, contract or name (no accents)', () => {
+  const { run } = theGioi();
+  assert.match(run('runConfirmPayment_')(['A1'], new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 10)), /^✅/);
+  const tim = q => run('api')('', 'timKiemNhanh', [q]).ketQua;
+  assert.deepEqual(Array.from(tim('B2'), r => [r.loai, r.idKey, r.khop]), [['nhap', 'B2', 'Mã hồ sơ']]);
+  const pc = tim('pc002');
+  assert.equal(pc[0].loai, 'chot'); assert.equal(pc[0].idKey, 'A1'); assert.match(pc[0].khop, /Số phiếu cân PC002/);
+  assert.ok(tim('tran thi').some(r => r.idKey === 'B2' && r.khop === 'Tên'), 'accent-insensitive name');
+  assert.ok(tim('0123456789').length >= 1, 'account number');
+  assert.equal(tim('x').length, 0);
+  assert.equal(run('API_ROUTES').timKiemNhanh.quyen, 'NGHIEP_VU');
+  assert.match(INDEX, /<form id="tim-nhanh" class="tim-nhanh hidden" role="search"/);
+});

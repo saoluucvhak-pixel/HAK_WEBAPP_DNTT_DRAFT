@@ -328,6 +328,11 @@
     .modal-head .x{cursor:pointer; font-size:18px; color:var(--ink-soft); background:none; border:none;}
     .modal-body{padding:20px; max-height:65vh; overflow:auto;}
     .modal.rong{max-width:880px;}
+    /* #8 tìm nhanh (thanh bên) */
+    .tim-nhanh{padding:0 14px 10px;}
+    .tim-nhanh input{width:100%; box-sizing:border-box; background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.18); color:#f9fafb; border-radius:8px; padding:8px 10px; font-size:13px;}
+    .tim-nhanh input::placeholder{color:#9ca3af;}
+    .ket-qua-tim tr{cursor:pointer;}
     /* #7 biểu đồ xu hướng Trang chủ */
     .bieu-do{position:relative;}
     .bieu-do svg{width:100%; height:auto; display:block;}
@@ -606,6 +611,9 @@
         <div class="sub">Quản lý thanh toán</div>
       </div>
     </div>
+    <form id="tim-nhanh" class="tim-nhanh hidden" role="search" onsubmit="event.preventDefault(); timNhanh();">
+      <input type="search" id="tim-nhanh-o" placeholder="🔍 Tìm mã hồ sơ, phiếu cân, STK… (/)" aria-label="Tìm nhanh hồ sơ theo mã, số phiếu cân, số tài khoản, số hợp đồng hoặc tên" autocomplete="off">
+    </form>
     <nav id="nav" aria-label="Điều hướng chính">
       <div class="nav-item" role="button" tabindex="0" data-page="dashboard"><span class="ic">🏠</span> Trang chủ</div>
       <div class="nav-sep"></div>
@@ -1071,6 +1079,7 @@ function _veNguoiDungChip_(){
 }
 function apDungQuyenGiaoDien(){
   document.body.classList.remove('chua-dang-nhap');
+  document.getElementById('tim-nhanh').classList.toggle('hidden', !coQuyen('NGHIEP_VU')); // #8: tìm cả hồ sơ Nháp -> quyền Nghiệp vụ
   document.querySelectorAll('#nav .nav-item').forEach(el => {
     const meta = PAGES[el.dataset.page];
     el.style.display = (meta && coQuyen(meta.quyen)) ? '' : 'none';
@@ -2750,6 +2759,32 @@ function viewDraftDetail(idKey){
   });
 }
 
+/** #8: tìm nhanh toàn hệ thống (ô trên thanh bên, phím / hoặc Ctrl+K). */
+function timNhanh(){
+  const o = document.getElementById('tim-nhanh-o'), q = o.value.trim();
+  if (q.length < 2) { toast('Gõ ít nhất 2 ký tự để tìm.', 'warn'); return; }
+  call('timKiemNhanh', [q], 'Đang tìm...').then(res => {
+    const ds = (res && res.ketQua) || [];
+    openModal(`<div class="modal-head"><h3>Kết quả tìm "${esc(q)}"</h3><button class="x" onclick="closeModal()" aria-label="Đóng">&times;</button></div>
+      <div class="modal-body">${ds.length ? `<table class="ket-qua-tim"><thead><tr><th>Hồ sơ</th><th>Chủ rừng</th><th>Số HĐ / STK</th><th class="num">Số tiền</th><th>Trạng thái</th><th>Khớp theo</th></tr></thead><tbody>
+        ${ds.map((r, i) => `<tr tabindex="0" role="button" data-i="${i}"><td class="mono">${esc(r.idKey)}<div class="muted" style="font-size:11.5px">${esc(r.ngay)}</div></td><td>${esc(r.chuRung)}</td>
+          <td class="mono" style="font-size:12.5px">${esc(r.soHD)}<br>${esc(r.stk)}</td><td class="num">${fmtMoney(r.soTien)}</td>
+          <td>${r.loai === 'nhap' ? `<span class="badge wait dot">${esc(r.trangThai)}</span>` : '<span class="badge ready dot">Đã thanh toán</span>'}</td><td class="muted" style="font-size:12.5px">${esc(r.khop)}</td></tr>`).join('')}
+        </tbody></table>${res.thongBao ? `<div class="hint-text" style="margin-top:8px">${esc(res.thongBao)}</div>` : ''}`
+        : `<div class="empty"><div class="ic">🔎</div>Không tìm thấy hồ sơ nào khớp "${esc(q)}" trong Nháp và sổ đang mở.${res && res.thongBao ? '<br>' + esc(res.thongBao) : ''}<br><span class="muted">Hồ sơ năm đã khóa sổ: tra ở Báo Cáo Thanh Toán.</span></div>`}</div>`, { rong: true });
+    document.querySelectorAll('.ket-qua-tim tbody tr').forEach(tr => {
+      const mo = () => { const r = ds[+tr.dataset.i]; closeModal(); if (r.loai === 'nhap') viewDraftDetail(r.idKey); else xemPhieuHoanThanh(r.idKey, r.ngayISO); };
+      tr.addEventListener('click', mo);
+      tr.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); mo(); } });
+    });
+  });
+}
+document.addEventListener('keydown', e => {
+  const oTim = document.getElementById('tim-nhanh-o');
+  if (!oTim || document.getElementById('tim-nhanh').classList.contains('hidden')) return;
+  const dangGo = /^(INPUT|TEXTAREA|SELECT)$/.test((document.activeElement || {}).tagName || '') || (document.activeElement && document.activeElement.isContentEditable);
+  if ((e.key === '/' && !dangGo) || ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k')) { e.preventDefault(); oTim.focus(); oTim.select(); }
+});
 /** #4: lịch sử 1 hồ sơ (từ Nhật Ký Thao Tác) trong modal chi tiết - tải khi mở mục. */
 function taiLichSuHoSo(idKey){
   const box = document.getElementById('lich-su-ho-so-noi-dung');
