@@ -13,11 +13,16 @@ function theGioi() {
   const ctx = loadCode(world.options);
   return { ...ctx, world };
 }
-/** A1: bỏ 1 phiếu cân (còn 1 phiếu 1.000.000 đ) nhưng KHÔNG tính lại -> Số tiền 112 vẫn 2.000.000 đ. */
+/** A1: bỏ 1 phiếu cân (còn 1 phiếu 1.000.000 đ) nhưng tính lại KHÔNG chạy được -> Số tiền 112 vẫn
+ * 2.000.000 đ. Từ 2026.9.49 bỏ phiếu tự tính lại; lớp chặn lệch tiền vẫn phải giữ cho khi tự tính lỗi. */
 function boPhieuKhongTinhLai(run) {
   run('runHuyXacNhanDNTT_')('A1');
   const ct = run('getDraftRecordDetail_')('A1').chiTiet[0];
-  assert.equal(run('removePhieuCanFromDraft_')(ct.idCT).success, true);
+  run(`() => { globalThis.__tinhLaiGoc = _tinhLai112Nhap_; _tinhLai112Nhap_ = () => { throw new Error('het quota'); }; }`)();
+  const kq = run('removePhieuCanFromDraft_')(ct.idCT);
+  run(`() => { _tinhLai112Nhap_ = globalThis.__tinhLaiGoc; }`)();
+  assert.equal(kq.success, true);
+  assert.match(kq.message, /Chưa tự tính lại được Số tiền \(.*het quota.*\)/);
 }
 
 // ---------- CRITICAL: Số tiền hồ sơ phải khớp tổng tiền phiếu cân ----------
