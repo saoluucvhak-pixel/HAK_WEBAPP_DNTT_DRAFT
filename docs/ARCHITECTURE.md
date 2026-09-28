@@ -1,4 +1,4 @@
-# ARCHITECTURE — HAK Quản Lý Thanh Toán (v2026.9.48)
+# ARCHITECTURE — HAK Quản Lý Thanh Toán (v2026.9.49)
 
 > Tài liệu sống: cập nhật mỗi khi đổi module, lớp, luồng dữ liệu hoặc schema.
 > Phân tích chi tiết hiện trạng: `docs/PROJECT_ANALYSIS.md`. Kiến trúc đích: `docs/REFACTOR_PLAN.md` §3–§4.
@@ -251,4 +251,15 @@ Lỗi đọc sổ trong báo cáo (2026.9.46): công nợ / phân tích / tiến
 - Trợ lý AI: `_soLieuNangChoChatbot_` giữ phần công nợ / tổng hợp 10 phút, khóa gắn `CONGNO_LUC.THAY_DOI`; Đại lý / Nguồn gốc lấy từ `PhanTichNhapTT_DRAFT`.
 - Cài đặt: `getCaiDatTongHop_` (CHI_DOC) trả 13 phần trong 1 lời gọi; trình duyệt `_caiDat_(tên, hàm)` dùng mỗi phần 1 lần, phần lỗi gọi riêng.
 - Trình duyệt: 1 `MutationObserver` gom theo khung hình (`_xuLyDomMoi_`); bảng MISA / Chi tiết phân trang `BANG_LON_MOI_TRANG` = 100; lọc tên Danh Sách ĐNTT chờ 150 ms.
+
+## Nâng cấp 2026.9.49
+
+- **Tự tính tiền**: `_tinhLai112Nhap_()` (không khóa) là phần tính của `runCreate112`; Tạo mới, Thêm / Bỏ phiếu cân, Mở Đóng TT gọi `_tuTinhLaiSauThayDoi_()` trong khóa của thao tác. Lỗi tính lại không hỏng thao tác chính; chặn lệch tiền (`_hoSoLechTien_`) vẫn giữ ở Xác nhận / In / UNC / Duyệt.
+- **Trạng thái hiển thị**: Chưa tính tiền / Chờ xác nhận / Chờ duyệt. Giá trị lưu cột X Draft 112 vẫn là `"Đang ĐNTT"` (so sánh trong code dùng giá trị này).
+- **Hộp xác nhận** `xacNhan(noiDung, {tieuDe, nutOk, nguyHiem, maGo, oNhap})` / `nhapChu()` thay `confirm()` / `prompt()` (#hop-xac-nhan, z-index trên modal).
+- **Nhật ký bước Duyệt**: Script Property `DUYET_DO_DANG` ghi trước khi ghi sổ, xóa khi xong; `getDuyetDoDang_` báo lượt dở (> 7 phút), `webHoanTatDuyetDoDang_` chạy lại đúng hồ sơ + ngày (runConfirmPayment_ bỏ qua phần đã ghi).
+- **Kiểm tra đêm**: trigger `kiemTraToanVenHangDem_` 2:00 (`setupKiemTraDemTrigger_`), kết quả `KIEM_TRA_DEM_KET_QUA`, email Quản trị (`MailApp`, chỉ khi kết quả đổi - `KIEM_TRA_DEM_DA_GUI`). Cần cấp thêm quyền gửi email khi triển khai.
+- **Lịch sử hồ sơ** `getLichSuHoSo_`, **tìm nhanh** `timKiemNhanh_`, **đối chiếu sao kê** `doiChieuSaoKe_` (chỉ đọc ChiTietUNC), **VietQR** `_urlVietQr_` / `_anhVietQr_` (img.vietqr.io, tắt bằng `PHIEU_VIETQR=0`), **Trang chủ** `xuHuong30Ngay` + `tuoiNo` (chỉ đọc số đã tổng hợp).
+- **Trình duyệt**: Hệ Thống 2 tab (Tra cứu / Can thiệp), Tạo Mới lưu nháp `sessionStorage` (`hak_tao_moi_nhap_v1`), biểu đồ SVG dùng `--series-1/2` (đã kiểm định mù màu sáng/tối).
+- **CI**: `.github/workflows/test.yml` - `node --check` Code.gs + `node --test`.
 

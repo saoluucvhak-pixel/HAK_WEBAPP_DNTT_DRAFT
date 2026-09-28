@@ -2,6 +2,33 @@
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/). Phiên bản theo `NĂM.ĐỢT.SỬA`; thay đổi làm đổi hành vi nghiệp vụ (⚖️) sẽ tăng số ĐỢT và ghi rõ đã được người dùng đồng ý.
 
+## [2026.9.49] — Nâng cấp theo báo cáo rà soát (người dùng đồng ý 28/09/2026: "bỏ mục 2, còn lại bạn làm đi")
+
+### Changed
+- ⚖️ **#1 Tự tính tiền**: Lưu hồ sơ mới, Thêm / Bỏ phiếu cân, Mở Đóng TT tự tính lại Số tiền + lũy kế ngay - không còn bước bấm "Đề Nghị Thanh Toán (tính lại)" (gốc lỗi lệch tiền B-01). Hồ sơ mới vào thẳng "Chờ xác nhận". Nút đổi tên "🔄 Tính lại số tiền" (chỉ cần khi có cảnh báo).
+- ⚖️ **#10 Tên trạng thái**: Chưa ĐNTT / Chờ ĐNTT / Đang ĐNTT → **Chưa tính tiền / Chờ xác nhận / Chờ duyệt** (chỉ chữ hiển thị; giá trị trong sheet giữ nguyên).
+- **#3** 26 hộp `confirm()` / `prompt()` của trình duyệt → hộp xác nhận trong trang; thao tác nguy hiểm nút đỏ, con trỏ ở Hủy; Mở Đóng TT (gõ `MO DONG`), Khóa sổ (gõ năm), Xóa mồ côi sổ đã chốt / Xóa sạch Phân tích - Công nợ (gõ `XOA`), Tạo mã bí mật (gõ `MA MOI`).
+- **#11** Hệ Thống tách 2 tab: 🔎 Tra cứu & kiểm tra / ⚠️ Can thiệp dữ liệu.
+- **#12** Nút Lưu Tạo Mới ghi đúng việc: "Lưu hồ sơ (vào Danh Sách ĐNTT, tự tính tiền)".
+
+### Added
+- **#4** Mục "📜 Lịch sử hồ sơ" trong chi tiết hồ sơ: ai tạo, sửa gì (trước → sau), xác nhận, duyệt - lúc nào.
+- **#5** Kiểm tra toàn vẹn dữ liệu hằng đêm 2:00 (bật ở Cài đặt): Bảo Trì + MISA thiếu dòng 30 ngày + phiếu cân đã trả chưa khóa; kết quả ở Trang chủ (quyền Hệ Thống) và Hệ Thống; **email Quản trị** khi có vấn đề mới. ⚠️ Lần triển khai đầu Google sẽ hỏi cấp quyền gửi email.
+- **#6** Lượt Duyệt bị dừng giữa chừng (giới hạn 6 phút, mất kết nối) được phát hiện: Danh Sách ĐNTT báo đỏ + nút "Hoàn tất lượt Duyệt" (làm nốt, không ghi trùng).
+- **#7** Trang chủ: **tuổi nợ** phiếu cân chưa thanh toán (0-30 / 31-60 / 61-90 / trên 90 ngày) + **biểu đồ xu hướng 30 ngày** mua / thanh toán (rê chuột xem số, có bảng số liệu).
+- **#8** **Tìm nhanh** (ô trên thanh bên, phím `/` hoặc Ctrl+K): mã hồ sơ, số phiếu cân, STK, Số HĐ, tên không dấu - Nháp + sổ đang mở.
+- **#9** Tạo Mới **tự lưu nháp** (còn khi tải lại trang; xóa khi đóng tab / Lưu / Bỏ / Đăng xuất) và hỏi tiếp tục hồ sơ dở.
+- **#13** **Đối chiếu sao kê ngân hàng** (Báo Cáo Thanh Toán › 🏦 Đối chiếu sao kê): tải .xlsx/.xls/.csv, khớp UNC theo số tiền + STK/tên + ngày ±3 → Khớp / Cần kiểm tra / UNC chưa thấy trên sao kê / Khoản chi không có UNC; tải CSV.
+- **#14** **VietQR** trên phiếu chi tiết thanh toán (PDF) - quét kiểm tra STK / số tiền; dùng dịch vụ ảnh img.vietqr.io (tắt: Script Property `PHIEU_VIETQR` = `0`).
+- **#15** CI GitHub Actions: mỗi lần đẩy code kiểm cú pháp Code.gs + chạy toàn bộ test.
+
+### Fixed
+- Nhận diện ngân hàng "Sài Gòn - Hà Nội (SHB)" không bị nhầm SCB (dấu gạch giữa tên).
+- **#16** Dời 15 chú thích mồ côi về đúng hàm chúng mô tả.
+
+### Tests
+- 260 test (thêm `nangCap2026_9_49.test.mjs` 19 test). Kiểm tra Chromium: hộp xác nhận, Hệ Thống 2 tab, cảnh báo Duyệt dở, tìm nhanh, Tạo Mới khôi phục sau tải lại trang, đối chiếu sao kê CSV, biểu đồ sáng / tối.
+
 ## [2026.9.48] — Rà tự động ngày + số 0 đầu trên MỌI file xuất Excel (28/09/2026)
 
 Người dùng hỏi "định dạng cột ngày khi kết xuất Excel chưa, khóa số 0 đầu của chuỗi khi kết xuất Excel đã rà chưa".
