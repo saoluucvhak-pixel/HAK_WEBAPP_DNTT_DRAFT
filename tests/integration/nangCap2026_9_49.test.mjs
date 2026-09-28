@@ -69,3 +69,19 @@ test('#3 no browser confirm()/prompt() left; dangerous actions ask to type a cod
   assert.match(INDEX, /<div class="modal-bg" id="hop-xac-nhan"><div class="modal" role="alertdialog"/);
   assert.match(js, /\(o \|\| \(tc\.nguyHiem \? huy : ok\)\)\.focus\(\);/, 'dangerous: focus starts on Cancel');
 });
+
+// ---------- #4 Lịch sử của từng hồ sơ ----------
+test('#4 a record history lists every action on that record (also multi-record approvals), oldest first', () => {
+  const { run } = theGioi();
+  run('runHuyXacNhanDNTT_')('A1');
+  assert.equal(run('updateDraft112Info_')('A1', { nguoiNhan: 'Nguyen Van Z' }).success, true);
+  run('runXacNhanDNTT_')(['B2', 'A1']);
+  assert.match(run('runConfirmPayment_')(['A1', 'B2'], new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 10)), /^✅/);
+  const ls = run('api')('', 'getLichSuHoSo', ['A1']);
+  const hd = ls.map(x => x.hanhDong);
+  assert.ok(hd.includes('SUA_NHAP') && hd.includes('CHOT_THANH_TOAN'), hd.join(','));
+  assert.ok(hd.indexOf('SUA_NHAP') < hd.indexOf('CHOT_THANH_TOAN'), 'oldest first');
+  assert.match(ls.find(x => x.hanhDong === 'SUA_NHAP').chiTiet, /Nguyen Van Z/);
+  assert.ok(!run('getLichSuHoSo_')('B2').some(x => x.hanhDong === 'SUA_NHAP'), 'only its own edits');
+  assert.match(INDEX, /taiLichSuHoSo\(this\.dataset\.id\)/);
+});

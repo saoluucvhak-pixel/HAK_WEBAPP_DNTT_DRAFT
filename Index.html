@@ -2609,6 +2609,7 @@ function viewDraftDetail(idKey){
         <div class="kv"><span class="k">SL HĐ Dự Kiến / Lũy Kế / Còn Lại</span><span class="v mono">${fmtKl(r.slDuKien)} / ${fmtKl(r.slLuyKe)} / ${fmtKl(r.conLai)} tấn</span></div>
         <div class="kv"><span class="k">Số tiền</span><span class="v mono">${fmtMoney(r.soTien)} đ</span></div>
         ${veDienGiaiHoSo(r)}
+        <details id="lich-su-ho-so" style="margin-top:12px" data-id="${esc(r.idKey)}" ontoggle="if (this.open) taiLichSuHoSo(this.dataset.id)"><summary style="cursor:pointer;font-weight:600">📜 Lịch sử hồ sơ (ai tạo, sửa gì, xác nhận, duyệt - lúc nào)</summary><div id="lich-su-ho-so-noi-dung" class="muted" style="font-size:13px;margin-top:8px">Đang tải...</div></details>
         <h3 style="margin:16px 0 8px 0; font-size:14px">Danh sách phiếu cân (${r.chiTiet.length})</h3>
         <table><thead><tr><th>Số phiếu cân</th><th class="num">KL (Tấn)</th><th class="num">Thành tiền</th>${editable?'<th></th>':''}</tr></thead><tbody>
         ${r.chiTiet.map(d => `<tr><td class="mono">${esc(d.soPhieuCan)}</td><td class="num">${fmtKl(d.klTan)}</td><td class="num">${fmtMoney(d.thanhTien)}</td>
@@ -2638,6 +2639,18 @@ function viewDraftDetail(idKey){
   });
 }
 
+/** #4: lịch sử 1 hồ sơ (từ Nhật Ký Thao Tác) trong modal chi tiết - tải khi mở mục. */
+function taiLichSuHoSo(idKey){
+  const box = document.getElementById('lich-su-ho-so-noi-dung');
+  if (!box || box.dataset.daTai) return;
+  call('getLichSuHoSo', [idKey], null).then(ds => {
+    box.dataset.daTai = '1';
+    if (!ds || !ds.length) { box.textContent = 'Chưa có ghi chép nào cho hồ sơ này.'; return; }
+    box.innerHTML = `<table><thead><tr><th>Thời gian</th><th>Người thực hiện</th><th>Thao tác</th><th>Chi tiết</th></tr></thead><tbody>
+      ${ds.map(x => `<tr><td class="mono" style="white-space:nowrap">${esc(x.thoiGian)}</td><td>${esc(x.nguoiThucHien)}</td><td>${esc(NHAN_HANH_DONG[x.hanhDong] || x.hanhDong)}</td><td style="white-space:pre-line">${esc(x.chiTiet)}</td></tr>`).join('')}
+    </tbody></table>`;
+  }, () => { box.textContent = 'Không tải được lịch sử - thử lại.'; });
+}
 /** Tạo phiếu PDF (fn máy chủ + tham số); xong thì nút In trong ô #phieu-pdf-slot đổi thành link mở file. */
 function _inPhieuPdf(fn, thamSo){
   call(fn, thamSo, 'Đang tạo phiếu PDF...').then(res => {
@@ -4606,6 +4619,10 @@ const NHAN_HANH_DONG = {
   XOA_UNC: '🧹 Dọn UNC',
   SUA_NHAP: '✏️ Sửa hồ sơ Nháp',
   THEM_PHIEU_NHAP: '➕ Thêm phiếu cân',
+  // Chỉ hiện ở Lịch sử 1 hồ sơ (#4) - không thuộc Lịch sử sửa đổi.
+  TAO_MOI_DNTT_NHAP: '🆕 Tạo mới hồ sơ', TAO_UNC: '🏦 Tạo file UNC', XUAT_BAO_CAO_DNTT_NHAP: '🖨️ In Báo Cáo ĐNTT',
+  LOI_MO_DONG_THANH_TOAN: '⚠️ Lỗi Mở Đóng TT', LOI_DON_DEP_KHI_MO_DONG: '⚠️ Lỗi dọn khi Mở Đóng TT', LOI_MO_KHOA_PHIEU_CAN: '⚠️ Lỗi mở khóa phiếu cân',
+  LOI_DON_DEP_KHI_XOA_NHAP: '⚠️ Lỗi dọn khi xóa hồ sơ', LOI_CHOT_THANH_TOAN: '⚠️ Lỗi Duyệt', LOI_CHITIET_DNTT_LUC_CHOT: '⚠️ Lỗi ghi chi tiết lúc Duyệt',
   XOA_PHIEU_NHAP: '➖ Bỏ phiếu cân',
   XAC_NHAN_DNTT: '✅ Xác nhận ĐNTT',
   HUY_XAC_NHAN_DNTT: '↩️ Về Chờ xác nhận',

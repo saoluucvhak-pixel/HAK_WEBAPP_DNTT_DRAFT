@@ -1594,6 +1594,7 @@ const API_ROUTES = (() => {
     // --- Danh sách ĐNTT / Nháp / Duyệt (Kế toán) ---
     getDraftListSummary: r(getDraftListSummary_, N, CHI_DOC),
     getDraftRecordDetail: r(getDraftRecordDetail_, N, CHI_DOC),
+    getLichSuHoSo: r(getLichSuHoSo_, N, CHI_DOC),
     webInPhieuChiTietThanhToan: r(webInPhieuChiTietThanhToan_, N),
     webInPhieuHoanThanhThanhToan: r(webInPhieuHoanThanhThanhToan_, X),
     getPhieuHoanThanh: r(getPhieuHoanThanh_, X, CHI_DOC),
@@ -2688,6 +2689,21 @@ function getLichSuSuaDoi_(fDate, tDate) {
     endRow = startRow - 1;
   }
   return results; // đã ở thứ tự mới -> cũ (do đọc ngược từ cuối lên) - đúng ý "mới nhất lên đầu"
+}
+
+/** #4 nâng cấp (28/09/2026): lịch sử của ĐÚNG 1 hồ sơ - mọi dòng Nhật Ký Thao Tác có Mã hồ sơ là
+ * `id` (kể cả danh sách "A1,B2" khi Xác nhận / Duyệt nhiều hồ sơ một lần), cũ -> mới. Chỉ đọc
+ * cột Mã rồi các dòng khớp (không đọc cả nhật ký). */
+function getLichSuHoSo_(id) {
+  const ma = String(id || "").trim();
+  if (!ma) return [];
+  const sh = getMainSs_().getSheetByName(CFG.LOG_SHEET);
+  if (!sh) return [];
+  const khop = v => String(v || "").split(",").some(x => x.trim() === ma);
+  return _docDongTheoKhoa_(sh, 3, 5, khop).slice(-300).map(r => ({
+    thoiGian: r[0] instanceof Date ? Utilities.formatDate(r[0], "GMT+7", "dd/MM/yyyy HH:mm:ss") : String(r[0] || ""),
+    nguoiThucHien: String(r[1] || ""), hanhDong: String(r[2] || ""), chiTiet: String(r[4] || "")
+  }));
 }
 
 /**
