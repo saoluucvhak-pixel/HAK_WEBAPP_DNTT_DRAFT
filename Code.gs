@@ -1,6 +1,6 @@
 /**
  * ============================================================
- * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.19
+ * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.20
  * Lịch sử thay đổi: CHANGELOG.md · Kiến trúc: docs/ARCHITECTURE.md
  * ------------------------------------------------------------
  * *** QUAN TRỌNG - CẦN LÀM TRƯỚC KHI DÙNG BẢN NÀY (chỉ 1 LẦN DUY NHẤT
@@ -2265,7 +2265,9 @@ function webSetMisaDefaults_(values) {
 // ============================================================
 function _getExportRegion_() {
   const r = PropertiesService.getScriptProperties().getProperty('EXPORT_REGION_LOCALE');
-  return REGION_PRESETS[r] ? r : _getRegion_(); // mặc định = theo Vùng Lãnh Thổ chung nếu chưa cấu hình riêng
+  // Chưa cấu hình riêng -> VUNG_MAC_DINH.XUAT (VN), không theo vùng hệ thống (US):
+  // trước đây đi theo vùng hệ thống nên file MISA ra ngày mm/dd/yyyy.
+  return REGION_PRESETS[r] ? r : VUNG_MAC_DINH.XUAT;
 }
 function _setExportRegion_(region) {
   if (!REGION_PRESETS[region]) throw new Error("Vùng không hợp lệ: " + region);
@@ -3507,13 +3509,19 @@ function webKhoaDinhDangTextTatCa_() {
  * nơi phân tích/ghép chuỗi ngày (vd "Ngày thanh toán" khi Đóng Thanh
  * Toán) đều tự động dùng ĐÚNG theo lựa chọn này.
  */
+// TIÊU CHUẨN VÙNG (người dùng chốt 28/09/2026) - chỉ dùng khi Cài đặt chưa chọn:
+//  - HE_THONG: theo định dạng của file Google Sheet (locale US) - khóa định dạng
+//    cột ngày trên sheet, đọc ngày gõ tay dạng dd/mm hay mm/dd.
+//  - XUAT: file Excel xuất ra, gồm file MISA / Update_NganHang_DN - kiểu VN
+//    (dd/mm/yyyy), KHÔNG đi theo vùng hệ thống.
+const VUNG_MAC_DINH = { HE_THONG: "US", XUAT: "VN" };
 const REGION_PRESETS = {
   VN: { label: "Việt Nam (ngày dd/mm/yyyy, thứ tự nhập dd/mm/yyyy)", dateFmt: "dd/MM/yyyy", dateTimeFmt: "dd/MM/yyyy HH:mm:ss", dateOrder: "dmy" },
   US: { label: "United States (ngày mm/dd/yyyy, thứ tự nhập mm/dd/yyyy)", dateFmt: "MM/dd/yyyy", dateTimeFmt: "MM/dd/yyyy HH:mm:ss", dateOrder: "mdy" }
 };
 function _getRegion_() {
   const r = PropertiesService.getScriptProperties().getProperty('REGION_LOCALE');
-  return REGION_PRESETS[r] ? r : 'VN'; // mặc định Việt Nam nếu chưa từng cài đặt
+  return REGION_PRESETS[r] ? r : VUNG_MAC_DINH.HE_THONG;
 }
 function _setRegion_(region) {
   if (!REGION_PRESETS[region]) throw new Error("Vùng không hợp lệ: " + region);

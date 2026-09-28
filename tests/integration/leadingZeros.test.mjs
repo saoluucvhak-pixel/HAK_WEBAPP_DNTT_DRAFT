@@ -35,7 +35,7 @@ test('deleting one draft record keeps leading zeros of the others', () => {
 
 test('confirming payment keeps leading zeros in the main sheets and remaining drafts', () => {
   const { world, run } = worldWithZeros();
-  assert.match(run('runConfirmPayment_')(['A1'], '26/09/2026'), /^✅/);
+  assert.match(run('runConfirmPayment_')(['A1'], '2026-09-26'), /^✅/);
   zerosKept(world.main.getSheetByName('DNTT_GK_DN_CT').rows(22).slice(1), [4, 7, 19]);
   zerosKept(world.main.getSheetByName('DNTT_GK_DN_112').rows(23).slice(1), [5, 8, 22]);
   const src = world.main.getSheetByName('DNTT_GK_DN').rows(18).filter(r => r[0] === 'A1');

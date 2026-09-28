@@ -37,3 +37,19 @@ test('typed dates still follow the configured region', () => {
   const us = world('US'); assert.match(us.run('runConfirmPayment_')(['A1'], '09/26/2026'), /^✅/);
   assert.deepEqual(us.ngayCK(), ['2026-09-26', '2026-09-26']);
 });
+
+test('standard regions: Google Sheet side US, exports (MISA) VN - even when only the system region is set', () => {
+  const { run, w, env } = world('US'); // như máy chủ thật: Vùng lãnh thổ US, Vùng xuất chưa cài riêng
+  assert.equal(run('_getExportRegion_')(), 'VN');
+  assert.match(run('runConfirmPayment_')(['A1'], '2026-09-05'), /^✅/);
+  const misa = w.updateNh.getSheetByName('Update_NganHang_DN').rows(33).slice(1);
+  assert.deepEqual(misa.map(r => [r[2], r[3]]), [['05/09/2026', '05/09/2026'], ['05/09/2026', '05/09/2026']], 'MISA dates dd/mm/yyyy');
+  const chiTiet = w.main.getSheetByName('ChiTietDNTT').rows(28).slice(1).filter(r => r[0] === 'A1');
+  assert.ok(chiTiet.length && chiTiet.every(r => r[3] === '05/09/2026'), 'ChiTietDNTT payment date dd/mm/yyyy');
+  const xuat = run('exportMisaTheoNgayExcel_')('2026-09-05', '2026-09-05');
+  const file = env.SpreadsheetApp.openById(/\/d\/([^/]+)/.exec(xuat.url)[1]);
+  assert.equal(file.getSheets()[0].rows(33)[1][2], '05/09/2026', 'MISA export file dd/mm/yyyy');
+  // Chọn riêng Vùng xuất ở Cài đặt vẫn được tôn trọng.
+  env.PropertiesService.getScriptProperties().setProperty('EXPORT_REGION_LOCALE', 'US');
+  assert.equal(run('_formatNgayXuat_')(new Date(Date.UTC(2026, 8, 5, 5))), '09/05/2026');
+});

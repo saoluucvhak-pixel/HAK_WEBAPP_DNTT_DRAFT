@@ -526,7 +526,7 @@
       <div class="nav-item" role="button" tabindex="0" data-page="settings"><span class="ic">⚙️</span> Cài đặt / Nháp</div>
     </nav>
     <div class="nguoi-dung-chip" id="nguoi-dung-chip"></div>
-    <div class="sidebar-footer">Hệ thống Quản Lý Thanh Toán · v2026.9.19<br><button type="button" class="theme-toggle" id="theme-toggle" aria-label="Đổi giao diện sáng / tối">🌓 Giao diện: Tự động</button></div>
+    <div class="sidebar-footer">Hệ thống Quản Lý Thanh Toán · v2026.9.20<br><button type="button" class="theme-toggle" id="theme-toggle" aria-label="Đổi giao diện sáng / tối">🌓 Giao diện: Tự động</button></div>
   </aside>
 
   <main class="main">
@@ -4174,13 +4174,13 @@ function renderSettings(){
       </div>
       <div class="card">
         <h3>🌐 Vùng Lãnh Thổ</h3>
-        <p class="muted" style="font-size:13px">Chọn đúng vùng khớp với cách Google Sheet của bạn đang lưu ngày/số - ảnh hưởng tới định dạng ngày được khóa và cách phân tích ô "Ngày thanh toán" khi Đóng Thanh Toán.</p>
+        <p class="muted" style="font-size:13px">Chọn đúng vùng khớp với cách Google Sheet của bạn đang lưu ngày/số (<b>tiêu chuẩn: US</b>, theo file Google Sheet) - ảnh hưởng tới định dạng ngày được khóa trên các sheet. Ô "Ngày thanh toán" khi Duyệt chọn bằng lịch nên không phụ thuộc vùng này.</p>
         <div class="field"><select id="region-select"><option value="">Đang tải...</option></select></div>
         <div class="hint-text">Sau khi đổi vùng, bấm lại "🔒 Khóa Định Dạng TEXT/Ngày..." ở trên 1 lần để áp dụng cho các sheet.</div>
       </div>
       <div class="card">
         <h3>📊 Vùng Định Dạng Báo Cáo Xuất Excel</h3>
-        <p class="muted" style="font-size:13px">TÁCH RIÊNG với "Vùng Lãnh Thổ" ở trên - chỉ ảnh hưởng định dạng ngày/số trong các FILE EXCEL XUẤT RA (Update_NganHang_DN, MISA, đơn vị khác...) - dùng khi đơn vị nhận báo cáo cần định dạng khác với hệ thống nội bộ.</p>
+        <p class="muted" style="font-size:13px">TÁCH RIÊNG với "Vùng Lãnh Thổ" ở trên - chỉ ảnh hưởng định dạng ngày/số trong các FILE EXCEL XUẤT RA (Update_NganHang_DN, MISA, đơn vị khác...). <b>Tiêu chuẩn: VN</b> (dd/mm/yyyy, theo mẫu nhập MISA) - chưa chọn thì dùng VN, không đi theo Vùng Lãnh Thổ.</p>
         <div class="field"><select id="export-region-select"><option value="">Đang tải...</option></select></div>
       </div>
       <div class="card">

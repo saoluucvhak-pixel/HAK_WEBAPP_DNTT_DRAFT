@@ -47,7 +47,7 @@ test('text starting with = + - @ never becomes a formula anywhere in the payment
   ok(run('webCreateUNCFromDraft_')(['A1'], {}));
   ok(run('webSuaTenKhachHangPhieuCan_')('PC003', MINUS));
   ok(run('webLuuNguoiDung_')({ email: 'xem@gmail.com', hoTen: EVIL, vaiTro: 'XEM' }));
-  ok(run('runConfirmPayment_')(['A1'], '26/09/2026'));
+  ok(run('runConfirmPayment_')(['A1'], '2026-09-26'));
   ok(run('createNewPaymentRequest_')({
     hoTenChuRung: EVIL, cccdChuRung: '012345678901', nguoiDeNghi: PLUS, nguoiNhanTien: AT,
     soTKNhanTien: '0123', nganHang: MINUS, soHopDong: 'HD01', ngayDeNghi: '2026-09-26', danhSachPhieuCan: ['PC999']

@@ -2,6 +2,18 @@
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/). Phiên bản theo `NĂM.ĐỢT.SỬA`; thay đổi làm đổi hành vi nghiệp vụ (⚖️) sẽ tăng số ĐỢT và ghi rõ đã được người dùng đồng ý.
 
+## [2026.9.20] — Tiêu chuẩn vùng: Google Sheet US, xuất MISA VN (người dùng chốt 28/09/2026)
+
+### Changed
+- Tiêu chuẩn khai báo 1 chỗ (`VUNG_MAC_DINH`): **Vùng lãnh thổ = US** (theo file Google Sheet), **Vùng xuất = VN** (file MISA / Excel xuất ra, dd/mm/yyyy). Chỉ dùng khi Cài đặt chưa chọn; chọn ở Cài đặt vẫn được tôn trọng.
+
+### Fixed
+- **Vùng xuất chưa cài riêng thì đi theo Vùng lãnh thổ (US)** → dòng MISA (Update_NganHang_DN), file XUAT MISA và cột ngày ChiTietDNTT ra **mm/dd/yyyy**. Nay mặc định VN, độc lập với Vùng lãnh thổ. ⚠️ Nếu trước đây Cài đặt › Vùng xuất để trống, các dòng MISA cũ đã ghi dạng mm/dd/yyyy — dòng mới từ bản này là dd/mm/yyyy.
+- Cài đặt ghi rõ tiêu chuẩn của từng vùng.
+
+### Tests
+- 119 test. Dữ liệu test chạy đúng tiêu chuẩn (vùng mặc định US/VN; Duyệt gửi `yyyy-mm-dd` như ô lịch). Thêm test: Vùng lãnh thổ US + Vùng xuất chưa cài → MISA, file xuất MISA, ChiTietDNTT đều dd/mm/yyyy (thất bại trên 2026.9.19).
+
 ## [2026.9.19] — Duyệt: Ngày CK không còn bị đọc nhầm (người dùng báo 28/09/2026)
 
 ### Fixed

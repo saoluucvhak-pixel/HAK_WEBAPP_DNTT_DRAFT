@@ -42,7 +42,7 @@ test('only the Phiếu Cân columns the system uses are read and kept', () => {
 test('reports and payment records never contain data from unused columns', () => {
   const { w, run } = world();
   run('refreshPhieuCanUnpaidCache_')();
-  assert.match(run('runConfirmPayment_')(['A1'], '26/09/2026'), /^✅/);
+  assert.match(run('runConfirmPayment_')(['A1'], '2026-09-26'), /^✅/);
   const tao = run('createNewPaymentRequest_')({ hoTenChuRung: 'Tran Thi B', cccdChuRung: '012345678901', nguoiDeNghi: 'X', nguoiNhanTien: 'Tran Thi B',
     soTKNhanTien: '0123', nganHang: 'BIDV', soHopDong: 'HD01', ngayDeNghi: '2026-09-26', danhSachPhieuCan: ['PC999'] });
   assert.equal(tao.success, true, tao.message);

@@ -104,7 +104,7 @@ test('MISA cleanup rejects a missing date or an unknown mode', () => {
 function worldDaChot() {
   const w = buildWorld();
   const code = loadCode(w.options);
-  assert.match(code.run('runConfirmPayment_')(['A1'], '26/09/2026'), /^✅/);
+  assert.match(code.run('runConfirmPayment_')(['A1'], '2026-09-26'), /^✅/);
   // Ngày ĐN của hồ sơ (sổ 112 cột Q) - thực tế luôn có, dữ liệu mẫu để trống.
   w.main.getSheetByName('DNTT_GK_DN_112').data.slice(1).forEach(r => { r[16] = D('2026-09-20'); });
   const nh = w.updateNh.getSheetByName('Update_NganHang_DN');
