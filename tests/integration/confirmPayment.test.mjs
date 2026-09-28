@@ -155,6 +155,8 @@ test('approving reads Phiếu Cân once and the day summary equals a full recalc
   const { world, run } = setup();
   const pcSheet = world.pc.getSheetByName('PhieuCan_DN');
   pcSheet.data.slice(1).forEach(r => { r[1] = new Date('2026-09-20T03:00:00Z'); r[13] = 'DL1'; r[14] = 'NG1'; });
+  // Sổ Phiếu Cân cỡ thật hơn (vài trăm phiếu khác): đọc theo khóa phải rẻ hơn hẳn đọc cả sổ.
+  for (let i = 0; i < 500; i++) { const r = new Array(28).fill(''); r[0] = 'X' + i; r[22] = 'X' + i; pcSheet.data.push(r); }
   // Khoản đã trả trước đó CÙNG ngày: phải có trong tổng thanh toán của ngày.
   const cu = new Array(22).fill(''); cu[0] = 'OLD-CT1'; cu[1] = 'OLD'; cu[11] = 'PC999'; cu[12] = 2; cu[16] = 3e6; cu[18] = 'Y'; cu[20] = new Date('2026-09-26T05:00:00Z');
   world.main.getSheetByName('DNTT_GK_DN_CT').data.push(cu);

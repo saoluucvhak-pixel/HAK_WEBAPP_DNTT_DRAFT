@@ -2,6 +2,29 @@
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/). Phiên bản theo `NĂM.ĐỢT.SỬA`; thay đổi làm đổi hành vi nghiệp vụ (⚖️) sẽ tăng số ĐỢT và ghi rõ đã được người dùng đồng ý.
 
+## [2026.9.34] — Kiểm tra hiệu năng lần 2: Duyệt, MISA, trigger bớt đọc lại sổ (người dùng yêu cầu 28/09/2026)
+
+### Changed (tối ưu, kết quả không đổi)
+- **Duyệt**: ChiTietDNTT chỉ đọc dòng của hồ sơ đang Duyệt (trước: cả sheet); ghép ChiTietDNTT chỉ đọc đúng phiếu cân cần (trước: đọc cả file Phiếu Cân lần 2 — cũng áp cho In Báo Cáo ĐNTT); bỏ phiếu vừa trả khỏi bản sao “chưa TT” bằng xóa đúng dòng (trước: đọc + ghi đè cả bản sao).
+- **Báo Cáo MISA / Dọn dẹp MISA**: tra Ngày CK chỉ đọc 2 cột (Số phiếu cân, Ngày CK) của sổ CT thay vì cả 22 cột (`_ctCacCot_`).
+- **Đọc 1 lần trong 1 lượt chạy** (`_DA_DOC_TRONG_LUOT_`): sổ lớn hơn giới hạn bộ nhớ đệm của Google (~3,6 MB — Phiếu Cân, sổ CT 1 năm) trước đây bị đọc lại ở mỗi bước của cùng 1 lượt (trigger 7:30, 15h…). Nay bước sau dùng lại bản vừa đọc; ghi sổ thì bản nhớ bị xóa ngay (cùng chỗ xóa bộ nhớ đệm), nơi gọi nhận bản sao từng dòng. Mỗi lần bấm / mỗi trigger là 1 lượt mới.
+- `_docDongTheoKhoa_` có thêm bản trả kèm số dòng (`_doanDongTheoKhoa_`) để ghi đúng ô mà không đọc cả sheet.
+
+### Đo hiệu năng (dữ liệu thử 1 năm: 30.000 phiếu cân, 20.000 dòng CT / ChiTietDNTT) — ô đọc (ô ghi), so với 2026.9.27
+| Thao tác | Nay | 2026.9.27 |
+|---|---|---|
+| Duyệt 1 hồ sơ | 1,41 triệu (18 nghìn) | 2,91 triệu (298 nghìn) |
+| Báo Cáo TT: xuất 30 hồ sơ | 46 nghìn | 1,16 triệu |
+| Báo Cáo TT: xuất cả tháng (574 hồ sơ) | 155 nghìn, 169 lời gọi | 1,16 triệu, 716 lời gọi |
+| Báo Cáo Chi Tiết: xem / xuất 1 tháng | 84 nghìn | 560 nghìn |
+| Báo Cáo MISA: xem 1 tháng | 111 nghìn | 440 nghìn |
+| Trigger 7:30 / 13:00 | 1,54 triệu | 2,70 triệu |
+| Trigger 15h | 1,16 triệu | 2,32 triệu |
+- Không đổi: Công nợ KH, Sổ chi tiết, Tình hình TT, Phân tích, Đối soát tên, Bảo trì (~1,2 triệu ô) — cần toàn bộ lịch sử phiếu cân + sổ CT để tính lũy kế, mỗi lần đọc 1 lần.
+
+### Tests
+- 169 test (thêm: Duyệt chỉ đọc dòng ChiTietDNTT của hồ sơ; ghép ChiTietDNTT không đọc cả Phiếu Cân; MISA đọc 2 cột; trigger 15h đọc mỗi sổ 1 lần khi bộ nhớ đệm đầy; ghi sổ thì đọc lại bản mới, sửa dòng trả về không ảnh hưởng; Duyệt không ghi đè bản sao “chưa TT” — thất bại trên bản cũ). Bộ chạy test: mỗi lần gọi hàm là 1 lượt chạy mới như trên Google.
+
 ## [2026.9.33] — ⚖️ Quy định: báo cáo chỉ trong phạm vi 1 tháng (người dùng yêu cầu 28/09/2026)
 
 ### Changed

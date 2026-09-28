@@ -1,6 +1,6 @@
 /**
  * ============================================================
- * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.33
+ * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.34
  * Lịch sử thay đổi: CHANGELOG.md · Kiến trúc: docs/ARCHITECTURE.md
  * ------------------------------------------------------------
  * *** QUAN TRỌNG - CẦN LÀM TRƯỚC KHI DÙNG BẢN NÀY (chỉ 1 LẦN DUY NHẤT
@@ -1739,6 +1739,12 @@ function _docLuuTruTrongKhoang_(tenSheet, soCot, fDate, tDate) {
 function _ctGopLuuTru_(fDate, tDate, docThang) {
   return _docLuuTruTrongKhoang_(CFG.DNTT_CT, 22, fDate, tDate).concat(docThang ? _ctThatDocThang_() : _ctThatDataCache_());
 }
+/** Như _ctGopLuuTru_(…, docThang) nhưng sổ đang mở chỉ đọc các cột `cot` (0-based) - dòng
+ * vẫn đủ 22 cột, cột không đọc để "". Dùng khi chỉ cần vài cột (vd Số phiếu cân, Ngày CK). */
+function _ctCacCot_(fDate, tDate, cot) {
+  const sh = _shCtThat_();
+  return _docLuuTruTrongKhoang_(CFG.DNTT_CT, 22, fDate, tDate).concat(sh ? _docCacCot_(sh, cot, 22) : []);
+}
 /** DNTT_GK_DN_112 (23 cột): năm đã khóa sổ thuộc khoảng + sổ đang mở (đọc thẳng). */
 function _h112GopLuuTru_(fDate, tDate) {
   const sh = getMainSs_().getSheetByName(CFG.DNTT_112);
@@ -2976,7 +2982,7 @@ const MISA_GIOI_HAN_DONG = 2000;
  * (nhập tay ngoài luồng app) mới parse chuỗi cũ làm phương án dự phòng. */
 function _boLocNgayMisa_(fDate, tDate) {
   const ngayCkBySoPhieuCan = new Map();
-  _ctGopLuuTru_(fDate, tDate).forEach(ctRow => {
+  _ctCacCot_(fDate, tDate, [11, 20]).forEach(ctRow => {
     const soP = String(ctRow[11] || "").replace(/'/g, "").trim();
     if (soP && ctRow[20] instanceof Date) ngayCkBySoPhieuCan.set(utils.standardize(soP), ctRow[20]);
   });
@@ -3050,7 +3056,7 @@ function _boChonMisaDonDep_(che, fDate, tDate) {
   if (che === DON_DEP.TAT_CA) return r => trongKhoang(r) ? "Trong khoảng ngày đã chọn" : "";
   if (che === DON_DEP.MO_COI) {
     // Đọc thẳng sổ đang mở (không qua cache): hồ sơ vừa Duyệt không bị coi là mồ côi.
-    const daChot = new Set(_ctGopLuuTru_("", "", true).map(r => utils.standardize(String(r[11] || "").replace(/'/g, "").trim())).filter(Boolean));
+    const daChot = new Set(_ctCacCot_("", "", [11]).map(r => utils.standardize(String(r[11] || "").replace(/'/g, "").trim())).filter(Boolean));
     // Dòng không có Số phiếu cân (nhập tay ngoài app) không coi là mồ côi.
     return r => soCua(r) && trongKhoang(r) && !daChot.has(soCua(r)) ? "Số phiếu cân không còn trong sổ đã chốt" : "";
   }
@@ -4330,7 +4336,9 @@ function _resolveNguoiNhanTien_(override, hd) {
  * với tiền đã chuyển thật. Thiếu layThongTinNhanTien hoặc hồ sơ không
  * tra được (gọi hàm cũ không truyền) vẫn dùng mặc định HD_NCC như cũ. */
 function _xayChiTietDNTTRows_(ctRowsDaLoc, layLanTT, layThongTinNhanTien) {
-  const pcMap = utils.buildIndexMap(_pcData_(), PC_COL.SO_CT, true);
+  // Chỉ đọc đúng các phiếu cân cần ghép (trước đây đọc cả file Phiếu Cân).
+  const soPhieu = new Set(ctRowsDaLoc.map(r => utils.standardize(String(r[11] || "").replace(/'/g, ""))).filter(Boolean));
+  const pcMap = utils.buildIndexMap(_pcTheoSoPhieu_(soPhieu, "", ""), PC_COL.SO_CT, true);
   const hdMap = utils.buildIndexMap(_hdNccFullData_(), 2, true);
   const now = new Date();
   return ctRowsDaLoc.map(ctRow => {
@@ -4362,18 +4370,11 @@ function _ghiChiTietDNTT_N_(idHeThongList, ctRowsDaLoc, layLanTT, layThongTinNha
     // người cùng In Báo Cáo ĐNTT ghi đè dòng của nhau.
     _chayTrongKhoa_(() => {
       const sh = _getChiTietDnttSheet_();
-      const lastRow = sh.getLastRow();
-      if (lastRow > 1) {
-        const idColTt = sh.getRange(2, 1, lastRow - 1, 27).getValues();
-        const idSetToRemove = new Set(idHeThongList);
-        const rowsToDelete = [];
-        idColTt.forEach((r, i) => {
-          const id = String(r[0] || "").trim();
-          const tt = String(r[26] || "").trim();
-          if (idSetToRemove.has(id) && tt === "N") rowsToDelete.push(i + 2);
-        });
-        _nhomDongLienTiep_(rowsToDelete).reverse().forEach(([a, b]) => sh.deleteRows(a, b - a + 1));
-      }
+      const idSetToRemove = new Set(idHeThongList);
+      // Chỉ đọc dòng của các hồ sơ đang in (trước đây đọc cả ChiTietDNTT).
+      const rowsToDelete = _doanDongTheoKhoa_(sh, 0, 27, v => idSetToRemove.has(String(v || "").trim()))
+        .filter(x => String(x.values[26] || "").trim() === "N").map(x => x.dong);
+      _nhomDongLienTiep_(rowsToDelete).reverse().forEach(([a, b]) => sh.deleteRows(a, b - a + 1));
       if (rows.length) {
         const startRow = sh.getLastRow() + 1;
         _dinhDangCotNgaySo_(sh, CHITIET_DNTT_COT_NGAY, startRow, rows.length);
@@ -4524,14 +4525,13 @@ function _chuyenChiTietDNTTSangYVaTinhBu_(validIds, ctToCommit, mapSoLan, mapNha
   // sẵn dòng Y (lần chốt trước bị ngắt giữa chừng) được coi là đã xử lý:
   // KHÔNG tính bù thêm lần nữa, chỉ trả lại để bước MISA tự loại trùng.
   const idsDaCoY = new Set();
-  const lastRow = sh.getLastRow();
-  if (lastRow > 1) {
-    const data = sh.getRange(2, 1, lastRow - 1, CHITIET_DNTT_HEADERS.length).getValues();
+  {
+    // Chỉ đọc dòng của các hồ sơ đang Duyệt (trước đây đọc cả ChiTietDNTT).
+    const data = _doanDongTheoKhoa_(sh, 0, CHITIET_DNTT_HEADERS.length, v => idSet.has(String(v || "").trim()));
     const now = new Date();
     const dongChuyenY = [], capNhatNgayCk = [];
-    data.forEach((r, i) => {
+    data.forEach(({ dong, values: r }) => {
       const id = String(r[0] || "").trim();
-      if (!idSet.has(id)) return;
       const tt = String(r[26] || "").trim();
       if (tt === "Y") {
         idsDaCoY.add(id);
@@ -4543,10 +4543,10 @@ function _chuyenChiTietDNTTSangYVaTinhBu_(validIds, ctToCommit, mapSoLan, mapNha
       const ngayCK = ngayCkByKey.get(id + "|" + utils.standardize(soP));
       if (ngayCK) {
         r[3] = _docNgaySo_(ngayCK);
-        capNhatNgayCk.push({ row: i + 2, values: [r[3]] });
+        capNhatNgayCk.push({ row: dong, values: [r[3]] });
       }
       r[26] = "Y"; r[27] = now;
-      dongChuyenY.push(i + 2);
+      dongChuyenY.push(dong);
       idsFoundN.add(id);
       rowsDaChuyenY.push(r);
     });
@@ -5808,7 +5808,28 @@ function _deserializeRowsFromCache_(rows) {
   ));
 }
 
+/** Dữ liệu tham chiếu đã đọc trong LƯỢT CHẠY hiện tại (1 lần bấm trên web / 1 lần trigger
+ * chạy = 1 lượt, biến toàn cục mới). Sổ lớn hơn giới hạn bộ nhớ đệm của Google (~3,6 MB,
+ * vd Phiếu Cân 1 năm) trước đây bị đọc lại ở mỗi bước của cùng 1 lượt. Xóa cùng lúc với
+ * bộ nhớ đệm (_invalidateChunkedCache_) khi sổ được ghi; trả bản sao từng dòng để nơi gọi
+ * sửa dòng không ảnh hưởng nơi khác. */
+const _DA_DOC_TRONG_LUOT_ = new Map();
+function _banSaoDong_(data) {
+  return Array.isArray(data) ? data.map(r => Array.isArray(r) ? r.slice() : r) : data;
+}
+/** Đọc 1 lần trong lượt chạy: đã có thì trả bản sao, chưa có thì gọi docFn rồi nhớ lại. */
+function _docTrongLuot_(khoa, docFn) {
+  if (!_DA_DOC_TRONG_LUOT_.has(khoa)) _DA_DOC_TRONG_LUOT_.set(khoa, docFn());
+  return _banSaoDong_(_DA_DOC_TRONG_LUOT_.get(khoa));
+}
+/** Nhớ dữ liệu vừa đọc thẳng sổ (bản mới nhất) cho các bước sau của cùng lượt chạy. */
+function _ghiNhoTrongLuot_(khoa, data) {
+  _DA_DOC_TRONG_LUOT_.set(khoa, _banSaoDong_(data));
+}
 function _getCachedRefData_(cacheKey, fetchFn, ttlGiay) {
+  return _docTrongLuot_(cacheKey, () => _getCachedRefDataQuaBoNhoDem_(cacheKey, fetchFn, ttlGiay));
+}
+function _getCachedRefDataQuaBoNhoDem_(cacheKey, fetchFn, ttlGiay) {
   const cache = CacheService.getScriptCache();
   try {
     const metaRaw = cache.get(cacheKey + "_meta");
@@ -5862,6 +5883,7 @@ function _getCachedRefData_(cacheKey, fetchFn, ttlGiay) {
  * không có meta (dữ liệu nhỏ, hoặc cache đã hết hạn), vẫn thử xóa key
  * gốc (tương thích ngược) - không gây lỗi nếu key không tồn tại. */
 function _invalidateChunkedCache_(cacheKey) {
+  _DA_DOC_TRONG_LUOT_.delete(cacheKey);
   try {
     const cache = CacheService.getScriptCache();
     const metaRaw = cache.get(cacheKey + "_meta");
@@ -6047,9 +6069,13 @@ function _shCtThat_() {
 }
 /** CT thật đọc thẳng sheet (không qua cache). */
 function _ctThatDocThang_() {
-  const shCT = _shCtThat_();
-  const lr = shCT ? shCT.getLastRow() : 0;
-  return lr > 1 ? shCT.getRange(2, 1, lr - 1, 22).getValues() : [];
+  // "Đọc thẳng" = không dùng bộ nhớ đệm giữa các lượt; trong CÙNG lượt, bản đã đọc là bản
+  // mới nhất (mọi chỗ ghi sổ CT đều xóa bản nhớ ngay sau khi ghi) -> dùng lại, không đọc lần 2.
+  return _docTrongLuot_("ct_that_data_v1", () => {
+    const shCT = _shCtThat_();
+    const lr = shCT ? shCT.getLastRow() : 0;
+    return lr > 1 ? shCT.getRange(2, 1, lr - 1, 22).getValues() : [];
+  });
 }
 function _srcThatDataCache_() {
   return _getCachedRefData_("src_that_data_v1", () => {
@@ -7174,6 +7200,11 @@ const DOC_THEO_KHOA = { GOP_DONG: 30, TOI_DA_LENH: 40 };
  * rồi đọc các đoạn dòng khớp (cách nhau <= GOP_DONG dòng thì gộp); quá TOI_DA_LENH đoạn
  * thì đọc 1 khối từ dòng khớp đầu tới dòng khớp cuối. Giữ thứ tự dòng trong sheet. */
 function _docDongTheoKhoa_(sh, cotKhoa, rong, khop) {
+  return _doanDongTheoKhoa_(sh, cotKhoa, rong, khop).map(x => x.values);
+}
+/** Như _docDongTheoKhoa_ nhưng kèm số dòng trong sheet: [{ dong, values }] - dùng khi cần
+ * ghi lại đúng ô của các dòng đã đọc (không đọc cả sheet chỉ để tìm vị trí). */
+function _doanDongTheoKhoa_(sh, cotKhoa, rong, khop) {
   const lr = sh ? sh.getLastRow() : 0;
   if (lr < 2) return [];
   const viTri = [];
@@ -7184,10 +7215,10 @@ function _docDongTheoKhoa_(sh, cotKhoa, rong, khop) {
   if (doan.length > DOC_THEO_KHOA.TOI_DA_LENH) doan = [[viTri[0], viTri[viTri.length - 1]]];
   const soCot = Math.min(rong, sh.getLastColumn());
   const kq = [];
-  doan.forEach(([dau, cuoi]) => sh.getRange(2 + dau, 1, cuoi - dau + 1, soCot).getValues().forEach(r => {
+  doan.forEach(([dau, cuoi]) => sh.getRange(2 + dau, 1, cuoi - dau + 1, soCot).getValues().forEach((r, k) => {
     if (!khop(r[cotKhoa])) return;
     while (r.length < rong) r.push("");
-    kq.push(r);
+    kq.push({ dong: 2 + dau + k, values: r });
   }));
   return kq;
 }
@@ -7265,6 +7296,7 @@ function refreshPhieuCanUnpaidCache_() {
   const lastCol = Math.min(shSrcPC.getLastColumn(), PC_MIRROR_COLS);
   const header = lastRow >= 1 ? shSrcPC.getRange(1, 1, 1, lastCol).getValues()[0] : [];
   const all = _docCacCot_(shSrcPC, PC_COT_CAN_DOC, lastCol);
+  if (lastCol === PC_MIRROR_COLS) _ghiNhoTrongLuot_("pc_data_v1", all); // cùng dạng _pcData_(): bước sau trong lượt dùng lại
   _ghiNhanHeaderPc_(header);
 
   const unpaid = all.filter(r => {
@@ -7310,13 +7342,10 @@ function _removeFromPcUnpaidCache_(soCTKeySet) {
   if (!soCTKeySet || soCTKeySet.size === 0) return;
   try {
     const sh = getPcCacheSheet_();
-    const lastRow = sh.getLastRow();
-    if (lastRow < 2) return;
-    const lastCol = sh.getLastColumn();
-    const all = sh.getRange(2, 1, lastRow - 1, lastCol).getValues();
-    const kept = all.filter(r => !soCTKeySet.has(utils.standardize(r[PC_COL.SO_CT])));
-    if (kept.length === all.length) return; // không có gì cần xóa
-    _thayVungDuLieu_(sh, 2, lastCol, all.length, kept, [PC_COL.SO_PHIEU, PC_COL.SO_CT]);
+    // Chỉ tìm đúng các dòng vừa trả rồi xóa (trước đây đọc + ghi đè cả bản sao).
+    const dong = _doanDongTheoKhoa_(sh, PC_COL.SO_CT, PC_COL.SO_CT + 1, v => soCTKeySet.has(utils.standardize(v))).map(x => x.dong);
+    if (!dong.length) return; // không có gì cần xóa
+    _nhomDongLienTiep_(dong).reverse().forEach(([a, b]) => sh.deleteRows(a, b - a + 1));
     _invalidateChunkedCache_("pc_unpaid_data_v1"); // SỬA: dùng helper xóa hết các mảnh (dữ liệu có thể đã bị chia mảnh nếu lớn)
   } catch (e) {
     // Không chặn luồng chính nếu dọn cache lỗi - lần làm mới định kỳ kế
