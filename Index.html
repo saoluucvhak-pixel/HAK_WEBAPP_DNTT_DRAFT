@@ -534,7 +534,7 @@
       <div class="nav-item" role="button" tabindex="0" data-page="settings"><span class="ic">⚙️</span> Cài đặt / Nháp</div>
     </nav>
     <div class="nguoi-dung-chip" id="nguoi-dung-chip"></div>
-    <div class="sidebar-footer">Hệ thống Quản Lý Thanh Toán · v2026.9.29<br><button type="button" class="theme-toggle" id="theme-toggle" aria-label="Đổi giao diện sáng / tối">🌓 Giao diện: Tự động</button></div>
+    <div class="sidebar-footer">Hệ thống Quản Lý Thanh Toán · v2026.9.30<br><button type="button" class="theme-toggle" id="theme-toggle" aria-label="Đổi giao diện sáng / tối">🌓 Giao diện: Tự động</button></div>
   </aside>
 
   <main class="main">
@@ -619,7 +619,7 @@ function hanhDong(ten, ...thamSo){ return hanhDongKhi('click', ten, ...thamSo); 
 const HANH_DONG = {
   goToLedgerFor, openLedgerFor, pickChuRung, pickModongChuRung,
   viewDraftDetail, editDraftRecord, confirmDeleteDraft, doHuyXacNhan, saveDraftEdit,
-  removePhieuCan, searchPhieuCanForEdit, inPhieuChiTietThanhToan, doDonDep,
+  removePhieuCan, searchPhieuCanForEdit, inPhieuChiTietThanhToan, inPhieuHoanThanh, doDonDep,
   toggleShareBox, doSwapLink, doShareLink, doRevokeLink
 };
 ['click', 'mousedown'].forEach(loai => document.addEventListener(loai, e => {
@@ -2275,6 +2275,16 @@ function viewDraftDetail(idKey){
   });
 }
 
+/** Báo Cáo Thanh Toán: PDF "Phiếu chi tiết hoàn thành thanh toán" (có Ngày CK) của 1 hồ sơ đã chốt. */
+function inPhieuHoanThanh(idHeThong, ngayISO){
+  call('webInPhieuHoanThanhThanhToan', [idHeThong, ngayISO], 'Đang tạo phiếu PDF...').then(res => {
+    if (!(res && res.success)) { toast('❌ ' + (res && res.message || 'Không tạo được phiếu PDF.'), 'err'); return; }
+    openModal(`<div class="modal-head"><h3>Phiếu hoàn thành thanh toán</h3><button class="x" onclick="closeModal()" aria-label="Đóng">&times;</button></div>
+      <div class="modal-body"><p>${esc(res.message)} Hồ sơ ${esc(idHeThong)}.</p>${nutMoFile_(res.pdfUrl, '📄 Mở phiếu PDF', 'btn primary')}</div>
+      <div class="modal-foot"><button class="btn ghost" onclick="closeModal()">Đóng</button></div>`);
+  });
+}
+
 /** Tạo PDF "Phiếu chi tiết thanh toán" của hồ sơ; xong thì nút đổi thành link mở file. */
 function inPhieuChiTietThanhToan(idKey){
   call('webInPhieuChiTietThanhToan', [idKey], 'Đang tạo phiếu PDF...').then(res => {
@@ -2653,10 +2663,10 @@ function renderChiTietTab(){
   body.innerHTML = `
     <div class="card">
       <h3>📋 Báo Cáo Thanh Toán Chi Tiết</h3>
-      <p class="muted" style="font-size:13px">Xem theo TỪNG PHIẾU CÂN - đọc trực tiếp từ dữ liệu đã tính sẵn (ChiTietDNTT), không cần join lại - nhanh hơn tab "Gỗ Keo". Lọc theo "Ngày ghi" (thời điểm Đóng Thanh Toán). <b>Chỉ có dữ liệu từ khi tính năng này được bật</b> - hồ sơ chốt TRƯỚC đó sẽ không hiện ở đây, dùng tab "Gỗ Keo" cho lịch sử đầy đủ.</p>
+      <p class="muted" style="font-size:13px">Xem theo TỪNG PHIẾU CÂN - đọc trực tiếp từ dữ liệu đã tính sẵn (ChiTietDNTT), không cần join lại - nhanh hơn tab "Gỗ Keo". Lọc theo <b>Ngày CK</b> (ngày thanh toán - cùng ngày với Báo Cáo MISA). <b>Chỉ có dữ liệu từ khi tính năng này được bật</b> - hồ sơ chốt TRƯỚC đó sẽ không hiện ở đây, dùng tab "Gỗ Keo" cho lịch sử đầy đủ.</p>
       <div class="hint-text">Khác với tab "Gỗ Keo": tab đó xuất được file Excel định dạng in ấn đầy đủ (Bảng Đề Xuất + Bảng Kê Chi Tiết) cho TOÀN BỘ lịch sử; tab này chỉ để XEM/LỌC nhanh dữ liệu gần đây, xuất Excel đơn giản hơn.</div>
       <div class="grid cols-3">
-        <div class="field"><label>Từ ngày</label><input type="date" id="chitiet-from" value="${isoDaysAgoVN(7)}"></div>
+        <div class="field"><label>Từ ngày (Ngày CK)</label><input type="date" id="chitiet-from" value="${isoDaysAgoVN(7)}"></div>
         <div class="field"><label>Đến ngày</label><input type="date" id="chitiet-to" value="${todayISOVN()}"></div>
         <div class="field" style="display:flex;align-items:flex-end;gap:8px">
           <button class="btn primary" onclick="loadChiTietTab()">🔍 Xem</button>
@@ -3031,7 +3041,7 @@ function renderReportTable(){
   wrap.innerHTML = `<table><thead><tr>
       <th><input type="checkbox" id="rp-chk-all" ${allChecked?'checked':''} onchange="toggleAllReport(this)"></th>
       <th>Ngày ĐN</th><th>Lần</th><th>Chủ rừng</th><th>Người nhận</th><th>Số HĐ</th><th>Ngân hàng / STK</th>
-      <th class="num">KL (Tấn)</th><th class="num">Số tiền</th>
+      <th class="num">KL (Tấn)</th><th class="num">Số tiền</th><th>Phiếu</th>
     </tr></thead><tbody>
     ${pageRows.map(r => `<tr>
       <td><input type="checkbox" class="rp-chk-row" data-id="${esc(r.idHeThong)}" ${state.reportSelected.has(r.idHeThong)?'checked':''} onchange="toggleReportRow(this.dataset.id, this.checked)"></td>
@@ -3039,9 +3049,10 @@ function renderReportTable(){
       <td class="mono">${esc(r.soHD)}</td>
       <td>${esc(r.nganHang)}<br><span class="muted mono" style="font-size:11.5px">${esc(r.stk)}</span></td>
       <td class="num">${fmtKl(r.klTan)}</td><td class="num">${fmtMoney(r.soTien)}</td>
+      <td><button class="btn sm" title="In phiếu chi tiết hoàn thành thanh toán (PDF)" ${hanhDong('inPhieuHoanThanh', r.idHeThong, r.ngayISO)}>🖨️ In</button></td>
     </tr>`).join('')}
     </tbody>
-    <tfoot><tr style="font-weight:700"><td colspan="8" style="text-align:right;padding:10px">TỔNG CỘNG (${rows.length} dòng đang lọc)</td><td class="num" style="padding:10px">${fmtMoney(total)}</td></tr></tfoot>
+    <tfoot><tr style="font-weight:700"><td colspan="8" style="text-align:right;padding:10px">TỔNG CỘNG (${rows.length} dòng đang lọc)</td><td class="num" style="padding:10px">${fmtMoney(total)}</td><td></td></tr></tfoot>
     </table>
     ${renderPager(rows.length, state.reportPage, 'goReportPage')}`;
   updateReportActionbar();

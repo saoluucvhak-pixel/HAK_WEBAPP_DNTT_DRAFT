@@ -2,6 +2,18 @@
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/). Phiên bản theo `NĂM.ĐỢT.SỬA`; thay đổi làm đổi hành vi nghiệp vụ (⚖️) sẽ tăng số ĐỢT và ghi rõ đã được người dùng đồng ý.
 
+## [2026.9.30] — Bảng Kê lấy từ ChiTietDNTT, Báo cáo Chi Tiết lọc theo Ngày CK, Phiếu hoàn thành thanh toán (người dùng chốt 28/09/2026)
+
+### Changed
+- **Xuất Báo Cáo (đã chọn)** › sheet **Bảng Kê Chi Tiết CK** lấy thẳng **ChiTietDNTT** (đã ghép sẵn lúc Đóng TT, cùng bố cục cột) — không đọc file Phiếu Cân, HD_NCC nữa; số liệu khớp đúng tab Báo Cáo Thanh Toán Chi Tiết. Hồ sơ nào ChiTietDNTT thiếu phiếu so với sổ CT (chốt trước khi có ChiTietDNTT, chưa đồng bộ) thì tự ghép lại như cũ. Thứ tự: theo hồ sơ trên màn hình (như sheet 1), trong hồ sơ theo sổ CT. Khóa TEXT đủ số dòng phiếu cân (trước đây chỉ bằng số hồ sơ).
+- ⚖️ **Báo Cáo Thanh Toán Chi Tiết** (xem + xuất Excel) lọc theo **Ngày CK** (ngày thanh toán, cùng ngày với MISA) thay cho Ngày ghi — người dùng chọn. Chỉ đọc dòng có Ngày CK trong khoảng; xếp theo Ngày CK.
+
+### Added
+- Báo Cáo Thanh Toán: mỗi hồ sơ có nút **🖨️ In** → PDF **“PHIẾU CHI TIẾT HOÀN THÀNH THANH TOÁN”** có **Ngày thanh toán (Ngày CK)** (từ sổ CT), số tiền đã thanh toán, SL HĐ (tấn), danh sách phiếu cân + dòng tổng, ô ký; số/ngày theo Vùng xuất. Tìm cả hồ sơ năm đã khóa sổ. Quyền như Xuất Báo Cáo. Dùng chung khung phiếu PDF với Phiếu chi tiết thanh toán (Nháp) — `_luuPhieuPdf_`, `_chiTietHoSo_`, `PHIEU_CT_TT.DE_NGHI / HOAN_THANH`.
+
+### Tests
+- 156 test (thêm: Bảng Kê lấy từ ChiTietDNTT không đọc Phiếu Cân; hồ sơ thiếu ChiTietDNTT vẫn ghép đủ; Bảng Kê từ ChiTietDNTT giống hệt bảng ghép lại; Chi Tiết lọc theo Ngày CK; phiếu hoàn thành có Ngày CK). Kiểm tra trình duyệt: nút In ở Báo Cáo Thanh Toán, tab Chi Tiết.
+
 ## [2026.9.29] — Xuất báo cáo chỉ đọc dòng cần, Dọn Dẹp UNC (người dùng báo 28/09/2026)
 
 ### Fixed
