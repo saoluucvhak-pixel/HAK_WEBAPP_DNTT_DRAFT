@@ -1,4 +1,4 @@
-# ARCHITECTURE — HAK Quản Lý Thanh Toán (v2026.9.49)
+# ARCHITECTURE — HAK Quản Lý Thanh Toán (v2026.9.50)
 
 > Tài liệu sống: cập nhật mỗi khi đổi module, lớp, luồng dữ liệu hoặc schema.
 > Phân tích chi tiết hiện trạng: `docs/PROJECT_ANALYSIS.md`. Kiến trúc đích: `docs/REFACTOR_PLAN.md` §3–§4.
@@ -263,3 +263,8 @@ Lỗi đọc sổ trong báo cáo (2026.9.46): công nợ / phân tích / tiến
 - **Trình duyệt**: Hệ Thống 2 tab (Tra cứu / Can thiệp), Tạo Mới lưu nháp `sessionStorage` (`hak_tao_moi_nhap_v1`), biểu đồ SVG dùng `--series-1/2` (đã kiểm định mù màu sáng/tối).
 - **CI**: `.github/workflows/test.yml` - `node --check` Code.gs + `node --test`.
 
+## Xuất Công nợ 2026.9.50
+
+- `exportCongNo_(loai, fDate, tDate, tuyChon)` (route `exportCongNo`, quyền Xem): `loai` = `kh` (Công nợ theo Khách hàng), `hd` (theo Hợp đồng), `so` (Sổ chi tiết, `tuyChon {loaiSo: customer|contract, khoa}`). Dữ liệu lấy từ CHÍNH hàm màn hình (`getDebtByCustomer_` / `getDebtByContract_` / `getDebtLedgerDetail_`) nên file = màn hình; khoảng mặc định đọc bản tổng hợp, file ghi giờ tổng hợp (`_nguonSoLieuCongNo_`).
+- Bảng khai báo `_bangCongNoXuat_` → `{tieuDe, dongPhu, cot: [[tiêu đề, kiểu]], dong, tong}`; kiểu cột `stt | chu | ma | ngay | tien | tan` quyết định khóa chữ (`ma`: CCCD / Số HĐ / Số phiếu), ngày thật (`ngay`, đọc dd/MM/yyyy bằng `_docNgayVN_`), định dạng số (`XUAT_CONG_NO_DINH_DANG`).
+- PDF dùng chung `_luuPdfCuaFile_(ss, folder, ten)` (cũng dùng cho Báo cáo tổng hợp NG-ĐL): PDF lỗi vẫn trả file Excel + cảnh báo. Trình duyệt: `doXuatCongNo(loai)` + hộp kết quả chung `_moKetQuaXuat`.

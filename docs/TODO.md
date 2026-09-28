@@ -64,6 +64,7 @@ Trạng thái: ✅ xong · 🟡 một phần · ⏳ chưa làm · ⚖️ cần n
 - ✅ 2026.9.46: ⚖️ P-02 màn chỉ xem không chờ đồng bộ; sửa B-11 (mã hồ sơ trùng), B-12 (Mở Đóng TT nuốt lỗi dọn), B-13 (báo cáo nuốt lỗi đọc sổ), B-14 (Về Chờ ĐNTT khi đã có UNC), B-15 (Chi tiết giữ dòng mới nhất), B-16 (Ghi chú 112 theo Vùng xuất).
 - ✅ 2026.9.47: ⚖️ B-10 dòng MISA 1 kiểu như Duyệt; ⚖️ báo cáo Excel ghi ngày thật theo Vùng xuất (mẫu nhập UNC / XuatMISA giữ chữ); sửa dòng Báo cáo ĐNTT giãn; P-04, P-05, P-06, P-07, P-08, P-10; giao diện U-03…U-08.
 - Không làm (người dùng không chọn 28/09/2026): P-09; bảo mật S-10…S-13.
+- ✅ 2026.9.50: Xuất Excel + PDF cho Công nợ theo Khách hàng, theo Hợp đồng và Sổ chi tiết công nợ; ghi rõ người nhận email kiểm tra đêm (Quản trị) cạnh nút bật.
 - ✅ 2026.9.49: nâng cấp #1 tự tính tiền, #3 hộp xác nhận, #4 lịch sử hồ sơ, #5 kiểm tra đêm + email, #6 hoàn tất Duyệt dở, #7 tuổi nợ + xu hướng, #8 tìm nhanh, #9 lưu nháp Tạo Mới, #10 tên trạng thái, #11 Hệ Thống 2 tab, #12 nhãn Lưu, #13 đối chiếu sao kê, #14 VietQR, #15 CI, #16 dọn chú thích. Không làm #2 (thông báo người duyệt - người dùng bỏ).
 - Còn lại (dài hạn, chưa yêu cầu): tách Code.gs theo lớp, đọc cột theo tên tiêu đề (H-01 đã từ chối), chuyển DB sang PostgreSQL khi thương mại hóa.
 - ✅ 2026.9.43: Tạo lại UNC theo Ngày CK. Ô ký phiếu PDF giữ Người lập phiếu / Kế toán trưởng / Giám đốc (người dùng chọn giữ nguyên 28/09/2026).

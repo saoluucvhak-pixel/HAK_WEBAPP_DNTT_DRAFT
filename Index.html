@@ -353,6 +353,9 @@
     /* Trang chủ (thiết kế lại 28/09/2026): tiêu đề nhóm, quy trình dạng bước có đường nối */
     .muc-tieu-de{font-size:var(--fs-nho); font-weight:700; text-transform:uppercase; letter-spacing:.07em; color:var(--ink-soft); margin:26px 0 10px;}
     .muc-tieu-de:first-child{margin-top:0;}
+    /* Tiêu đề thẻ + nút bên phải (vd Xuất Excel + PDF); xuống dòng trên màn hẹp. */
+    .card-dau{display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px;}
+    .card-dau h3{margin:0;}
     /* Thanh "Đi nhanh" của trang dài */
     .muc-luc{display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin:0 0 18px;}
     .muc-luc-nhan{font-size:var(--fs-nho); font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-soft); margin-right:4px;}
@@ -627,7 +630,7 @@
       <div class="nav-item" role="button" tabindex="0" data-page="settings"><span class="ic">⚙️</span> Cài đặt / Nháp</div>
     </nav>
     <div class="nguoi-dung-chip" id="nguoi-dung-chip"></div>
-    <div class="sidebar-footer">Hệ thống Quản Lý Thanh Toán · v2026.9.49<br><button type="button" class="theme-toggle" id="theme-toggle" aria-label="Đổi giao diện sáng / tối">🌓 Giao diện: Tự động</button></div>
+    <div class="sidebar-footer">Hệ thống Quản Lý Thanh Toán · v2026.9.50<br><button type="button" class="theme-toggle" id="theme-toggle" aria-label="Đổi giao diện sáng / tối">🌓 Giao diện: Tự động</button></div>
   </aside>
 
   <main class="main">
@@ -3870,7 +3873,8 @@ function renderDebt(){
         <div class="field"><label>Đến ngày (cũng là mốc tính công nợ lũy kế)</label><input type="date" id="debt-to" value="${esc(state.debtTo)}"></div>
         <div class="field" style="display:flex; align-items:flex-end; gap:6px">
           <button class="btn primary" onclick="loadDebtTab()">🔍 Xem</button>
-          ${['customer','contract'].includes(state.debtTab) ? `<button class="btn" onclick="doLamMoiCongNo()" title="Tính lại ngay Công Nợ theo Khách Hàng/Hợp Đồng cho đúng khoảng ngày đang xem - không cần chờ tới giờ trigger 7:30/13:00">🔄 Làm mới báo cáo</button>` : ''}
+          ${['customer','contract'].includes(state.debtTab) ? `<button class="btn" onclick="doLamMoiCongNo()" title="Tính lại ngay Công Nợ theo Khách Hàng/Hợp Đồng cho đúng khoảng ngày đang xem - không cần chờ tới giờ trigger 7:30/13:00">🔄 Làm mới báo cáo</button>
+          <button class="btn accent" onclick="doXuatCongNo('${state.debtTab === 'customer' ? 'kh' : 'hd'}')" title="Xuất đúng số liệu đang xem ra file Excel + PDF (lưu trong thư mục Báo cáo)">📥 Xuất Excel + PDF</button>` : ''}
         </div>
       </div>
       <div class="hint-text" style="margin-top:6px">"Trong kỳ" giới hạn tối đa ~3 tháng để tải nhanh hơn; số dư/lũy kế vẫn tính đủ đến "Đến ngày" như bình thường.${['customer','contract'].includes(state.debtTab) ? ' Nếu vừa nhập thêm Phiếu Cân/thanh toán mà số liệu chưa cập nhật, bấm "Làm mới báo cáo" thay vì chờ tới giờ trigger 7:30/13:00.' : ''}</div>
@@ -4156,7 +4160,7 @@ function renderLedgerDetailTable(){
         <div class="stat"><div class="label">Số dư cuối kỳ (còn nợ)</div><div class="value ${res.duCuoiKy>0?'debt-neg':'debt-pos'}">${fmtMoney(res.duCuoiKy)}</div></div>
       </div>
       <div class="card" style="margin-top:16px">
-        <h3>Sổ chi tiết công nợ - ${esc(res.tenHienThi || res.key)}${res.cccd ? ' – CCCD ' + esc(res.cccd) : ''}</h3>
+        <div class="card-dau"><h3>Sổ chi tiết công nợ - ${esc(res.tenHienThi || res.key)}${res.cccd ? ' – CCCD ' + esc(res.cccd) : ''}</h3>${NUT_XUAT_SO_CONG_NO}</div>
         <table><thead><tr><th>Ngày</th><th>Diễn giải</th><th class="num">Phát sinh Nợ</th><th class="num">Phát sinh Có</th><th class="num">Số dư</th></tr></thead><tbody>
           ${pageRows.map(r => `<tr><td>${esc(r.ngay)}</td><td>${esc(r.dienGiai)}</td>
             <td class="num">${r.no?fmtMoney(r.no):''}</td><td class="num">${r.co?fmtMoney(r.co):''}</td>
@@ -4172,7 +4176,7 @@ function renderLedgerDetailTable(){
         <div class="stat"><div class="label">Công nợ hiện tại</div><div class="value ${res.congNo>0?'debt-neg':'debt-pos'}">${fmtMoney(res.congNo)}</div></div>
       </div>
       <div class="card" style="margin-top:16px">
-        <h3>Tiến độ hợp đồng - ${esc(res.key)}</h3>
+        <div class="card-dau"><h3>Tiến độ hợp đồng - ${esc(res.key)}</h3>${NUT_XUAT_SO_CONG_NO}</div>
         <table><thead><tr><th>Ngày</th><th>Số phiếu cân</th><th class="num">KL (tấn)</th><th class="num">Thành tiền</th><th>Trạng thái</th></tr></thead><tbody>
           ${pageRows.map(r => `<tr><td>${esc(r.ngay)}</td><td class="mono">${esc(r.soPhieuCan)}</td>
             <td class="num">${fmtKl(r.klTan)}</td><td class="num">${fmtMoney(r.thanhTien)}</td>
@@ -4312,20 +4316,32 @@ function clearPhanTichSubFilter(){
   renderPhanTichNhapTTTable();
 }
 
+/** Hộp kết quả của báo cáo xuất cả Excel + PDF ({excelUrl, pdfUrl, canhBao}). */
+function _moKetQuaXuat(moTa, res){
+  if (!res || !res.success) { toast('❌ ' + (res && res.message || 'Xuất báo cáo thất bại.'), 'err'); return; }
+  openModal(`<div class="modal-head"><h3>Xuất báo cáo thành công</h3><button class="x" onclick="closeModal()" aria-label="Đóng">&times;</button></div>
+    <div class="modal-body">
+      <p>${esc(moTa)}</p>
+      ${nutMoFile_(res.excelUrl, '📊 Mở file Excel', 'btn primary', 'width:100%;margin-bottom:8px')}
+      ${res.pdfUrl ? nutMoFile_(res.pdfUrl, '📄 Mở file PDF', 'btn', 'width:100%') : `<p class="muted">⚠️ ${esc(res.canhBao || 'Không tạo được file PDF.')}</p>`}
+    </div>
+    <div class="modal-foot"><button class="btn ghost" onclick="closeModal()">Đóng</button></div>`);
+}
 function doExportPhanTich(){
-  call('exportPhanTichNhapTTBaoCao', [state.phanTichFrom, state.phanTichTo], 'Đang xuất báo cáo Excel + PDF...').then(res => {
-    if (res && res.success) {
-      openModal(`<div class="modal-head"><h3>Xuất báo cáo thành công</h3><button class="x" onclick="closeModal()" aria-label="Đóng">&times;</button></div>
-        <div class="modal-body">
-          <p>Báo cáo tổng hợp từ ${esc(state.phanTichFrom)} đến ${esc(state.phanTichTo)} đã được tạo.</p>
-          ${nutMoFile_(res.excelUrl, '📊 Mở file Excel', 'btn primary', 'width:100%;margin-bottom:8px')}
-          ${res.pdfUrl ? nutMoFile_(res.pdfUrl, '📄 Mở file PDF', 'btn', 'width:100%') : `<p class="muted">⚠️ ${esc(res.canhBao || 'Không tạo được file PDF.')}</p>`}
-        </div>
-        <div class="modal-foot"><button class="btn ghost" onclick="closeModal()">Đóng</button></div>`);
-    } else {
-      toast('❌ ' + (res && res.message || 'Xuất báo cáo thất bại.'), 'err');
-    }
-  });
+  call('exportPhanTichNhapTTBaoCao', [state.phanTichFrom, state.phanTichTo], 'Đang xuất báo cáo Excel + PDF...')
+    .then(res => _moKetQuaXuat(`Báo cáo tổng hợp từ ${_isoSangVN(state.phanTichFrom)} đến ${_isoSangVN(state.phanTichTo)} đã được tạo.`, res));
+}
+
+/* ---------- Xuất Công nợ theo KH / HĐ / Sổ chi tiết ra Excel + PDF ----------
+ * Đúng số liệu đang xem: khoảng ngày đã bấm Xem (state), đối tượng sổ chi tiết đang mở. */
+const TEN_XUAT_CONG_NO = { kh: 'Công nợ theo Khách hàng', hd: 'Công nợ theo Hợp đồng', so: 'Sổ chi tiết công nợ' };
+const NUT_XUAT_SO_CONG_NO = `<button class="btn accent sm" onclick="doXuatCongNo('so')" title="Xuất sổ đang xem ra file Excel + PDF">📥 Xuất Excel + PDF</button>`;
+function doXuatCongNo(loai){
+  const tuyChon = loai === 'so' ? { loaiSo: state.debtLedgerType || 'customer', khoa: state.debtLedgerKey || '' } : {};
+  if (loai === 'so' && !tuyChon.khoa) { toast('Chọn đối tượng rồi bấm "Xem sổ chi tiết" trước khi xuất.', 'warn'); return; }
+  const ten = TEN_XUAT_CONG_NO[loai];
+  call('exportCongNo', [loai, state.debtFrom, state.debtTo, tuyChon], `Đang xuất ${ten} (Excel + PDF)...`)
+    .then(res => _moKetQuaXuat(`${ten} ${loai === 'so' ? 'đến hết' : `từ ${_isoSangVN(state.debtFrom)} đến`} ${_isoSangVN(state.debtTo)} đã được tạo (${(res && res.count) || 0} dòng).`, res));
 }
 
 /* ============================================================
@@ -4635,9 +4651,9 @@ function renderHuongDan(){
   <details class="card">
     <summary style="cursor:pointer;font-weight:700;font-size:15px">💰 Báo Cáo Công Nợ Khách Hàng Gỗ Keo (7 mục)</summary>
     <div style="margin-top:10px;font-size:13px;line-height:1.7">
-      <b>1 · Công nợ theo Khách hàng</b> - tổng khối lượng nhập/đã trả/còn nợ theo từng khách hàng, trong 1 khoảng ngày.<br>
-      <b>2 · Công nợ theo Hợp đồng</b> - tương tự nhưng theo từng hợp đồng (kể cả hợp đồng đã thanh lý).<br>
-      <b>3 · Sổ chi tiết công nợ</b> - bấm vào 1 khách hàng/hợp đồng ở tab 1/2 để xem từng phiếu cân/lần thanh toán cụ thể.<br>
+      <b>1 · Công nợ theo Khách hàng</b> - tổng khối lượng nhập/đã trả/còn nợ theo từng khách hàng, trong 1 khoảng ngày. Nút <b>📥 Xuất Excel + PDF</b> xuất đúng số liệu đang xem.<br>
+      <b>2 · Công nợ theo Hợp đồng</b> - tương tự nhưng theo từng hợp đồng (kể cả hợp đồng đã thanh lý). Xuất được Excel + PDF.<br>
+      <b>3 · Sổ chi tiết công nợ</b> - bấm vào 1 khách hàng/hợp đồng ở tab 1/2 để xem từng phiếu cân/lần thanh toán cụ thể. Nút <b>📥 Xuất Excel + PDF</b> ở góc bảng xuất sổ đang xem.<br>
       <b>4 · Phân tích thanh toán</b> - tổng hợp theo Nguồn Gốc và Đại Lý trong khoảng ngày.<br>
       <b>5 · Phân tích Nhập/TT theo NG-ĐL</b> - bảng theo NGÀY (dòng) × Nguồn Gốc/Đại Lý (cột), mặc định đầu tháng → hôm nay ("Từ ngày" bị khóa, tự tính theo "Đến ngày"). Có ô "Lọc lại" để xem thu hẹp trong khoảng đã tải. Xuất được cả Excel + PDF.<br>
       <b>6 · Chi tiết Công Nợ theo Phiếu Cân</b> - liệt kê phiếu cân CHƯA thanh toán tính đến 1 ngày cụ thể, kèm "Chênh lệch ngày" (đã treo bao lâu). Mặc định xem hôm qua, chọn ngày khác tự tính lại ngay.<br>
@@ -5035,7 +5051,7 @@ const NHAN_CHUC_NANG = {
   exportBaoCaoDNTTFromDraft: 'In Báo cáo ĐNTT', webCreateUNCFromDraft: 'Tạo UNC', webConfirmPayment: 'Duyệt / Đóng thanh toán',
   getReportList: 'Báo cáo thanh toán', webExportReport: 'Xuất báo cáo thanh toán', getChiTietDNTTDaChot: 'Báo cáo TT chi tiết',
   getMisaDataTheoNgay: 'Báo cáo MISA', getLichSuUNC: 'Báo cáo UNC', getDebtByCustomer: 'Công nợ khách hàng',
-  getDebtByContract: 'Công nợ hợp đồng', getDebtLedgerDetail: 'Sổ chi tiết công nợ', getChiTietCongNoPhieuCanWeb: 'Công nợ theo phiếu cân',
+  getDebtByContract: 'Công nợ hợp đồng', getDebtLedgerDetail: 'Sổ chi tiết công nợ', exportCongNo: 'Xuất công nợ', getChiTietCongNoPhieuCanWeb: 'Công nợ theo phiếu cân',
   getTinhHinhThanhToanHangNgayWeb: 'Tình hình thanh toán', getPaymentAnalysis: 'Phân tích nhập / thanh toán',
   webRunCongNoRefreshNow: 'Cập nhật công nợ ngay', webRunDaily15hRefreshNow: 'Cập nhật số liệu tháng ngay',
   webRefreshPhieuCanCache: 'Làm mới phiếu cân', getKiemTraDoiChieuBaoTri: 'Bảo trì kiểm tra', getDoiSoatTenKhachHang: 'Đối soát tên KH',
@@ -5154,6 +5170,7 @@ function renderSettings(){
           <button class="btn" onclick="doSetupKiemTraDem()" title="Mỗi đêm 2:00 chạy Bảo Trì + MISA thiếu dòng + phiếu cân đã trả chưa khóa; email Quản trị khi có vấn đề mới">🌙 Bật kiểm tra dữ liệu hằng đêm (2:00)</button>
           <span id="badge-kiemtradem" class="badge dot">Đang kiểm tra...</span>
         </div>
+        <div class="hint-text" style="margin-top:4px">📧 Email cảnh báo gửi tới Quản trị cố định và mọi tài khoản vai trò <b>Quản trị</b> đang hoạt động - thêm / bớt người nhận ở thẻ <b>👥 Người Dùng &amp; Phân Quyền</b> (trang Cài đặt). Lần đầu cần cấp quyền gửi email cho dự án Apps Script.</div>
         <button class="btn" style="margin-top:8px" onclick="doResetPhanTich()">🧹 Xóa Sạch &amp; Nạp Lại Phân Tích NG-ĐL</button>
         <button class="btn" style="margin-top:8px" onclick="doResetChiTietCongNo()">🧹 Xóa Sạch &amp; Nạp Lại Chi Tiết Công Nợ PC</button>
         <div style="margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
