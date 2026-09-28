@@ -157,3 +157,27 @@ test('#11 the System page separates look-up from data-changing tools', () => {
   ['Mở "Đóng" Thanh Toán', 'Khôi Phục Dữ Liệu Đã Xóa', 'Khóa Sổ Năm', 'Cập Nhật Ngân Hàng', 'Đồng Bộ Lịch Sử', 'Tạo Lại MISA', 'Tạo Lại UNC'].forEach(t => assert.ok(tCan.includes(t) && !tTra.includes(t), t));
   assert.match(can, /Các chức năng dưới đây SỬA \/ XÓA dữ liệu đã chốt/);
 });
+
+// ---------- #7 Tuổi nợ + xu hướng 30 ngày ----------
+test('#7 the home page gets a 30-day buy / pay trend and debt ageing from pre-aggregated data only', () => {
+  const { run, w } = theGioi();
+  const homNay = new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 10);
+  const pt = w.draft.getSheetByName('PhanTichNhapTT_DRAFT') || w.draft.addSheet('PhanTichNhapTT_DRAFT', [['Ngày', 'Loại', 'PhanLoai', 'Ten', 'KhoiLuongKg', 'GiaTri']]);
+  pt.data.push([homNay, 'NHAP', 'TONG', 'Tổng', 5000, 7e6], [homNay, 'THANHTOAN', 'TONG', 'Tổng', 3, 4e6], [homNay, 'NHAP', 'DL', 'DL1', 5000, 7e6]);
+  const ct = w.draft.getSheetByName('ChiTietCongNoPhieuCan_DRAFT') || w.draft.addSheet('ChiTietCongNoPhieuCan_DRAFT', [run('CTCN_HEADERS').slice()]);
+  const dong = (so, tien, tre) => { const r = run('CTCN_HEADERS').map(() => ''); r[0] = so; r[11] = tien; r[14] = tre; return r; };
+  ct.data.push(dong('P1', 1e6, 5), dong('P2', 2e6, 45), dong('P3', 3e6, 75), dong('P4', 4e6, 120), dong('P5', 5e6, 10));
+  run('PropertiesService.getScriptProperties()').setProperty('CTCN_SNAPSHOT_DATE', '2026-09-27');
+  run('getDashboardStats_')(); // lần đầu: ngày chưa có trong bảng Phân tích được tính bù 1 lần (như cũ)
+  run(`() => { const g = _pcGopLuuTru_; globalThis.__quetPc = 0; _pcGopLuuTru_ = (...a) => { globalThis.__quetPc++; return g(...a); }; }`)();
+  const s = run('getDashboardStats_')();
+  const quetPc = run('globalThis.__quetPc');
+  assert.equal(s.xuHuong30Ngay.length, 30);
+  const cuoi = s.xuHuong30Ngay[29];
+  assert.deepEqual([cuoi.ngayISO, cuoi.mua, cuoi.tt], [homNay, 7e6, 4e6], 'TONG rows only (DL row not double-counted)');
+  assert.deepEqual(Array.from(s.tuoiNo.nhom, g => [g.soPhieu, g.tien]), [[2, 6e6], [1, 2e6], [1, 3e6], [1, 4e6]]);
+  assert.equal(s.tuoiNo.tinhDen, '27/09/2026');
+  assert.equal(quetPc, 0, 'later visits: no weigh-ticket scan');
+  assert.match(INDEX, /--series-1:#2a78d6; --series-2:#eb6834;/);
+  assert.match(INDEX, /<summary style="cursor:pointer;font-size:13px">Xem bảng số liệu<\/summary>/, 'table view');
+});

@@ -6929,6 +6929,37 @@ function refreshChiTietCongNoPhieuCanChoNgay_(ngayStr, precomputedRows) {
   }
 }
 
+/** #7: tiền mua (theo ngày cân) và thanh toán (theo Ngày CK) từng ngày của `soNgay` ngày gần nhất,
+ * từ bảng Phân tích đã tổng hợp (dòng TONG). Ngày không có phát sinh = 0. */
+function _xuHuongMuaThanhToan_(soNgay) {
+  const denNgay = new Date(), ngay = [];
+  for (let i = soNgay - 1; i >= 0; i--) ngay.push(Utilities.formatDate(new Date(denNgay.getTime() - i * 86400000), "GMT+7", "yyyy-MM-dd"));
+  const theoNgay = new Map(ngay.map(d => [d, { mua: 0, tt: 0 }]));
+  _docPhanTichTheoKhoang_(ngay[0], ngay[ngay.length - 1]).forEach(r => {
+    if (String(r[2]) !== "TONG") return;
+    const o = theoNgay.get(_ngayCellToStr_(r[0]));
+    if (!o) return;
+    if (String(r[1]) === "NHAP") o.mua += utils.parseNum(r[5]);
+    else if (String(r[1]) === "THANHTOAN") o.tt += utils.parseNum(r[5]);
+  });
+  return ngay.map(d => ({ ngay: d.slice(8, 10) + "/" + d.slice(5, 7), ngayISO: d, mua: theoNgay.get(d).mua, tt: theoNgay.get(d).tt }));
+}
+/** #7: tuổi nợ phiếu cân chưa thanh toán theo ảnh chụp Công nợ phiếu cân gần nhất (trigger 15h, tính
+ * đến hết ngày hôm trước). Chưa có ảnh chụp -> null (Trang chủ không tính trực tiếp - rất nặng). */
+const TUOI_NO_NHOM = [{ nhan: "0 – 30 ngày", tu: 0, den: 30 }, { nhan: "31 – 60 ngày", tu: 31, den: 60 }, { nhan: "61 – 90 ngày", tu: 61, den: 90 }, { nhan: "Trên 90 ngày", tu: 91, den: Infinity }];
+function _tuoiNoPhieuCan_() {
+  const ngayChup = PropertiesService.getScriptProperties().getProperty('CTCN_SNAPSHOT_DATE') || "";
+  if (!ngayChup) return null;
+  const nhom = TUOI_NO_NHOM.map(g => ({ nhan: g.nhan, soPhieu: 0, tien: 0 }));
+  _readChiTietCongNoCacheAll_().forEach(r => {
+    const n = utils.parseNum(r.chenhLechNgay);
+    const i = TUOI_NO_NHOM.findIndex(g => n >= g.tu && n <= g.den);
+    if (i < 0) return;
+    nhom[i].soPhieu++; nhom[i].tien += utils.parseNum(r.thanhTien);
+  });
+  return { tinhDen: ngayChup.slice(8, 10) + "/" + ngayChup.slice(5, 7) + "/" + ngayChup.slice(0, 4), nhom };
+}
+
 function _readChiTietCongNoCacheAll_() {
   const sh = getChiTietCongNoCacheSheet_();
   const lr = sh.getLastRow();
@@ -9118,6 +9149,13 @@ function getDashboardStats_() {
     result.muaTheoDaiLy = gom("NHAP", "DL");
     result.thangNayCapNhatLuc = PropertiesService.getScriptProperties().getProperty(PHANTICH_CAP_NHAT_LUC_PROP) || "";
   } catch (e) { result.canhBao.push("Số liệu tháng này: " + _loiChoNguoiDung_(e)); }
+
+  // #7 (nâng cấp 28/09/2026): xu hướng 30 ngày + tuổi nợ - CHỈ đọc số đã tổng hợp (bảng Phân tích,
+  // ảnh chụp Công nợ phiếu cân của trigger 15h), Trang chủ không quét Phiếu Cân.
+  try { result.xuHuong30Ngay = _xuHuongMuaThanhToan_(30); }
+  catch (e) { result.xuHuong30Ngay = []; result.canhBao.push("Xu hướng 30 ngày: " + _loiChoNguoiDung_(e)); }
+  try { result.tuoiNo = _tuoiNoPhieuCan_(); }
+  catch (e) { result.tuoiNo = null; result.canhBao.push("Tuổi nợ: " + _loiChoNguoiDung_(e)); }
 
   return result;
 }

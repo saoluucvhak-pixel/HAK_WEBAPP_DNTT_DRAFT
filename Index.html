@@ -37,6 +37,8 @@
       --shadow:0 1px 2px rgba(31,41,55,.06), 0 4px 14px rgba(31,41,55,.05);
       --border:var(--line); /* v2026.9.7: tên cũ còn dùng ở vài chỗ - trước đây chưa khai báo nên viền bị mất */
       --focus:#2563eb;
+      /* #7 biểu đồ: 2 màu đầu của bảng màu phân loại đã kiểm định (mù màu, tương phản) cho nền sáng */
+      --series-1:#2a78d6; --series-2:#eb6834;
       color-scheme:light;
     }
     *{box-sizing:border-box;}
@@ -326,6 +328,16 @@
     .modal-head .x{cursor:pointer; font-size:18px; color:var(--ink-soft); background:none; border:none;}
     .modal-body{padding:20px; max-height:65vh; overflow:auto;}
     .modal.rong{max-width:880px;}
+    /* #7 biểu đồ xu hướng Trang chủ */
+    .bieu-do{position:relative;}
+    .bieu-do svg{width:100%; height:auto; display:block;}
+    .bieu-do .luoi{stroke:var(--line); stroke-width:1;}
+    .bieu-do .chu-truc{fill:var(--ink-soft); font-size:11px;}
+    .bieu-do .duong{fill:none; stroke-width:2; stroke-linejoin:round; stroke-linecap:round;}
+    .bieu-do .nhan-cuoi{font-size:12px; font-weight:600; fill:var(--ink);}
+    .bieu-do .chu-thich{display:flex; gap:16px; font-size:13px; margin-bottom:6px; color:var(--ink);}
+    .bieu-do .chu-thich i{display:inline-block; width:14px; height:3px; border-radius:2px; vertical-align:middle; margin-right:6px;}
+    .bieu-do .goi-y{position:absolute; pointer-events:none; background:var(--white); color:var(--ink); border:1px solid var(--line); border-radius:8px; padding:6px 10px; font-size:12px; box-shadow:var(--shadow); white-space:nowrap; display:none; z-index:2;}
     /* #3 (2026.9.49): hộp xác nhận trong trang - nằm TRÊN cả hộp thoại đang mở. */
     #hop-xac-nhan{z-index:950;}
     #hop-xac-nhan .modal{max-width:480px;}
@@ -515,6 +527,7 @@
         --forest:#020617; --forest-2:#1e293b; --accent:#60a5fa; --moss:#4ade80; --moss-light:#14532d;
         --timber:#f59e0b; --timber-light:#422006; --danger:#f87171; --danger-light:#450a0a; --white:#111827;
         --shadow:0 1px 2px rgba(0,0,0,.4), 0 4px 14px rgba(0,0,0,.35); --focus:#93c5fd; color-scheme:dark;
+        --series-1:#3987e5; --series-2:#d95926;
       }
     }
     :root[data-theme="dark"]{
@@ -522,6 +535,7 @@
       --forest:#020617; --forest-2:#1e293b; --accent:#60a5fa; --moss:#4ade80; --moss-light:#14532d;
       --timber:#f59e0b; --timber-light:#422006; --danger:#f87171; --danger-light:#450a0a; --white:#111827;
       --shadow:0 1px 2px rgba(0,0,0,.4), 0 4px 14px rgba(0,0,0,.35); --focus:#93c5fd; color-scheme:dark;
+      --series-1:#3987e5; --series-2:#d95926;
     }
     #loading-overlay{background:color-mix(in srgb, var(--paper) 94%, transparent);}
     .btn.primary:hover{filter:brightness(1.08);}
@@ -1476,6 +1490,75 @@ const QUY_TRINH_TT = [
   { ten: 'Duyệt (Đóng Thanh Toán)', viec: '<b>Duyệt (Đóng Thanh Toán)</b> - nhập ngày thanh toán thực tế → ghi vào sổ sách CHÍNH THỨC, khóa Phiếu Cân vĩnh viễn', oDau: 'Tab "3 · Chờ duyệt" → "📨 Duyệt"', sau: 'Chuyển sang "Báo Cáo Thanh Toán"' }
 ];
 
+/** #7: 4 ô tuổi nợ (0-30 / 31-60 / 61-90 / >90 ngày) từ ảnh chụp Công nợ phiếu cân (15h). */
+function _veTuoiNo_(tn){
+  const ghiChu = document.getElementById('tn-tinh-den');
+  if (!tn) { if (ghiChu) ghiChu.textContent = 'Chưa có số liệu tuổi nợ - tổng hợp tự động lúc 15h (hoặc mở Công Nợ › Chi tiết theo phiếu cân).'; return; }
+  tn.nhom.forEach((g, i) => {
+    const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+    set('tn-nhan-' + i, g.nhan); set('tn-tien-' + i, fmtMoney(g.tien)); set('tn-so-' + i, g.soPhieu + ' phiếu cân · VNĐ');
+  });
+  if (ghiChu) ghiChu.textContent = `Tính đến hết ngày ${tn.tinhDen} (tổng hợp lúc 15h) - tuổi = số ngày từ ngày cân tới nay chưa thanh toán.`;
+}
+/** Số tiền gọn cho trục: 1,2 tỷ / 350 tr / 12 ng. */
+function _tienGon_(v){
+  const a = Math.abs(v);
+  if (a >= 1e9) return (v / 1e9).toLocaleString('vi-VN', { maximumFractionDigits: 1 }) + ' tỷ';
+  if (a >= 1e6) return Math.round(v / 1e6).toLocaleString('vi-VN') + ' tr';
+  if (a >= 1e3) return Math.round(v / 1e3).toLocaleString('vi-VN') + ' ng';
+  return String(Math.round(v));
+}
+/** #7: biểu đồ đường 2 chuỗi (Mua theo ngày cân / Thanh toán theo Ngày CK), 1 trục tiền, chú giải +
+ * nhãn cuối đường, rê chuột xem số từng ngày, bảng số liệu kèm theo (không chỉ dựa vào màu). */
+function _veXuHuong_(box, ds){
+  if (!box) return;
+  if (!ds.length || ds.every(d => !d.mua && !d.tt)) { box.innerHTML = '<div class="empty"><div class="ic">📭</div>Chưa có phát sinh mua / thanh toán trong 30 ngày (hoặc bảng Phân tích chưa tổng hợp).</div>'; return; }
+  const W = 720, H = 240, L = 64, R = 92, T = 12, B = 28;
+  const lonNhat = Math.max(...ds.map(d => Math.max(d.mua, d.tt)), 1);
+  const buoc = (() => { const tho = lonNhat / 4, mu = Math.pow(10, Math.floor(Math.log10(tho))); return [1, 2, 2.5, 5, 10].map(k => k * mu).find(v => v >= tho); })();
+  const tran = buoc * 4;
+  const x = i => L + (ds.length === 1 ? 0 : i * (W - L - R) / (ds.length - 1));
+  const y = v => T + (H - T - B) * (1 - v / tran);
+  const duong = k => ds.map((d, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(d[k]).toFixed(1)}`).join('');
+  const chuoi = [{ k: 'mua', ten: 'Mua (theo ngày cân)', mau: 'var(--series-1)', nhan: 'Mua' }, { k: 'tt', ten: 'Thanh toán (theo Ngày CK)', mau: 'var(--series-2)', nhan: 'Thanh toán' }];
+  const cuoi = ds.length - 1;
+  // Nhãn cuối đường: đẩy xa nhau tối thiểu 14px để không đè.
+  let yNhan = chuoi.map(c => y(ds[cuoi][c.k]) + 4);
+  if (Math.abs(yNhan[0] - yNhan[1]) < 14) { const g = (yNhan[0] + yNhan[1]) / 2, tren = yNhan[0] <= yNhan[1] ? 0 : 1; yNhan[tren] = g - 7; yNhan[1 - tren] = g + 7; }
+  box.innerHTML = `<div class="bieu-do">
+    <div class="chu-thich">${chuoi.map(c => `<span><i style="background:${c.mau}"></i>${c.ten}</span>`).join('')}</div>
+    <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Biểu đồ tiền mua và tiền thanh toán 30 ngày gần nhất">
+      ${[0, 1, 2, 3, 4].map(k => `<line class="luoi" x1="${L}" x2="${W - R}" y1="${y(buoc * k)}" y2="${y(buoc * k)}"/><text class="chu-truc" x="${L - 8}" y="${y(buoc * k) + 4}" text-anchor="end">${_tienGon_(buoc * k)}</text>`).join('')}
+      ${ds.map((d, i) => (i % 5 === cuoi % 5) ? `<text class="chu-truc" x="${x(i)}" y="${H - 8}" text-anchor="middle">${esc(d.ngay)}</text>` : '').join('')}
+      ${chuoi.map(c => `<path class="duong" d="${duong(c.k)}" style="stroke:${c.mau}"/>`).join('')}
+      ${chuoi.map((c, n) => `<circle cx="${x(cuoi)}" cy="${y(ds[cuoi][c.k])}" r="4" style="fill:${c.mau};stroke:var(--white);stroke-width:2"/><text class="nhan-cuoi" x="${x(cuoi) + 8}" y="${yNhan[n]}">${c.nhan}</text>`).join('')}
+      <line id="xh-doc" y1="${T}" y2="${H - B}" style="stroke:var(--ink-soft);stroke-width:1;display:none"/>
+      ${chuoi.map(c => `<circle class="xh-diem" data-k="${c.k}" r="4" style="fill:${c.mau};stroke:var(--white);stroke-width:2;display:none"/>`).join('')}
+      <rect id="xh-vung" x="${L}" y="${T}" width="${W - L - R}" height="${H - T - B}" fill="transparent"/>
+    </svg>
+    <div class="goi-y" id="xh-goi-y"></div>
+    <details style="margin-top:6px"><summary style="cursor:pointer;font-size:13px">Xem bảng số liệu</summary>
+      <table><thead><tr><th>Ngày</th><th class="num">Mua</th><th class="num">Thanh toán</th></tr></thead><tbody>
+      ${ds.slice().reverse().map(d => `<tr><td class="mono">${esc(d.ngay)}</td><td class="num">${fmtMoney(d.mua)}</td><td class="num">${fmtMoney(d.tt)}</td></tr>`).join('')}
+      </tbody></table></details></div>`;
+  const svg = box.querySelector('svg'), vung = box.querySelector('#xh-vung'), goiY = box.querySelector('#xh-goi-y'), doc = box.querySelector('#xh-doc');
+  const hien = e => {
+    const r = svg.getBoundingClientRect(), tiLe = W / r.width;
+    const vx = (e.clientX - r.left) * tiLe;
+    const i = Math.max(0, Math.min(cuoi, Math.round((vx - L) / ((W - L - R) / Math.max(1, cuoi)))));
+    const d = ds[i];
+    doc.setAttribute('x1', x(i)); doc.setAttribute('x2', x(i)); doc.style.display = '';
+    box.querySelectorAll('.xh-diem').forEach(c => { c.setAttribute('cx', x(i)); c.setAttribute('cy', y(d[c.dataset.k])); c.style.display = ''; });
+    goiY.innerHTML = `<b>${esc(d.ngay)}</b><br>${chuoi.map(c => `<i style="display:inline-block;width:10px;height:3px;background:${c.mau};margin-right:6px;vertical-align:middle"></i>${c.nhan}: <b>${fmtMoney(d[c.k])}</b> đ`).join('<br>')}`;
+    goiY.style.display = 'block';
+    const px = x(i) / tiLe, rong = goiY.offsetWidth;
+    goiY.style.left = Math.min(Math.max(0, px + 12), r.width - rong) + 'px';
+    goiY.style.top = '28px';
+  };
+  const an = () => { goiY.style.display = 'none'; doc.style.display = 'none'; box.querySelectorAll('.xh-diem').forEach(c => { c.style.display = 'none'; }); };
+  vung.addEventListener('mousemove', hien); vung.addEventListener('mouseleave', an);
+  vung.addEventListener('touchstart', e => hien(e.touches[0]), { passive: true });
+}
 /** Ô số liệu Trang chủ bấm được: mở thẳng màn hình tương ứng (trang + tab con). */
 function moTrang(trang, tab){
   if (trang === 'draft') { state.draftStatusFilter = tab || 'all'; state.draftTuKhoa = ''; }
@@ -1505,7 +1588,7 @@ function renderDashboard(){
   <div class="grid cols-4 o-so" id="dash-stats">
     <div ${_oSoMo('draft', 'all')}><div class="label">Hồ sơ đang ở Nháp</div><div class="value" id="s-draft">–</div><div class="hint">Chưa chốt thanh toán</div></div>
     <div ${_oSoMo('draft', 'san_sang')}><div class="label">Sẵn sàng chốt</div><div class="value" id="s-ready">–</div><div class="hint">Đã có Số tiền</div></div>
-    <div ${_oSoMo('draft', 'cho_tinh')}><div class="label">Chờ Đề Nghị TT</div><div class="value" id="s-pending">–</div><div class="hint">Chưa tính số tiền</div></div>
+    <div ${_oSoMo('draft', 'cho_tinh')}><div class="label">Chưa tính tiền</div><div class="value" id="s-pending">–</div><div class="hint">Chưa tính số tiền</div></div>
     <div ${_oSoMo('draft', 'san_sang')}><div class="label">Tổng tiền sẵn sàng</div><div class="value timber" id="s-total">–</div><div class="hint">VNĐ</div></div>
   </div>
   <div class="muc-tieu-de">Mua &amp; thanh toán tháng này</div>
@@ -1529,6 +1612,11 @@ function renderDashboard(){
       <div id="dash-top5-no"><div class="empty"><div class="ic">⏳</div>Đang tải...</div></div>
     </div>
   </div>
+  <div class="muc-tieu-de">Tuổi nợ phiếu cân chưa thanh toán</div>
+  <div class="grid cols-4 o-so" id="dash-tuoi-no">${[0, 1, 2, 3].map(i => `<div ${_oSoMo('debt', 'ctcn')}><div class="label" id="tn-nhan-${i}">–</div><div class="value${i >= 2 ? ' timber' : ''}" id="tn-tien-${i}">–</div><div class="hint" id="tn-so-${i}">phiếu cân</div></div>`).join('')}</div>
+  <div class="hint-text" id="tn-tinh-den" style="margin-top:8px"></div>
+  <div class="muc-tieu-de">Xu hướng 30 ngày: mua và thanh toán</div>
+  <div class="card"><div id="dash-xu-huong"><div class="empty"><div class="ic">⏳</div>Đang tải...</div></div></div>
   <div class="muc-tieu-de">Mua tháng này theo nguồn gốc &amp; đại lý</div>
   <div class="grid cols-2">
     <div class="card">
@@ -1562,6 +1650,8 @@ function renderDashboard(){
       + (s.congNoCapNhatLuc ? ` - lần gần nhất: ${esc(s.congNoCapNhatLuc)}` : '')
       + '. <button class="btn sm ghost" onclick="doCapNhatCongNoTrangChu()">🔄 Cập nhật ngay</button>';
     document.getElementById('dash-top5-no').innerHTML = _renderDashTop5NoTable_(s.top5KhachHangNo);
+    _veTuoiNo_(s.tuoiNo);
+    _veXuHuong_(document.getElementById('dash-xu-huong'), s.xuHuong30Ngay || []);
     if (s.canhBao && s.canhBao.length) toast('⚠️ Trang chủ thiếu số liệu - ' + s.canhBao.join(' · '), 'warn');
     const kt = s.kiemTraDem, ktBox = document.getElementById('dash-kiem-tra-dem');
     if (ktBox) ktBox.innerHTML = kt && kt.tong ? `<div class="card" style="border-color:var(--danger);background:var(--danger-light)">
