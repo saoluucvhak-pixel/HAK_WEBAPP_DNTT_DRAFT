@@ -1,4 +1,4 @@
-# ARCHITECTURE — HAK Quản Lý Thanh Toán (v2026.9.44)
+# ARCHITECTURE — HAK Quản Lý Thanh Toán (v2026.9.45)
 
 > Tài liệu sống: cập nhật mỗi khi đổi module, lớp, luồng dữ liệu hoặc schema.
 > Phân tích chi tiết hiện trạng: `docs/PROJECT_ANALYSIS.md`. Kiến trúc đích: `docs/REFACTOR_PLAN.md` §3–§4.
@@ -77,6 +77,8 @@ Dọn dẹp MISA (`webDonDepMisa_(che, f, t, chayThat)`, Hệ Thống): `_boChon
 Chặn trả 2 lần: trước bước 3, đọc thẳng CT thật (`_phieuCanDaTraThat_`); hồ sơ có phiếu cân đã chốt ở hồ sơ khác bị bỏ qua cả hồ sơ (`CHAN_TRA_HAI_LAN`). Tạo mới / Thêm phiếu cũng kiểm tra (`_chanPhieuCanDaTra_`). **Cache “phiếu cân chưa TT” chỉ để gợi ý, không dùng một mình để quyết định phiếu còn trả được.**
 
 Số tiền phải khớp phiếu cân (2026.9.44): Xác nhận, In Báo Cáo ĐNTT, Tạo UNC và Duyệt bỏ qua hồ sơ có Số tiền (cột G sổ 112 Nháp) khác tổng Thành tiền các dòng CT Nháp quá `LECH_TIEN_CHO_PHEP` (1 đ) — `_hoSoLechTien_`; Danh Sách ĐNTT gắn cờ `canTinhLai`. Thêm / Bỏ phiếu cân không tự tính lại nên luôn phải qua "Đề Nghị Thanh Toán (tính lại)".
+
+STK theo hợp đồng (2026.9.45): Lưu hồ sơ mới (`createNewPaymentRequest_`) và Sửa hồ sơ khi đổi STK hoặc Số HĐ (`updateDraft112Info_`) gọi `_kiemTraStkTheoHopDong_` — STK phải có trong HD_STK (bản đầy đủ `_hdStkFullData_`, mọi tình trạng HĐ) của đúng Số HĐ; so sánh bỏ dấu `'` / số 0 đầu (`_khoaStk_`); không thấy thì đọc lại HD_STK bỏ qua bộ nhớ đệm 1 lần rồi mới báo lỗi.
 
 Lỗi ở bất kỳ bước nào → log `LOI_CHOT_THANH_TOAN`, người dùng bấm Duyệt lại cùng hồ sơ để hoàn tất (không trùng dữ liệu).
 

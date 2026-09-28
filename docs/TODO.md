@@ -59,7 +59,8 @@ Trạng thái: ✅ xong · 🟡 một phần · ⏳ chưa làm · ⚖️ cần n
 - ✅ Khóa sổ năm (quy trình người dùng): kiểm chứng công nợ đầu năm = phiếu chưa trả mang sang (test `khoaSoNam`); không cần bộ nhớ đệm 6 tháng.
 - ✅ 2026.9.16: Nhật ký thao tác giữ dạng chữ cho Mã hồ sơ / mã lỗi (không mất số 0 đầu).
 - ✅ 2026.9.15: Hệ Thống › Dọn Dẹp MISA (trùng / mồ côi / tất cả trong khoảng Ngày CK), xem trước + sao lưu. UNC không cần nút xóa riêng (xem CHANGELOG).
-- ✅ 2026.9.44: Rà soát toàn bộ mã nguồn (`docs/RA_SOAT_2026-09-28.md`) - sửa: chặn Xác nhận / In / UNC / Duyệt hồ sơ lệch tiền sau Thêm / Bỏ phiếu cân; Xuất Báo Cáo đọc lại từ sổ; bộ nhớ đệm chia theo byte; đổi link chỉ theo khai báo; nhật ký cấu hình. ⚖️ Chờ người dùng quyết định các đề xuất trong báo cáo: tách quyền Lập / Duyệt (maker-checker), đăng nhập từ trang nhúng cần mã xác nhận, quyền "Cập nhật ngay" của tài khoản Chỉ xem, đối chiếu STK với HD_STK khi lưu.
+- ✅ 2026.9.44: Rà soát toàn bộ mã nguồn (`docs/RA_SOAT_2026-09-28.md`) - sửa: chặn Xác nhận / In / UNC / Duyệt hồ sơ lệch tiền sau Thêm / Bỏ phiếu cân; Xuất Báo Cáo đọc lại từ sổ; bộ nhớ đệm chia theo byte; đổi link chỉ theo khai báo; nhật ký cấu hình. Người dùng quyết định 28/09/2026: đối chiếu STK với HD_STK khi Lưu / Sửa → làm ở 2026.9.45; tách quyền Lập / Duyệt và mã xác nhận đăng nhập nhúng → không làm; quyền "Cập nhật ngay" của tài khoản Chỉ xem và H-01/H-08/H-09/H-10 → giữ như cũ.
+- ✅ 2026.9.45: ⚖️ Lưu / Sửa hồ sơ chỉ nhận Số tài khoản có trong HD_STK của đúng hợp đồng (S-03).
 - ✅ 2026.9.43: Tạo lại UNC theo Ngày CK. Ô ký phiếu PDF giữ Người lập phiếu / Kế toán trưởng / Giám đốc (người dùng chọn giữ nguyên 28/09/2026).
 - ✅ 2026.9.42: Công nợ mở bằng bản tổng hợp (Làm mới khi cần); thanh Đi nhanh cho trang dài; nhật ký trước → sau cho thao tác hồ sơ.
 - ✅ 2026.9.41: Trang chủ — ô số liệu dạng nút mở thẳng màn hình; tab “Đã có số tiền” ở Danh Sách ĐNTT.

@@ -592,7 +592,7 @@
       <div class="nav-item" role="button" tabindex="0" data-page="settings"><span class="ic">⚙️</span> Cài đặt / Nháp</div>
     </nav>
     <div class="nguoi-dung-chip" id="nguoi-dung-chip"></div>
-    <div class="sidebar-footer">Hệ thống Quản Lý Thanh Toán · v2026.9.44<br><button type="button" class="theme-toggle" id="theme-toggle" aria-label="Đổi giao diện sáng / tối">🌓 Giao diện: Tự động</button></div>
+    <div class="sidebar-footer">Hệ thống Quản Lý Thanh Toán · v2026.9.45<br><button type="button" class="theme-toggle" id="theme-toggle" aria-label="Đổi giao diện sáng / tối">🌓 Giao diện: Tự động</button></div>
   </aside>
 
   <main class="main">
@@ -2642,7 +2642,7 @@ function editDraftRecord(idKey){
         </div>
         <div class="field"><label>Số hợp đồng</label><input type="text" id="e-soHD" value="${esc(r.soHD)}"></div>
         <div class="field"><label>Nội dung chuyển khoản</label><textarea id="e-noiDung" rows="2">${esc(r.noiDungCK)}</textarea></div>
-        <div class="hint-text">Số tiền / lũy kế theo hợp đồng do "Đề Nghị Thanh Toán" tự tính, không sửa tay ở đây.</div>
+        <div class="hint-text">Số tiền / lũy kế theo hợp đồng do "Đề Nghị Thanh Toán" tự tính, không sửa tay ở đây. Số tài khoản phải có trong danh sách tài khoản (HD_STK) của Số hợp đồng - tài khoản mới thì thêm ở app Hợp Đồng trước.</div>
       </div>
       <div class="modal-foot"><button class="btn ghost" onclick="closeModal()">Hủy</button>
         <button class="btn primary" ${hanhDong('saveDraftEdit', r.idKey)}>💾 Lưu thay đổi</button></div>

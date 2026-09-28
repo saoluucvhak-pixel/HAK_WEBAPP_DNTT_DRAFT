@@ -2,6 +2,20 @@
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/). Phiên bản theo `NĂM.ĐỢT.SỬA`; thay đổi làm đổi hành vi nghiệp vụ (⚖️) sẽ tăng số ĐỢT và ghi rõ đã được người dùng đồng ý.
 
+## [2026.9.45] — Đối chiếu Số tài khoản với hợp đồng khi Lưu / Sửa hồ sơ (người dùng đồng ý 28/09/2026)
+
+### Changed
+- ⚖️ **Lưu hồ sơ mới** và **Sửa hồ sơ** (khi đổi Số tài khoản hoặc Số hợp đồng) chỉ nhận Số tài khoản **có trong HD_STK của đúng hợp đồng đó** (mọi tình trạng hợp đồng). Trước đây máy chủ tin STK trình duyệt gửi lên → gõ tay ở Sửa hồ sơ hoặc gọi thẳng API tạo được hồ sơ chuyển tiền vào tài khoản bất kỳ (S-03 báo cáo rà soát). Báo lỗi rõ: "Số tài khoản X không có trong danh sách tài khoản (HD_STK) của hợp đồng Y - thêm tài khoản này vào hợp đồng ở app Hợp Đồng rồi làm lại."
+- So sánh bỏ dấu `'` và số 0 đầu (ô HD_STK dạng số); tài khoản vừa thêm ở app Hợp Đồng được nhận ngay (đọc lại HD_STK bỏ qua bộ nhớ đệm trước khi báo lỗi).
+- Hồ sơ cũ có STK chưa khai báo: sửa các ô khác (người nhận, ngân hàng, ghi chú…) vẫn được; chỉ kiểm tra khi đổi STK / Số HĐ.
+
+### Không đổi (người dùng quyết định 28/09/2026)
+- Không làm: tách quyền Lập / Duyệt (S-02), mã xác nhận đăng nhập từ trang nhúng (S-01).
+- Giữ như cũ: quyền "Cập nhật ngay" của tài khoản Chỉ xem (P-03); các đánh đổi đã chốt H-01, H-08, H-09, H-10.
+
+### Tests
+- 210 test (thêm `stkTheoHopDong.test.mjs`: Lưu / Sửa với STK không khai báo hoặc của hợp đồng khác bị chặn và không ghi gì; STK khai báo được nhận; bỏ qua số 0 đầu; sửa ô khác của hồ sơ cũ vẫn được; STK vừa thêm được nhận dù bộ nhớ đệm cũ). Các test chặn thất bại trên bản 2026.9.44. Dữ liệu mẫu HD_STK khai báo STK cho HD01 / 00123.
+
 ## [2026.9.44] — Rà soát toàn bộ mã nguồn: chặn chuyển sai tiền, báo cáo đọc lại từ sổ, bộ nhớ đệm tiếng Việt, nhật ký cấu hình (28/09/2026)
 
 Báo cáo rà soát đầy đủ (13 phần, chấm điểm, lộ trình): `docs/RA_SOAT_2026-09-28.md`. Bản này chỉ sửa lỗi - quy trình bình thường không đổi; các đề xuất đổi nghiệp vụ / phân quyền để người dùng quyết định (xem báo cáo).

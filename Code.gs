@@ -1,6 +1,6 @@
 /**
  * ============================================================
- * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.44
+ * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.45
  * Lịch sử thay đổi: CHANGELOG.md · Kiến trúc: docs/ARCHITECTURE.md
  * ------------------------------------------------------------
  * *** QUAN TRỌNG - CẦN LÀM TRƯỚC KHI DÙNG BẢN NÀY (chỉ 1 LẦN DUY NHẤT
@@ -8490,6 +8490,37 @@ function _chanPhieuCanDaTra_(dsSoPhieu) {
   if (trung.length) throw new Error(`Số phiếu cân ${trung.map(so => `"${so}"`).join(", ")} ĐÃ ĐƯỢC THANH TOÁN (hồ sơ ${trung.map(so => daTra.get(utils.standardize(so))).join(", ")}) - không thể thanh toán lần nữa.`);
 }
 
+// ------------------------------------------------------------
+// ĐỐI CHIẾU SỐ TÀI KHOẢN VỚI HỢP ĐỒNG (người dùng đồng ý 28/09/2026 - S-03 báo cáo rà soát):
+// Lưu hồ sơ mới / Sửa STK hoặc Số HĐ chỉ nhận STK có trong HD_STK của ĐÚNG hợp đồng đó
+// (mọi tình trạng hợp đồng). Trước đây máy chủ tin STK trình duyệt gửi lên - gõ tay ở Sửa hồ
+// sơ hoặc gọi thẳng API là chuyển tiền được vào tài khoản bất kỳ.
+// ------------------------------------------------------------
+/** STK so sánh: bỏ khoảng trắng / dấu ' / số 0 đầu (ô HD_STK dạng số có thể đã mất số 0). */
+function _khoaStk_(v) {
+  return utils.standardize(v).replace(/^0+/, "");
+}
+/** Báo lỗi nếu `stk` không thuộc HD_STK của hợp đồng `soHD`. */
+function _kiemTraStkTheoHopDong_(soHD, stk) {
+  const hd = utils.standardize(soHD), tk = _khoaStk_(stk);
+  if (!hd || !tk) throw new Error("Thiếu Số hợp đồng hoặc Số tài khoản nhận tiền.");
+  const docTk = () => _hdStkFullData_().filter(r => utils.standardize(r[HDSTK_SRC_COL.SO_HD]) === hd).map(r => _khoaStk_(r[HDSTK_SRC_COL.STK]));
+  let dsTk;
+  try {
+    dsTk = docTk();
+    // Không thấy -> có thể STK vừa thêm ở app Hợp Đồng mà bộ nhớ đệm chưa làm mới: đọc lại trực tiếp 1 lần.
+    if (dsTk.indexOf(tk) === -1) { _invalidateChunkedCache_("hdstk_full_data_v1"); dsTk = docTk(); }
+  } catch (e) {
+    throw new Error("Không đọc được HD_STK để đối chiếu Số tài khoản - thử lại sau: " + _loiChoNguoiDung_(e));
+  }
+  if (dsTk.indexOf(tk) === -1) {
+    const tkHienThi = String(stk).replace(/'/g, "").trim(), hdHienThi = String(soHD).replace(/'/g, "").trim();
+    throw new Error(`Số tài khoản ${tkHienThi} không có trong danh sách tài khoản (HD_STK) của hợp đồng ${hdHienThi}` +
+      (dsTk.length ? "" : " (hợp đồng chưa khai báo tài khoản nào)") +
+      ` - thêm tài khoản này vào hợp đồng ở app Hợp Đồng rồi làm lại.`);
+  }
+}
+
 function createNewPaymentRequest_(payload) {
   let lock;
   try {
@@ -8504,6 +8535,7 @@ function createNewPaymentRequest_(payload) {
     if (isNaN(ngayDeNghiDate.getTime())) throw new Error("Ngày đề nghị không hợp lệ.");
     const dsPC = (payload.danhSachPhieuCan || []).map(x => String(x).trim()).filter(Boolean);
     if (dsPC.length === 0) throw new Error("Vui lòng chọn ít nhất 1 số phiếu cân.");
+    _kiemTraStkTheoHopDong_(payload.soHopDong, payload.soTKNhanTien);
     _chanPhieuCanDaTra_(dsPC);
 
     const ss = getMainSs_();
@@ -9156,6 +9188,12 @@ function updateDraft112Info_(idKey, updates) {
       // cũng phải cập nhật lại theo ĐÚNG hợp đồng mới, không giữ số cũ.
       const hdRowChoSL = _hdNccData_().find(r => utils.standardize(r[HDNCC_COL.SO_HD]) === utils.standardize(updates.soHD));
       row[17] = hdRowChoSL ? utils.parseNum(hdRowChoSL[HDNCC_COL.SL_DU_KIEN]) : 0;
+    }
+
+    // Đổi STK hoặc Số HĐ -> cặp mới phải có trong HD_STK (hồ sơ cũ không đổi 2 ô này thì không kiểm tra).
+    const sau = _truongHoSo_(row);
+    if (_khoaStk_(sau.stk) !== _khoaStk_(truoc.stk) || utils.standardize(sau.soHD) !== utils.standardize(truoc.soHD)) {
+      _kiemTraStkTheoHopDong_(sau.soHD, sau.stk);
     }
 
     sh112.getRange(idx + 2, 1, 1, 24).setValues(_dongAnToan_([row], COT_CHU.H112));
