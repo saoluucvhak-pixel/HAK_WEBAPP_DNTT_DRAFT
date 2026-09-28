@@ -1090,6 +1090,7 @@ function dangXuatWeb(){
   const phien = PHIEN;
   google.script.run.withSuccessHandler(() => {}).withFailureHandler(() => {}).dangXuat(phien);
   state.nguoiDung = Object.assign({}, state.nguoiDung, { daDangNhap: false, quyen: [] });
+  _xoaNhapTaoMoi_();
   hienManHinhDangNhap('Đã đăng xuất.');
 }
 
@@ -1700,15 +1701,47 @@ if (!state.createData || state.createData.cccdOptions === undefined) resetCreate
 
 /** Bấm "➕ Tạo Mới" trong Danh Sách ĐNTT - chuyển sang xem wizard tạo
  * mới NGAY TRONG cùng trang (không đổi mục nav). */
-function startCreateFlow(){
+/* ---------- #9 Tạo Mới tự lưu nháp (nâng cấp 28/09/2026) ----------
+ * Dữ liệu đang nhập lưu vào sessionStorage (còn khi tải lại trang / mất kết nối, tự xóa khi
+ * đóng tab - không để CCCD / STK nằm lâu trên máy). Xóa khi Lưu thành công, bỏ, hoặc đăng xuất. */
+const TAO_MOI_NHAP_KHOA = 'hak_tao_moi_nhap_v1';
+function _luuNhapTaoMoi_(){
+  try {
+    const d = state.createData;
+    if (!d || (!d.hoTenChuRung && !(d.phieuCan || []).length)) { sessionStorage.removeItem(TAO_MOI_NHAP_KHOA); return; }
+    sessionStorage.setItem(TAO_MOI_NHAP_KHOA, JSON.stringify({ luc: Date.now(), step: state.createStep, data: d }));
+  } catch (e) { /* trình duyệt chặn lưu trữ - bỏ qua */ }
+}
+function _docNhapTaoMoi_(){
+  try { return JSON.parse(sessionStorage.getItem(TAO_MOI_NHAP_KHOA) || 'null'); } catch (e) { return null; }
+}
+function _xoaNhapTaoMoi_(){ try { sessionStorage.removeItem(TAO_MOI_NHAP_KHOA); } catch (e) { /* bỏ qua */ } }
+let _henLuuNhap_ = 0;
+['input', 'change', 'click'].forEach(loai => document.addEventListener(loai, () => { // gõ, chọn, bấm chọn phiếu cân
+  if (state.draftView !== 'create') return;
+  clearTimeout(_henLuuNhap_); _henLuuNhap_ = setTimeout(_luuNhapTaoMoi_, 400);
+}));
+
+async function startCreateFlow(){
   resetCreateData();
+  const cu = _docNhapTaoMoi_();
+  if (cu && cu.data) {
+    const luc = new Date(cu.luc), gio = String(luc.getHours()).padStart(2, '0') + ':' + String(luc.getMinutes()).padStart(2, '0');
+    const tiep = await xacNhan(`Có hồ sơ đang nhập dở lúc ${gio}: Chủ rừng "${cu.data.hoTenChuRung || '(chưa chọn)'}", ${(cu.data.phieuCan || []).length} phiếu cân.\n\nTiếp tục nhập hồ sơ đó?`,
+      { tieuDe: 'Tiếp tục hồ sơ đang nhập dở?', nutOk: 'Tiếp tục' });
+    if (tiep) { state.createData = Object.assign(state.createData, cu.data); state.createStep = cu.step || 1; }
+    else _xoaNhapTaoMoi_();
+  }
   state.draftView = 'create';
   renderDraft();
 }
 /** Bấm "← Quay lại Danh Sách ĐNTT" trong wizard - hủy bỏ dữ liệu đang
  * nhập dở và quay về danh sách. */
-function cancelCreateFlow(){
+async function cancelCreateFlow(){
+  const d = state.createData;
+  if (d && (d.hoTenChuRung || (d.phieuCan || []).length) && !(await xacNhan('Bỏ hồ sơ đang nhập dở và quay về Danh Sách ĐNTT?', { nutOk: 'Bỏ hồ sơ', nguyHiem: true }))) return;
   resetCreateData();
+  _xoaNhapTaoMoi_();
   state.draftView = 'list';
   renderDraft();
 }
@@ -1738,6 +1771,7 @@ function updateStepper(){
 
 function renderCreateStep(){
   updateStepper();
+  _luuNhapTaoMoi_(); // #9: mỗi lần đổi bước / chọn phiếu cân (vẽ lại) đều lưu nháp
   const body = document.getElementById('create-step-body');
   if (state.createStep === 1) return renderCreateStep1(body);
   if (state.createStep === 2) return renderCreateStep2(body);
@@ -2337,6 +2371,7 @@ function doSubmitCreate(){
   call('createNewPaymentRequest', [payload], 'Đang lưu...').then(res => {
     handleResult(res, () => {
       resetCreateData();
+      _xoaNhapTaoMoi_();
       state.draftView = 'list';
       refreshBadge();
       goTo('draft');
@@ -2443,7 +2478,7 @@ function kiemTraDuyetDoDang(){
   call('getDuyetDoDang', [], null).then(j => {
     const box = document.getElementById('duyet-do-dang');
     if (!box) return;
-    box.innerHTML = j ? `<div class="card" style="border-color:var(--danger);background:var(--danger-light)">
+    box.innerHTML = j && Array.isArray(j.ids) ? `<div class="card" style="border-color:var(--danger);background:var(--danger-light)">
       <b>⚠️ Lượt Duyệt lúc ${esc(j.luc)}${j.nguoi ? ' (' + esc(j.nguoi) + ')' : ''} bị dừng giữa chừng</b> - ${j.ids.length} hồ sơ, ngày thanh toán ${esc(/^\d{4}-\d{2}-\d{2}$/.test(j.ngay) ? _isoSangVN(j.ngay) : j.ngay)}.
       Một phần có thể đã ghi vào sổ. Bấm <b>Hoàn tất</b> để hệ thống làm nốt các bước còn lại (tự bỏ qua phần đã ghi, không ghi trùng).
       <div style="margin-top:8px"><button class="btn danger" onclick="hoanTatDuyetDoDang()">🔁 Hoàn tất lượt Duyệt</button></div></div>` : '';

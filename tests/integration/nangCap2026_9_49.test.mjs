@@ -196,3 +196,15 @@ test('#8 quick search finds draft and closed records by id, ticket, account, con
   assert.equal(run('API_ROUTES').timKiemNhanh.quyen, 'NGHIEP_VU');
   assert.match(INDEX, /<form id="tim-nhanh" class="tim-nhanh hidden" role="search"/);
 });
+
+// ---------- #9 Tạo Mới tự lưu nháp ----------
+test('#9 the create wizard saves its progress in sessionStorage and offers to resume it', () => {
+  assert.match(INDEX, /const TAO_MOI_NHAP_KHOA = 'hak_tao_moi_nhap_v1';/);
+  assert.match(INDEX, /sessionStorage\.setItem\(TAO_MOI_NHAP_KHOA/, 'session only - cleared when the tab closes');
+  assert.doesNotMatch(INDEX, /localStorage\.setItem\(TAO_MOI_NHAP_KHOA/);
+  const bat = INDEX.slice(INDEX.indexOf('async function startCreateFlow(){'), INDEX.indexOf('\n}\n', INDEX.indexOf('async function startCreateFlow(){')));
+  assert.match(bat, /Tiếp tục nhập hồ sơ đó\?/);
+  const luu = INDEX.slice(INDEX.indexOf("call('createNewPaymentRequest'"), INDEX.indexOf("call('createNewPaymentRequest'") + 300);
+  assert.match(luu, /_xoaNhapTaoMoi_\(\);/, 'cleared after a successful save');
+  assert.match(INDEX, /_xoaNhapTaoMoi_\(\);\s*hienManHinhDangNhap\('Đã đăng xuất\.'\)/, 'cleared on logout');
+});
