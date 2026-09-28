@@ -2,6 +2,17 @@
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/). Phiên bản theo `NĂM.ĐỢT.SỬA`; thay đổi làm đổi hành vi nghiệp vụ (⚖️) sẽ tăng số ĐỢT và ghi rõ đã được người dùng đồng ý.
 
+## [2026.9.38] — Danh Sách ĐNTT: tổng tiền đang đề nghị, lọc tên khách hàng (người dùng yêu cầu 28/09/2026)
+
+### Added
+- **Tổng tiền** theo tab đang xem (và theo bộ lọc): “Đang ĐNTT - đã đề nghị, chưa chuyển tiền: N hồ sơ · Tổng số tiền … đ” phía trên bảng; dòng **TỔNG CỘNG** cuối bảng (số phiếu, KL, số tiền); hồ sơ chưa tính tiền được đếm riêng.
+- **Tổng theo khách hàng** (mở/đóng): chủ rừng, số hồ sơ, số tiền — xếp theo số tiền giảm dần → thấy ngay khách nào đã đề nghị mà chưa được chuyển tiền.
+- **Lọc theo tên khách hàng** (chủ rừng hoặc người nhận): gõ không cần dấu, không phân biệt hoa thường (“nguyen van duc” khớp “Nguyễn Văn Đức”), có gợi ý tên; nút “✕ Bỏ lọc”. Bộ lọc áp cho cả 4 tab; mỗi tab hiện số hồ sơ khớp.
+- Thanh hành động cảnh báo cả hồ sơ đang chọn nhưng bị bộ lọc tên ẩn (trước chỉ báo hồ sơ ở tab khác) — tránh Xác nhận / In / Duyệt nhầm hồ sơ không nhìn thấy.
+
+### Tests
+- 182 test (thêm: lọc tên bỏ dấu / hoa thường / khoảng trắng, theo chủ rừng hoặc người nhận; hồ sơ chọn bị bộ lọc ẩn được cảnh báo). Kiểm tra trình duyệt: tổng tab, tổng theo khách, lọc, bỏ lọc.
+
 ## [2026.9.37] — Trigger đang chạy: thông báo và chờ đồng bộ xong mới chạy thao tác (người dùng yêu cầu 28/09/2026)
 
 ### Added

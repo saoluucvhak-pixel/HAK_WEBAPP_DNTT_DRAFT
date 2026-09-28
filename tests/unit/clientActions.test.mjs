@@ -37,13 +37,27 @@ test('values with quotes and markup reach the handler unchanged', () => {
 
 test('records selected in another tab are counted so the action bar can warn about them', () => {
   const ctx = vm.createContext({});
-  vm.runInContext(clientFunction('_hoSoChonOTabKhac_'), ctx);
+  ['_khongDau', '_khopTenDraft', '_draftDangHien', '_hoSoChonOTabKhac_'].forEach(f => vm.runInContext(clientFunction(f), ctx));
   ctx.state = {
-    draftStatusFilter: 'dang_dntt',
+    draftStatusFilter: 'dang_dntt', draftTuKhoa: '',
     draftSelected: new Set(['A1', 'B2']),
-    draftList: [{ idKey: 'A1', trangThaiKey: 'dang_dntt' }, { idKey: 'B2', trangThaiKey: 'cho_dntt' }, { idKey: 'C3', trangThaiKey: 'cho_dntt' }]
+    draftList: [{ idKey: 'A1', trangThaiKey: 'dang_dntt', chuRung: 'Nguyễn Văn A' }, { idKey: 'B2', trangThaiKey: 'cho_dntt', chuRung: 'Trần Thị B' }, { idKey: 'C3', trangThaiKey: 'cho_dntt', chuRung: 'Lê C' }]
   };
   assert.deepEqual(vm.runInContext('_hoSoChonOTabKhac_().map(r => r.idKey)', ctx), ['B2']);
   ctx.state.draftStatusFilter = 'all';
   assert.equal(vm.runInContext('_hoSoChonOTabKhac_().length', ctx), 0);
+  ctx.state.draftTuKhoa = 'tran thi';   // bộ lọc tên ẩn A1 đang chọn
+  assert.deepEqual(vm.runInContext('_hoSoChonOTabKhac_().map(r => r.idKey)', ctx), ['A1'], 'selected but hidden by the name filter');
+});
+
+test('draft list name filter ignores accents, case and extra spaces, on owner or payee', () => {
+  const ctx = vm.createContext({});
+  ['_khongDau', '_khopTenDraft'].forEach(f => vm.runInContext(clientFunction(f), ctx));
+  const khop = (tuKhoa, r) => { ctx.state = { draftTuKhoa: tuKhoa }; ctx.r = r; return vm.runInContext('_khopTenDraft(r)', ctx); };
+  const r = { chuRung: 'Nguyễn Văn Đức', nguoiNhan: 'Trần Thị Bích' };
+  assert.equal(khop('', r), true);
+  assert.equal(khop('nguyen van duc', r), true);
+  assert.equal(khop('  NGUYỄN   văn ', r), true);
+  assert.equal(khop('bich', r), true, 'payee name matches too');
+  assert.equal(khop('le van', r), false);
 });

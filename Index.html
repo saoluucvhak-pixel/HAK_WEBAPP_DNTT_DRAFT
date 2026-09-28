@@ -544,7 +544,7 @@
       <div class="nav-item" role="button" tabindex="0" data-page="settings"><span class="ic">⚙️</span> Cài đặt / Nháp</div>
     </nav>
     <div class="nguoi-dung-chip" id="nguoi-dung-chip"></div>
-    <div class="sidebar-footer">Hệ thống Quản Lý Thanh Toán · v2026.9.37<br><button type="button" class="theme-toggle" id="theme-toggle" aria-label="Đổi giao diện sáng / tối">🌓 Giao diện: Tự động</button></div>
+    <div class="sidebar-footer">Hệ thống Quản Lý Thanh Toán · v2026.9.38<br><button type="button" class="theme-toggle" id="theme-toggle" aria-label="Đổi giao diện sáng / tối">🌓 Giao diện: Tự động</button></div>
   </aside>
 
   <main class="main">
@@ -2066,12 +2066,21 @@ function renderDraft(){
   const c = document.getElementById('content');
   c.innerHTML = `
     <div class="subtabs">
-      <div class="subtab" data-f="all">Tất cả</div>
-      <div class="subtab" data-f="cho_tinh">1 · Chưa ĐNTT</div>
-      <div class="subtab" data-f="cho_dntt">2 · Chờ ĐNTT</div>
-      <div class="subtab" data-f="dang_dntt">3 · Đang ĐNTT (chờ duyệt)</div>
+      <div class="subtab" data-f="all">Tất cả <span class="dem"></span></div>
+      <div class="subtab" data-f="cho_tinh">1 · Chưa ĐNTT <span class="dem"></span></div>
+      <div class="subtab" data-f="cho_dntt">2 · Chờ ĐNTT <span class="dem"></span></div>
+      <div class="subtab" data-f="dang_dntt">3 · Đang ĐNTT (chờ duyệt) <span class="dem"></span></div>
     </div>
     <div class="hint-text" style="margin-bottom:10px">Quy trình: (1) Chưa ĐNTT → bấm "Đề Nghị Thanh Toán" để tính tiền → (2) Chờ ĐNTT → chọn hồ sơ, bấm "Xác Nhận" → (3) Đang ĐNTT → in Báo Cáo ĐNTT, rồi bấm "Duyệt" để Đóng Thanh Toán (copy sang sheet chính).</div>
+    <div class="card" id="draft-filter-card">
+      <div class="grid cols-3" style="align-items:end">
+        <div class="field" style="grid-column:span 2"><label for="draft-tu-khoa">Lọc theo tên khách hàng (chủ rừng / người nhận)</label>
+          <input type="text" id="draft-tu-khoa" list="draft-ds-khach" autocomplete="off" placeholder="Gõ tên - không cần dấu, vd: nguyen van a" value="${esc(state.draftTuKhoa || '')}">
+          <datalist id="draft-ds-khach"></datalist></div>
+        <div class="field"><button class="btn ghost" onclick="boLocDraft()">✕ Bỏ lọc</button></div>
+      </div>
+      <div id="draft-tong" style="margin-top:10px"></div>
+    </div>
     <div class="card" id="draft-table-wrap"><div class="empty"><div class="ic">⏳</div>Đang tải...</div></div>
     <div class="sticky-actionbar hidden" id="draft-actionbar">
       <span id="draft-selected-info" style="font-size:13px"></span>
@@ -2081,7 +2090,46 @@ function renderDraft(){
     el.classList.toggle('active', el.dataset.f === state.draftStatusFilter);
     el.addEventListener('click', () => { state.draftStatusFilter = el.dataset.f; renderDraftTable(); });
   });
+  document.getElementById('draft-tu-khoa').addEventListener('input', e => { state.draftTuKhoa = e.target.value; renderDraftTable(); });
   loadDraftList();
+}
+
+/* ---------- Danh Sách ĐNTT: lọc tên khách hàng + tổng tiền (người dùng yêu cầu 28/09/2026) ---------- */
+/** Chữ thường, bỏ dấu tiếng Việt, gộp khoảng trắng - để gõ "nguyen van a" vẫn khớp "Nguyễn Văn A". */
+function _khongDau(s){
+  return String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D')
+    .toLowerCase().replace(/\s+/g, ' ').trim();
+}
+function _khopTenDraft(r){
+  const k = _khongDau(state.draftTuKhoa);
+  return !k || _khongDau(r.chuRung).includes(k) || _khongDau(r.nguoiNhan).includes(k);
+}
+/** Hồ sơ đang hiện trong bảng: đúng tab trạng thái và khớp bộ lọc tên. */
+function _draftDangHien(r){
+  return (state.draftStatusFilter === 'all' || r.trangThaiKey === state.draftStatusFilter) && _khopTenDraft(r);
+}
+function boLocDraft(){
+  state.draftTuKhoa = '';
+  const o = document.getElementById('draft-tu-khoa'); if (o) o.value = '';
+  renderDraftTable();
+}
+const DRAFT_TEN_TAB = { all: 'Tất cả', cho_tinh: 'Chưa ĐNTT (chưa tính tiền)', cho_dntt: 'Chờ ĐNTT', dang_dntt: 'Đang ĐNTT - đã đề nghị, chưa chuyển tiền' };
+/** Dòng tổng phía trên bảng + tổng theo từng khách hàng (hồ sơ đang hiện). */
+function _veTongDraft(list){
+  const box = document.getElementById('draft-tong');
+  if (!box) return;
+  const coTien = list.filter(r => r.sanSangChot);
+  const tong = coTien.reduce((t, r) => t + r.soTien, 0);
+  const theoKhach = new Map();
+  coTien.forEach(r => { const k = theoKhach.get(r.chuRung) || { soHoSo: 0, soTien: 0 }; k.soHoSo++; k.soTien += r.soTien; theoKhach.set(r.chuRung, k); });
+  const dsKhach = Array.from(theoKhach).sort((a, b) => b[1].soTien - a[1].soTien);
+  const chuaTinh = list.length - coTien.length;
+  box.innerHTML = `<div style="font-size:14px"><b>${esc(DRAFT_TEN_TAB[state.draftStatusFilter] || '')}</b>${state.draftTuKhoa ? ` · lọc "<b>${esc(state.draftTuKhoa)}</b>"` : ''}:
+      <b>${list.length}</b> hồ sơ · Tổng số tiền <b style="color:var(--accent)">${fmtMoney(tong)} đ</b>${chuaTinh ? ` <span class="muted">(${chuaTinh} hồ sơ chưa tính tiền)</span>` : ''}</div>
+    ${dsKhach.length ? `<details style="margin-top:6px"><summary style="cursor:pointer">Tổng theo khách hàng (${dsKhach.length})</summary>
+      <table style="margin-top:6px"><thead><tr><th>Chủ rừng</th><th class="num">Số hồ sơ</th><th class="num">Số tiền</th></tr></thead><tbody>
+      ${dsKhach.map(([ten, k]) => `<tr><td>${esc(ten)}</td><td class="num">${k.soHoSo}</td><td class="num">${fmtMoney(k.soTien)}</td></tr>`).join('')}
+      </tbody></table></details>` : ''}`;
 }
 
 function loadDraftList(){
@@ -2126,7 +2174,15 @@ function renderDraftTable(){
   const wrap = document.getElementById('draft-table-wrap');
   if (!wrap) return; // đã rời danh sách (vd bấm Tạo Mới) trước khi tải xong
   const fullList = state.draftList;
-  const list = fullList.filter(r => state.draftStatusFilter === 'all' || r.trangThaiKey === state.draftStatusFilter);
+  const list = fullList.filter(_draftDangHien);
+  // Số hồ sơ mỗi tab (theo bộ lọc tên) + gợi ý tên khách hàng cho ô lọc.
+  document.querySelectorAll('#content > .subtabs .subtab').forEach(el => {
+    const dem = el.querySelector('.dem');
+    if (dem) dem.textContent = `(${fullList.filter(r => (el.dataset.f === 'all' || r.trangThaiKey === el.dataset.f) && _khopTenDraft(r)).length})`;
+  });
+  const goiY = document.getElementById('draft-ds-khach');
+  if (goiY) goiY.innerHTML = Array.from(new Set(fullList.map(r => r.chuRung).filter(Boolean))).sort((a, b) => a.localeCompare(b)).map(t => `<option value="${esc(t)}">`).join('');
+  _veTongDraft(list);
   if (!fullList.length) {
     wrap.innerHTML = `<div class="empty"><div class="ic">📭</div><h4>Chưa có ĐNTT nào đang chờ xử lý</h4>
       <p class="muted">Tạo đề nghị thanh toán mới để bắt đầu.</p>
@@ -2135,7 +2191,7 @@ function renderDraftTable(){
     return;
   }
   if (!list.length) {
-    wrap.innerHTML = `<div class="empty"><div class="ic">📭</div>Không có hồ sơ nào ở trạng thái này.</div>`;
+    wrap.innerHTML = `<div class="empty"><div class="ic">📭</div>${state.draftTuKhoa ? 'Không có hồ sơ nào khớp tên khách hàng đang lọc ở trạng thái này.' : 'Không có hồ sơ nào ở trạng thái này.'}</div>`;
     updateDraftActionbar(); // vẫn báo hồ sơ đang chọn ở tab khác
     return;
   }
@@ -2159,7 +2215,10 @@ function renderDraftTable(){
       <td>${DRAFT_STATUS_BADGE[r.trangThaiKey] || esc(r.trangThaiLabel)}</td>
       <td style="white-space:nowrap">${draftRowActionsHtml(r)}</td>
     </tr>`).join('')}
-    </tbody></table>`;
+    </tbody>
+    <tfoot><tr style="font-weight:700"><td colspan="6" style="text-align:right">TỔNG CỘNG (${list.length} hồ sơ)</td>
+      <td class="num">${list.reduce((t, r) => t + r.soLuongPhieu, 0)}</td><td class="num">${fmtKl(list.reduce((t, r) => t + r.klTongKg, 0))}</td>
+      <td class="num">${fmtMoney(list.filter(r => r.sanSangChot).reduce((t, r) => t + r.soTien, 0))}</td><td colspan="2"></td></tr></tfoot></table>`;
   updateDraftActionbar();
 }
 
@@ -2192,11 +2251,10 @@ function toggleRow(id, checked){
   if (checked) state.draftSelected.add(id); else state.draftSelected.delete(id);
   updateDraftActionbar();
 }
-/** Hồ sơ đang chọn nhưng KHÔNG hiện ở tab đang xem - vẫn bị Xác nhận /
- * In / UNC / Duyệt cùng lúc, nên phải báo rõ trên thanh hành động. */
+/** Hồ sơ đang chọn nhưng KHÔNG hiện trong bảng (tab khác, hoặc bị bộ lọc tên ẩn) - vẫn bị
+ * Xác nhận / In / UNC / Duyệt cùng lúc, nên phải báo rõ trên thanh hành động. */
 function _hoSoChonOTabKhac_(){
-  const f = state.draftStatusFilter;
-  return state.draftList.filter(r => state.draftSelected.has(r.idKey) && f !== 'all' && r.trangThaiKey !== f);
+  return state.draftList.filter(r => state.draftSelected.has(r.idKey) && !_draftDangHien(r));
 }
 function boChonHoSoTabKhac(){
   _hoSoChonOTabKhac_().forEach(r => state.draftSelected.delete(r.idKey));
@@ -2211,7 +2269,7 @@ function updateDraftActionbar(){
     const an = _hoSoChonOTabKhac_().length;
     const info = document.getElementById('draft-selected-info');
     info.innerHTML = `Đã chọn <b>${n}</b> hồ sơ · Tổng ${fmtMoney(total)} đ`
-      + (an ? ` <span class="chon-tab-khac">⚠️ trong đó <b>${an}</b> hồ sơ ở tab khác (không hiện ở đây)
+      + (an ? ` <span class="chon-tab-khac">⚠️ trong đó <b>${an}</b> hồ sơ ở tab khác / bị bộ lọc ẩn (không hiện ở đây)
           <button class="btn sm ghost" onclick="boChonHoSoTabKhac()">Bỏ chọn ${an} hồ sơ này</button></span>` : '');
     document.getElementById('draft-action-buttons').innerHTML = getDraftActionButtonsHtml();
   } else {
