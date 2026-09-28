@@ -1492,7 +1492,7 @@ function _oSoMo(trang, tab, lopThem){
 }
 function renderDashboard(){
   const c = document.getElementById('content');
-  c.innerHTML = `<div id="dash-setup-warning"></div>
+  c.innerHTML = `<div id="dash-setup-warning"></div><div id="dash-kiem-tra-dem"></div>
   <div class="card" id="dash-quy-trinh">
     <h3>Quy trình thanh toán</h3>
     <ol class="quy-trinh">
@@ -1563,6 +1563,11 @@ function renderDashboard(){
       + '. <button class="btn sm ghost" onclick="doCapNhatCongNoTrangChu()">🔄 Cập nhật ngay</button>';
     document.getElementById('dash-top5-no').innerHTML = _renderDashTop5NoTable_(s.top5KhachHangNo);
     if (s.canhBao && s.canhBao.length) toast('⚠️ Trang chủ thiếu số liệu - ' + s.canhBao.join(' · '), 'warn');
+    const kt = s.kiemTraDem, ktBox = document.getElementById('dash-kiem-tra-dem');
+    if (ktBox) ktBox.innerHTML = kt && kt.tong ? `<div class="card" style="border-color:var(--danger);background:var(--danger-light)">
+      <b>⚠️ Kiểm tra dữ liệu lúc ${esc(kt.luc)} phát hiện ${kt.muc.length} loại vấn đề:</b>
+      <ul style="margin:6px 0 0 18px">${kt.muc.map(m => `<li>${esc(m.ten)}: <b>${m.so}</b>${m.chiTiet ? ` <span class="muted">(${esc(m.chiTiet)})</span>` : ''}</li>`).join('')}</ul>
+      <div style="margin-top:8px"><button class="btn sm" onclick="goTo('hethong')">Mở Hệ Thống › Bảo Trì</button></div></div>` : '';
     if (!s.draftSetup) {
       document.getElementById('dash-setup-warning').innerHTML = `
         <div class="card" style="border-color:var(--timber); background:var(--timber-light)">
@@ -4819,6 +4824,10 @@ function renderSettings(){
           <button class="btn" onclick="doRunDaily15hNow()" title="Chạy ngay nội dung trigger 15h - không cần chờ tới giờ đã hẹn, không đụng gì tới lịch tự động đang chạy">🔄 Đồng bộ ngay</button>
           <span id="badge-trigger15h" class="badge dot">Đang kiểm tra...</span>
         </div>
+        <div style="margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <button class="btn" onclick="doSetupKiemTraDem()" title="Mỗi đêm 2:00 chạy Bảo Trì + MISA thiếu dòng + phiếu cân đã trả chưa khóa; email Quản trị khi có vấn đề mới">🌙 Bật kiểm tra dữ liệu hằng đêm (2:00)</button>
+          <span id="badge-kiemtradem" class="badge dot">Đang kiểm tra...</span>
+        </div>
         <button class="btn" style="margin-top:8px" onclick="doResetPhanTich()">🧹 Xóa Sạch &amp; Nạp Lại Phân Tích NG-ĐL</button>
         <button class="btn" style="margin-top:8px" onclick="doResetChiTietCongNo()">🧹 Xóa Sạch &amp; Nạp Lại Chi Tiết Công Nợ PC</button>
         <div style="margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
@@ -5061,6 +5070,7 @@ function loadTriggerStatus(){
     _setBadgeOnOff_('badge-triggerdaily', s.triggerDaily, 'Đã bật', 'Chưa bật');
     const gio15h = String(s.trigger15hGio).padStart(2, '0'), phut15h = String(s.trigger15hPhut).padStart(2, '0');
     _setBadgeOnOff_('badge-trigger15h', s.trigger15h, `Đã bật lúc ${gio15h}:${phut15h}`, 'Chưa bật');
+    _setBadgeOnOff_('badge-kiemtradem', s.triggerKiemTraDem, 'Đã bật', 'Chưa bật');
     // Chỉ tự điền giờ/phút nếu người dùng CHƯA gõ dở (tránh ghi đè lúc đang sửa) -
     // so document.activeElement để không "giật" giá trị đang gõ khi loadTriggerStatus() gọi lại sau mỗi thao tác khác.
     const elGio = document.getElementById('trigger15h-gio'), elPhut = document.getElementById('trigger15h-phut');
@@ -5079,6 +5089,9 @@ function loadTriggerStatus(){
         </div>` : '';
     }
   });
+}
+function doSetupKiemTraDem(){
+  call('setupKiemTraDemTrigger', [], 'Đang bật...').then(res => handleResult(res, () => loadTriggerStatus()));
 }
 function doXacNhanHeaderPhieuCanMoi(){
   call('webXacNhanHeaderPhieuCanMoi', [], 'Đang lưu chuẩn mới...').then(res => handleResult(res, () => loadTriggerStatus()));

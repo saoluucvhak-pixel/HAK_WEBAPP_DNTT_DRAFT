@@ -113,3 +113,35 @@ test('#6 a normal approval leaves no journal', () => {
   assert.match(run('runConfirmPayment_')(['A1'], new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 10)), /^✅/);
   assert.equal(env.PropertiesService.getScriptProperties().getProperty('DUYET_DO_DANG'), null);
 });
+
+// ---------- #5 Kiểm tra toàn vẹn hằng đêm ----------
+test('#5 the nightly check finds problems, stores them for the home page and emails admins once', () => {
+  const { run, w, env } = theGioi();
+  assert.match(run('runConfirmPayment_')(['A1'], new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 10)), /^✅/);
+  // Phiếu cân đã trả nhưng bị ai đó mở khóa tay + dòng MISA bị xóa.
+  w.pc.getSheetByName('PhieuCan_DN').data.find(r => r[22] === 'PC001')[27] = '';
+  const nh = w.updateNh.getSheetByName('Update_NganHang_DN');
+  nh.data = nh.data.filter(r => !String(r[4]).includes('PC002'));
+  run('_invalidatePcCache_')();
+  const kq = run('kiemTraToanVenHangDem_')();
+  const ten = kq.muc.map(m => m.ten).join(' | ');
+  assert.match(ten, /chưa khóa trong Phiếu Cân/, ten);
+  assert.match(ten, /chưa có dòng MISA/);
+  assert.equal(env.MailApp.daGui.length, 1);
+  assert.match(env.MailApp.daGui[0].to, /saoluucvhak@gmail\.com/);
+  assert.match(env.MailApp.daGui[0].body, /PC001/);
+  run('kiemTraToanVenHangDem_')();
+  assert.equal(env.MailApp.daGui.length, 1, 'same result -> no repeated email');
+  const trangChu = run('api')('', 'getDashboardStats', []);
+  assert.ok(trangChu.kiemTraDem && trangChu.kiemTraDem.tong > 0);
+  assert.equal(run('KIEM_TRA_DEM.GIO'), 2);
+});
+
+test('#5 a clean system sends nothing', () => {
+  const { run, env } = theGioi();
+  const kq = run('_kiemTraToanVenThucHien_')();
+  // Dữ liệu mẫu có sẵn 1 đơn xin cũ "OLD1" không có 112 - đúng là vấn đề; ngoài ra không có gì.
+  assert.deepEqual(Array.from(kq.muc, m => m.ten).filter(t => !/đối soát tên|Đơn xin không có dòng 112/.test(t)), [], JSON.stringify(kq.muc));
+  assert.ok(!kq.muc.some(m => /MISA|chưa khóa/.test(m.ten)));
+  assert.equal(env.MailApp.daGui.length, kq.tong ? 1 : 0);
+});

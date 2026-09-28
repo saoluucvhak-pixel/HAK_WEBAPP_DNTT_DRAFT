@@ -1191,6 +1191,11 @@ function _yeuCauQuyen_(quyen) {
   return nd;
 }
 
+/** Người đang gọi có quyền `quyen` không (không báo lỗi - dùng để ẩn bớt số liệu). */
+function _coQuyenHienTai_(quyen) {
+  try { _yeuCauQuyen_(quyen); return true; } catch (e) { return false; }
+}
+
 function _taoMaNgauNhien_() {
   return (Utilities.getUuid() + Utilities.getUuid()).replace(/-/g, "").toLowerCase();
 }
@@ -1371,7 +1376,8 @@ function _triggerConChay_(batDau) {
 const TEN_DONG_BO = {
   dailyRefreshAllCaches_: "Cập nhật 7:30 / 13:00 (phiếu cân, hợp đồng, công nợ)",
   daily15hRefresh_: "Cập nhật 15h (phân tích nhập / thanh toán, công nợ phiếu cân)",
-  refreshAllDraftCaches10Min_: "Làm mới 10 phút (phiếu cân chưa thanh toán, hợp đồng)"
+  refreshAllDraftCaches10Min_: "Làm mới 10 phút (phiếu cân chưa thanh toán, hợp đồng)",
+  kiemTraToanVenHangDem_: "Kiểm tra toàn vẹn dữ liệu hằng đêm"
 };
 /** Các lần đồng bộ đang chạy: [{ ten, batDau (dd/MM HH:mm), daChayGiay }] - đọc 1 lần Script
  * Properties (không đọc sheet), gọi ở mọi lời gọi web. */
@@ -1635,6 +1641,7 @@ const API_ROUTES = (() => {
     webTaoLaiUNCTheoNgay: r(webTaoLaiUNCTheoNgay_, H),
     webKhoaSoNam: r(webKhoaSoNam_, H),
     getHieuNangForWeb: r(getHieuNangForWeb_, H, CHI_DOC),
+    webChayKiemTraDemNgay: r(webChayKiemTraDemNgay_, H),
 
     // --- Cài đặt (Quản trị) ---
     getCaiDatTongHop: r(getCaiDatTongHop_, Q, CHI_DOC),
@@ -1655,6 +1662,7 @@ const API_ROUTES = (() => {
     webSetupPcCacheAutoRefreshTrigger: r(webSetupPcCacheAutoRefreshTrigger_, Q),
     setup10MinRefreshTrigger: r(setup10MinRefreshTrigger_, Q),
     setupDaily15hTrigger: r(setupDaily15hTrigger_, Q),
+    setupKiemTraDemTrigger: r(setupKiemTraDemTrigger_, Q),
     webResetPhanTichNhapTTSheet: r(webResetPhanTichNhapTTSheet_, Q),
     webResetChiTietCongNoSheet: r(webResetChiTietCongNoSheet_, Q),
     getSheetLocaleInfoForWeb: r(getSheetLocaleInfoForWeb_, Q, CHI_DOC),
@@ -2330,6 +2338,7 @@ function getTriggerStatusForWeb_() {
     trigger15h: handlers.has('daily15hRefresh_'),
     trigger15hGio: gioPhut15h.gio,
     trigger15hPhut: gioPhut15h.phut,
+    triggerKiemTraDem: handlers.has('kiemTraToanVenHangDem_'),
     pcHeaderCanhBao: _pcHeaderDaThayDoi_()
   };
 }
@@ -9059,7 +9068,9 @@ function getDashboardStats_() {
     klMuaThangKg: 0, tienMuaThang: 0, klThanhToanThangTan: 0, tienThanhToanThang: 0,
     muaTheoNguonGoc: [], muaTheoDaiLy: [],
     tongNoGoKeo: 0, top5KhachHangNo: [], congNoCapNhatLuc: "",
-    canhBao: [] // B-13: phần không đọc được (trước đây im lặng hiện 0)
+    canhBao: [], // B-13: phần không đọc được (trước đây im lặng hiện 0)
+    // #5: kết quả kiểm tra đêm gần nhất - chỉ tài khoản có quyền Hệ Thống thấy.
+    kiemTraDem: _coQuyenHienTai_(QUYEN.HE_THONG) ? getKiemTraDem_() : null
   };
   try {
     const list = getDraftListSummary_();
@@ -9757,6 +9768,91 @@ function exportDoiSoatTenKhachHangExcel_(rowsCoSan) {
 // sai lệch/mồ côi/chưa đồng bộ không - trả về báo cáo tổng hợp + danh
 // sách chi tiết (giới hạn 50 dòng/mục để tránh payload quá lớn).
 // ============================================================
+// ------------------------------------------------------------
+// #5 KIỂM TRA TOÀN VẸN HẰNG ĐÊM (nâng cấp 28/09/2026): chạy Bảo Trì + MISA thiếu dòng + phiếu cân
+// đã thanh toán mà chưa khóa, lưu kết quả (Trang chủ / Hệ Thống hiện cảnh báo) và email Quản trị
+// khi có vấn đề MỚI (kết quả khác lần gửi trước - không gửi lặp mỗi đêm cùng 1 nội dung).
+// ------------------------------------------------------------
+const KIEM_TRA_DEM = { PROP: "KIEM_TRA_DEM_KET_QUA", DA_GUI: "KIEM_TRA_DEM_DA_GUI", GIO: 2, SO_NGAY_MISA: 30 };
+const KIEM_TRA_DEM_MUC = {
+  soPhieuCanKhongTonTai: "Số phiếu cân trong sổ CT không có trong Phiếu Cân",
+  ctMoCoi: "Dòng sổ CT mồ côi (không có đơn xin / 112)",
+  srcMoCoi112: "Đơn xin không có dòng 112",
+  tongTienLech: "Số tiền 112 lệch tổng các dòng CT",
+  chiTietDnttYMoCoi: "ChiTietDNTT (Y) không còn trong sổ CT",
+  chiTietDnttNMoCoi: "ChiTietDNTT (N) không còn trong Nháp",
+  chiTietUncMoCoi: "ChiTietUNC của hồ sơ không còn tồn tại",
+  tenKhachHangLech: "Tên khách hàng CT khác Phiếu Cân (đối soát tên)"
+};
+function kiemTraToanVenHangDem_() {
+  return _chayTriggerCoDo_("kiemTraToanVenHangDem_", _kiemTraToanVenThucHien_);
+}
+function _kiemTraToanVenThucHien_() {
+  const muc = [];
+  const bt = getKiemTraDoiChieuBaoTri_();
+  if (bt.error) muc.push({ ten: "Bảo Trì - không chạy được", so: 1, chiTiet: bt.error });
+  else Object.keys(KIEM_TRA_DEM_MUC).forEach(k => { const n = (bt[k] && bt[k].total) || 0; if (n) muc.push({ ten: KIEM_TRA_DEM_MUC[k], so: n }); });
+  const homNay = Utilities.formatDate(new Date(), "GMT+7", "yyyy-MM-dd");
+  const tuNgay = Utilities.formatDate(new Date(Date.now() - KIEM_TRA_DEM.SO_NGAY_MISA * 86400000), "GMT+7", "yyyy-MM-dd");
+  try {
+    const t = _misaThieu_(_sheetMisa_(), tuNgay, homNay);
+    if (t.phieu.length) muc.push({ ten: `Phiếu cân đã thanh toán chưa có dòng MISA (${KIEM_TRA_DEM.SO_NGAY_MISA} ngày)`, so: t.phieu.length, chiTiet: t.phieu.slice(0, 10).map(x => x.soPhieuCan).join(", ") });
+  } catch (e) { muc.push({ ten: "MISA - không kiểm tra được", so: 1, chiTiet: _loiChoNguoiDung_(e) }); }
+  try {
+    const daTra = new Set(_ctThatDataCache_().map(r => utils.standardize(r[11])).filter(Boolean));
+    const chuaKhoa = _pcData_().filter(r => daTra.has(utils.standardize(r[PC_COL.SO_CT])) && String(r[PC_COL.CHON_TT] || "").trim().toUpperCase() !== "Y")
+      .map(r => String(r[PC_COL.SO_CT] || "").replace(/'/g, ""));
+    if (chuaKhoa.length) muc.push({ ten: "Phiếu cân đã thanh toán nhưng chưa khóa trong Phiếu Cân (có thể bị chọn trả lần 2)", so: chuaKhoa.length, chiTiet: chuaKhoa.slice(0, 10).join(", ") });
+  } catch (e) { muc.push({ ten: "Khóa phiếu cân - không kiểm tra được", so: 1, chiTiet: _loiChoNguoiDung_(e) }); }
+
+  const kq = { luc: Utilities.formatDate(new Date(), "GMT+7", "dd/MM/yyyy HH:mm"), muc, tong: muc.reduce((t, m) => t + m.so, 0) };
+  const props = PropertiesService.getScriptProperties();
+  props.setProperty(KIEM_TRA_DEM.PROP, JSON.stringify(kq));
+  logAction_("KIEM_TRA_TOAN_VEN", "-", kq.tong ? `Phát hiện: ${muc.map(m => `${m.ten}: ${m.so}`).join("; ")}` : "Không phát hiện vấn đề.");
+  const dauVet = JSON.stringify(muc.map(m => [m.ten, m.so]));
+  if (kq.tong && props.getProperty(KIEM_TRA_DEM.DA_GUI) !== dauVet) {
+    kq.daGuiEmail = _guiEmailQuanTri_(`[HAK Thanh Toán] Kiểm tra dữ liệu ${kq.luc}: ${muc.length} vấn đề`,
+      `Kiểm tra toàn vẹn dữ liệu tự động lúc ${kq.luc} phát hiện:\n\n` +
+      muc.map(m => `- ${m.ten}: ${m.so}${m.chiTiet ? ` (${m.chiTiet})` : ""}`).join("\n") +
+      `\n\nXử lý: web app › Hệ Thống › Bảo Trì (dòng mồ côi, lệch tiền), Báo Cáo MISA › Tạo bổ sung (MISA thiếu).` +
+      `\nEmail này chỉ gửi khi kết quả thay đổi so với lần gửi trước.`);
+    if (kq.daGuiEmail) props.setProperty(KIEM_TRA_DEM.DA_GUI, dauVet);
+  }
+  if (!kq.tong) props.deleteProperty(KIEM_TRA_DEM.DA_GUI);
+  return kq;
+}
+/** Gửi email tới Quản trị (cố định + tài khoản vai trò Quản trị đang hoạt động). Trả số người nhận. */
+function _guiEmailQuanTri_(tieuDe, noiDung) {
+  const ds = new Set(QUAN_TRI_CO_DINH.map(_chuanHoaEmail_));
+  try { _docDanhSachNguoiDung_().forEach(x => { if (x.vaiTro === "QUAN_TRI" && x.trangThai !== TRANG_THAI_NGUOI_DUNG.KHOA) ds.add(x.email); }); } catch (e) { /* chỉ gửi Quản trị cố định */ }
+  const nhan = Array.from(ds).filter(Boolean);
+  if (!nhan.length) return 0;
+  try {
+    MailApp.sendEmail(nhan.join(","), tieuDe, noiDung);
+    return nhan.length;
+  } catch (e) {
+    logAction_("LOI_GUI_EMAIL", "-", "Không gửi được email Quản trị: " + (e && e.message ? e.message : e));
+    return 0;
+  }
+}
+/** #Web: kết quả kiểm tra đêm gần nhất (null nếu chưa chạy). */
+function getKiemTraDem_() {
+  try { return JSON.parse(PropertiesService.getScriptProperties().getProperty(KIEM_TRA_DEM.PROP) || "null"); }
+  catch (e) { return null; }
+}
+/** #Web (Hệ Thống): chạy ngay bộ kiểm tra đêm. */
+function webChayKiemTraDemNgay_() {
+  const kq = _kiemTraToanVenThucHien_();
+  return { success: true, ketQua: kq, message: kq.tong ? `⚠️ Phát hiện ${kq.muc.length} loại vấn đề - xem chi tiết bên dưới.` : "✅ Không phát hiện vấn đề nào." };
+}
+function setupKiemTraDemTrigger_() {
+  ScriptApp.getProjectTriggers().forEach(t => { if (t.getHandlerFunction() === "kiemTraToanVenHangDem_") ScriptApp.deleteTrigger(t); });
+  ScriptApp.newTrigger("kiemTraToanVenHangDem_").timeBased().atHour(KIEM_TRA_DEM.GIO).everyDays(1).create();
+  const msg = `✅ Đã bật kiểm tra toàn vẹn dữ liệu lúc ${KIEM_TRA_DEM.GIO}:00 hằng đêm (email Quản trị khi có vấn đề mới).`;
+  logAction_("SETUP_TRIGGER_KIEM_TRA_DEM", "-", msg);
+  return msg;
+}
+
 function _gioiHan50_(arr) {
   return { total: arr.length, items: arr.slice(0, 50), truncated: arr.length > 50 };
 }
