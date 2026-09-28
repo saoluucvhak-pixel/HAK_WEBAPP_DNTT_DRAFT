@@ -1,4 +1,4 @@
-# ARCHITECTURE — HAK Quản Lý Thanh Toán (v2026.9.45)
+# ARCHITECTURE — HAK Quản Lý Thanh Toán (v2026.9.46)
 
 > Tài liệu sống: cập nhật mỗi khi đổi module, lớp, luồng dữ liệu hoặc schema.
 > Phân tích chi tiết hiện trạng: `docs/PROJECT_ANALYSIS.md`. Kiến trúc đích: `docs/REFACTOR_PLAN.md` §3–§4.
@@ -228,3 +228,11 @@ File test dùng đuôi `.mjs` để công cụ đồng bộ Apps Script không c
 - **Model Gemini**: không viết tên model trong code nghiệp vụ; danh sách mặc định `GEMINI_MODELS_MAC_DINH_`, cấu hình `GEMINI_MODELS` (Script Property, sửa ở Cài đặt), model chạy được gần nhất `GEMINI_MODEL`.
 - Chỉ số cột: ưu tiên hằng (`PC_COL`, `COL_TRANG_THAI_DNTT`, `HDNCC_COL`…). **Phiếu Cân bắt buộc dùng `PC_COL`** (test chặn `pc[số]`): hệ thống chỉ đọc các cột có trong `PC_COL` (`PC_COT_CAN_DOC`, `_docCacCot_`), cột khác để trống.
 - Chú thích chỉ giải thích **vì sao**; lịch sử thay đổi ghi ở `CHANGELOG.md`.
+
+## Đồng bộ và thao tác chỉ đọc (2026.9.46)
+
+`API_ROUTES` có 3 loại: thường (chờ khi trigger đồng bộ đang chạy — `[DONG_BO]`), `KHONG_CHO` (tiện ích phục vụ việc chờ) và `CHI_DOC` (P-02): chỉ đọc sổ đã chốt, hồ sơ Nháp, nhật ký hoặc cấu hình — những thứ trigger không ghi — nên chạy luôn. Thao tác ghi và các màn đọc số liệu do trigger dựng (Trang chủ, Công nợ, Phân tích, dữ liệu Tạo mới) vẫn chờ. `tests/integration/chiDoc.test.mjs` gọi mọi route `CHI_DOC` trong lúc đồng bộ và kiểm tra không ghi ô nào; thêm route `CHI_DOC` mới mà có ghi thì test đỏ.
+
+Mã hồ sơ mới (`_maHoSoMoi_`, 2026.9.46): 8 ký tự hex, không trùng Nháp (Src, 112), sổ đang mở (Src, 112) và `DNTT_GK_DN` của các năm đã khóa sổ — dùng cho Tạo mới và Mở Đóng TT.
+
+Lỗi đọc sổ trong báo cáo (2026.9.46): công nợ / phân tích / tiến độ HĐ / phiếu cân khả dụng ném `_loiDocDuLieu_` thay vì nuốt lỗi (trước đây tính như chưa thanh toán gì). Trang chủ và Trợ lý AI vẫn hiện phần đọc được, phần lỗi ghi vào `canhBao` / báo AI "không đọc được".

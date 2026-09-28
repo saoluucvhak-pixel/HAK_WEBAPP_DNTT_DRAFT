@@ -2,6 +2,25 @@
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/). Phiên bản theo `NĂM.ĐỢT.SỬA`; thay đổi làm đổi hành vi nghiệp vụ (⚖️) sẽ tăng số ĐỢT và ghi rõ đã được người dùng đồng ý.
 
+## [2026.9.46] — Nhóm 1 báo cáo rà soát + màn chỉ xem không phải chờ đồng bộ (28/09/2026)
+
+### Changed
+- ⚖️ **P-02 (người dùng đồng ý 28/09/2026): màn chỉ xem chạy luôn khi đang đồng bộ.** Trước đây cứ 10 phút (7:30–19:00) mọi thao tác, kể cả chỉ xem, phải chờ trigger chạy xong. Nay Báo Cáo Thanh Toán (danh sách, Chi tiết, MISA, Lịch sử UNC), Danh Sách ĐNTT / chi tiết hồ sơ, phiếu hoàn thành, Lịch sử sửa đổi, Khôi phục, Hiệu năng, tìm hồ sơ đã chốt và các màn đọc Cài đặt **không chờ**. Thao tác ghi (Tạo, Sửa, Xác nhận, UNC, Duyệt…) và màn đọc số liệu do trigger dựng (Trang chủ, Công nợ, Phân tích, dữ liệu Tạo mới) vẫn chờ như cũ.
+
+### Fixed
+- 🟡 **B-11** Mã hồ sơ mới có thể trùng mã hồ sơ đã chốt của năm đã khóa sổ (Tạo mới) hoặc bất kỳ hồ sơ nào (Mở Đóng TT không kiểm tra gì) → ChiTietDNTT / UNC / MISA của 2 hồ sơ lẫn nhau. Nay kiểm tra Nháp + sổ đang mở + sổ các năm đã khóa (`_maHoSoMoi_`).
+- 🟡 **B-12** Mở Đóng TT: dọn ChiTietDNTT / ChiTietUNC / MISA hoặc mở khóa Phiếu Cân bị lỗi vẫn báo "✅ … 0 dòng". Nay báo ⚠️ rõ bảng nào lỗi, ghi nhật ký `LOI_DON_DEP_KHI_MO_DONG` / `LOI_MO_KHOA_PHIEU_CAN`, hướng dẫn chạy Bảo Trì.
+- 🟡 **B-13** 17 chỗ nuốt lỗi đọc sổ trong Công nợ KH / HĐ, sổ chi tiết công nợ, Phân tích, Tình hình thanh toán, Tiến độ HĐ, phiếu cân khả dụng: đọc lỗi thì báo cáo tính như chưa thanh toán gì (công nợ phóng to, phiếu đã trả hiện "chưa trả") mà không báo. Nay dừng và báo "Không đọc được … thử lại sau". Trang chủ hiện cảnh báo phần thiếu thay vì số 0; Trợ lý AI được báo phần nào không đọc được (không coi là 0).
+- 🟡 **B-14** Về "Chờ ĐNTT" khi hồ sơ **đã có UNC**: nay hỏi xác nhận riêng (hiện STK, số tiền, ngày của UNC cũ, nhắc hủy lệnh ở ngân hàng nếu đã nộp) và ghi vào nhật ký. Tạo UNC lần 2 mà STK khác UNC cũ → cảnh báo ⛔ riêng.
+- 🟢 **B-15** Báo Cáo Chi Tiết vượt 2.000 dòng hiện 2.000 dòng **cũ nhất** của khoảng ngày; nay hiện các dòng Ngày CK **mới nhất**.
+- 🟢 **B-16** Ghi chú sổ 112 ("Tổng KL | Đã trả | …") định dạng số kiểu Mỹ 1,234.00; nay theo Vùng xuất (mặc định VN 1.234,00) như phiếu / báo cáo.
+
+### Tests
+- 222 test (thêm `raSoat2026_9_46.test.mjs` 9 test, `chiDoc.test.mjs` 3 test: mọi màn CHI_DOC chạy trong lúc đồng bộ và **không ghi ô nào**, đọc được hồ sơ vừa chốt; thao tác ghi vẫn chờ). 10 test bắt lỗi thất bại trên bản 2026.9.45. `choDongBo.test.mjs`: ví dụ "phải chờ" đổi sang Trang chủ (Danh Sách ĐNTT nay không chờ).
+
+### Chờ người dùng quyết định
+- **B-10** 2 đường ghi MISA lấy cột K "Họ tên chủ rừng" và Nội dung CK khác nhau (xem báo cáo) - cần kế toán chốt.
+
 ## [2026.9.45] — Đối chiếu Số tài khoản với hợp đồng khi Lưu / Sửa hồ sơ (người dùng đồng ý 28/09/2026)
 
 ### Changed

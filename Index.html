@@ -592,7 +592,7 @@
       <div class="nav-item" role="button" tabindex="0" data-page="settings"><span class="ic">⚙️</span> Cài đặt / Nháp</div>
     </nav>
     <div class="nguoi-dung-chip" id="nguoi-dung-chip"></div>
-    <div class="sidebar-footer">Hệ thống Quản Lý Thanh Toán · v2026.9.45<br><button type="button" class="theme-toggle" id="theme-toggle" aria-label="Đổi giao diện sáng / tối">🌓 Giao diện: Tự động</button></div>
+    <div class="sidebar-footer">Hệ thống Quản Lý Thanh Toán · v2026.9.46<br><button type="button" class="theme-toggle" id="theme-toggle" aria-label="Đổi giao diện sáng / tối">🌓 Giao diện: Tự động</button></div>
   </aside>
 
   <main class="main">
@@ -1463,6 +1463,7 @@ function renderDashboard(){
       + (s.congNoCapNhatLuc ? ` - lần gần nhất: ${esc(s.congNoCapNhatLuc)}` : '')
       + '. <button class="btn sm ghost" onclick="doCapNhatCongNoTrangChu()">🔄 Cập nhật ngay</button>';
     document.getElementById('dash-top5-no').innerHTML = _renderDashTop5NoTable_(s.top5KhachHangNo);
+    if (s.canhBao && s.canhBao.length) toast('⚠️ Trang chủ thiếu số liệu - ' + s.canhBao.join(' · '), 'warn');
     if (!s.draftSetup) {
       document.getElementById('dash-setup-warning').innerHTML = `
         <div class="card" style="border-color:var(--timber); background:var(--timber-light)">
@@ -2331,7 +2332,14 @@ function draftRowActionsHtml(r){
 
 function doHuyXacNhan(idKey){
   if (!confirm(`Chuyển hồ sơ "${idKey}" về trạng thái "Chờ ĐNTT" để có thể Sửa/Xóa?`)) return;
-  call('runHuyXacNhanDNTT', [idKey], 'Đang chuyển trạng thái...').then(res => handleResult(res, loadDraftList));
+  call('runHuyXacNhanDNTT', [idKey], 'Đang chuyển trạng thái...').then(res => {
+    // Hồ sơ đã có UNC: máy chủ hỏi xác nhận riêng (UNC có thể đã nộp ngân hàng).
+    if (res && res.canXacNhanUnc) {
+      if (!confirm(res.message)) return;
+      return call('runHuyXacNhanDNTT', [idKey, true], 'Đang chuyển trạng thái...').then(r2 => handleResult(r2, loadDraftList));
+    }
+    handleResult(res, loadDraftList);
+  });
 }
 
 function toggleAll(cb){
@@ -2988,7 +2996,7 @@ function renderChiTietResultTable(){
   );
   if (!rows.length) { box.innerHTML = '<div class="empty"><div class="ic">📭</div>Không có dữ liệu khớp bộ lọc.</div>'; return; }
   const tongTien = rows.reduce((s, r) => s + (r.thanhTien || 0), 0);
-  const canhBaoGioiHan = state.chiTietTruncated ? ` <span style="color:#b00">⚠️ Tổng khớp khoảng ngày là ${state.chiTietTotal} dòng, đã đạt giới hạn 2000 - thu hẹp khoảng ngày để xem/xuất đầy đủ hơn.</span>` : '';
+  const canhBaoGioiHan = state.chiTietTruncated ? ` <span style="color:#b00">⚠️ Tổng khớp khoảng ngày là ${state.chiTietTotal} dòng, đang hiện 2000 dòng có Ngày CK mới nhất - thu hẹp khoảng ngày để xem/xuất đầy đủ hơn.</span>` : '';
   box.innerHTML = `<div class="hint-text" style="margin-bottom:6px">${rows.length} phiếu cân - Tổng thành tiền: ${tongTien.toLocaleString('vi-VN')}${canhBaoGioiHan}</div>
   <div style="overflow-x:auto"><table><thead><tr>
     <th>Số phiếu cân</th><th>Ngày CK</th><th>Đại lý</th><th>Số HĐ</th><th>Chủ rừng</th><th>Người thụ hưởng</th><th>KL (tấn)</th><th>Đơn giá</th><th>Thành tiền</th><th>Ngân hàng</th><th>Số TK</th>
