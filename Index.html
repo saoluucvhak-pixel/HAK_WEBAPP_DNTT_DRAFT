@@ -308,6 +308,11 @@
     .modal-head .x{cursor:pointer; font-size:18px; color:var(--ink-soft); background:none; border:none;}
     .modal-body{padding:20px; max-height:65vh; overflow:auto;}
     .modal.rong{max-width:880px;}
+    /* Đang đồng bộ (trigger chạy): thao tác chờ xong rồi tự chạy */
+    .bang-dong-bo{position:fixed; top:12px; left:50%; transform:translateX(-50%); z-index:1000; max-width:min(720px, calc(100vw - 24px));
+      background:#fff7e0; color:#5b4300; border:1px solid #e7c35a; border-radius:10px; padding:10px 14px; box-shadow:0 6px 20px rgba(0,0,0,.15);
+      font-size:13.5px; display:flex; gap:12px; align-items:center;}
+    .bang-dong-bo.hidden{display:none;}
     .modal.rong .modal-body{max-height:78vh;}
     iframe.xem-phieu{width:100%; height:70vh; border:1px solid var(--line); border-radius:8px; background:#fff;}
     tr.dong-bam{cursor:pointer;}
@@ -539,7 +544,7 @@
       <div class="nav-item" role="button" tabindex="0" data-page="settings"><span class="ic">⚙️</span> Cài đặt / Nháp</div>
     </nav>
     <div class="nguoi-dung-chip" id="nguoi-dung-chip"></div>
-    <div class="sidebar-footer">Hệ thống Quản Lý Thanh Toán · v2026.9.36<br><button type="button" class="theme-toggle" id="theme-toggle" aria-label="Đổi giao diện sáng / tối">🌓 Giao diện: Tự động</button></div>
+    <div class="sidebar-footer">Hệ thống Quản Lý Thanh Toán · v2026.9.37<br><button type="button" class="theme-toggle" id="theme-toggle" aria-label="Đổi giao diện sáng / tối">🌓 Giao diện: Tự động</button></div>
   </aside>
 
   <main class="main">
@@ -558,6 +563,7 @@
   <div id="loading-overlay" role="status" aria-live="polite"><div class="spinner" aria-hidden="true"></div><div class="msg" id="loading-msg">Đang xử lý...</div>
     <div class="tien-do"><div class="tien-do-thanh" id="loading-thanh"></div></div><div class="tien-do-chu" id="loading-tien-do"></div></div>
   <div id="toast-wrap" role="status" aria-live="polite"></div>
+  <div id="bang-dong-bo" class="bang-dong-bo hidden" role="status" aria-live="polite"></div>
   <div class="modal-bg" id="modal-bg"><div class="modal" id="modal" role="dialog" aria-modal="true" tabindex="-1"></div></div>
 
   <!-- MỚI (theo yêu cầu): widget chatbot AI nổi -->
@@ -878,6 +884,8 @@ function handleResult(res, onSuccess){
 const PHIEN_STORAGE_KEY = 'hak_phien';
 const LOI_DANG_NHAP = '[AUTH] ';
 const LOI_QUYEN = '[QUYEN] ';
+const LOI_DONG_BO = '[DONG_BO] '; // máy chủ đang đồng bộ (trigger) - chờ xong rồi tự gọi lại
+const CHO_DONG_BO_MS = 10000;      // bao lâu hỏi lại trạng thái đồng bộ 1 lần
 // Lỗi Google trả về khi 1 lần chạy vượt giới hạn thời gian (tiếng Anh / tiếng Việt).
 const MAU_LOI_QUA_GIO = /maximum execution time|thời gian thực thi tối đa/i;
 let PHIEN = '';
@@ -983,6 +991,7 @@ function dangXuatWeb(){
 /** Gọi server qua cửa api (kèm phiên) - Promise hóa + loading overlay. */
 function call(fnName, args, loadingMsg){
   return new Promise((resolve, reject) => {
+   const goi = () => {
     // SỬA LỖI (theo yêu cầu - "hay bị load khi đổi menu, không biết sao"):
     // trước đây showLoading() LUÔN hiện màn hình loading toàn màn hình
     // dù loadingMsg là null - nhưng null vốn được dùng khắp nơi với Ý
@@ -999,6 +1008,8 @@ function call(fnName, args, loadingMsg){
       .withFailureHandler(err => {
         if (loadingMsg) hideLoading(false);
         const msg = String((err && err.message) || err);
+        const dongBo = _phanSauTienTo_(msg, LOI_DONG_BO);
+        if (dongBo) { _choDongBo(dongBo).then(goi, () => reject(new Error('Đã hủy - thao tác chưa chạy.'))); return; }
         const loiDangNhap = _phanSauTienTo_(msg, LOI_DANG_NHAP);
         const loiQuyen = _phanSauTienTo_(msg, LOI_QUYEN);
         if (loiDangNhap) hienManHinhDangNhap(loiDangNhap);
@@ -1010,7 +1021,51 @@ function call(fnName, args, loadingMsg){
         reject(err);
       })
       .api(PHIEN, fnName, args || []);
+   };
+   goi();
   });
+}
+
+/* ---------- Chờ đồng bộ (người dùng yêu cầu 28/09/2026) ----------
+ * Trigger cập nhật dữ liệu đang chạy -> máy chủ không chạy thao tác mà trả LOI_DONG_BO kèm
+ * danh sách đang chạy. Trình duyệt hiện thông báo, hỏi lại mỗi CHO_DONG_BO_MS; xong thì tự
+ * chạy lại mọi thao tác đang chờ (đúng thứ tự). Người dùng có thể Hủy. */
+const _choDB = { dangCho: [], hen: null };
+function _choDongBo(jsonDangChay){
+  return new Promise((tiepTuc, huy) => {
+    _choDB.dangCho.push({ tiepTuc, huy });
+    let ds = [];
+    try { ds = JSON.parse(jsonDangChay); } catch (e) {}
+    _veBangDongBo(ds);
+    if (!_choDB.hen) _choDB.hen = setTimeout(_hoiLaiDongBo, CHO_DONG_BO_MS);
+  });
+}
+function _hoiLaiDongBo(){
+  _choDB.hen = null;
+  google.script.run
+    .withSuccessHandler(ds => {
+      if (!_choDB.dangCho.length) { _anBangDongBo(); return; }
+      if (ds && ds.length) { _veBangDongBo(ds); _choDB.hen = setTimeout(_hoiLaiDongBo, CHO_DONG_BO_MS); return; }
+      _anBangDongBo();
+      toast('✅ Đồng bộ xong - đang chạy tiếp thao tác của bạn.', 'ok');
+      _choDB.dangCho.splice(0).forEach(x => x.tiepTuc());
+    })
+    .withFailureHandler(() => { _choDB.hen = setTimeout(_hoiLaiDongBo, CHO_DONG_BO_MS); })
+    .api(PHIEN, 'getTrangThaiDongBo', []);
+}
+function _veBangDongBo(ds){
+  const bang = document.getElementById('bang-dong-bo');
+  const moTa = (ds || []).map(d => `<b>${esc(d.ten)}</b> (bắt đầu ${esc(d.batDau)}, đã chạy ${Math.max(1, Math.round(d.daChayGiay / 60))} phút)`).join('; ') || 'cập nhật dữ liệu';
+  bang.innerHTML = `<span>⏳ Hệ thống đang đồng bộ: ${moTa}. ${_choDB.dangCho.length} thao tác đang chờ - sẽ <b>tự chạy khi đồng bộ xong</b>.</span>
+    <button class="btn sm" onclick="huyChoDongBo()">Hủy</button>`;
+  bang.classList.remove('hidden');
+}
+function _anBangDongBo(){ document.getElementById('bang-dong-bo').classList.add('hidden'); }
+function huyChoDongBo(){
+  clearTimeout(_choDB.hen); _choDB.hen = null;
+  _anBangDongBo();
+  _choDB.dangCho.splice(0).forEach(x => x.huy());
+  toast('Đã hủy các thao tác đang chờ đồng bộ - bấm lại khi đồng bộ xong.', 'warn');
 }
 
 /** Nút mở file (Drive) trong tab mới - thẻ <a> mang kiểu nút (trước đây

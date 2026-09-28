@@ -1,6 +1,6 @@
 /**
  * ============================================================
- * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.36
+ * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.37
  * Lịch sử thay đổi: CHANGELOG.md · Kiến trúc: docs/ARCHITECTURE.md
  * ------------------------------------------------------------
  * *** QUAN TRỌNG - CẦN LÀM TRƯỚC KHI DÙNG BẢN NÀY (chỉ 1 LẦN DUY NHẤT
@@ -1014,7 +1014,8 @@ const AUTH_CFG = {
   TIEN_TO_YEU_CAU: "dn_yc_",
   YEU_CAU_TTL_GIAY: 600,
   LOI_DANG_NHAP: "[AUTH] ",         // client hiện màn hình đăng nhập
-  LOI_QUYEN: "[QUYEN] "             // client chỉ báo lỗi, không đăng xuất
+  LOI_QUYEN: "[QUYEN] ",            // client chỉ báo lỗi, không đăng xuất
+  LOI_DONG_BO: "[DONG_BO] "         // client chờ đồng bộ (trigger) chạy xong rồi tự gọi lại
 };
 const MAU_MA_PHIEN = /^[0-9a-f]{64}$/;
 const MAU_MA_YEU_CAU = /^[0-9a-f]{32}$/;
@@ -1279,12 +1280,40 @@ function _chayTriggerCoDo_(ten, fn) {
     props.deleteProperty(HIEU_NANG_TRIGGER_TIEN_TO + ten);
   }
 }
+/** Trigger bắt đầu lúc batDau (ms) còn có thể đang chạy (chưa quá giới hạn 6 phút + 1 phút dư). */
+function _triggerConChay_(batDau) {
+  return Date.now() - batDau <= HIEU_NANG_GIOI_HAN_MS + 60000;
+}
+/** Tên dễ hiểu của các lần đồng bộ (trigger) - hiện cho người dùng khi phải chờ. */
+const TEN_DONG_BO = {
+  dailyRefreshAllCaches_: "Cập nhật 7:30 / 13:00 (phiếu cân, hợp đồng, công nợ)",
+  daily15hRefresh_: "Cập nhật 15h (phân tích nhập / thanh toán, công nợ phiếu cân)",
+  refreshAllDraftCaches10Min_: "Làm mới 10 phút (phiếu cân chưa thanh toán, hợp đồng)"
+};
+/** Các lần đồng bộ đang chạy: [{ ten, batDau (dd/MM HH:mm), daChayGiay }] - đọc 1 lần Script
+ * Properties (không đọc sheet), gọi ở mọi lời gọi web. */
+function _dongBoDangChay_() {
+  const tatCa = PropertiesService.getScriptProperties().getProperties();
+  return Object.keys(tatCa).filter(k => k.indexOf(HIEU_NANG_TRIGGER_TIEN_TO) === 0)
+    .map(k => ({ ma: k.slice(HIEU_NANG_TRIGGER_TIEN_TO.length), batDau: Number(tatCa[k]) }))
+    .filter(x => x.batDau && _triggerConChay_(x.batDau))
+    .map(x => ({
+      ten: TEN_DONG_BO[x.ma] || x.ma,
+      batDau: Utilities.formatDate(new Date(x.batDau), "GMT+7", "HH:mm"),
+      daChayGiay: Math.max(0, Math.round((Date.now() - x.batDau) / 1000)),
+      toiDaGiay: Math.round((HIEU_NANG_GIOI_HAN_MS + 60000) / 1000)
+    }));
+}
+/** #Web: trạng thái đồng bộ - trình duyệt hỏi lại trong lúc chờ. */
+function getTrangThaiDongBo_() {
+  return _dongBoDangChay_();
+}
 function _ghiTriggerQuaGio_() {
   const props = PropertiesService.getScriptProperties();
   const tatCa = props.getProperties();
   Object.keys(tatCa).filter(k => k.indexOf(HIEU_NANG_TRIGGER_TIEN_TO) === 0).forEach(k => {
     const batDau = Number(tatCa[k]);
-    if (!(Date.now() - batDau > HIEU_NANG_GIOI_HAN_MS + 60000)) return; // còn có thể đang chạy
+    if (_triggerConChay_(batDau)) return; // còn có thể đang chạy
     _ghiHieuNang_("Trigger: " + k.slice(HIEU_NANG_TRIGGER_TIEN_TO.length), HIEU_NANG_GIOI_HAN_MS, HIEU_NANG_KET_QUA.QUA_GIO,
       "Bị Google dừng ở giới hạn 6 phút, bắt đầu lúc " + Utilities.formatDate(new Date(batDau), "GMT+7", "dd/MM/yyyy HH:mm"));
     props.deleteProperty(k);
@@ -1368,6 +1397,12 @@ function api(phien, tenHam, thamSo) {
       _nguoiDungHienTai_ = { email, vaiTro: _vaiTroCua_(email) };
     }
     _yeuCauQuyen_(route.quyen);
+    // Đang đồng bộ (trigger cập nhật dữ liệu đang chạy): chưa chạy thao tác, báo trình duyệt
+    // chờ xong rồi tự gọi lại - tránh chạy chồng lên nhau (chậm, có thể quá 6 phút).
+    if (!route.khongChoDongBo) {
+      const dangChay = _dongBoDangChay_();
+      if (dangChay.length) throw new Error(AUTH_CFG.LOI_DONG_BO + JSON.stringify(dangChay));
+    }
     const batDau = Date.now();
     try {
       const ketQua = route.fn.apply(null, Array.isArray(thamSo) ? thamSo : []);
@@ -1419,12 +1454,15 @@ function _theoKhoangBaoCao_(fn) {
 
 const API_ROUTES = (() => {
   const X = QUYEN.XEM, N = QUYEN.NGHIEP_VU, H = QUYEN.HE_THONG, Q = QUYEN.QUAN_TRI;
-  const r = (fn, quyen) => ({ fn, quyen });
+  // khongCho: chức năng rất nhẹ / phục vụ việc chờ - chạy ngay cả khi đang đồng bộ.
+  const r = (fn, quyen, khongCho) => ({ fn, quyen, khongChoDongBo: !!khongCho });
+  const KHONG_CHO = true;
   return {
     // --- Chung, Trang chủ, Trợ lý AI ---
-    getAppSetupStatus: r(getAppSetupStatus_, X),
+    getAppSetupStatus: r(getAppSetupStatus_, X, KHONG_CHO),
     getDashboardStats: r(getDashboardStats_, X),
-    ghiQuaGioTrinhDuyet: r(ghiQuaGioTrinhDuyet_, X),
+    ghiQuaGioTrinhDuyet: r(ghiQuaGioTrinhDuyet_, X, KHONG_CHO),
+    getTrangThaiDongBo: r(getTrangThaiDongBo_, X, KHONG_CHO),
     getDraftBadgeCount: r(getDraftBadgeCount_, X),
     TRA_LOI_CHATBOT: r(TRA_LOI_CHATBOT_, X),
 

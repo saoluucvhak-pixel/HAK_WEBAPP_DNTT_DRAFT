@@ -2,6 +2,18 @@
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/). Phiên bản theo `NĂM.ĐỢT.SỬA`; thay đổi làm đổi hành vi nghiệp vụ (⚖️) sẽ tăng số ĐỢT và ghi rõ đã được người dùng đồng ý.
 
+## [2026.9.37] — Trigger đang chạy: thông báo và chờ đồng bộ xong mới chạy thao tác (người dùng yêu cầu 28/09/2026)
+
+### Added
+- Khi 1 trigger cập nhật dữ liệu đang chạy (Làm mới 10 phút, Cập nhật 7:30/13:00, Cập nhật 15h — kể cả khi chạy tay từ web), mọi thao tác trên web **không chạy chồng** mà **chờ đồng bộ xong**:
+  - Máy chủ (`api`) kiểm tra cờ “đang chạy” (Script Properties, không đọc sheet) trước khi chạy chức năng; đang đồng bộ thì trả `[DONG_BO]` kèm tên, giờ bắt đầu, thời gian đã chạy.
+  - Trình duyệt hiện thông báo trên cùng: “⏳ Hệ thống đang đồng bộ: … (bắt đầu 15:30, đã chạy 2 phút). N thao tác đang chờ — sẽ tự chạy khi đồng bộ xong”, hỏi lại mỗi 10 giây, xong thì **tự chạy tiếp** đúng các thao tác đã bấm (báo “✅ Đồng bộ xong”). Nút **Hủy** bỏ các thao tác đang chờ.
+  - Trigger bị Google dừng giữa chừng (cờ còn sót) không giữ thao tác quá 7 phút.
+  - Chức năng rất nhẹ / phục vụ việc chờ vẫn chạy ngay (`getTrangThaiDongBo`, `getAppSetupStatus`, `ghiQuaGioTrinhDuyet` — cờ `khongChoDongBo` trong `API_ROUTES`).
+
+### Tests
+- 180 test (thêm: thao tác bị hoãn khi đang đồng bộ, chức năng chờ vẫn chạy, cờ cũ quá 6 phút không giữ, cờ chỉ bật trong lúc trigger chạy, trình duyệt cùng tiền tố với máy chủ). Kiểm tra trình duyệt: thông báo hiện, thao tác tự chạy lại khi đồng bộ xong.
+
 ## [2026.9.36] — Danh Sách ĐNTT có lần chạy 361 giây: giảm ghi đè File Nháp (người dùng báo 28/09/2026)
 
 ### Fixed
