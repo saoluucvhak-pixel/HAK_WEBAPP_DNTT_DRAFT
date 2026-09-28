@@ -1,4 +1,4 @@
-# ARCHITECTURE — HAK Quản Lý Thanh Toán (v2026.9.46)
+# ARCHITECTURE — HAK Quản Lý Thanh Toán (v2026.9.47)
 
 > Tài liệu sống: cập nhật mỗi khi đổi module, lớp, luồng dữ liệu hoặc schema.
 > Phân tích chi tiết hiện trạng: `docs/PROJECT_ANALYSIS.md`. Kiến trúc đích: `docs/REFACTOR_PLAN.md` §3–§4.
@@ -236,3 +236,19 @@ File test dùng đuôi `.mjs` để công cụ đồng bộ Apps Script không c
 Mã hồ sơ mới (`_maHoSoMoi_`, 2026.9.46): 8 ký tự hex, không trùng Nháp (Src, 112), sổ đang mở (Src, 112) và `DNTT_GK_DN` của các năm đã khóa sổ — dùng cho Tạo mới và Mở Đóng TT.
 
 Lỗi đọc sổ trong báo cáo (2026.9.46): công nợ / phân tích / tiến độ HĐ / phiếu cân khả dụng ném `_loiDocDuLieu_` thay vì nuốt lỗi (trước đây tính như chưa thanh toán gì). Trang chủ và Trợ lý AI vẫn hiện phần đọc được, phần lỗi ghi vào `canhBao` / báo AI "không đọc được".
+
+## File xuất Excel (2026.9.47)
+
+- `_taoFileBaoCao_` đặt múi giờ `Asia/Ho_Chi_Minh` và locale theo Vùng xuất (`LOCALE_THEO_VUNG`: VN → vi_VN, US → en_US).
+- Báo cáo: cột ngày / ngày giờ ghi **Date thật** qua `_cotNgayThatChoXuat_(sh, dongDau, body, cotNgay, cotNgayGio)` (định dạng `dateFmt` / `dateTimeFmt` của Vùng xuất, không khóa TEXT). Áp cho Báo cáo ĐNTT (Bảng Đề Xuất + Bảng Kê, cả bản chốt và bản Nháp), Báo cáo UNC, Chi tiết, MISA (sheet TomTat), Tình hình thanh toán, Công nợ phiếu cân, Phân tích tổng hợp. Chuỗi ngày kiểu VN của dữ liệu web đọc bằng `_docNgayVN_`.
+- Mẫu nhập liệu giữ ngày dạng chữ: file UNC nộp ngân hàng (`runCreateUNCOnly_`) và sheet XuatMISA / Update_NganHang_DN.
+- Dòng MISA: 1 hàm `_dongMisa_` cho Duyệt và Tạo lại / Tạo bổ sung (B-10).
+- Chiều cao dòng Bảng Đề Xuất (`_datChieuCaoDong_`): 1 lệnh đặt nền (chiều cao phổ biến) + tối đa `NHOM_CAO_TOI_DA` lệnh cho các dòng cao hơn; không còn đặt mọi dòng bằng dòng cao nhất.
+
+## Hiệu năng (2026.9.47)
+
+- `runCreate112` đọc sổ CT bằng `_docDongTheoKhoa_` theo Số HĐ đang có trong Nháp (CT + 112) thay vì cả sổ.
+- Trợ lý AI: `_soLieuNangChoChatbot_` giữ phần công nợ / tổng hợp 10 phút, khóa gắn `CONGNO_LUC.THAY_DOI`; Đại lý / Nguồn gốc lấy từ `PhanTichNhapTT_DRAFT`.
+- Cài đặt: `getCaiDatTongHop_` (CHI_DOC) trả 13 phần trong 1 lời gọi; trình duyệt `_caiDat_(tên, hàm)` dùng mỗi phần 1 lần, phần lỗi gọi riêng.
+- Trình duyệt: 1 `MutationObserver` gom theo khung hình (`_xuLyDomMoi_`); bảng MISA / Chi tiết phân trang `BANG_LON_MOI_TRANG` = 100; lọc tên Danh Sách ĐNTT chờ 150 ms.
+

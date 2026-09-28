@@ -279,7 +279,8 @@
     .step.done .n{background:var(--moss);}
 
     /* toast */
-    #toast-wrap{position:fixed; bottom:22px; right:26px; z-index:999; display:flex; flex-direction:column; gap:8px;}
+    /* U-04: nằm trên nút Trợ lý AI (nút ở góc phải dưới, cao 54px) - trước đây che mất nút. */
+    #toast-wrap{position:fixed; bottom:86px; right:26px; z-index:999; display:flex; flex-direction:column; gap:8px;}
     .toast{
       background:var(--forest); color:#fff; padding:12px 16px; border-radius:9px;
       font-size:13px; box-shadow:0 8px 24px rgba(0,0,0,.18); max-width:380px;
@@ -532,7 +533,12 @@
 
     /* Bảng rộng hơn khung tự cuộn ngang trong thẻ (trước đây tràn ra ngoài thẻ) -
        trừ thẻ có hộp gợi ý tìm kiếm (hộp đó nổi ra ngoài thẻ). */
-    .card:not(:has(.suggest-box)), .modal-body{overflow-x:auto;}
+    /* U-06: không dùng bộ chọn "has" (Firefox < 121 bỏ cả quy tắc) - thẻ có hộp gợi ý được gắn lớp
+       co-goi-y lúc vẽ (_xuLyDomMoi_). */
+    .card:not(.co-goi-y), .modal-body{overflow-x:auto;}
+    /* U-03: cột thao tác (Sửa / Xóa…) của Danh Sách ĐNTT luôn thấy ở mép phải khi bảng cuộn ngang. */
+    .cuon-ngang{overflow-x:auto;} /* khung cuộn không lề: cột dính che hẳn các cột phía sau */
+    table.cot-cuoi-dinh th:last-child, table.cot-cuoi-dinh td:last-child{position:sticky; right:0; background:var(--white); z-index:1; box-shadow:-8px 0 8px -8px rgba(0,0,0,.25);}
     .grid > *{min-width:0;}
     /* Máy tính bảng / điện thoại. */
     @media (max-width:900px){
@@ -592,7 +598,7 @@
       <div class="nav-item" role="button" tabindex="0" data-page="settings"><span class="ic">⚙️</span> Cài đặt / Nháp</div>
     </nav>
     <div class="nguoi-dung-chip" id="nguoi-dung-chip"></div>
-    <div class="sidebar-footer">Hệ thống Quản Lý Thanh Toán · v2026.9.46<br><button type="button" class="theme-toggle" id="theme-toggle" aria-label="Đổi giao diện sáng / tối">🌓 Giao diện: Tự động</button></div>
+    <div class="sidebar-footer">Hệ thống Quản Lý Thanh Toán · v2026.9.47<br><button type="button" class="theme-toggle" id="theme-toggle" aria-label="Đổi giao diện sáng / tối">🌓 Giao diện: Tự động</button></div>
   </aside>
 
   <main class="main">
@@ -705,6 +711,15 @@ function pageSlice(rows, page, size){
   const start = (page - 1) * size;
   return rows.slice(start, start + size);
 }
+/** P-07 (rà soát 28/09/2026): bảng MISA / Chi tiết (tới 2.000 dòng) vẽ theo trang thay vì
+ * cả 2.000 dòng một lúc (máy yếu, điện thoại đơ vài giây). Tổng tiền vẫn tính trên mọi dòng. */
+const BANG_LON_MOI_TRANG = 100;
+/** Trang hiện tại của state[khoa], kẹp trong [1, số trang] (vd bộ lọc làm ít dòng đi). */
+function _trangHopLe_(khoa, soDong){
+  const soTrang = Math.max(1, Math.ceil(soDong / BANG_LON_MOI_TRANG));
+  state[khoa] = Math.min(Math.max(1, state[khoa] || 1), soTrang);
+  return state[khoa];
+}
 function renderPager(totalRows, page, onChangeFnName, size){
   size = size || PAGE_SIZE;
   const totalPages = Math.max(1, Math.ceil(totalRows / size));
@@ -796,18 +811,19 @@ function isoDaysAgoVN(days){
 const BULK_REF_CACHE_KEY = 'hak_bulk_ref_v1';
 let _bulkRefPromise = null;
 
-/** Mốc giờ CỐ ĐỊNH gần nhất đã qua trong ngày (7:30 hoặc 13:00, theo giờ
- * máy tính người dùng) - cache tải trước mốc này coi là CŨ, phải tải lại. */
+/** Mốc giờ CỐ ĐỊNH gần nhất đã qua trong ngày (7:30 hoặc 13:00 GIỜ VIỆT NAM - cùng lịch
+ * làm mới phía máy chủ) - cache tải trước mốc này coi là CŨ, phải tải lại. U-08 (rà soát
+ * 28/09/2026): trước đây theo giờ máy người dùng - máy đặt múi giờ khác thì làm mới lệch giờ. */
 function _bulkRefBoundary_(){
-  const now = new Date();
+  const bayGio = Date.now(), vn = _vnNow_(); // vn: các trường UTC = giờ Việt Nam
   const mk = (h, m, dayOffset) => {
-    const t = new Date(now);
-    t.setDate(t.getDate() + (dayOffset||0));
-    t.setHours(h, m, 0, 0);
-    return t.getTime();
+    const t = new Date(vn);
+    t.setUTCDate(t.getUTCDate() + (dayOffset||0));
+    t.setUTCHours(h, m, 0, 0);
+    return t.getTime() - 7 * 3600 * 1000; // về mốc thời gian thật
   };
-  if (now.getTime() >= mk(13,0)) return mk(13,0);
-  if (now.getTime() >= mk(7,30)) return mk(7,30);
+  if (bayGio >= mk(13,0)) return mk(13,0);
+  if (bayGio >= mk(7,30)) return mk(7,30);
   return mk(13,0,-1); // trước 7:30 sáng -> mốc gần nhất là 13:00 hôm qua
 }
 
@@ -1163,8 +1179,9 @@ document.getElementById('modal-bg').addEventListener('click', e => { if(e.target
  * tabindex cho mọi phần tử mới vẽ, và cho Enter/Space bấm như chuột.
  * Esc đóng hộp thoại / Trợ lý AI. */
 const BAM_DUOC_BANG_PHIM = '.subtab, tr.clickable, .suggest-item, .stat-nut';
+const BAM_DUOC_CHUA_GAN = BAM_DUOC_BANG_PHIM.split(',').map(s => s.trim() + ':not([tabindex])').join(', ');
 function _ganBamDuoc_(goc){
-  goc.querySelectorAll(BAM_DUOC_BANG_PHIM).forEach(el => {
+  goc.querySelectorAll(BAM_DUOC_CHUA_GAN).forEach(el => { // chỉ phần tử chưa gắn (không duyệt lại cả bảng mỗi lần)
     if (el.hasAttribute('tabindex')) return;
     el.setAttribute('tabindex', '0');
     el.setAttribute('role', 'button');
@@ -1215,7 +1232,6 @@ function _ganONgayVN_(goc){
   });
 }
 _ganONgayVN_(document);
-new MutationObserver(() => _ganONgayVN_(document.body)).observe(document.body, { childList: true, subtree: true });
 
 /* ---------- Căn lề bảng theo kiểu dữ liệu (quy định người dùng 28/09/2026) ----------
  * Toàn web app: cột toàn SỐ căn phải; tên, chuỗi căn trái. "Số" = có dấu phân cách
@@ -1242,16 +1258,38 @@ function _canhLeBangWeb_(goc){
     bodies.forEach(tb => tb.setAttribute('data-canh', '1'));
   });
 }
-['content', 'modal'].forEach(id => {
-  const goc = document.getElementById(id);
-  new MutationObserver(() => _canhLeBangWeb_(goc)).observe(goc, { childList: true, subtree: true });
-  _canhLeBangWeb_(goc);
-});
-['content', 'modal'].forEach(id => {
-  const goc = document.getElementById(id);
-  new MutationObserver(() => _ganBamDuoc_(goc)).observe(goc, { childList: true, subtree: true });
-});
+/* P-06 (rà soát 28/09/2026): trước đây 5 bộ theo dõi DOM (ô ngày, căn lề ×2, bấm được ×2)
+ * mỗi thay đổi nhỏ (toast, màn hình chờ, gõ lọc) đều quét lại cả trang -> bảng 2.000 dòng giật.
+ * Nay 1 bộ theo dõi, gom mọi thay đổi trong 1 khung hình rồi xử lý 1 lần. */
+function _xuLyDomMoi_(){
+  _ganONgayVN_(document.body);
+  document.querySelectorAll('.suggest-box').forEach(b => { const the = b.closest('.card'); if (the) the.classList.add('co-goi-y'); });
+  ['content', 'modal'].forEach(id => { const goc = document.getElementById(id); _canhLeBangWeb_(goc); _ganBamDuoc_(goc); });
+}
+let _henXuLyDom_ = 0;
+new MutationObserver(() => {
+  if (_henXuLyDom_) return;
+  const chay = () => { _henXuLyDom_ = 0; _xuLyDomMoi_(); };
+  // Tab ẩn không có khung hình -> hẹn giờ ngắn.
+  _henXuLyDom_ = document.hidden ? setTimeout(chay, 50) : requestAnimationFrame(chay);
+}).observe(document.body, { childList: true, subtree: true });
+_xuLyDomMoi_();
+/** U-05 (rà soát 28/09/2026): hộp thoại đang mở giữ phím Tab bên trong (trước đây Tab đi ra
+ * trang phía sau - người dùng bàn phím / trình đọc màn hình bị lạc khỏi hộp thoại). */
+function _giuTabTrongModal_(e){
+  if (e.key !== 'Tab' || !document.getElementById('modal-bg').classList.contains('show')) return false;
+  const modal = document.getElementById('modal');
+  const ds = Array.from(modal.querySelectorAll('a[href], button:not([disabled]), input:not([disabled]):not([type=hidden]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'))
+    .filter(el => el.offsetParent !== null || el === document.activeElement);
+  if (!ds.length) { e.preventDefault(); modal.focus(); return true; }
+  const dau = ds[0], cuoi = ds[ds.length - 1], dangO = document.activeElement;
+  if (!modal.contains(dangO)) { e.preventDefault(); (e.shiftKey ? cuoi : dau).focus(); return true; }
+  if (e.shiftKey && dangO === dau) { e.preventDefault(); cuoi.focus(); return true; }
+  if (!e.shiftKey && dangO === cuoi) { e.preventDefault(); dau.focus(); return true; }
+  return false;
+}
 document.addEventListener('keydown', e => {
+  if (_giuTabTrongModal_(e)) return;
   if (e.key === 'Escape') {
     if (document.getElementById('modal-bg').classList.contains('show')) { closeModal(); return; }
     const hop = document.getElementById('chatbotHop');
@@ -2183,7 +2221,12 @@ function renderDraft(){
     el.classList.toggle('active', el.dataset.f === state.draftStatusFilter);
     el.addEventListener('click', () => { state.draftStatusFilter = el.dataset.f; renderDraftTable(); });
   });
-  document.getElementById('draft-tu-khoa').addEventListener('input', e => { state.draftTuKhoa = e.target.value; renderDraftTable(); });
+  // P-08 (rà soát 28/09/2026): chờ ngừng gõ 150 ms rồi mới vẽ lại (trước đây vẽ lại cả bảng mỗi phím).
+  document.getElementById('draft-tu-khoa').addEventListener('input', e => {
+    state.draftTuKhoa = e.target.value;
+    clearTimeout(state._henLocDraft);
+    state._henLocDraft = setTimeout(renderDraftTable, 150);
+  });
   loadDraftList();
 }
 
@@ -2288,7 +2331,7 @@ function renderDraftTable(){
   }
   const chonDuoc = list.filter(r => r.sanSangChot);
   const daChonHet = chonDuoc.length > 0 && chonDuoc.every(r => state.draftSelected.has(r.idKey));
-  wrap.innerHTML = `<table><thead><tr>
+  wrap.innerHTML = `<div class="cuon-ngang"><table class="cot-cuoi-dinh"><thead><tr>
       <th><input type="checkbox" id="chk-all" ${daChonHet ? 'checked' : ''} onchange="toggleAll(this)"></th>
       <th>Ngày đề nghị</th><th>Chủ rừng</th><th>Người nhận</th><th>Ngân hàng / STK</th><th>Số HĐ</th>
       <th class="num">Số phiếu</th><th class="num">KL (kg)</th><th class="num">Số tiền</th><th>Trạng thái</th><th></th>
@@ -2309,7 +2352,7 @@ function renderDraftTable(){
     </tbody>
     <tfoot><tr style="font-weight:700"><td colspan="6" style="text-align:right">TỔNG CỘNG (${list.length} hồ sơ)</td>
       <td class="num">${list.reduce((t, r) => t + r.soLuongPhieu, 0)}</td><td class="num">${fmtKl(list.reduce((t, r) => t + r.klTongKg, 0))}</td>
-      <td class="num">${fmtMoney(list.filter(r => r.sanSangChot).reduce((t, r) => t + r.soTien, 0))}</td><td colspan="2"></td></tr></tfoot></table>`;
+      <td class="num">${fmtMoney(list.filter(r => r.sanSangChot).reduce((t, r) => t + r.soTien, 0))}</td><td colspan="2"></td></tr></tfoot></table></div>`;
   updateDraftActionbar();
 }
 
@@ -2824,7 +2867,7 @@ function loadMisaTab(){
   box.innerHTML = '<div class="empty"><div class="ic">⏳</div>Đang tải...</div>';
   call('getMisaDataTheoNgay', [f, t], null).then(ketQua => {
     if (ketQua && ketQua.error) { box.innerHTML = `<div class="empty"><div class="ic">⚠️</div>${esc(ketQua.error)}</div>`; return; }
-    state.misaRows = (ketQua && ketQua.items) || [];
+    state.misaRows = (ketQua && ketQua.items) || []; state.misaPage = 1;
     state.misaTruncated = ketQua && ketQua.truncated;
     state.misaTotal = ketQua && ketQua.total;
     state.misaFilters = {};
@@ -2882,7 +2925,7 @@ function renderMisaFilterOptions(){
   const build = (id, key) => {
     const sel = document.getElementById(id);
     sel.innerHTML = '<option value="">-- Tất cả --</option>' + distinct(key).map(v => `<option value="${esc(v)}">${esc(v)}</option>`).join('');
-    sel.onchange = () => { state.misaFilters[key] = sel.value; renderMisaResultTable(); };
+    sel.onchange = () => { state.misaFilters[key] = sel.value; state.misaPage = 1; renderMisaResultTable(); };
   };
   build('misa-f-churung', 'hoTenChuRung');
   build('misa-f-sohd', 'soHD');
@@ -2905,13 +2948,15 @@ function renderMisaResultTable(){
   <div style="overflow-x:auto"><table><thead><tr>
     <th>Ngày hạch toán</th><th>Số phiếu cân</th><th>Chủ rừng</th><th>Người thụ hưởng</th><th>Số TK</th><th>Ngân hàng</th><th>Thành tiền</th><th>Số HĐ</th>
   </tr></thead><tbody>
-    ${rows.map(r => `<tr>
+    ${pageSlice(rows, _trangHopLe_('misaPage', rows.length), BANG_LON_MOI_TRANG).map(r => `<tr>
       <td class="mono">${esc(r.ngayHachToan)}</td><td class="mono">${esc(r.soPhieuCan)}</td><td>${esc(r.hoTenChuRung)}</td>
       <td>${esc(r.tenThuHuong)}</td><td class="mono">${esc(r.soTK)}</td><td>${esc(r.nganHang)}</td>
       <td class="mono">${(r.thanhTien||0).toLocaleString('vi-VN')}</td><td class="mono">${esc(r.soHD)}</td>
     </tr>`).join('')}
-  </tbody></table></div>`;
+  </tbody></table></div>
+  ${renderPager(rows.length, state.misaPage, 'goMisaPage', BANG_LON_MOI_TRANG)}`;
 }
+function goMisaPage(p){ state.misaPage = p; renderMisaResultTable(); }
 function doExportMisaTheoNgay(){
   const f = document.getElementById('misa-from').value, t = document.getElementById('misa-to').value;
   if (!_khoangBaoCaoHopLe('misa')) return;
@@ -2959,7 +3004,7 @@ function loadChiTietTab(){
   document.getElementById('chitiet-filter-card').classList.add('hidden');
   box.innerHTML = '<div class="empty"><div class="ic">⏳</div>Đang tải...</div>';
   call('getChiTietDNTTDaChot', [f, t], null).then(ketQua => {
-    state.chiTietRows = (ketQua && ketQua.items) || [];
+    state.chiTietRows = (ketQua && ketQua.items) || []; state.chiTietPage = 1;
     state.chiTietTruncated = ketQua && ketQua.truncated;
     state.chiTietTotal = ketQua && ketQua.total;
     state.chiTietFilters = {};
@@ -2978,7 +3023,7 @@ function renderChiTietFilterOptions(){
   const build = (id, key) => {
     const sel = document.getElementById(id);
     sel.innerHTML = '<option value="">-- Tất cả --</option>' + distinct(key).map(v => `<option value="${esc(v)}">${esc(v)}</option>`).join('');
-    sel.onchange = () => { state.chiTietFilters[key] = sel.value; renderChiTietResultTable(); };
+    sel.onchange = () => { state.chiTietFilters[key] = sel.value; state.chiTietPage = 1; renderChiTietResultTable(); };
   };
   build('chitiet-f-churung', 'hoTenChuRung');
   build('chitiet-f-sohd', 'soHD');
@@ -3001,14 +3046,16 @@ function renderChiTietResultTable(){
   <div style="overflow-x:auto"><table><thead><tr>
     <th>Số phiếu cân</th><th>Ngày CK</th><th>Đại lý</th><th>Số HĐ</th><th>Chủ rừng</th><th>Người thụ hưởng</th><th>KL (tấn)</th><th>Đơn giá</th><th>Thành tiền</th><th>Ngân hàng</th><th>Số TK</th>
   </tr></thead><tbody>
-    ${rows.map(r => `<tr>
+    ${pageSlice(rows, _trangHopLe_('chiTietPage', rows.length), BANG_LON_MOI_TRANG).map(r => `<tr>
       <td class="mono">${esc(r.soPhieuCan)}</td><td class="mono">${esc(r.ngayCK)}</td><td>${esc(r.daiLy)}</td>
       <td class="mono">${esc(r.soHD)}</td><td>${esc(r.hoTenChuRung)}</td><td>${esc(r.tenThuHuong)}</td>
       <td class="mono">${(r.klTan||0).toLocaleString('vi-VN')}</td><td class="mono">${(r.donGia||0).toLocaleString('vi-VN')}</td>
       <td class="mono">${(r.thanhTien||0).toLocaleString('vi-VN')}</td><td>${esc(r.nganHang)}</td><td class="mono">${esc(r.soTaiKhoan)}</td>
     </tr>`).join('')}
-  </tbody></table></div>`;
+  </tbody></table></div>
+  ${renderPager(rows.length, state.chiTietPage, 'goChiTietPage', BANG_LON_MOI_TRANG)}`;
 }
+function goChiTietPage(p){ state.chiTietPage = p; renderChiTietResultTable(); }
 function doExportChiTietDNTT(){
   const f = document.getElementById('chitiet-from').value, t = document.getElementById('chitiet-to').value;
   if (!_khoangBaoCaoHopLe('chitiet')) return;
@@ -4609,7 +4656,21 @@ function loadLichSuSuaDoi(){
     </tbody></table></div>`;
   });
 }
+/** P-05: số liệu Cài đặt lấy 1 lần (getCaiDatTongHop) cho lần mở trang; mỗi phần dùng đúng 1
+ * lần - tải lại sau khi lưu thì gọi riêng như cũ. Phần lỗi / gọi gộp lỗi -> gọi riêng (hiện lỗi). */
+let _caiDatSan_ = null;
+function _caiDat_(ten, ham){
+  if (!_caiDatSan_) return call(ham, [], null);
+  return _caiDatSan_.then(d => {
+    if (d && Object.prototype.hasOwnProperty.call(d, ten)) {
+      const v = d[ten]; delete d[ten];
+      if (!(v && v.__loi)) return v;
+    }
+    return call(ham, [], null);
+  });
+}
 function renderSettings(){
+  _caiDatSan_ = null;
   document.getElementById('topbar-actions').innerHTML = '';
   const c = document.getElementById('content');
   c.innerHTML = `<div class="card"><div class="empty"><div class="ic">⏳</div>Đang kiểm tra...</div></div>`;
@@ -4687,7 +4748,7 @@ function renderSettings(){
       </div>
       <div class="card">
         <h3>📊 Vùng Định Dạng Báo Cáo Xuất Excel</h3>
-        <p class="muted" style="font-size:13px">TÁCH RIÊNG với "Vùng Lãnh Thổ" ở trên - chỉ ảnh hưởng định dạng ngày/số trong các FILE EXCEL XUẤT RA (Update_NganHang_DN, MISA, đơn vị khác...). <b>Tiêu chuẩn: VN</b> (dd/mm/yyyy, theo mẫu nhập MISA) - chưa chọn thì dùng VN, không đi theo Vùng Lãnh Thổ.</p>
+        <p class="muted" style="font-size:13px">TÁCH RIÊNG với "Vùng Lãnh Thổ" ở trên - chỉ ảnh hưởng định dạng ngày/số trong các FILE EXCEL XUẤT RA (Update_NganHang_DN, MISA, đơn vị khác...). <b>Tiêu chuẩn: VN</b> (dd/mm/yyyy, theo mẫu nhập MISA) - chưa chọn thì dùng VN, không đi theo Vùng Lãnh Thổ. Báo cáo xuất ghi cột ngày là <b>ngày thật</b> (lọc / sắp xếp được trong Excel) theo vùng này; file UNC nộp ngân hàng và sheet nhập MISA giữ ngày dạng chữ theo vùng này.</p>
         <div class="field"><select id="export-region-select"><option value="">Đang tải...</option></select></div>
       </div>
       <div class="card">
@@ -4731,6 +4792,10 @@ function renderSettings(){
         <button class="btn" onclick="doGenerateThongSo()">📋 Tạo/Cập Nhật Sheet Thông Số</button>
       </div>`;
       _ganMucLuc(); // trang dài: thanh "Đi nhanh" tới từng mục
+      // P-05: 1 lời gọi lấy hết; lỗi gọi gộp -> từng phần tự gọi riêng như cũ.
+      _caiDatSan_ = new Promise(ok => {
+        google.script.run.withSuccessHandler(ok).withFailureHandler(() => ok({})).api(PHIEN, 'getCaiDatTongHop', []);
+      });
       loadNguoiDung();
       loadCauHinhDangNhap();
       loadChatbotSettings();
@@ -4750,7 +4815,7 @@ function renderSettings(){
 
 /* ---------- Người dùng & Phân quyền (Quản trị) ---------- */
 function loadNguoiDung(){
-  call('getDanhSachNguoiDungForWeb', [], null).then(d => {
+  _caiDat_('nguoiDung', 'getDanhSachNguoiDungForWeb').then(d => {
     state.nguoiDungDs = d;
     const box = document.getElementById('nguoidung-card');
     if (!box) return;
@@ -4796,7 +4861,7 @@ function luuNguoiDung(){
 
 /* ---------- Cổng đăng nhập Gmail (Quản trị) ---------- */
 function loadCauHinhDangNhap(){
-  call('getCauHinhDangNhapForWeb', [], null).then(c => {
+  _caiDat_('cauHinhDangNhap', 'getCauHinhDangNhapForWeb').then(c => {
     const box = document.getElementById('dangnhap-card');
     if (!box) return;
     box.innerHTML = `<h3>🔐 Cổng Đăng Nhập Gmail</h3>
@@ -4840,7 +4905,7 @@ function taoLaiSsoSecret(){
 function loadLuuTruNam(){
   const el = document.getElementById('luutru-nam-card');
   if (!el) return;
-  call('getLuuTruNamForWeb', [], null).then(ds => {
+  _caiDat_('luuTruNam', 'getLuuTruNamForWeb').then(ds => {
     state.luuTruNam = ds || [];
     el.innerHTML = `<h3>🗄️ File lưu trữ theo năm</h3>
       <p class="muted" style="font-size:13px">Các năm đã khóa sổ và file DATA của từng năm. <b>Hệ Thống › Khóa Sổ Năm</b> tự tạo và đăng ký file - mục này chỉ dùng khi cần trỏ lại file (vd file DATA bị di chuyển hoặc sao chép sang file khác).</p>
@@ -4875,7 +4940,7 @@ function doConnectMainSs(){
   });
 }
 function loadMainSsInfo(){
-  call('getMainSsInfoForWeb', [], null).then(info => {
+  _caiDat_('mainSs', 'getMainSsInfoForWeb').then(info => {
     const el = document.getElementById('main-ss-info');
     if (!el) return;
     if (info && info.configured) {
@@ -4896,7 +4961,7 @@ function _setBadgeOnOff_(id, isOn, onText, offText){
   el.textContent = isOn ? ('✅ ' + onText) : ('⭕ ' + offText);
 }
 function loadTriggerStatus(){
-  call('getTriggerStatusForWeb', [], null).then(s => {
+  _caiDat_('trigger', 'getTriggerStatusForWeb').then(s => {
     if (!s) return;
     _setBadgeOnOff_('badge-trigger10min', s.trigger10Min, 'Đã bật', 'Chưa bật');
     _setBadgeOnOff_('badge-triggerdaily', s.triggerDaily, 'Đã bật', 'Chưa bật');
@@ -4925,7 +4990,7 @@ function doXacNhanHeaderPhieuCanMoi(){
   call('webXacNhanHeaderPhieuCanMoi', [], 'Đang lưu chuẩn mới...').then(res => handleResult(res, () => loadTriggerStatus()));
 }
 function loadFormatLockStatus(){
-  call('getFormatLockStatusForWeb', [], null).then(s => {
+  _caiDat_('khoaDinhDang', 'getFormatLockStatusForWeb').then(s => {
     if (!s) return;
     _setBadgeOnOff_('badge-formatlock', s.locked, `Đã khóa ${s.lockedCount}/${s.total} cột`, `Mới khóa ${s.lockedCount}/${s.total} cột`);
     const el = document.getElementById('formatlock-detail');
@@ -4952,7 +5017,7 @@ function doSetupPcCacheTrigger(){
 /** MỚI (theo yêu cầu): hiện định dạng THẬT (locale/múi giờ) đang cài đặt
  * trên File Chính + File Nháp - để xem và đồng bộ Vùng Lãnh Thổ cho khớp. */
 function loadSheetLocaleInfo(){
-  call('getSheetLocaleInfoForWeb', [], null).then(info => {
+  _caiDat_('localeFile', 'getSheetLocaleInfoForWeb').then(info => {
     const el = document.getElementById('sheet-locale-info');
     if (!el || !info) return;
     const renderOne = (label, d, err) => {
@@ -4975,7 +5040,7 @@ function doSyncRegionFromSheet(){
 }
 
 function loadRegionSelector(){
-  call('getRegionInfoForWeb', [], null).then(info => {
+  _caiDat_('vung', 'getRegionInfoForWeb').then(info => {
     const sel = document.getElementById('region-select');
     if (!sel || !info) return;
     sel.innerHTML = info.presets.map(p => `<option value="${esc(p.code)}" ${p.code===info.current?'selected':''}>${esc(p.code)} - ${esc(p.label)}</option>`).join('');
@@ -4987,7 +5052,7 @@ function loadRegionSelector(){
 
 /** MỚI (theo yêu cầu): Vùng Định Dạng RIÊNG cho báo cáo xuất Excel - tách biệt với Vùng Lãnh Thổ chung. */
 function loadExportRegionSelector(){
-  call('getExportRegionInfoForWeb', [], null).then(info => {
+  _caiDat_('vungXuat', 'getExportRegionInfoForWeb').then(info => {
     const sel = document.getElementById('export-region-select');
     if (!sel || !info) return;
     sel.innerHTML = info.presets.map(p => `<option value="${esc(p.code)}" ${p.code===info.current?'selected':''}>${esc(p.code)} - ${esc(p.label)}</option>`).join('');
@@ -4999,7 +5064,7 @@ function loadExportRegionSelector(){
 
 /** MỚI (theo yêu cầu): Giá trị mặc định xuất báo cáo MISA/Ngân hàng - sửa được ngay, không cần sửa code. */
 function loadMisaDefaults(){
-  call('getMisaDefaultsForWeb', [], null).then(info => {
+  _caiDat_('misa', 'getMisaDefaultsForWeb').then(info => {
     if (!info) return;
     const a = document.getElementById('misa-account'), n = document.getElementById('misa-bankname'), c = document.getElementById('misa-bankcode');
     if (a) a.value = info.account || '';
@@ -5018,7 +5083,7 @@ function doSaveMisaDefaults(){
 
 /** MỚI (theo yêu cầu): tham số UNC (TK trích nợ/thu phí, Bên chịu phí, Loại tiền, tên sheet Danh Mục NH). */
 function loadUncConfig(){
-  call('getUncConfigForWeb', [], null).then(cfg => {
+  _caiDat_('unc', 'getUncConfigForWeb').then(cfg => {
     if (!cfg) return;
     const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v || ''; };
     set('unc-tktrichno', cfg.tkTrichNo);
@@ -5039,7 +5104,7 @@ function doSaveUncConfig(){
   call('webSetUncConfig', [values], 'Đang lưu...').then(res => handleResult(res));
 }
 function loadChatbotSettings(){
-  call('getChatbotSettingsForWeb', [], null).then(s => {
+  _caiDat_('chatbot', 'getChatbotSettingsForWeb').then(s => {
     const el = document.getElementById('chatbot-status');
     if (!el) return;
     el.innerHTML = s && s.coApiKey
@@ -5199,7 +5264,7 @@ function doXoaMoCoiBaoTri(sid, dataKey, fnName, riskLevel){
 }
 
 function loadConfigLinks(){
-  call('getConfigLinksForSettings', [], null).then(links => {
+  _caiDat_('links', 'getConfigLinksForSettings').then(links => {
     const box = document.getElementById('config-links-card');
     if (!box) return;
     box.innerHTML = `<h3>Link các file liên quan (xem + đổi để dùng cho đơn vị/năm khác)</h3>
@@ -5412,23 +5477,20 @@ function chatbotGuiCauHoi(){
   const elDangTra = chatbotThemTin_('bot', '⏳ Đang trả lời...');
   input.value = '';
 
-  google.script.run
-    .withSuccessHandler(function (kq) {
-      const traLoi = kq.thanhCong ? (kq.khongDungAI ? '🔧 ' : '') + kq.traLoi : '❌ ' + kq.loi;
-      elDangTra.textContent = traLoi;
-      document.getElementById('chatbotNoiDung').scrollTop = 999999;
-      if (kq.thanhCong) {
-        chatbotLichSu_.push({ vaiTro: 'nguoi', noiDung: cauHoi }, { vaiTro: 'bot', noiDung: kq.traLoi });
-        chatbotLichSu_ = chatbotLichSu_.slice(-8); // chỉ giữ 4 lượt gần nhất
-      }
-    })
-    .withFailureHandler(function (err) {
-      const msg = String((err && err.message) || err);
-      const loiDangNhap = _phanSauTienTo_(msg, LOI_DANG_NHAP);
-      elDangTra.textContent = '❌ ' + (loiDangNhap || _phanSauTienTo_(msg, LOI_QUYEN) || ('Lỗi hệ thống: ' + msg));
-      if (loiDangNhap) hienManHinhDangNhap(loiDangNhap);
-    })
-    .api(PHIEN, 'TRA_LOI_CHATBOT', [cauHoi, chatbotLichSu_]);
+  // U-07 (rà soát 28/09/2026): qua call() chung - đang đồng bộ thì chờ xong rồi tự hỏi lại,
+  // lỗi đăng nhập / quyền xử lý như mọi màn (trước đây hiện nguyên chuỗi lỗi kỹ thuật [DONG_BO]...).
+  call('TRA_LOI_CHATBOT', [cauHoi, chatbotLichSu_.slice()], null).then(function (kq) {
+    const traLoi = kq.thanhCong ? (kq.khongDungAI ? '🔧 ' : '') + kq.traLoi : '❌ ' + kq.loi;
+    elDangTra.textContent = traLoi;
+    document.getElementById('chatbotNoiDung').scrollTop = 999999;
+    if (kq.thanhCong) {
+      chatbotLichSu_.push({ vaiTro: 'nguoi', noiDung: cauHoi }, { vaiTro: 'bot', noiDung: kq.traLoi });
+      chatbotLichSu_ = chatbotLichSu_.slice(-8); // chỉ giữ 4 lượt gần nhất
+    }
+  }, function (err) {
+    const msg = String((err && err.message) || err);
+    elDangTra.textContent = '❌ ' + (_phanSauTienTo_(msg, LOI_DANG_NHAP) || _phanSauTienTo_(msg, LOI_QUYEN) || (msg.indexOf('Đã hủy') === 0 ? msg : 'Chưa trả lời được - thử lại.'));
+  });
 }
 
 /* ============================================================

@@ -1,6 +1,6 @@
 /**
  * ============================================================
- * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.46
+ * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.47
  * Lịch sử thay đổi: CHANGELOG.md · Kiến trúc: docs/ARCHITECTURE.md
  * ------------------------------------------------------------
  * *** QUAN TRỌNG - CẦN LÀM TRƯỚC KHI DÙNG BẢN NÀY (chỉ 1 LẦN DUY NHẤT
@@ -1634,6 +1634,7 @@ const API_ROUTES = (() => {
     getHieuNangForWeb: r(getHieuNangForWeb_, H, CHI_DOC),
 
     // --- Cài đặt (Quản trị) ---
+    getCaiDatTongHop: r(getCaiDatTongHop_, Q, CHI_DOC),
     getMainSsInfoForWeb: r(getMainSsInfoForWeb_, Q, CHI_DOC),
     webSetMainSsId: r(webSetMainSsId_, Q),
     getLuuTruNamForWeb: r(getLuuTruNamForWeb_, Q, CHI_DOC),
@@ -1674,6 +1675,32 @@ const API_ROUTES = (() => {
     webTaoLaiSsoSecret: r(webTaoLaiSsoSecret_, Q)
   };
 })();
+
+/** P-05 (rà soát 28/09/2026): mở Cài đặt = 1 lời gọi máy chủ (trước đây 13 lời gọi song song,
+ * mỗi lời gọi là 1 lượt Apps Script riêng, mở lại File Chính -> chậm, dễ chạm giới hạn gọi
+ * đồng thời). Phần nào lỗi trả {__loi} - trình duyệt gọi riêng phần đó để hiện lỗi như cũ. */
+function getCaiDatTongHop_() {
+  const phan = {
+    nguoiDung: getDanhSachNguoiDungForWeb_,
+    cauHinhDangNhap: getCauHinhDangNhapForWeb_,
+    luuTruNam: getLuuTruNamForWeb_,
+    mainSs: getMainSsInfoForWeb_,
+    trigger: getTriggerStatusForWeb_,
+    khoaDinhDang: getFormatLockStatusForWeb_,
+    localeFile: getSheetLocaleInfoForWeb_,
+    vung: getRegionInfoForWeb_,
+    vungXuat: getExportRegionInfoForWeb_,
+    misa: getMisaDefaultsForWeb_,
+    unc: getUncConfigForWeb_,
+    chatbot: getChatbotSettingsForWeb_,
+    links: getConfigLinksForSettings_
+  };
+  const kq = {};
+  Object.keys(phan).forEach(k => {
+    try { kq[k] = phan[k](); } catch (e) { kq[k] = { __loi: _loiChoNguoiDung_(e) }; }
+  });
+  return kq;
+}
 
 // ----- Quản trị người dùng & Cổng đăng nhập (chỉ Quản trị, qua api) -----
 
@@ -5740,11 +5767,16 @@ function runCreate112() {
       return "⚠️ File Nháp chưa có dòng chi tiết nào (chưa chạy 'Tách Phiếu' hoặc chưa 'Thêm Mới Đề Nghị Thanh Toán').";
     }
 
-    const realCTData = shCTReal ? readSheet(shCTReal) : [];
-    const realCTRows = realCTData.length ? realCTData.slice(1) : [];
+    // P-10 (rà soát 28/09/2026): lũy kế chỉ cần dòng sổ CT của các hợp đồng đang có hồ sơ Nháp
+    // -> đọc cột Số HĐ rồi chỉ các dòng khớp (trước đây đọc CẢ sổ CT mọi cột mỗi lần bấm, chậm
+    // dần theo năm tháng). Kết quả tính y hệt: dòng hợp đồng khác không bao giờ được dùng.
+    const hdCanTinh = new Set(draftCTRows.map(r => utils.standardize(r[19])).filter(Boolean));
+    const draft112Truoc = readSheet(shDraft112).slice(1); // Số HĐ của dòng 112 (cột I) - chính khóa tra lũy kế bên dưới
+    draft112Truoc.forEach(r => { const k = utils.standardize(String(r[8] || "").replace(/'/g, "")); if (k) hdCanTinh.add(k); });
+    const realCTRows = shCTReal && hdCanTinh.size
+      ? _docDongTheoKhoa_(shCTReal, 19, 22, v => hdCanTinh.has(utils.standardize(v))) : [];
 
-    const draft112Data = readSheet(shDraft112);
-    let draft112Rows = draft112Data.length ? draft112Data.slice(1) : [];
+    let draft112Rows = draft112Truoc;
 
     const draft112MapIdx = new Map();
     draft112Rows.forEach((r, idx) => {
@@ -10617,6 +10649,64 @@ function _chatbotTraLoiDuPhong_(cauHoi) {
  * Chính...), trả về null - chatbot vẫn hoạt động ở chế độ không có số
  * liệu (như trước).
  */
+/** P-04 (rà soát 28/09/2026): phần số liệu NẶNG cho Trợ lý AI (công nợ phiếu cân / KH / HĐ,
+ * Đại lý - Nguồn gốc) - giữ trong bộ nhớ đệm 10 phút; khóa gắn mốc "sổ có thay đổi"
+ * (CONGNO_LUC.THAY_DOI, ghi mỗi lần Duyệt / Mở Đóng TT) nên Duyệt xong hỏi lại là có số mới.
+ * Trước đây MỖI câu hỏi tính lại tất cả (20-60 giây). Lần nào có phần đọc lỗi thì không giữ. */
+function _soLieuNangChoChatbot_(tuNgay90Ngay, homNayIso) {
+  const khoa = "chatbot_nang_v1_" + homNayIso + "_" + (PropertiesService.getScriptProperties().getProperty(CONGNO_LUC.THAY_DOI) || "0");
+  let coLoi = false;
+  const [[chuoi]] = _getCachedRefData_(khoa, () => { // bộ nhớ đệm lưu dạng bảng -> 1 ô
+    const s = _soLieuNangChoChatbotTinh_(tuNgay90Ngay, homNayIso);
+    coLoi = s.indexOf("KHÔNG ĐỌC ĐƯỢC lúc này") !== -1;
+    return [[s]];
+  }, 600);
+  if (coLoi) _invalidateChunkedCache_(khoa);
+  return chuoi;
+}
+function _soLieuNangChoChatbotTinh_(tuNgay90Ngay, homNayIso) {
+  let phanCongNoKH = "", phanCongNoHD = "", phanDaiLyNguonGoc = "", phanCongNoPhieuCan = "";
+  try {
+    const homQua = Utilities.formatDate(new Date(Date.now() - 86400000), "GMT+7", "yyyy-MM-dd");
+    const ctcn = getChiTietCongNoPhieuCanWeb_(homQua, {});
+    const top = ctcn.slice().sort((a, b) => (b.chenhLechNgay || 0) - (a.chenhLechNgay || 0)).slice(0, 100);
+    const tongChuaTT = ctcn.reduce((s, r) => s + (r.thanhTien || 0), 0);
+    phanCongNoPhieuCan = `\n\nCHI TIẾT CÔNG NỢ THEO PHIẾU CÂN (phiếu cân CHƯA thanh toán tính đến ${homQua}, tổng ${ctcn.length} phiếu, tổng tiền chưa TT ${tongChuaTT.toLocaleString('vi-VN')}đ - liệt kê tối đa 100 phiếu TREO LÂU NHẤT trước):\n` +
+      top.map(r => `- Phiếu ${r.soPhieuCan} (${r.khachHang}, ĐL ${r.dl}): ${(r.thanhTien||0).toLocaleString('vi-VN')}đ, nhập ngày ${r.ngayNhap1}, treo ${r.chenhLechNgay} ngày`).join("\n");
+  } catch (e) { phanCongNoPhieuCan = "\n\nCHI TIẾT CÔNG NỢ THEO PHIẾU CÂN: KHÔNG ĐỌC ĐƯỢC lúc này (" + _loiChoNguoiDung_(e) + ") - không được coi là 0 / không có; nói rõ với người dùng là thiếu số liệu phần này."; } // B-13
+  try {
+    const congNoKH = getDebtByCustomer_(tuNgay90Ngay, homNayIso);
+    const top = congNoKH.slice(0, 100);
+    phanCongNoKH = "\n\nCÔNG NỢ THEO KHÁCH HÀNG (90 ngày gần nhất, sắp xếp công nợ giảm dần, tối đa 100 khách hàng lớn nhất - nếu khách hàng cần tìm KHÔNG có trong danh sách này, khả năng công nợ = 0 hoặc ngoài 90 ngày gần đây):\n" +
+      top.map(o => `- ${o.khachHang}: nhập ${o.giaTriNhapLuyKe.toLocaleString('vi-VN')}đ, đã TT ${o.daTTLuyKe.toLocaleString('vi-VN')}đ, còn nợ ${o.congNo.toLocaleString('vi-VN')}đ`).join("\n");
+  } catch (e) { phanCongNoKH = "\n\nCÔNG NỢ THEO KHÁCH HÀNG: KHÔNG ĐỌC ĐƯỢC lúc này (" + _loiChoNguoiDung_(e) + ") - không được coi là 0 / không có; nói rõ với người dùng là thiếu số liệu phần này."; } // B-13
+  try {
+    const congNoHD = getDebtByContract_(tuNgay90Ngay, homNayIso);
+    const top = congNoHD.slice(0, 100);
+    phanCongNoHD = "\n\nCÔNG NỢ THEO HỢP ĐỒNG (90 ngày gần nhất, tối đa 100 hợp đồng công nợ lớn nhất):\n" +
+      top.map(o => `- HĐ ${o.soHD} (${o.chuRung}): SL dự kiến ${o.slDuKien}, đã thực hiện ${o.klThucHienLuyKe}, còn nợ ${o.congNo.toLocaleString('vi-VN')}đ`).join("\n");
+  } catch (e) { phanCongNoHD = "\n\nCÔNG NỢ THEO HỢP ĐỒNG: KHÔNG ĐỌC ĐƯỢC lúc này (" + _loiChoNguoiDung_(e) + ") - không được coi là 0 / không có; nói rõ với người dùng là thiếu số liệu phần này."; } // B-13
+  try {
+    // P-04: lấy từ bảng Phân tích đã tổng hợp (trigger 15h, như Trang chủ) - trước đây mỗi câu
+    // hỏi quét lại toàn bộ Phiếu Cân 90 ngày (getPaymentAnalysis_). Cùng số liệu: NHẬP theo ngày cân.
+    const gom = phanLoai => {
+      const m = new Map();
+      _docPhanTichTheoKhoang_(tuNgay90Ngay, homNayIso).forEach(r => {
+        if (String(r[1]) !== "NHAP" || String(r[2]) !== phanLoai) return;
+        const o = m.get(String(r[3])) || { nhan: String(r[3]), klTan: 0, giaTri: 0 };
+        o.klTan += utils.parseNum(r[4]) / 1000; o.giaTri += utils.parseNum(r[5]);
+        m.set(o.nhan, o);
+      });
+      return Array.from(m.values()).sort((x, y) => y.giaTri - x.giaTri);
+    };
+    const pt = { theoDaiLy: gom("DL"), theoNguonGoc: gom("NG") };
+    const dsDaiLy = (pt.theoDaiLy || []).map(o => `${o.nhan}: ${o.klTan.toFixed(1)} tấn, ${o.giaTri.toLocaleString('vi-VN')}đ`).join("; ");
+    const dsNguonGoc = (pt.theoNguonGoc || []).map(o => `${o.nhan}: ${o.klTan.toFixed(1)} tấn, ${o.giaTri.toLocaleString('vi-VN')}đ`).join("; ");
+    phanDaiLyNguonGoc = `\n\nTỔNG HỢP THEO ĐẠI LÝ (90 ngày gần nhất): ${dsDaiLy || "(không có dữ liệu)"}\nTỔNG HỢP THEO NGUỒN GỐC (90 ngày gần nhất): ${dsNguonGoc || "(không có dữ liệu)"}`;
+  } catch (e) { phanDaiLyNguonGoc = "\n\nTỔNG HỢP THEO ĐẠI LÝ / NGUỒN GỐC: KHÔNG ĐỌC ĐƯỢC lúc này (" + _loiChoNguoiDung_(e) + ") - không được coi là 0 / không có; nói rõ với người dùng là thiếu số liệu phần này."; } // B-13
+  return phanCongNoKH + phanCongNoHD + phanDaiLyNguonGoc + phanCongNoPhieuCan;
+}
+
 /**
  * SỬA (theo yêu cầu - "trả lời được tên khách hàng cụ thể, số tiền 1 hồ
  * sơ, công nợ, tổng hợp theo Đại Lý/Nguồn Gốc"): mở rộng thêm dữ liệu
@@ -10635,46 +10725,22 @@ function _layNgayVaSoLieuThatChoChatbot_() {
     const homNay = Utilities.formatDate(new Date(), "GMT+7", "dd/MM/yyyy");
     const tuNgay90Ngay = Utilities.formatDate(new Date(Date.now() - 90 * 86400000), "GMT+7", "yyyy-MM-dd");
 
-    let phanCongNoKH = "", phanCongNoHD = "", phanDaiLyNguonGoc = "", phanHoSoNhap = "", phanCongNoPhieuCan = "";
-    try {
-      const homQua = Utilities.formatDate(new Date(Date.now() - 86400000), "GMT+7", "yyyy-MM-dd");
-      const ctcn = getChiTietCongNoPhieuCanWeb_(homQua, {});
-      const top = ctcn.slice().sort((a, b) => (b.chenhLechNgay || 0) - (a.chenhLechNgay || 0)).slice(0, 100);
-      const tongChuaTT = ctcn.reduce((s, r) => s + (r.thanhTien || 0), 0);
-      phanCongNoPhieuCan = `\n\nCHI TIẾT CÔNG NỢ THEO PHIẾU CÂN (phiếu cân CHƯA thanh toán tính đến ${homQua}, tổng ${ctcn.length} phiếu, tổng tiền chưa TT ${tongChuaTT.toLocaleString('vi-VN')}đ - liệt kê tối đa 100 phiếu TREO LÂU NHẤT trước):\n` +
-        top.map(r => `- Phiếu ${r.soPhieuCan} (${r.khachHang}, ĐL ${r.dl}): ${(r.thanhTien||0).toLocaleString('vi-VN')}đ, nhập ngày ${r.ngayNhap1}, treo ${r.chenhLechNgay} ngày`).join("\n");
-    } catch (e) { phanCongNoPhieuCan = "\n\nCHI TIẾT CÔNG NỢ THEO PHIẾU CÂN: KHÔNG ĐỌC ĐƯỢC lúc này (" + _loiChoNguoiDung_(e) + ") - không được coi là 0 / không có; nói rõ với người dùng là thiếu số liệu phần này."; } // B-13
-    try {
-      const congNoKH = getDebtByCustomer_(tuNgay90Ngay, homNay.split('/').reverse().join('-'));
-      const top = congNoKH.slice(0, 100);
-      phanCongNoKH = "\n\nCÔNG NỢ THEO KHÁCH HÀNG (90 ngày gần nhất, sắp xếp công nợ giảm dần, tối đa 100 khách hàng lớn nhất - nếu khách hàng cần tìm KHÔNG có trong danh sách này, khả năng công nợ = 0 hoặc ngoài 90 ngày gần đây):\n" +
-        top.map(o => `- ${o.khachHang}: nhập ${o.giaTriNhapLuyKe.toLocaleString('vi-VN')}đ, đã TT ${o.daTTLuyKe.toLocaleString('vi-VN')}đ, còn nợ ${o.congNo.toLocaleString('vi-VN')}đ`).join("\n");
-    } catch (e) { phanCongNoKH = "\n\nCÔNG NỢ THEO KHÁCH HÀNG: KHÔNG ĐỌC ĐƯỢC lúc này (" + _loiChoNguoiDung_(e) + ") - không được coi là 0 / không có; nói rõ với người dùng là thiếu số liệu phần này."; } // B-13
-    try {
-      const congNoHD = getDebtByContract_(tuNgay90Ngay, homNay.split('/').reverse().join('-'));
-      const top = congNoHD.slice(0, 100);
-      phanCongNoHD = "\n\nCÔNG NỢ THEO HỢP ĐỒNG (90 ngày gần nhất, tối đa 100 hợp đồng công nợ lớn nhất):\n" +
-        top.map(o => `- HĐ ${o.soHD} (${o.chuRung}): SL dự kiến ${o.slDuKien}, đã thực hiện ${o.klThucHienLuyKe}, còn nợ ${o.congNo.toLocaleString('vi-VN')}đ`).join("\n");
-    } catch (e) { phanCongNoHD = "\n\nCÔNG NỢ THEO HỢP ĐỒNG: KHÔNG ĐỌC ĐƯỢC lúc này (" + _loiChoNguoiDung_(e) + ") - không được coi là 0 / không có; nói rõ với người dùng là thiếu số liệu phần này."; } // B-13
-    try {
-      const pt = getPaymentAnalysis_(tuNgay90Ngay, homNay.split('/').reverse().join('-'));
-      const dsDaiLy = (pt.theoDaiLy || []).map(o => `${o.nhan}: ${o.klTan.toFixed(1)} tấn, ${o.giaTri.toLocaleString('vi-VN')}đ`).join("; ");
-      const dsNguonGoc = (pt.theoNguonGoc || []).map(o => `${o.nhan}: ${o.klTan.toFixed(1)} tấn, ${o.giaTri.toLocaleString('vi-VN')}đ`).join("; ");
-      phanDaiLyNguonGoc = `\n\nTỔNG HỢP THEO ĐẠI LÝ (90 ngày gần nhất): ${dsDaiLy || "(không có dữ liệu)"}\nTỔNG HỢP THEO NGUỒN GỐC (90 ngày gần nhất): ${dsNguonGoc || "(không có dữ liệu)"}`;
-    } catch (e) { phanDaiLyNguonGoc = "\n\nTỔNG HỢP THEO ĐẠI LÝ / NGUỒN GỐC: KHÔNG ĐỌC ĐƯỢC lúc này (" + _loiChoNguoiDung_(e) + ") - không được coi là 0 / không có; nói rõ với người dùng là thiếu số liệu phần này."; } // B-13
+    const homNayIso = homNay.split('/').reverse().join('-');
+    const phanNang = _soLieuNangChoChatbot_(tuNgay90Ngay, homNayIso);
+    let phanHoSoNhap = "";
     try {
       phanHoSoNhap = "\n\nDANH SÁCH HỒ SƠ ĐANG CHỜ XỬ LÝ (File Nháp, chưa chốt - đây là số tiền TỪNG HỒ SƠ cụ thể):\n" +
         list.slice(0, 100).map(r => `- ${r.chuRung || r.hoTenChuRung || ''} (Số HĐ ${r.soHD || ''}): ${(r.soTien||0).toLocaleString('vi-VN')}đ, trạng thái ${r.trangThaiKey === 'cho_tinh' ? 'Chưa ĐNTT' : r.trangThaiKey === 'cho_dntt' ? 'Chờ ĐNTT' : 'Đang ĐNTT'}`).join("\n");
     } catch (e) { phanHoSoNhap = "\n\nDANH SÁCH HỒ SƠ ĐANG CHỜ XỬ LÝ: KHÔNG ĐỌC ĐƯỢC lúc này (" + _loiChoNguoiDung_(e) + ") - không được coi là 0 / không có; nói rõ với người dùng là thiếu số liệu phần này."; } // B-13
 
     return `Thời điểm hiện tại: ${homNay}.
-Số liệu THẬT đang có trong hệ thống (đọc trực tiếp lúc trả lời):
+Số liệu THẬT đang có trong hệ thống (hồ sơ Nháp đọc trực tiếp; công nợ / tổng hợp là bản tính gần nhất, tối đa 10 phút, tính lại ngay sau mỗi lần Duyệt / Mở Đóng TT):
 - Hồ sơ "Chưa ĐNTT" (mới tạo, chưa tính tiền): ${dem.cho_tinh}
 - Hồ sơ "Chờ ĐNTT" (đã tính tiền, chờ Xác Nhận): ${dem.cho_dntt}
 - Hồ sơ "Đang ĐNTT" (đã xác nhận, chờ Duyệt/Đóng Thanh Toán): ${dem.dang_dntt}
 - Tổng hồ sơ trong File Nháp: ${stats.draftCount}
 - Tổng tiền các hồ sơ đã sẵn sàng chốt (đang chờ): ${stats.draftTotalTien.toLocaleString('vi-VN')} đ
-- Số "đơn xin" cũ (quy trình nhập liệu thủ công) chưa xử lý: ${stats.nguonChoXuLy}${phanHoSoNhap}${phanCongNoKH}${phanCongNoHD}${phanDaiLyNguonGoc}${phanCongNoPhieuCan}
+- Số "đơn xin" cũ (quy trình nhập liệu thủ công) chưa xử lý: ${stats.nguonChoXuLy}${phanHoSoNhap}${phanNang}
 
 Đây là số liệu THẬT tính đến thời điểm trả lời - hãy dùng ĐÚNG các số này khi trả lời, KHÔNG tự đoán/làm tròn/suy diễn thêm số liệu KHÔNG có trong danh sách trên. Nếu khách hàng/hợp đồng được hỏi KHÔNG xuất hiện trong danh sách trên (đã giới hạn top 100 theo công nợ/90 ngày gần nhất), nói rõ KHÔNG tìm thấy trong dữ liệu được cấp (có thể do công nợ = 0, ngoài 90 ngày gần đây, hoặc sai tên) - hướng dẫn vào đúng trang Báo Cáo Công Nợ để tìm kiếm đầy đủ hơn, KHÔNG bịa số liệu.`;
   } catch (e) {

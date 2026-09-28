@@ -2,6 +2,30 @@
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/). Phiên bản theo `NĂM.ĐỢT.SỬA`; thay đổi làm đổi hành vi nghiệp vụ (⚖️) sẽ tăng số ĐỢT và ghi rõ đã được người dùng đồng ý.
 
+## [2026.9.47] — MISA 1 kiểu, Excel ngày thật theo Vùng xuất, dòng Báo cáo ĐNTT không giãn, tăng tốc, giao diện (28/09/2026)
+
+### Changed
+- ⚖️ **B-10 (người dùng chọn "1 hình thức như Duyệt")**: Tạo lại MISA / Tạo bổ sung MISA ghi dòng Update_NganHang_DN **giống hệt** lúc Duyệt - cột K Họ tên chủ rừng trên hồ sơ ĐNTT (trước đây tên trong HD_NCC), Nội dung CK "Thanh toán phiếu cân X" (trước đây Nội dung CK của hồ sơ). 1 hàm dùng chung `_dongMisa_`.
+- ⚖️ **Báo cáo xuất Excel ghi NGÀY THẬT theo Vùng xuất** (người dùng yêu cầu): Báo cáo ĐNTT (Bảng Đề Xuất + Bảng Kê), Báo cáo UNC, Chi tiết, MISA tóm tắt, Tình hình thanh toán, Công nợ phiếu cân, Phân tích tổng hợp - lọc / sắp xếp / tính theo ngày được trong Excel; file tạo ra có locale + giờ Việt Nam theo Vùng xuất. Ngày căn phải như số. **Giữ dạng chữ** ở 2 mẫu nhập liệu: file UNC nộp ngân hàng và sheet XuatMISA (phần mềm nhận file đọc chữ).
+
+### Fixed
+- 🟠 **Báo cáo ĐNTT xuất Excel dòng giãn rất lớn** (người dùng báo): quá 30 nhóm chiều cao là cả bảng bị đặt bằng dòng cao nhất - 1 hồ sơ ghi chú dài làm mọi dòng cao theo. Nay mỗi dòng theo nội dung của nó (vài lệnh đặt chiều cao).
+- **P-04** Trợ lý AI: mỗi câu hỏi quét lại Phiếu Cân 90 ngày + tính lại công nợ (20-60 giây). Nay Đại lý / Nguồn gốc lấy từ bảng Phân tích đã tổng hợp; phần công nợ giữ 10 phút, tự tính lại ngay sau Duyệt / Mở Đóng TT; hồ sơ Nháp vẫn đọc mới mỗi câu.
+- **P-05** Mở Cài đặt: 13 lời gọi máy chủ song song → 1 lời gọi (`getCaiDatTongHop`); phần nào lỗi tự gọi riêng để hiện lỗi như cũ.
+- **P-06** Trình duyệt: 5 bộ theo dõi DOM quét cả trang mỗi thay đổi → 1 bộ, xử lý 1 lần mỗi khung hình.
+- **P-07** Bảng MISA / Chi tiết (tới 2.000 dòng) phân trang 100 dòng; tổng tiền vẫn trên mọi dòng.
+- **P-08** Ô lọc tên Danh Sách ĐNTT chờ ngừng gõ 150 ms mới vẽ lại.
+- **P-10** "Đề Nghị Thanh Toán (tính lại)" chỉ đọc dòng sổ CT của các hợp đồng đang có hồ sơ Nháp (trước đây cả sổ, mọi cột) - kết quả y hệt (có test so khớp), đọc ít hơn hàng chục lần khi sổ lớn.
+- **U-03** Danh Sách ĐNTT: cột Xem / Sửa / Xóa luôn thấy ở mép phải khi bảng cuộn ngang.
+- **U-04** Thông báo không che nút Trợ lý AI.
+- **U-05** Hộp thoại giữ phím Tab bên trong.
+- **U-06** Bỏ bộ chọn CSS `:has()` (Firefox cũ bỏ cả quy tắc cuộn ngang).
+- **U-07** Trợ lý AI khi đang đồng bộ: chờ xong rồi tự hỏi lại (trước đây hiện chuỗi lỗi kỹ thuật).
+- **U-08** Mốc làm mới dữ liệu hợp đồng trong trình duyệt (7:30 / 13:00) theo giờ Việt Nam, không theo giờ máy.
+
+### Tests
+- 240 test (thêm `raSoat2026_9_47.test.mjs`, `xuatExcel2026_9_47.test.mjs`, `troLyAi.test.mjs`, MISA "Tạo lại giống hệt Duyệt"). Test phía máy chủ mới đều thất bại trên 2026.9.46. Cập nhật test cũ theo quy định ngày thật (quyDinhNgay, ngayThanhToan, misa, bangDeXuat, baoCaoTuChiTietDNTT). Kiểm tra Chromium: cột thao tác dính phải, phân trang MISA, Cài đặt 1 lời gọi, Tab trong hộp thoại, Trợ lý AI chờ đồng bộ.
+
 ## [2026.9.46] — Nhóm 1 báo cáo rà soát + màn chỉ xem không phải chờ đồng bộ (28/09/2026)
 
 ### Changed
