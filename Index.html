@@ -592,7 +592,7 @@
       <div class="nav-item" role="button" tabindex="0" data-page="settings"><span class="ic">⚙️</span> Cài đặt / Nháp</div>
     </nav>
     <div class="nguoi-dung-chip" id="nguoi-dung-chip"></div>
-    <div class="sidebar-footer">Hệ thống Quản Lý Thanh Toán · v2026.9.42<br><button type="button" class="theme-toggle" id="theme-toggle" aria-label="Đổi giao diện sáng / tối">🌓 Giao diện: Tự động</button></div>
+    <div class="sidebar-footer">Hệ thống Quản Lý Thanh Toán · v2026.9.43<br><button type="button" class="theme-toggle" id="theme-toggle" aria-label="Đổi giao diện sáng / tối">🌓 Giao diện: Tự động</button></div>
   </aside>
 
   <main class="main">
@@ -3202,7 +3202,7 @@ function doTaoLaiUncTheoNgay(){
   const tkTrichNo = document.getElementById('taolaiuncht-tktrichno').value.trim();
   const tkThuPhi = document.getElementById('taolaiuncht-tkthuphi').value.trim();
   if (!f || !t || !hieuLuc) { toast('Vui lòng chọn đủ Từ ngày/Đến ngày/Ngày hiệu lực.', 'warn'); return; }
-  if (!confirm(`Tạo lại UNC cho các hồ sơ ĐÃ CHỐT trong khoảng ${f} → ${t}?\n\nVới khoảng ngày rộng, có thể tạo ra NHIỀU file UNC (mỗi lô 1 file). Xử lý theo lô và tự lặp tới khi xong.\n\nBấm OK để tiếp tục.`)) return;
+  if (!confirm(`Tạo lại UNC cho các hồ sơ ĐÃ CHỐT có Ngày CK trong khoảng ${f} → ${t}?\n\nVới khoảng ngày rộng, có thể tạo ra NHIỀU file UNC (mỗi lô 1 file). Xử lý theo lô và tự lặp tới khi xong.\n\nBấm OK để tiếp tục.`)) return;
   const box = document.getElementById('taolaiuncht-result');
 
   if (!box) return; // đã rời tab trước khi dữ liệu về
@@ -4193,7 +4193,7 @@ function renderHuongDan(){
       <b>🔓 Mở "Đóng" Thanh Toán:</b> dùng khi CHỐT SAI cần sửa lại - luôn mở NGUYÊN CẢ đợt thanh toán (theo Chủ rừng + Ngày Đóng TT + Lần Thanh Toán, không sửa lẻ từng phiếu cân, để tránh Số tiền ở 112 bị lệch so với các phiếu cân con). Gõ Chủ rừng sẽ có gợi ý tự động kèm sẵn Ngày Đóng TT/Lần TT - bấm chọn để điền đúng luôn cả 3 ô, không cần tự tra tay. Hệ thống sẽ: xóa khỏi bản chính (DNTT_GK_DN + tất cả CT con + 112), copy lại y hệt sang File Nháp (Chờ ĐNTT) để chỉnh sửa, mở khóa lại TẤT CẢ Phiếu Cân liên quan, đổi "Trạng Thái" từ "OK" sang "Test giá" - đồng thời dọn theo cả 3 "bảng con" (ChiTietDNTT, ChiTietUNC, Update_NganHang_DN) vì đây là dữ liệu tính sẵn/lịch sử gắn liền với đợt thanh toán này. <b style="color:#b00">Rủi ro cao - đụng dữ liệu tài chính đã chốt, không tự hoàn tác được.</b><br><br>
       <b>📜 Lịch Sử Sửa Đổi:</b> theo dõi mọi lần Mở Đóng Thanh Toán, Đồng Bộ Tên Khách Hàng và Cập Nhật Ngân Hàng - kèm rõ Gmail người thực hiện, thời gian, chi tiết.<br><br>
 
-      <b>🔧 Tạo Lại MISA / Tạo Lại UNC (dự phòng):</b> dùng cho hồ sơ CŨ (chốt trước khi có tính năng tự động) hoặc khi phát hiện lỗi/sai sót cần làm lại - chọn khoảng ngày đã chốt, hệ thống tự xử lý theo lô nhỏ và lặp lại tới khi xong (không lo timeout dù chọn khoảng ngày rộng), tự bỏ qua phần đã có sẵn để không tạo trùng. Việc thường ngày (chuyển tiền, ghi sổ) không cần tới 2 mục này - chỉ dùng khi có sự cố.
+      <b>🔧 Tạo Lại MISA / Tạo Lại UNC (dự phòng):</b> dùng cho hồ sơ CŨ (chốt trước khi có tính năng tự động) hoặc khi phát hiện lỗi/sai sót cần làm lại - chọn khoảng <b>Ngày CK</b> (ngày thanh toán) của hồ sơ, hệ thống tự xử lý theo lô nhỏ và lặp lại tới khi xong (không lo timeout dù chọn khoảng ngày rộng), tự bỏ qua phần đã có sẵn để không tạo trùng. Việc thường ngày (chuyển tiền, ghi sổ) không cần tới 2 mục này - chỉ dùng khi có sự cố.
     </div>
   </details>
 
@@ -4371,9 +4371,9 @@ function renderHeThong(){
     </div>
     <div class="card" style="border-color:var(--timber)">
       <h3>🔧 Tạo Lại UNC (dự phòng, theo khoảng ngày)</h3>
-      <p class="muted" style="font-size:13px">Dùng khi UNC bị sai/lỗi/quên tạo cho hồ sơ ĐÃ CHỐT. Chọn khoảng ngày đã chốt cần tạo lại - xử lý theo lô, tự lặp tới khi xong. Với khoảng ngày rộng, mỗi lô sẽ ra 1 file UNC riêng (không gộp).</p>
+      <p class="muted" style="font-size:13px">Dùng khi UNC bị sai/lỗi/quên tạo cho hồ sơ ĐÃ CHỐT. Chọn khoảng <b>Ngày CK</b> (ngày thanh toán) của hồ sơ cần tạo lại - xử lý theo lô, tự lặp tới khi xong. Với khoảng ngày rộng, mỗi lô sẽ ra 1 file UNC riêng (không gộp).</p>
       <div class="grid cols-3">
-        <div class="field"><label>Từ ngày (Ngày ĐN đã chốt)</label><input type="date" id="taolaiuncht-from" value="${isoDaysAgoVN(7)}"></div>
+        <div class="field"><label>Từ ngày (Ngày CK)</label><input type="date" id="taolaiuncht-from" value="${isoDaysAgoVN(7)}"></div>
         <div class="field"><label>Đến ngày</label><input type="date" id="taolaiuncht-to" value="${todayISOVN()}"></div>
         <div class="field"><label>Ngày hiệu lực UNC</label><input type="date" id="taolaiuncht-hieuluc" value="${todayISOVN()}"></div>
       </div>

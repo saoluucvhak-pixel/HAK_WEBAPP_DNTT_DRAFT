@@ -1,4 +1,4 @@
-# ARCHITECTURE — HAK Quản Lý Thanh Toán (v2026.9.42)
+# ARCHITECTURE — HAK Quản Lý Thanh Toán (v2026.9.43)
 
 > Tài liệu sống: cập nhật mỗi khi đổi module, lớp, luồng dữ liệu hoặc schema.
 > Phân tích chi tiết hiện trạng: `docs/PROJECT_ANALYSIS.md`. Kiến trúc đích: `docs/REFACTOR_PLAN.md` §3–§4.
@@ -157,7 +157,7 @@ Chỉ khi khoảng ngày **chạm năm đã đăng ký**; báo cáo năm đang m
 | `_h112GopLuuTru_(f, t)` / `_docLuuTruTrongKhoang_(sheet, soCot, f, t)` | tương tự cho 112, ChiTietDNTT, ChiTietUNC |
 | `_pcGopLuuTru_(f, t)` | PhieuCan_DN + dòng ở `PhieuCan_DN_<năm>` có Số phiếu **trả trong** năm khóa sổ ∈ [năm f, năm t] |
 
-- Theo khoảng ngày thanh toán (112 / Báo cáo Thanh toán, UNC, Chi tiết, MISA, Tình hình TT): `(f, t)`. Xuất Báo cáo Thanh toán (`_gomChiTietChuyenKhoan_`) lấy khoảng theo Ngày TT của các hồ sơ được chọn. Mọi chức năng MISA chọn theo **Ngày CK** của sổ CT (`_ctTheoNgayCK_`), hồ sơ lấy theo mã (`_hoSoDaChotTheoMa_`) — không theo Ngày ĐN của sổ 112.
+- Theo khoảng ngày thanh toán (112 / Báo cáo Thanh toán, UNC, Chi tiết, MISA, Tình hình TT): `(f, t)`. Xuất Báo cáo Thanh toán (`_gomChiTietChuyenKhoan_`) lấy khoảng theo Ngày TT của các hồ sơ được chọn. Mọi chức năng MISA và **Tạo lại UNC** (từ 2026.9.43) chọn theo **Ngày CK** của sổ CT (`_ctTheoNgayCK_`), hồ sơ lấy theo mã (`_hoSoDaChotTheoNgayCK_` → `_hoSoDaChotTheoMa_`) — không theo Ngày ĐN của sổ 112.
 - **QUY ĐỊNH ĐỊNH DẠNG NGÀY GIỜ** (người dùng chốt 28/09/2026 — không đổi khi chưa được đồng ý):
   1. **Web app**: luôn hiển thị và nhập ngày **dd/mm/yyyy**, giờ Việt Nam (GMT+7). Mọi `<input type="date">` được `_ganONgayVN_` gắn ô gõ dd/mm/yyyy + nút lịch (ô lịch trình duyệt hiện theo ngôn ngữ trình duyệt); `.value` ô lịch (`yyyy-mm-dd`) vẫn là giá trị code đọc/ghi. Ngày dạng chữ đọc từ sheet đổi sang dd/mm/yyyy trước khi lên web (`_ngayChuSangWeb_`).
   2. **Ghi sổ (Google Sheet)**: theo **Vùng Lãnh Thổ** (`REGION_LOCALE`, hiện **US** = locale file en_US) — ngày lưu là **Date thật**, cột ngày định dạng theo vùng (`_dinhDangCotNgaySo_` cho dòng vừa ghi, `_damBaoCotNgaySo_` 1 lần cho cả cột mỗi sổ/vùng, nút Khóa định dạng). Gồm sổ CT/112/Nguồn, **ChiTietDNTT** (Ngày CK, Ngày nhập — `CHITIET_DNTT_COT_NGAY`) và **ChiTietUNC** (Ngày hiệu lực — `CHITIET_UNC_COT_NGAY`), từ 2026.9.23. Dòng bản cũ ghi dạng chữ vẫn đọc được (`_docNgaySo_`).

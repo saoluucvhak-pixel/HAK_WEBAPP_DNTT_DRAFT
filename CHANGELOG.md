@@ -2,6 +2,16 @@
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/). Phiên bản theo `NĂM.ĐỢT.SỬA`; thay đổi làm đổi hành vi nghiệp vụ (⚖️) sẽ tăng số ĐỢT và ghi rõ đã được người dùng đồng ý.
 
+## [2026.9.43] — Tạo lại UNC theo Ngày CK (người dùng đồng ý 28/09/2026)
+
+### Changed
+- ⚖️ **Hệ Thống › Tạo Lại UNC** chọn hồ sơ theo **Ngày CK** (ngày thanh toán), như Tạo lại MISA và Báo cáo Thanh toán. Trước đây chọn theo Ngày ĐN của sổ 112 → chọn đúng ngày thanh toán thì báo “không có hồ sơ”. Dùng chung `_hoSoDaChotTheoNgayCK_` với Tạo lại MISA (bỏ đoạn chọn lặp).
+- Nhãn ô ngày, lời xác nhận và Hướng Dẫn ghi rõ “Ngày CK”.
+
+### Không đổi (người dùng xác nhận)
+- Ô ký phiếu PDF giữ nguyên: Người lập phiếu / Kế toán trưởng / Giám đốc.
+- Khối lượng dự kiến hợp đồng: app Hợp Đồng đã sửa ghi cột Z nhưng chưa triển khai; app này vẫn lấy tổng lô rừng trước, cột Z sau — đúng cả trước và sau khi app kia cập nhật.
+
 ## [2026.9.42] — Công nợ mở bằng bản tổng hợp, rà bố cục trang dài, nhật ký trước → sau (người dùng đồng ý 28/09/2026)
 
 ### Changed — 1. Báo cáo Công nợ nhanh hơn

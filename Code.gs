@@ -1,6 +1,6 @@
 /**
  * ============================================================
- * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.42
+ * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.43
  * Lịch sử thay đổi: CHANGELOG.md · Kiến trúc: docs/ARCHITECTURE.md
  * ------------------------------------------------------------
  * *** QUAN TRỌNG - CẦN LÀM TRƯỚC KHI DÙNG BẢN NÀY (chỉ 1 LẦN DUY NHẤT
@@ -3250,6 +3250,11 @@ function _ctTheoNgayCK_(fDate, tDate) {
 function _hoSoDaChotTheoMa_(idSet) {
   return idSet.size ? get112ViewData_("", "").filter(h => idSet.has(h.idHeThong)) : [];
 }
+/** Hồ sơ đã chốt có ít nhất 1 phiếu cân Ngày CK trong [fDate, tDate] - chọn hồ sơ
+ * cho Tạo lại MISA / Tạo lại UNC (cùng ngày thanh toán với Báo cáo Thanh toán). */
+function _hoSoDaChotTheoNgayCK_(fDate, tDate) {
+  return _hoSoDaChotTheoMa_(new Set(_ctTheoNgayCK_(fDate, tDate).map(ct => String(ct[1]).trim())));
+}
 
 /** Phiếu cân đã chốt có Ngày CK trong [fDate, tDate] mà Số phiếu cân chưa có ở
  * bất kỳ dòng nào của Update_NganHang_DN (cùng cách so trùng với lúc ghi). */
@@ -4761,7 +4766,7 @@ function webTaoLaiMisaTheoNgay_(fDate, tDate, offset, gioiHanMoiLan) {
     // MISA / Tạo bổ sung / Dọn dẹp và chính dòng MISA dùng Ngày CK -> chọn đúng
     // ngày thanh toán thì báo "không có hồ sơ", chọn ngày lập ĐN thì ra dòng MISA
     // mang ngày khác. Giờ chọn theo Ngày CK như mọi chức năng MISA khác.
-    const dsHoSo = _hoSoDaChotTheoMa_(new Set(_ctTheoNgayCK_(fDate, tDate).map(ct => String(ct[1]).trim())));
+    const dsHoSo = _hoSoDaChotTheoNgayCK_(fDate, tDate);
     if (!dsHoSo.length) return { success: true, message: "⚠️ Không có hồ sơ nào thanh toán (Ngày CK) trong khoảng ngày đã chọn.", count: 0, conLai: 0, xong: true };
     const loNay = dsHoSo.slice(offset, offset + GIOI_HAN);
     if (loNay.length === 0) return { success: true, message: `✅ HOÀN TẤT - đã xử lý toàn bộ ${dsHoSo.length} hồ sơ.`, count: 0, conLai: 0, xong: true };
@@ -4800,8 +4805,10 @@ function webTaoLaiUNCTheoNgay_(fDate, tDate, ngayHieuLuc, offset, gioiHanMoiLan,
   try {
     const GIOI_HAN = Math.max(20, Math.min(300, parseInt(gioiHanMoiLan, 10) || 150));
     offset = parseInt(offset, 10) || 0;
-    const dsHoSo = get112ViewData_(fDate, tDate);
-    if (!dsHoSo.length) return { success: true, message: "⚠️ Không có hồ sơ nào đã chốt trong khoảng ngày đã chọn.", count: 0, conLai: 0, xong: true };
+    // ⚖️ 2026.9.43 (người dùng đồng ý 28/09/2026): chọn hồ sơ theo Ngày CK như Tạo
+    // lại MISA / Báo cáo Thanh toán (trước theo Ngày ĐN của sổ 112).
+    const dsHoSo = _hoSoDaChotTheoNgayCK_(fDate, tDate);
+    if (!dsHoSo.length) return { success: true, message: "⚠️ Không có hồ sơ nào thanh toán (Ngày CK) trong khoảng ngày đã chọn.", count: 0, conLai: 0, xong: true };
     const loNay = dsHoSo.slice(offset, offset + GIOI_HAN);
     if (loNay.length === 0) return { success: true, message: `✅ HOÀN TẤT - đã xử lý toàn bộ ${dsHoSo.length} hồ sơ.`, count: 0, conLai: 0, xong: true };
 

@@ -59,6 +59,7 @@ Trạng thái: ✅ xong · 🟡 một phần · ⏳ chưa làm · ⚖️ cần n
 - ✅ Khóa sổ năm (quy trình người dùng): kiểm chứng công nợ đầu năm = phiếu chưa trả mang sang (test `khoaSoNam`); không cần bộ nhớ đệm 6 tháng.
 - ✅ 2026.9.16: Nhật ký thao tác giữ dạng chữ cho Mã hồ sơ / mã lỗi (không mất số 0 đầu).
 - ✅ 2026.9.15: Hệ Thống › Dọn Dẹp MISA (trùng / mồ côi / tất cả trong khoảng Ngày CK), xem trước + sao lưu. UNC không cần nút xóa riêng (xem CHANGELOG).
+- ✅ 2026.9.43: Tạo lại UNC theo Ngày CK. Ô ký phiếu PDF giữ Người lập phiếu / Kế toán trưởng / Giám đốc (người dùng chọn giữ nguyên 28/09/2026).
 - ✅ 2026.9.42: Công nợ mở bằng bản tổng hợp (Làm mới khi cần); thanh Đi nhanh cho trang dài; nhật ký trước → sau cho thao tác hồ sơ.
 - ✅ 2026.9.41: Trang chủ — ô số liệu dạng nút mở thẳng màn hình; tab “Đã có số tiền” ở Danh Sách ĐNTT.
 - ✅ 2026.9.40: Thiết kế lại giao diện — 1 font Inter, thang cỡ chữ 1 chỗ, Trang chủ dạng bước + nhóm số liệu.
@@ -77,13 +78,13 @@ Trạng thái: ✅ xong · 🟡 một phần · ⏳ chưa làm · ⚖️ cần n
 - ✅ 2026.9.27: Quy tắc căn lề toàn web app (mọi file xuất + mọi bảng web).
 - ✅ 2026.9.26: Báo Cáo ĐNTT — Nội dung CK luôn 2 dòng; tên/chuỗi căn trái, số căn phải (2 sheet).
 - ✅ 2026.9.25: Bảng Đề Xuất — Ghi chú 2 mục/dòng, cột vừa phải, chiều cao dòng đủ chữ.
-- ✅ 2026.9.24: SL dự kiến hợp đồng = tổng lô rừng HD_RUNG (app Hợp Đồng để cột Z = 0). ⏳ Đề xuất sửa app Hợp Đồng (HDMB_HAK): ghi cột Z = tổng lô rừng khi lưu hợp đồng — chờ người dùng đồng ý.
+- ✅ 2026.9.24: SL dự kiến hợp đồng = tổng lô rừng HD_RUNG (app Hợp Đồng để cột Z = 0). 🟡 App Hợp Đồng (HDMB_HAK) ghi cột Z: người phụ trách đã sửa, chưa triển khai (28/09/2026). App này không cần đổi — vẫn ưu tiên tổng lô rừng, rồi tới cột Z.
 - ✅ 2026.9.23: Ghi sổ ChiTietDNTT/ChiTietUNC bằng Date theo Vùng Lãnh Thổ; file xuất theo Vùng xuất. ⏳ Người dùng soát cột Ngày hiệu lực các dòng ChiTietUNC cũ (ngày ≤ 12 có thể bị Sheets đọc lộn).
 - ✅ 2026.9.22: Quy định định dạng ngày giờ (web VN / Sheet theo Vùng Lãnh Thổ / xuất theo Vùng xuất) — mọi ô ngày web dd/mm/yyyy.
 - ✅ 2026.9.21: Ô ngày Duyệt gõ dd/mm/yyyy cố định + nút lịch (trình duyệt tiếng Anh hiện tháng/ngày).
 - ✅ 2026.9.20: Tiêu chuẩn vùng US (Google Sheet) / VN (xuất MISA); Vùng xuất mặc định VN. ⏳ Người dùng kiểm tra Update_NganHang_DN có dòng cũ dạng mm/dd/yyyy không (nếu Vùng xuất từng để trống).
 - ✅ 2026.9.19: Duyệt chọn ngày bằng lịch; máy chủ từ chối ngày không có thật (lỗi 26/09/2026 → 09/02/2028 khi Vùng lãnh thổ = US).
-- ✅ 2026.9.18: Tạo lại MISA chọn theo Ngày CK (trước theo Ngày ĐN - lệch với Báo Cáo MISA). ❓ Hỏi người dùng: Tạo lại UNC có cần đổi sang Ngày CK không (hiện theo Ngày ĐN).
+- ✅ 2026.9.18: Tạo lại MISA chọn theo Ngày CK (trước theo Ngày ĐN - lệch với Báo Cáo MISA). ✅ 2026.9.43: Tạo lại UNC cũng chọn theo Ngày CK (người dùng đồng ý 28/09/2026).
 - ✅ Kiểm chứng: trigger không bị phân quyền chặn (test `triggers.test.mjs`).
 - ✅ Kiểm chứng: cờ “đang khóa sổ” trên file Phiếu Cân đặt/gỡ đúng (test `luuTruNam`). ✅ Đã đọc mã QL_NHAPKHO (28/09/2026): đọc cờ đúng quy ước.
 - ✅ 2026.9.17: Báo Cáo MISA cảnh báo phiếu đã chốt chưa có dòng MISA + nút “Tạo bổ sung”. Mở Đóng TT vẫn xóa dòng MISA (người dùng chọn không giữ).

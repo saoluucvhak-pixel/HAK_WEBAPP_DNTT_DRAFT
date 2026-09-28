@@ -155,3 +155,18 @@ test('"Tạo lại MISA" picks records by payment date (Ngày CK) like the MISA 
   assert.deepEqual(nh.rows(33).slice(1).map(r => r[2]), ['26/09/2026', '26/09/2026']);
   assert.equal(run('getMisaDataTheoNgay_')('2026-09-26', '2026-09-26').items.length, 2, 'the report shows them on the same date');
 });
+
+test('"Tạo lại UNC" picks records by payment date (Ngày CK) like "Tạo lại MISA", not by request date', () => {
+  const { run, w } = worldDaChot(); // lập ĐN 20/09, thanh toán (Ngày CK) 26/09
+  const lichSu = () => { const sh = w.main.getSheetByName('ChiTietUNC'); return sh ? sh.rows(18).slice(1).map(r => r[0]) : []; }; // sổ tạo ở lần UNC đầu
+  const truoc = lichSu();
+  const khong = run('webTaoLaiUNCTheoNgay_')('2026-09-20', '2026-09-20', '2026-09-27', 0, 150);
+  assert.deepEqual([khong.success, khong.count, khong.xong], [true, 0, true], 'the request date is not the payment date');
+  assert.match(khong.message, /Ngày CK/);
+  assert.deepEqual(lichSu(), truoc);
+  const kq = run('webTaoLaiUNCTheoNgay_')('2026-09-26', '2026-09-26', '2026-09-27', 0, 150);
+  assert.equal(kq.success, true, kq.message);
+  assert.equal(kq.xong, true);
+  assert.ok(kq.count > 0 && kq.url, 'a UNC file is created for the record paid that day');
+  assert.deepEqual(lichSu().filter(id => id === 'A1'), ['A1'], 'one history row for the record');
+});
