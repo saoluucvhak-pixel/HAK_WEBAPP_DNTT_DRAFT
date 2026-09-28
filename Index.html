@@ -526,7 +526,7 @@
       <div class="nav-item" role="button" tabindex="0" data-page="settings"><span class="ic">⚙️</span> Cài đặt / Nháp</div>
     </nav>
     <div class="nguoi-dung-chip" id="nguoi-dung-chip"></div>
-    <div class="sidebar-footer">Hệ thống Quản Lý Thanh Toán · v2026.9.18<br><button type="button" class="theme-toggle" id="theme-toggle" aria-label="Đổi giao diện sáng / tối">🌓 Giao diện: Tự động</button></div>
+    <div class="sidebar-footer">Hệ thống Quản Lý Thanh Toán · v2026.9.19<br><button type="button" class="theme-toggle" id="theme-toggle" aria-label="Đổi giao diện sáng / tối">🌓 Giao diện: Tự động</button></div>
   </aside>
 
   <main class="main">
@@ -2312,28 +2312,38 @@ function confirmDeleteDraft(idKey){
 function openConfirmPaymentModal(){
   const ids = Array.from(state.draftSelected);
   if (!ids.length) return;
-  const [yyyy, mm, dd] = todayISOVN().split('-');
-  // MỚI (theo yêu cầu - cấu hình vùng lãnh thổ): nhãn + giá trị mặc định
-  // của ô "Ngày thanh toán" tự đổi theo vùng đang cấu hình (VN: dd/mm,
-  // US: mm/dd) - khớp đúng với cách backend sẽ phân tích chuỗi này.
-  call('getRegionInfoForWeb', [], null).then(info => {
-    const isUS = info && info.current === 'US';
-    const label = isUS ? 'Ngày thanh toán (mm/dd/yyyy)' : 'Ngày thanh toán (dd/mm/yyyy)';
-    const defVal = isUS ? `${mm}/${dd}/${yyyy}` : `${dd}/${mm}/${yyyy}`;
-    openModal(`
-      <div class="modal-head"><h3>Đóng Thanh Toán (${ids.length} hồ sơ)</h3><button class="x" onclick="closeModal()" aria-label="Đóng">&times;</button></div>
-      <div class="modal-body">
-        <p style="font-size:13px">Dữ liệu sẽ được ghi vào sheet chính thức, khóa Phiếu Cân vĩnh viễn, và xóa khỏi File Nháp.</p>
-        <div class="field"><label>${label}</label><input type="text" id="pay-date" value="${defVal}"></div>
-      </div>
-      <div class="modal-foot"><button class="btn ghost" onclick="closeModal()">Hủy</button>
-        <button class="btn accent" onclick="submitConfirmPayment()">✅ Xác nhận Đóng Thanh Toán</button></div>
-    `);
-  });
+  // SỬA LỖI (28/09/2026): ô chữ "dd/mm/yyyy" hiểu theo Vùng lãnh thổ - gõ 26/09
+  // khi vùng là US thành tháng 26 (ghi 09/02/2028). Giờ chọn bằng lịch, gửi
+  // yyyy-mm-dd (không mơ hồ) và hiện lại ngày sẽ ghi dạng dd/mm/yyyy để soát.
+  openModal(`
+    <div class="modal-head"><h3>Đóng Thanh Toán (${ids.length} hồ sơ)</h3><button class="x" onclick="closeModal()" aria-label="Đóng">&times;</button></div>
+    <div class="modal-body">
+      <p style="font-size:13px">Dữ liệu sẽ được ghi vào sheet chính thức, khóa Phiếu Cân vĩnh viễn, và xóa khỏi File Nháp.</p>
+      <div class="field"><label>Ngày thanh toán (Ngày CK)</label><input type="date" id="pay-date" value="${todayISOVN()}" oninput="hienNgayThanhToan()"></div>
+      <div class="hint-text" id="pay-date-text"></div>
+    </div>
+    <div class="modal-foot"><button class="btn ghost" onclick="closeModal()">Hủy</button>
+      <button class="btn accent" onclick="submitConfirmPayment()">✅ Xác nhận Đóng Thanh Toán</button></div>
+  `);
+  hienNgayThanhToan();
+}
+/** "yyyy-mm-dd" -> "dd/mm/yyyy" (rỗng nếu không hợp lệ). */
+function _isoSangVN(iso){
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || '');
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : '';
+}
+function hienNgayThanhToan(){
+  const iso = document.getElementById('pay-date').value;
+  const el = document.getElementById('pay-date-text');
+  const vn = _isoSangVN(iso);
+  el.innerHTML = vn ? `Ngày CK sẽ ghi: <b>${vn}</b>${iso > todayISOVN() ? ' <span style="color:var(--danger)">(sau hôm nay)</span>' : ''}` : '<span style="color:var(--danger)">Chưa chọn ngày.</span>';
 }
 
 function submitConfirmPayment(){
   const dateStr = document.getElementById('pay-date').value.trim();
+  const vn = _isoSangVN(dateStr);
+  if (!vn) { toast('Vui lòng chọn ngày thanh toán.', 'warn'); return; }
+  if (dateStr > todayISOVN() && !confirm(`Ngày thanh toán ${vn} là ngày SAU hôm nay. Vẫn Đóng Thanh Toán với ngày này?`)) return;
   const ids = Array.from(state.draftSelected);
   call('webConfirmPayment', [ids, dateStr], 'Đang chốt thanh toán...').then(res => {
     closeModal();

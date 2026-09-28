@@ -1,6 +1,6 @@
 /**
  * ============================================================
- * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.18
+ * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.19
  * Lịch sử thay đổi: CHANGELOG.md · Kiến trúc: docs/ARCHITECTURE.md
  * ------------------------------------------------------------
  * *** QUAN TRỌNG - CẦN LÀM TRƯỚC KHI DÙNG BẢN NÀY (chỉ 1 LẦN DUY NHẤT
@@ -3526,12 +3526,23 @@ function _getRegionPreset_() {
  * vùng đã chọn) thành { d, m, y } (số nguyên) - dùng khi cần Date object
  * thật từ input dạng text (vd "Ngày thanh toán" lúc Đóng Thanh Toán). */
 function _parseNgayTheoVung_(str) {
-  const p = String(str || "").trim().split('/');
-  if (p.length !== 3) return null;
-  const order = _getRegionPreset_().dateOrder;
-  const a = parseInt(p[0], 10), b = parseInt(p[1], 10), y = parseInt(p[2], 10);
-  if (isNaN(a) || isNaN(b) || isNaN(y)) return null;
-  return order === "mdy" ? { d: b, m: a, y } : { d: a, m: b, y };
+  const s = String(str || "").trim();
+  let kq = null;
+  // yyyy-MM-dd (ô chọn ngày của trình duyệt) - không mơ hồ, không phụ thuộc vùng.
+  const iso = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(s);
+  if (iso) kq = { y: +iso[1], m: +iso[2], d: +iso[3] };
+  else {
+    const p = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(s);
+    if (!p) return null;
+    const a = +p[1], b = +p[2], y = +p[3];
+    kq = _getRegionPreset_().dateOrder === "mdy" ? { d: b, m: a, y } : { d: a, m: b, y };
+  }
+  // SỬA LỖI (người dùng báo 28/09/2026 - chọn 26/09/2026 mà Ngày CK ghi 09/02/2028):
+  // trước đây không kiểm tra ngày có thật - "26/09/2026" đọc theo mm/dd thành
+  // tháng 26 và Date tự cộng dồn sang 09/02/2028. Giờ ngày không có thật -> null.
+  const dt = new Date(Date.UTC(kq.y, kq.m - 1, kq.d));
+  const thatSu = kq.y >= 2000 && kq.y <= 2100 && dt.getUTCFullYear() === kq.y && dt.getUTCMonth() === kq.m - 1 && dt.getUTCDate() === kq.d;
+  return thatSu ? kq : null;
 }
 
 /** Parse chuỗi "dd/MM/yyyy" - LUÔN đúng định dạng CỐ ĐỊNH mà
@@ -4675,7 +4686,7 @@ function runConfirmPayment_(selectedIds, payDateStr) {
     const ngayTT = _parseNgayTheoVung_(payDateStr);
     if (!ngayTT) {
       const vd = _getRegionPreset_().dateOrder === "mdy" ? "mm/dd/yyyy" : "dd/mm/yyyy";
-      return `❌ Lỗi: Ngày thanh toán không hợp lệ. Định dạng đúng phải là ${vd} (theo vùng lãnh thổ đang cấu hình).`;
+      return `❌ Lỗi: Ngày thanh toán "${payDateStr}" không phải ngày có thật. Chọn ngày bằng lịch, hoặc gõ đúng ${vd} (theo vùng lãnh thổ đang cấu hình).`;
     }
     const p = [String(ngayTT.d).padStart(2, '0'), String(ngayTT.m).padStart(2, '0'), String(ngayTT.y)];
     const prefixP = p[2] + p[1] + p[0];

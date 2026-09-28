@@ -2,6 +2,17 @@
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/). Phiên bản theo `NĂM.ĐỢT.SỬA`; thay đổi làm đổi hành vi nghiệp vụ (⚖️) sẽ tăng số ĐỢT và ghi rõ đã được người dùng đồng ý.
 
+## [2026.9.19] — Duyệt: Ngày CK không còn bị đọc nhầm (người dùng báo 28/09/2026)
+
+### Fixed
+- Chọn ngày thanh toán **26/09/2026** lúc Duyệt mà sổ ghi Ngày CK **09/02/2028**: ô ngày là ô chữ, máy chủ hiểu theo **Vùng lãnh thổ** (máy chủ đang đặt **US** = tháng/ngày) nên “26/09/2026” thành *tháng 26* và không hề kiểm tra — Date tự cộng dồn sang 09/02/2028. Đã tái hiện đúng trên bản cũ.
+  - Máy chủ (`_parseNgayTheoVung_`): **từ chối ngày không có thật** (tháng 26, 31/02, năm ngoài 2000–2100…) và báo rõ; nhận thêm dạng `yyyy-mm-dd` (không mơ hồ, không phụ thuộc vùng).
+  - Màn Duyệt: ô **chọn ngày bằng lịch** (gửi `yyyy-mm-dd`), hiện lại “Ngày CK sẽ ghi: dd/mm/yyyy”; ngày sau hôm nay phải xác nhận thêm. Không cần gọi thông tin vùng nữa.
+- Hồ sơ đã bị ghi 09/02/2028: **Mở Đóng TT** (chủ rừng + ngày 09/02/2028 + lần TT) rồi Duyệt lại với ngày đúng — MISA/ChiTiết được xóa (có sao lưu) và ghi lại theo ngày mới.
+
+### Tests
+- 118 test (thêm `ngayThanhToan.test.mjs`: vùng US gõ 26/09/2026 bị từ chối, không ghi gì; ngày không có thật bị từ chối; `yyyy-mm-dd` đúng ở cả VN/US; gõ tay vẫn theo vùng — 2 test thất bại trên 2026.9.18).
+
 ## [2026.9.18] — Tạo lại MISA chọn đúng ngày thanh toán (người dùng báo 28/09/2026)
 
 ### Fixed
