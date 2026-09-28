@@ -1396,7 +1396,7 @@ const PAGES = {
   report:    {title:'Báo Cáo Thanh Toán', desc:'Danh sách hồ sơ đã chốt thanh toán chính thức', render: renderReport, quyen:'XEM'},
   debt:      {title:'Báo Cáo Công Nợ Khách Hàng Gỗ Keo', desc:'Công nợ theo khách hàng / hợp đồng, sổ chi tiết, phân tích tình hình thanh toán', render: renderDebt, quyen:'XEM'},
   huongdan:  {title:'Hướng Dẫn Sử Dụng', desc:'Quy trình thực hiện thủ tục thanh toán và hướng dẫn từng màn hình', render: renderHuongDan, quyen:'XEM'},
-  hethong:   {title:'Hệ Thống', desc:'Đối soát tên khách hàng và bảo trì kiểm tra đối chiếu dữ liệu', render: renderHeThong, quyen:'HE_THONG'},
+  hethong:   {title:'Hệ Thống', desc:'Tra cứu, kiểm tra dữ liệu và (tab riêng) các công cụ can thiệp dữ liệu đã chốt', render: renderHeThong, quyen:'HE_THONG'},
   settings:  {title:'Cài đặt / File Nháp', desc:'Khởi tạo và quản lý File Nháp, người dùng & đăng nhập', render: renderSettings, quyen:'QUAN_TRI'}
 };
 
@@ -2345,7 +2345,7 @@ function kiemTraDuyetDoDang(){
     const box = document.getElementById('duyet-do-dang');
     if (!box) return;
     box.innerHTML = j ? `<div class="card" style="border-color:var(--danger);background:var(--danger-light)">
-      <b>⚠️ Lượt Duyệt lúc ${esc(j.luc)}${j.nguoi ? ' (' + esc(j.nguoi) + ')' : ''} bị dừng giữa chừng</b> - ${j.ids.length} hồ sơ, ngày thanh toán ${esc(j.ngay)}.
+      <b>⚠️ Lượt Duyệt lúc ${esc(j.luc)}${j.nguoi ? ' (' + esc(j.nguoi) + ')' : ''} bị dừng giữa chừng</b> - ${j.ids.length} hồ sơ, ngày thanh toán ${esc(/^\d{4}-\d{2}-\d{2}$/.test(j.ngay) ? _isoSangVN(j.ngay) : j.ngay)}.
       Một phần có thể đã ghi vào sổ. Bấm <b>Hoàn tất</b> để hệ thống làm nốt các bước còn lại (tự bỏ qua phần đã ghi, không ghi trùng).
       <div style="margin-top:8px"><button class="btn danger" onclick="hoanTatDuyetDoDang()">🔁 Hoàn tất lượt Duyệt</button></div></div>` : '';
   }, () => {});
@@ -4431,12 +4431,26 @@ function renderHeThong(){
   document.getElementById('topbar-actions').innerHTML = '';
   const c = document.getElementById('content');
   c.innerHTML = `
+    <div class="subtabs" id="hethong-tabs">
+      <div class="subtab" data-ht="tracuu">🔎 Tra cứu &amp; kiểm tra</div>
+      <div class="subtab" data-ht="canthiep" style="color:var(--danger)">⚠️ Can thiệp dữ liệu</div>
+    </div>
+    <div id="hethong-tracuu">
     <div class="card">
-      <h3>🔍 Đối Soát Tên Khách Hàng (CT ↔ Phiếu Cân)</h3>
-      <p class="muted" style="font-size:13px">So sánh "Chủ rừng" ở CT (bản chính, đã chốt) với "Khách hàng" tương ứng ở PhieuCan_DN (tra theo Số phiếu cân) - chỉ những dòng LỆCH mới hiện ra. Đồng bộ = cập nhật <b>Phiếu Cân</b> theo đúng tên ở CT (CT đã đối chiếu hợp đồng nên là nguồn đúng).</p>
-      <div class="hint-text" style="color:#b00">⚠️ Thao tác này ghi trực tiếp vào file PhieuCan_DN gốc (bên ngoài hệ thống này).</div>
-      <button class="btn accent" onclick="doDoiSoatTenKhachHang()">🔍 Kiểm Tra Đối Soát</button>
-      <div id="doisoat-result" style="margin-top:10px"></div>
+      <h3>🌙 Kiểm Tra Dữ Liệu Hằng Đêm</h3>
+      <p class="muted" style="font-size:13px">Tự chạy lúc 2:00 mỗi đêm (bật ở Cài đặt): Bảo Trì + phiếu cân đã thanh toán chưa có dòng MISA (30 ngày) + phiếu cân đã thanh toán nhưng chưa khóa. Có vấn đề mới thì email Quản trị.</p>
+      <button class="btn accent" onclick="doChayKiemTraDem()">▶️ Chạy kiểm tra ngay</button>
+      <div id="kiemtradem-result" style="margin-top:10px"></div>
+    </div>
+    <div class="card">
+      <h3>📜 Lịch Sử Sửa Đổi</h3>
+      <p class="muted" style="font-size:13px">Theo dõi mọi thay đổi dữ liệu - sửa / thêm / bỏ phiếu cân / xóa hồ sơ Nháp (kèm giá trị trước → sau), Xác nhận, Duyệt, Mở Đóng Thanh Toán, Đồng Bộ Tên, Cập Nhật Ngân Hàng, dọn dẹp - kèm người thực hiện (Gmail). Xem theo khoảng ngày, không hiện dồn tất cả.</p>
+      <div class="grid cols-3">
+        <div class="field"><label>Từ ngày</label><input type="date" id="lichsu-from" value="${isoDaysAgoVN(7)}"></div>
+        <div class="field"><label>Đến ngày</label><input type="date" id="lichsu-to" value="${todayISOVN()}"></div>
+        <div class="field" style="display:flex;align-items:flex-end"><button class="btn primary" onclick="loadLichSuSuaDoi()">🔍 Xem</button></div>
+      </div>
+      <div id="lichsu-result" style="margin-top:10px"></div>
     </div>
     <div class="card">
       <h3>🩺 Bảo Trì - Kiểm Tra Đối Chiếu 4 Sheet</h3>
@@ -4445,10 +4459,25 @@ function renderHeThong(){
       <div id="baotri-result" style="margin-top:10px"></div>
     </div>
     <div class="card">
-      <h3>🏦 Cập Nhật Ngân Hàng Tài Khoản Khách Hàng</h3>
-      <p class="muted" style="font-size:13px">Vá thông tin Ngân hàng còn thiếu trong dữ liệu chính thức (đã chốt) - tra theo Số tài khoản từ HD_STK.</p>
-      <button class="btn accent" onclick="runFillBank()">🏦 Cập Nhật Ngân Hàng Tài Khoản Khách Hàng</button>
+      <h3>⏱️ Hiệu Năng (chức năng chạy chậm)</h3>
+      <p class="muted" style="font-size:13px">Hệ thống tự ghi mọi lần chạy từ vài giây trở lên - trên web app lẫn các trigger 7:30/13:00, 15h, 10 phút - và các lần bị Google <b>dừng vì quá 6 phút</b>. Số liệu thật trên dữ liệu của công ty, chậm nhất / quá giờ xếp trước.</p>
+      <div class="grid cols-3">
+        <div class="field"><label>Từ ngày</label><input type="date" id="hieunang-from" value="${isoDaysAgoVN(30)}"></div>
+        <div class="field"><label>Đến ngày</label><input type="date" id="hieunang-to" value="${todayISOVN()}"></div>
+        <div class="field" style="display:flex;align-items:flex-end"><button class="btn primary" onclick="loadHieuNang()">🔍 Xem</button></div>
+      </div>
+      <div id="hieunang-result" style="margin-top:10px"></div>
     </div>
+    <div class="card">
+      <h3>🔍 Đối Soát Tên Khách Hàng (CT ↔ Phiếu Cân)</h3>
+      <p class="muted" style="font-size:13px">So sánh "Chủ rừng" ở CT (bản chính, đã chốt) với "Khách hàng" tương ứng ở PhieuCan_DN (tra theo Số phiếu cân) - chỉ những dòng LỆCH mới hiện ra. Đồng bộ = cập nhật <b>Phiếu Cân</b> theo đúng tên ở CT (CT đã đối chiếu hợp đồng nên là nguồn đúng).</p>
+      <div class="hint-text" style="color:#b00">⚠️ Thao tác này ghi trực tiếp vào file PhieuCan_DN gốc (bên ngoài hệ thống này).</div>
+      <button class="btn accent" onclick="doDoiSoatTenKhachHang()">🔍 Kiểm Tra Đối Soát</button>
+      <div id="doisoat-result" style="margin-top:10px"></div>
+    </div>
+    </div>
+    <div id="hethong-canthiep" class="hidden">
+    <div class="hint-text" style="color:var(--danger);margin-bottom:10px">⚠️ Các chức năng dưới đây SỬA / XÓA dữ liệu đã chốt hoặc tạo lại file gửi ngân hàng / MISA. Chỉ dùng khi đã kiểm tra kỹ; mọi dòng bị xóa đều được sao lưu (xem "Khôi Phục Dữ Liệu Đã Xóa").</div>
     <div class="card" style="border-color:#b00">
       <h3 style="color:#b00">🔓 Mở "Đóng" Thanh Toán (theo Chủ rừng + Ngày + Lần TT)</h3>
       <p class="muted" style="font-size:13px">Luôn mở lại NGUYÊN CẢ đợt thanh toán (không sửa lẻ từng phiếu cân - để tránh Số tiền ở 112 bị lệch so với các phiếu cân con). Tìm đúng 1 hồ sơ khớp Chủ rừng + Ngày Đóng TT + Lần Thanh Toán - nếu khớp NHIỀU hơn 1, hệ thống sẽ dừng lại, không tự chọn để tránh nhầm. Hệ thống sẽ: xóa TOÀN BỘ DNTT_GK_DN + tất cả CT con + 112 khỏi bản chính, copy lại y hệt sang File Nháp (Chờ xác nhận), mở khóa TẤT CẢ Phiếu Cân liên quan, đổi "Trạng Thái" từ "OK" sang "Test giá" - <b>đồng thời dọn theo cả 3 "bảng con" của CT: ChiTietDNTT, ChiTietUNC và Update_NganHang_DN</b> (vì đây là dữ liệu tính sẵn/lịch sử của đợt thanh toán này - không dọn sẽ để sót dữ liệu "mồ côi" trông như vẫn đang chốt).</p>
@@ -4459,6 +4488,12 @@ function renderHeThong(){
         <div class="field"><label>Lần Thanh Toán (số đơn giản: 1, 2, 3...)</label><input type="text" id="modong-lantt" placeholder="VD: 1 (xem cột &quot;Lần TT&quot; ở Báo Cáo Thanh Toán)"></div>
       </div>
       <button class="btn" style="background:#b00;color:#fff;border-color:#b00" onclick="doMoDongThanhToanHoSo()">🔓 Mở Đóng Thanh Toán</button>
+    </div>
+    <div class="card">
+      <h3>♻️ Khôi Phục Dữ Liệu Đã Xóa</h3>
+      <p class="muted" style="font-size:13px">Mọi dòng bị xóa (Mở Đóng Thanh Toán, Xóa Mồ Côi) đều được sao lưu. Khôi phục theo <b>từng lần xóa</b>: ghi lại đủ các sheet của lần đó và khóa lại phiếu cân nếu là dữ liệu đã chốt. Hệ thống <b>từ chối</b> khôi phục nếu làm 1 phiếu cân bị trả 2 lần (vd hồ sơ Nháp tạo ra khi Mở Đóng TT vẫn còn - xóa hồ sơ Nháp đó trước).</p>
+      <button class="btn primary" onclick="loadSaoLuuXoa()">🔍 Xem các lần xóa</button>
+      <div id="saoluu-result" style="margin-top:10px"></div>
     </div>
     <div class="card">
       <h3>🔒 Khóa Sổ Năm</h3>
@@ -4473,30 +4508,9 @@ function renderHeThong(){
       <div id="khoaso-result" style="margin-top:10px"></div>
     </div>
     <div class="card">
-      <h3>♻️ Khôi Phục Dữ Liệu Đã Xóa</h3>
-      <p class="muted" style="font-size:13px">Mọi dòng bị xóa (Mở Đóng Thanh Toán, Xóa Mồ Côi) đều được sao lưu. Khôi phục theo <b>từng lần xóa</b>: ghi lại đủ các sheet của lần đó và khóa lại phiếu cân nếu là dữ liệu đã chốt. Hệ thống <b>từ chối</b> khôi phục nếu làm 1 phiếu cân bị trả 2 lần (vd hồ sơ Nháp tạo ra khi Mở Đóng TT vẫn còn - xóa hồ sơ Nháp đó trước).</p>
-      <button class="btn primary" onclick="loadSaoLuuXoa()">🔍 Xem các lần xóa</button>
-      <div id="saoluu-result" style="margin-top:10px"></div>
-    </div>
-    <div class="card">
-      <h3>⏱️ Hiệu Năng (chức năng chạy chậm)</h3>
-      <p class="muted" style="font-size:13px">Hệ thống tự ghi mọi lần chạy từ vài giây trở lên - trên web app lẫn các trigger 7:30/13:00, 15h, 10 phút - và các lần bị Google <b>dừng vì quá 6 phút</b>. Số liệu thật trên dữ liệu của công ty, chậm nhất / quá giờ xếp trước.</p>
-      <div class="grid cols-3">
-        <div class="field"><label>Từ ngày</label><input type="date" id="hieunang-from" value="${isoDaysAgoVN(30)}"></div>
-        <div class="field"><label>Đến ngày</label><input type="date" id="hieunang-to" value="${todayISOVN()}"></div>
-        <div class="field" style="display:flex;align-items:flex-end"><button class="btn primary" onclick="loadHieuNang()">🔍 Xem</button></div>
-      </div>
-      <div id="hieunang-result" style="margin-top:10px"></div>
-    </div>
-    <div class="card">
-      <h3>📜 Lịch Sử Sửa Đổi</h3>
-      <p class="muted" style="font-size:13px">Theo dõi mọi thay đổi dữ liệu - sửa / thêm / bỏ phiếu cân / xóa hồ sơ Nháp (kèm giá trị trước → sau), Xác nhận, Duyệt, Mở Đóng Thanh Toán, Đồng Bộ Tên, Cập Nhật Ngân Hàng, dọn dẹp - kèm người thực hiện (Gmail). Xem theo khoảng ngày, không hiện dồn tất cả.</p>
-      <div class="grid cols-3">
-        <div class="field"><label>Từ ngày</label><input type="date" id="lichsu-from" value="${isoDaysAgoVN(7)}"></div>
-        <div class="field"><label>Đến ngày</label><input type="date" id="lichsu-to" value="${todayISOVN()}"></div>
-        <div class="field" style="display:flex;align-items:flex-end"><button class="btn primary" onclick="loadLichSuSuaDoi()">🔍 Xem</button></div>
-      </div>
-      <div id="lichsu-result" style="margin-top:10px"></div>
+      <h3>🏦 Cập Nhật Ngân Hàng Tài Khoản Khách Hàng</h3>
+      <p class="muted" style="font-size:13px">Vá thông tin Ngân hàng còn thiếu trong dữ liệu chính thức (đã chốt) - tra theo Số tài khoản từ HD_STK.</p>
+      <button class="btn accent" onclick="runFillBank()">🏦 Cập Nhật Ngân Hàng Tài Khoản Khách Hàng</button>
     </div>
     <div class="card">
       <h3>🔄 Đồng Bộ Lịch Sử vào ChiTietDNTT</h3>
@@ -4554,9 +4568,18 @@ function renderHeThong(){
       </div>
       <button class="btn" onclick="doDonDep('unc', false)">🔍 Xem trước</button>
       <div id="dondepunc-result" style="margin-top:10px"></div>
-    </div>
+    </div>    </div>
   `;
-  _ganMucLuc(); // trang dài: thanh "Đi nhanh" tới từng mục
+  // #11: 2 tab - Tra cứu (xem, kiểm tra) / Can thiệp dữ liệu (sửa, xóa, tạo lại). Nhớ tab đang mở.
+  const chonTabHt = t => {
+    state.hethongTab = t;
+    document.querySelectorAll('#hethong-tabs .subtab').forEach(el => el.classList.toggle('active', el.dataset.ht === t));
+    document.getElementById('hethong-tracuu').classList.toggle('hidden', t !== 'tracuu');
+    document.getElementById('hethong-canthiep').classList.toggle('hidden', t !== 'canthiep');
+  };
+  document.querySelectorAll('#hethong-tabs .subtab').forEach(el => el.addEventListener('click', () => chonTabHt(el.dataset.ht)));
+  chonTabHt(state.hethongTab || 'tracuu');
+  hienKiemTraDem();
   loadLichSuSuaDoi();
   call('getUncConfigForWeb', [], null).then(cfg => {
     if (!cfg) return;
@@ -5089,6 +5112,18 @@ function loadTriggerStatus(){
         </div>` : '';
     }
   });
+}
+/** #5: kết quả kiểm tra đêm gần nhất (Hệ Thống › Tra cứu). */
+function _veKiemTraDem_(kt){
+  const box = document.getElementById('kiemtradem-result');
+  if (!box) return;
+  if (!kt) { box.innerHTML = '<span class="muted">Chưa chạy lần nào.</span>'; return; }
+  box.innerHTML = kt.tong ? `<div style="color:var(--danger)"><b>Lúc ${esc(kt.luc)} phát hiện:</b></div><ul style="margin:6px 0 0 18px">${kt.muc.map(m => `<li>${esc(m.ten)}: <b>${m.so}</b>${m.chiTiet ? ` <span class="muted">(${esc(m.chiTiet)})</span>` : ''}</li>`).join('')}</ul>`
+    : `<span class="badge ready dot">Lúc ${esc(kt.luc)}: không phát hiện vấn đề</span>`;
+}
+function hienKiemTraDem(){ call('getKiemTraDem', [], null).then(_veKiemTraDem_, () => {}); }
+function doChayKiemTraDem(){
+  call('webChayKiemTraDemNgay', [], 'Đang kiểm tra toàn bộ dữ liệu...').then(res => handleResult(res, () => _veKiemTraDem_(res.ketQua)));
 }
 function doSetupKiemTraDem(){
   call('setupKiemTraDemTrigger', [], 'Đang bật...').then(res => handleResult(res, () => loadTriggerStatus()));

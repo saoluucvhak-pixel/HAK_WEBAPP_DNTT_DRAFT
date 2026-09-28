@@ -1642,6 +1642,7 @@ const API_ROUTES = (() => {
     webKhoaSoNam: r(webKhoaSoNam_, H),
     getHieuNangForWeb: r(getHieuNangForWeb_, H, CHI_DOC),
     webChayKiemTraDemNgay: r(webChayKiemTraDemNgay_, H),
+    getKiemTraDem: r(getKiemTraDem_, H, CHI_DOC),
 
     // --- Cài đặt (Quản trị) ---
     getCaiDatTongHop: r(getCaiDatTongHop_, Q, CHI_DOC),

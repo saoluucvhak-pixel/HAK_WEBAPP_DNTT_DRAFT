@@ -145,3 +145,15 @@ test('#5 a clean system sends nothing', () => {
   assert.ok(!kq.muc.some(m => /MISA|chưa khóa/.test(m.ten)));
   assert.equal(env.MailApp.daGui.length, kq.tong ? 1 : 0);
 });
+
+// ---------- #11 Trang Hệ Thống 2 tab ----------
+test('#11 the System page separates look-up from data-changing tools', () => {
+  const than = INDEX.slice(INDEX.indexOf('function renderHeThong(){'), INDEX.indexOf('\n}\n', INDEX.indexOf('function renderHeThong(){')));
+  const tra = than.slice(than.indexOf('<div id="hethong-tracuu">'), than.indexOf('<div id="hethong-canthiep"'));
+  const can = than.slice(than.indexOf('<div id="hethong-canthiep"'));
+  const tieuDe = html => Array.from(html.matchAll(/<h3[^>]*>([^<]*)<\/h3>/g), m => m[1]).join(' | ');
+  const tTra = tieuDe(tra), tCan = tieuDe(can);
+  ['Kiểm Tra Dữ Liệu Hằng Đêm', 'Lịch Sử Sửa Đổi', 'Bảo Trì', 'Hiệu Năng', 'Đối Soát Tên'].forEach(t => assert.ok(tTra.includes(t), t));
+  ['Mở "Đóng" Thanh Toán', 'Khôi Phục Dữ Liệu Đã Xóa', 'Khóa Sổ Năm', 'Cập Nhật Ngân Hàng', 'Đồng Bộ Lịch Sử', 'Tạo Lại MISA', 'Tạo Lại UNC'].forEach(t => assert.ok(tCan.includes(t) && !tTra.includes(t), t));
+  assert.match(can, /Các chức năng dưới đây SỬA \/ XÓA dữ liệu đã chốt/);
+});
