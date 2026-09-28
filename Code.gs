@@ -1602,6 +1602,7 @@ const API_ROUTES = (() => {
     getDraftRecordDetail: r(getDraftRecordDetail_, N, CHI_DOC),
     getLichSuHoSo: r(getLichSuHoSo_, N, CHI_DOC),
     timKiemNhanh: r(timKiemNhanh_, N, CHI_DOC),
+    doiChieuSaoKe: r(doiChieuSaoKe_, N),
     webInPhieuChiTietThanhToan: r(webInPhieuChiTietThanhToan_, N),
     webInPhieuHoanThanhThanhToan: r(webInPhieuHoanThanhThanhToan_, X),
     getPhieuHoanThanh: r(getPhieuHoanThanh_, X, CHI_DOC),
@@ -2702,6 +2703,73 @@ function getLichSuSuaDoi_(fDate, tDate) {
     endRow = startRow - 1;
   }
   return results; // đã ở thứ tự mới -> cũ (do đọc ngược từ cuối lên) - đúng ý "mới nhất lên đầu"
+}
+
+// ------------------------------------------------------------
+// #13 ĐỐI CHIẾU SAO KÊ NGÂN HÀNG (nâng cấp 28/09/2026): trình duyệt đọc file sao kê (xlsx/csv),
+// gửi các khoản CHI {ngay yyyy-MM-dd, soTien, noiDung, tk}; máy chủ khớp với UNC đã tạo
+// (ChiTietUNC, mỗi hồ sơ lấy lần tạo mới nhất) theo: số tiền đúng từng đồng + STK hoặc tên người
+// nhận có trong nội dung / tài khoản của dòng sao kê + ngày lệch <= SAO_KE.LECH_NGAY so với Ngày
+// hiệu lực. Chỉ đọc - không ghi sổ nào.
+// ------------------------------------------------------------
+const SAO_KE = { LECH_NGAY: 3, TOI_DA_DONG: 20000 };
+function doiChieuSaoKe_(dsDong) {
+  if (!Array.isArray(dsDong) || !dsDong.length) return { success: false, message: "Không có khoản chi nào trong file sao kê." };
+  if (dsDong.length > SAO_KE.TOI_DA_DONG) return { success: false, message: `File quá lớn (${dsDong.length} dòng) - tối đa ${SAO_KE.TOI_DA_DONG} dòng mỗi lần, chia theo khoảng ngày.` };
+  const laIso = v => /^\d{4}-\d{2}-\d{2}$/.test(String(v || ""));
+  const sk = dsDong.map((d, i) => ({ i, ngay: laIso(d && d.ngay) ? d.ngay : "", soTien: Math.round(Math.abs(utils.parseNum(d && d.soTien))),
+    noiDung: String((d && d.noiDung) || "").slice(0, 500), tk: String((d && d.tk) || "").slice(0, 100) })).filter(d => d.soTien > 0 && d.ngay);
+  if (!sk.length) return { success: false, message: "Không đọc được ngày / số tiền của dòng nào - kiểm tra lại cột đã chọn." };
+  const ngaySo = s => Date.UTC(+s.slice(0, 4), +s.slice(5, 7) - 1, +s.slice(8, 10)) / 86400000;
+  const cacNgay = sk.map(d => d.ngay).sort();
+  const tuNgay = cacNgay[0], denNgay = cacNgay[cacNgay.length - 1];
+  const tuSo = ngaySo(tuNgay) - SAO_KE.LECH_NGAY, denSo = ngaySo(denNgay) + SAO_KE.LECH_NGAY;
+
+  // UNC trong khoảng (Ngày hiệu lực), mỗi hồ sơ 1 lần tạo mới nhất.
+  const sh = _getChiTietUncSheet_();
+  const lr = sh.getLastRow();
+  const moiNhat = new Map();
+  (lr > 1 ? sh.getRange(2, 1, lr - 1, CHITIET_UNC_HEADERS.length).getValues() : []).forEach(r => {
+    const d = _docNgaySo_(r[12]);
+    if (!d) return;
+    const iso = Utilities.formatDate(d, "GMT+7", "yyyy-MM-dd"), so = ngaySo(iso);
+    if (so < tuSo || so > denSo) return;
+    const id = String(r[0] || "").trim(), tao = r[14] instanceof Date ? r[14].getTime() : 0;
+    const cu = moiNhat.get(id);
+    if (cu && cu.tao >= tao) return;
+    moiNhat.set(id, { idHeThong: id, tao, ngay: iso, nguoiNhan: String(r[4] || ""), stk: String(r[5] || "").replace(/'/g, "").trim(),
+      soTien: Math.round(utils.parseNum(r[7])), chuRung: String(r[16] || ""), soHD: String(r[17] || "").replace(/'/g, "") });
+  });
+  const unc = Array.from(moiNhat.values());
+
+  const chuSo = v => String(v || "").replace(/\D/g, "");
+  const khongDau = v => utils.standardize(v).replace(/\s+/g, " ");
+  const coStk = (u, d) => { const s = chuSo(u.stk).replace(/^0+/, ""); return s.length >= 6 && (chuSo(d.noiDung + " " + d.tk).indexOf(s) !== -1); };
+  const coTen = (u, d) => { const t = khongDau(u.nguoiNhan); return t.length >= 5 && khongDau(d.noiDung + " " + d.tk).indexOf(t) !== -1; };
+  const daDung = new Set();
+  const khop = [], canKiem = [], uncThieu = [];
+  // Khớp chặt trước (STK / tên), rồi mới tới khớp chỉ số tiền - tránh 1 dòng sao kê bị UNC khác "cướp".
+  const ghep = (u, dieuKien) => {
+    let tot = null;
+    sk.forEach(d => {
+      if (daDung.has(d.i) || d.soTien !== u.soTien || Math.abs(ngaySo(d.ngay) - ngaySo(u.ngay)) > SAO_KE.LECH_NGAY || !dieuKien(u, d)) return;
+      const lech = Math.abs(ngaySo(d.ngay) - ngaySo(u.ngay));
+      if (!tot || lech < tot.lech) tot = { d, lech };
+    });
+    return tot;
+  };
+  const conLai = [];
+  unc.forEach(u => {
+    const t = ghep(u, (a, b) => coStk(a, b) || coTen(a, b));
+    if (t) { daDung.add(t.d.i); khop.push({ unc: u, saoKe: t.d, theo: coStk(u, t.d) ? "STK" : "Tên" }); } else conLai.push(u);
+  });
+  conLai.forEach(u => {
+    const t = ghep(u, () => true);
+    if (t) { daDung.add(t.d.i); canKiem.push({ unc: u, saoKe: t.d }); } else uncThieu.push(u);
+  });
+  const saoKeThua = sk.filter(d => !daDung.has(d.i));
+  logAction_("DOI_CHIEU_SAO_KE", "-", `Đối chiếu sao kê ${tuNgay} → ${denNgay}: ${sk.length} khoản chi, ${unc.length} UNC - khớp ${khop.length}, cần kiểm tra ${canKiem.length}, UNC chưa thấy ${uncThieu.length}, khoản chi không có UNC ${saoKeThua.length}.`);
+  return { success: true, tuNgay, denNgay, soDongSaoKe: sk.length, soUnc: unc.length, khop, canKiem, uncThieu, saoKeThua };
 }
 
 /** #8 nâng cấp (28/09/2026): tìm nhanh toàn hệ thống - mã hồ sơ, số phiếu cân, STK, Số HĐ hoặc tên

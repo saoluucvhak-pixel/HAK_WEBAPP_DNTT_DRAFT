@@ -3042,6 +3042,7 @@ function renderReport(){
       <div class="subtab" data-t="chitiet">Báo Cáo Thanh Toán Chi Tiết</div>
       <div class="subtab" data-t="misa">Báo Cáo Kết Xuất MISA</div>
       <div class="subtab" data-t="unc">Báo Cáo UNC</div>
+      ${coQuyen('NGHIEP_VU') ? '<div class="subtab" data-t="saoke">🏦 Đối chiếu sao kê</div>' : ''}
     </div>
     <div id="report-body"></div>`;
   document.querySelectorAll('#content .subtab').forEach(el => {
@@ -3051,7 +3052,148 @@ function renderReport(){
   if (state.reportTab === 'misa') renderMisaTab();
   else if (state.reportTab === 'chitiet') renderChiTietTab();
   else if (state.reportTab === 'unc') renderBaoCaoUncTab();
+  else if (state.reportTab === 'saoke' && coQuyen('NGHIEP_VU')) renderSaoKeTab();
   else renderGoKeoTab();
+}
+
+/* ============================================================
+ * #13 ĐỐI CHIẾU SAO KÊ NGÂN HÀNG (nâng cấp 28/09/2026)
+ * Đọc file sao kê (.xlsx/.xls qua thư viện SheetJS tải khi cần; .csv tự đọc), tự nhận cột
+ * Ngày / Số tiền chi / Nội dung / Tài khoản (sửa được), gửi các khoản CHI lên máy chủ khớp với UNC.
+ * File không rời máy người dùng ngoài 4 cột này.
+ * ============================================================ */
+const SAO_KE_MAU_COT = {
+  ngay: /ng[aà]y\s*(gd|giao d[iị]ch|h[aạ]ch to[aá]n|hi[eệ]u l[uự]c)?|date|posting/i,
+  soTien: /ghi\s*n[oợ]|debit|s[oố] ti[eề]n\s*(r[uú]t|chi|ghi n[oợ])|ph[aá]t sinh\s*n[oợ]|withdraw|^chi$|s[oố] ti[eề]n|amount/i,
+  noiDung: /n[oộ]i dung|di[eễ]n gi[aả]i|m[oô] t[aả]|description|remark|narrative|details/i,
+  tk: /t[aà]i kho[aả]n\s*(nh[aậ]n|[dđ][oố]i [uứ]ng|th[uụ] h[uư][oở]ng)|beneficiary|s[oố] tk|account no|đơn vị hưởng|ng[uư][oờ]i nh[aậ]n/i
+};
+function renderSaoKeTab(){
+  const body = document.getElementById('report-body');
+  body.innerHTML = `
+    <div class="card">
+      <h3>🏦 Đối chiếu sao kê ngân hàng với UNC</h3>
+      <p class="muted" style="font-size:13px">Tải file sao kê tài khoản công ty (Excel .xlsx/.xls hoặc .csv tải từ ngân hàng điện tử). Hệ thống lấy các khoản <b>chi</b>, khớp với UNC đã tạo theo <b>số tiền đúng từng đồng</b> + <b>STK hoặc tên người nhận có trong nội dung</b> + <b>ngày lệch tối đa 3 ngày</b> so với Ngày hiệu lực. Chỉ xem - không ghi sổ.</p>
+      <input type="file" id="saoke-file" accept=".xlsx,.xls,.csv,.txt" aria-label="Chọn file sao kê">
+      <div id="saoke-cot" style="margin-top:12px"></div>
+      <div id="saoke-ketqua" style="margin-top:12px"></div>
+    </div>`;
+  document.getElementById('saoke-file').addEventListener('change', e => { const f = e.target.files[0]; if (f) _docFileSaoKe_(f); });
+}
+/** Thư viện đọc Excel (SheetJS) - chỉ tải khi người dùng chọn file .xlsx/.xls. */
+function _taiThuVienExcel_(){
+  if (window.XLSX) return Promise.resolve(window.XLSX);
+  return new Promise((ok, loi) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    s.onload = () => ok(window.XLSX); s.onerror = () => loi(new Error('Không tải được thư viện đọc Excel - lưu file sao kê dạng .csv rồi thử lại.'));
+    document.head.appendChild(s);
+  });
+}
+/** CSV (dấu phẩy / chấm phẩy / tab, có ngoặc kép) -> mảng dòng. */
+function _docCsv_(text){
+  const dauNgan = [',', ';', '\t'].map(k => [k, (text.split('\n')[0].match(new RegExp(k === '\t' ? '\t' : '\\' + k, 'g')) || []).length]).sort((a, b) => b[1] - a[1])[0][0];
+  const dong = []; let o = '', hang = [], ngoac = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (ngoac) { if (ch === '"' && text[i + 1] === '"') { o += '"'; i++; } else if (ch === '"') ngoac = false; else o += ch; }
+    else if (ch === '"') ngoac = true;
+    else if (ch === dauNgan) { hang.push(o); o = ''; }
+    else if (ch === '\n' || ch === '\r') { if (ch === '\r' && text[i + 1] === '\n') i++; hang.push(o); dong.push(hang); hang = []; o = ''; }
+    else o += ch;
+  }
+  if (o || hang.length) { hang.push(o); dong.push(hang); }
+  return dong;
+}
+function _docFileSaoKe_(file){
+  const hop = document.getElementById('saoke-cot');
+  hop.innerHTML = '<span class="muted">Đang đọc file...</span>';
+  const laCsv = /\.(csv|txt)$/i.test(file.name);
+  const doc = laCsv ? file.text().then(_docCsv_)
+    : Promise.all([_taiThuVienExcel_(), file.arrayBuffer()]).then(([X, buf]) => {
+        const wb = X.read(buf, { type: 'array', cellDates: true });
+        return X.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, raw: true, defval: '' });
+      });
+  doc.then(bang => {
+    bang = bang.filter(r => r.some(v => String(v).trim() !== ''));
+    // Dòng tiêu đề: dòng đầu (trong 30 dòng) có cả cột ngày và cột số tiền.
+    let h = bang.slice(0, 30).findIndex(r => r.some(v => SAO_KE_MAU_COT.ngay.test(String(v))) && r.some(v => SAO_KE_MAU_COT.soTien.test(String(v))));
+    if (h < 0) h = 0;
+    const tieuDe = bang[h].map((v, i) => String(v).trim() || ('Cột ' + (i + 1)));
+    const doan = k => { const i = tieuDe.findIndex(t => SAO_KE_MAU_COT[k].test(t)); return i; };
+    const chon = { ngay: doan('ngay'), soTien: tieuDe.findIndex(t => /ghi\s*n[oợ]|debit|r[uú]t|ph[aá]t sinh\s*n[oợ]|^chi$/i.test(t)), noiDung: doan('noiDung'), tk: doan('tk') };
+    if (chon.soTien < 0) chon.soTien = doan('soTien');
+    state.saoKe = { du: bang.slice(h + 1), tieuDe, tenFile: file.name };
+    const sel = (k, nhan, batBuoc) => `<div class="field"><label>${nhan}${batBuoc ? ' *' : ''}</label><select id="saoke-${k}">${batBuoc ? '' : '<option value="-1">(không có)</option>'}${tieuDe.map((t, i) => `<option value="${i}" ${i === chon[k] ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select></div>`;
+    hop.innerHTML = `<div class="hint-text">File <b>${esc(file.name)}</b>: ${state.saoKe.du.length} dòng. Kiểm tra lại các cột hệ thống tự nhận:</div>
+      <div class="grid cols-4">${sel('ngay', 'Ngày giao dịch', true)}${sel('soTien', 'Số tiền CHI (ghi nợ)', true)}${sel('noiDung', 'Nội dung / Diễn giải')}${sel('tk', 'Tài khoản / tên người nhận')}</div>
+      <label style="font-size:13px"><input type="checkbox" id="saoke-am"> Cột số tiền có cả thu và chi - chỉ lấy số <b>âm</b> là khoản chi</label>
+      <div style="margin-top:10px"><button class="btn primary" onclick="doiChieuSaoKe()">🔍 Đối chiếu với UNC</button></div>`;
+  }).catch(e => { hop.innerHTML = `<div style="color:var(--danger)">❌ ${esc(e.message || String(e))}</div>`; });
+}
+/** "1.234.567" / "1,234,567.00" / "1.234.567,50" / "-2.000.000" / "(2,000)" / số -> số (âm giữ dấu).
+ * Có cả "." và "," -> dấu xuất hiện SAU CÙNG là thập phân. Chỉ 1 loại dấu: lặp lại hoặc đứng trước
+ * đúng 3 chữ số -> phân cách nghìn; ngược lại là thập phân. */
+function _docSoTienSaoKe_(v){
+  if (typeof v === 'number') return v;
+  let s = String(v || '').replace(/[^\d.,\-()]/g, '');
+  const am = /^\(.*\)$/.test(s) || s.startsWith('-');
+  s = s.replace(/[()\-]/g, '');
+  const cham = s.lastIndexOf('.'), phay = s.lastIndexOf(',');
+  let tp = -1;
+  if (cham >= 0 && phay >= 0) tp = Math.max(cham, phay);
+  else if (cham >= 0 || phay >= 0) {
+    const dau = cham >= 0 ? '.' : ',', vt = Math.max(cham, phay);
+    if (s.split(dau).length === 2 && s.length - vt - 1 !== 3) tp = vt;
+  }
+  const n = Number(tp >= 0 ? s.slice(0, tp).replace(/[.,]/g, '') + '.' + s.slice(tp + 1) : s.replace(/[.,]/g, ''));
+  return isNaN(n) ? 0 : (am ? -n : n);
+}
+/** Ngày sao kê (Date, dd/mm/yyyy, dd-mm-yyyy, yyyy-mm-dd, có thể kèm giờ) -> yyyy-mm-dd. */
+function _docNgaySaoKe_(v){
+  if (v instanceof Date && !isNaN(v)) return `${v.getFullYear()}-${String(v.getMonth() + 1).padStart(2, '0')}-${String(v.getDate()).padStart(2, '0')}`;
+  const s = String(v || '').trim();
+  let m = s.match(/^(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})/);
+  if (m) return `${m[1]}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')}`;
+  m = s.match(/^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{4})/); // ngân hàng Việt Nam: ngày/tháng/năm
+  return m ? `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}` : '';
+}
+function doiChieuSaoKe(){
+  const sk = state.saoKe; if (!sk) return;
+  const cot = k => +document.getElementById('saoke-' + k).value;
+  const chiLayAm = document.getElementById('saoke-am').checked;
+  const dong = [];
+  sk.du.forEach(r => {
+    const tien = _docSoTienSaoKe_(r[cot('soTien')]);
+    if (!tien || (chiLayAm && tien > 0)) return;
+    dong.push({ ngay: _docNgaySaoKe_(r[cot('ngay')]), soTien: Math.abs(tien), noiDung: cot('noiDung') >= 0 ? String(r[cot('noiDung')]) : '', tk: cot('tk') >= 0 ? String(r[cot('tk')]) : '' });
+  });
+  if (!dong.length) { toast('Không có khoản chi nào đọc được - kiểm tra lại cột Số tiền / Ngày.', 'warn'); return; }
+  call('doiChieuSaoKe', [dong], `Đang đối chiếu ${dong.length} khoản chi...`).then(res => {
+    const box = document.getElementById('saoke-ketqua');
+    if (!res || !res.success) { handleResult(res); return; }
+    state.saoKeKetQua = res;
+    const bangUnc = (ds, coSaoKe) => ds.length ? `<table><thead><tr><th>Ngày UNC</th><th>Hồ sơ</th><th>Người nhận / STK</th><th class="num">Số tiền</th>${coSaoKe ? '<th>Dòng sao kê</th>' : ''}</tr></thead><tbody>
+      ${ds.map(x => { const u = x.unc || x, d = x.saoKe; return `<tr><td class="mono">${esc(_isoSangVN(u.ngay))}</td><td class="mono">${esc(u.idHeThong)}<div class="muted" style="font-size:11.5px">${esc(u.chuRung)}</div></td><td>${esc(u.nguoiNhan)}<br><span class="mono muted" style="font-size:12px">${esc(u.stk)}</span></td><td class="num">${fmtMoney(u.soTien)}</td>${coSaoKe ? `<td style="font-size:12.5px">${esc(_isoSangVN(d.ngay))} · ${esc(d.noiDung)}${x.theo ? ` <span class="badge ready">khớp ${esc(x.theo)}</span>` : ''}</td>` : ''}</tr>`; }).join('')}</tbody></table>` : '<span class="muted">Không có.</span>';
+    const bangSk = ds => ds.length ? `<table><thead><tr><th>Ngày</th><th class="num">Số tiền</th><th>Nội dung</th></tr></thead><tbody>${ds.map(d => `<tr><td class="mono">${esc(_isoSangVN(d.ngay))}</td><td class="num">${fmtMoney(d.soTien)}</td><td style="font-size:12.5px">${esc(d.noiDung)} ${esc(d.tk)}</td></tr>`).join('')}</tbody></table>` : '<span class="muted">Không có.</span>';
+    box.innerHTML = `<div class="hint-text">Sao kê ${esc(_isoSangVN(res.tuNgay))} → ${esc(_isoSangVN(res.denNgay))}: ${res.soDongSaoKe} khoản chi · ${res.soUnc} UNC trong khoảng (±3 ngày). <button class="btn sm ghost" onclick="taiKetQuaSaoKe()">📥 Tải kết quả (CSV)</button></div>
+      <h4 style="margin:12px 0 6px">✅ Khớp (${res.khop.length})</h4>${bangUnc(res.khop, true)}
+      <h4 style="margin:16px 0 6px;color:var(--timber)">⚠️ Khớp số tiền nhưng không thấy STK / tên - cần kiểm tra (${res.canKiem.length})</h4>${bangUnc(res.canKiem, true)}
+      <h4 style="margin:16px 0 6px;color:var(--danger)">⛔ UNC chưa thấy trên sao kê (${res.uncThieu.length})</h4>${bangUnc(res.uncThieu, false)}
+      <h4 style="margin:16px 0 6px">ℹ️ Khoản chi trên sao kê không có UNC (${res.saoKeThua.length})</h4>${bangSk(res.saoKeThua)}`;
+  });
+}
+function taiKetQuaSaoKe(){
+  const r = state.saoKeKetQua; if (!r) return;
+  const q = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+  const dong = [['Nhóm', 'Ngày UNC', 'Hồ sơ', 'Người nhận', 'STK', 'Số tiền', 'Ngày sao kê', 'Nội dung sao kê']];
+  const u = (nhom, x) => { const a = x.unc || x, d = x.saoKe || {}; dong.push([nhom, a.ngay, a.idHeThong, a.nguoiNhan, "'" + a.stk, a.soTien, d.ngay || '', d.noiDung || '']); };
+  r.khop.forEach(x => u('Khớp', x)); r.canKiem.forEach(x => u('Cần kiểm tra', x)); r.uncThieu.forEach(x => u('UNC chưa thấy trên sao kê', x));
+  r.saoKeThua.forEach(d => dong.push(['Khoản chi không có UNC', '', '', '', '', d.soTien, d.ngay, d.noiDung + ' ' + d.tk]));
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob(['\ufeff' + dong.map(x => x.map(q).join(',')).join('\r\n')], { type: 'text/csv;charset=utf-8' }));
+  a.download = `doi-chieu-sao-ke-${r.tuNgay}_${r.denNgay}.csv`;
+  document.body.appendChild(a); a.click(); a.remove();
 }
 
 function renderGoKeoTab(){

@@ -208,3 +208,48 @@ test('#9 the create wizard saves its progress in sessionStorage and offers to re
   assert.match(luu, /_xoaNhapTaoMoi_\(\);/, 'cleared after a successful save');
   assert.match(INDEX, /_xoaNhapTaoMoi_\(\);\s*hienManHinhDangNhap\('Đã đăng xuất\.'\)/, 'cleared on logout');
 });
+
+// ---------- #13 Đối chiếu sao kê ngân hàng ----------
+test('#13 bank statement lines are matched to UNCs by amount + account/name + date; the rest is reported', () => {
+  const { run } = theGioi();
+  const homNay = new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 10);
+  assert.equal(run('webCreateUNCFromDraft_')(['A1'], homNay, '', '').success, true); // UNC 2.000.000 đ -> STK 0123456789
+  const ngayTruoc = new Date(Date.now() + 7 * 3600e3 - 86400e3).toISOString().slice(0, 10);
+  const kq = run('api')('', 'doiChieuSaoKe', [[
+    { ngay: ngayTruoc, soTien: -2000000, noiDung: 'CK DEN TK 0123456789 NGUYEN VAN A THANH TOAN GO KEO', tk: '' }, // khớp (lệch 1 ngày)
+    { ngay: homNay, soTien: 2000000, noiDung: 'Phi dich vu', tk: '' },                                          // cùng số tiền nhưng đã dùng -> thừa
+    { ngay: homNay, soTien: 55000, noiDung: 'Phi SMS', tk: '' },                                                 // không có UNC
+    { ngay: 'sai', soTien: 1, noiDung: 'x' }                                                                     // bỏ (không đọc được ngày)
+  ]]);
+  assert.equal(kq.success, true, kq.message);
+  assert.equal(kq.soDongSaoKe, 3);
+  assert.equal(kq.khop.length, 1);
+  assert.equal(kq.khop[0].unc.idHeThong, 'A1');
+  assert.equal(kq.khop[0].theo, 'STK');
+  assert.equal(kq.uncThieu.length, 0);
+  assert.deepEqual(Array.from(kq.saoKeThua, d => d.soTien).sort(), [2000000, 55000].sort());
+});
+
+test('#13 an amount-only match is flagged for checking; an unpaid UNC is listed', () => {
+  const { run } = theGioi();
+  const homNay = new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 10);
+  run('webCreateUNCFromDraft_')(['A1'], homNay, '', '');
+  const chiSoTien = run('doiChieuSaoKe_')([{ ngay: homNay, soTien: 2000000, noiDung: 'CHUYEN TIEN', tk: '' }]);
+  assert.equal(chiSoTien.canKiem.length, 1);
+  const khongCo = run('doiChieuSaoKe_')([{ ngay: homNay, soTien: 999, noiDung: 'x', tk: '' }]);
+  assert.equal(khongCo.uncThieu.length, 1);
+  assert.equal(khongCo.uncThieu[0].stk, '0123456789');
+  assert.equal(run('doiChieuSaoKe_')([]).success, false);
+});
+
+test('#13 browser: statement amounts / dates in bank formats are read correctly', () => {
+  const lay = ten => { const a = INDEX.indexOf(`function ${ten}(`); return INDEX.slice(a, INDEX.indexOf('\n}\n', a) + 2); };
+  const f = new Function(lay('_docSoTienSaoKe_') + lay('_docNgaySaoKe_') + lay('_docCsv_') + 'return { _docSoTienSaoKe_, _docNgaySaoKe_, _docCsv_ };')();
+  [['1.234.567', 1234567], ['1,234,567.00', 1234567], ['1.234.567,50', 1234567.5], ['-2.000.000', -2000000], ['(2,000)', -2000], ['55.000', 55000], ['12,5', 12.5], [2000000, 2000000], ['', 0]]
+    .forEach(([v, kq]) => assert.equal(f._docSoTienSaoKe_(v), kq, String(v)));
+  assert.equal(f._docNgaySaoKe_('28/09/2026'), '2026-09-28', 'Vietnamese banks: day/month/year');
+  assert.equal(f._docNgaySaoKe_('28-09-2026 10:15'), '2026-09-28');
+  assert.equal(f._docNgaySaoKe_('2026-09-28'), '2026-09-28');
+  assert.deepEqual(f._docCsv_('a;b\n"x;1";2\n'), [['a', 'b'], ['x;1', '2']], 'semicolon CSV with quotes');
+  assert.match(INDEX, /cdnjs\.cloudflare\.com\/ajax\/libs\/xlsx\/0\.18\.5\/xlsx\.full\.min\.js/);
+});
