@@ -2,6 +2,16 @@
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/). Phiên bản theo `NĂM.ĐỢT.SỬA`; thay đổi làm đổi hành vi nghiệp vụ (⚖️) sẽ tăng số ĐỢT và ghi rõ đã được người dùng đồng ý.
 
+## [2026.9.48] — Rà tự động ngày + số 0 đầu trên MỌI file xuất Excel (28/09/2026)
+
+Người dùng hỏi "định dạng cột ngày khi kết xuất Excel chưa, khóa số 0 đầu của chuỗi khi kết xuất Excel đã rà chưa".
+
+### Fixed
+- File **Đối soát tên**, **Tình hình thanh toán**, **Công nợ phiếu cân**: Số phiếu cân / Số HĐ ghi thêm dấu giữ chữ (trước đây chỉ dựa vào khóa cột "@") - cùng 2 lớp bảo vệ như các file khác.
+
+### Tests
+- `xuatExcelRaSoat.test.mjs` (vùng VN và US): chạy đủ 10 hàm xuất trên dữ liệu có số 0 đầu (STK 0071000123456, Số HĐ 00123, CCCD 048…/012…, phiếu 00450) rồi kiểm theo tiêu đề cột: 30 cột mã (Số TK, CCCD, Số HĐ, Số phiếu cân, TK trích nợ / thu phí) khóa "@" và còn số 0 đầu; 14 cột ngày của báo cáo là ngày thật đúng định dạng Vùng xuất; mẫu nhập file UNC ngân hàng và XuatMISA giữ chữ (mã + ngày). Test thất bại trên 2026.9.47. Hàm xuất mới / cột mới có tiêu đề mã hay ngày sẽ tự được kiểm.
+
 ## [2026.9.47] — MISA 1 kiểu, Excel ngày thật theo Vùng xuất, dòng Báo cáo ĐNTT không giãn, tăng tốc, giao diện (28/09/2026)
 
 ### Changed

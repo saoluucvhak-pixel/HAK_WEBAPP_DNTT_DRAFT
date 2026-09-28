@@ -1,6 +1,6 @@
 /**
  * ============================================================
- * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.47
+ * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.48
  * Lịch sử thay đổi: CHANGELOG.md · Kiến trúc: docs/ARCHITECTURE.md
  * ------------------------------------------------------------
  * *** QUAN TRỌNG - CẦN LÀM TRƯỚC KHI DÙNG BẢN NÀY (chỉ 1 LẦN DUY NHẤT
@@ -6971,7 +6971,7 @@ function exportTinhHinhThanhToanExcel_(fDate, tDate, filters) {
     const headers = ["Số phiếu cân", "Ngày thanh toán", "Ngày nhập", "Giờ cân 1", "Giờ cân 2", "Cân lần 1", "Cân lần 2", "Mặt hàng", "Khách hàng", "KL (kg)", "KL (tấn)", "Đơn giá", "Thành tiền", "Đại lý", "Nguồn gốc"];
     sheet.getRange(1, 1, 1, headers.length).setValues([headers]).setFontWeight("bold").setBackground("#d9d2e9");
     if (rows.length) {
-      const body = _cotNgayThatChoXuat_(sheet, 2, rows.map(r => [r.soPhieuCan, _docNgayVN_(r.ngayThanhToan) || r.ngayThanhToan, _docNgayVN_(r.ngayNhap1) || r.ngayNhap1, r.gioCan1, r.gioCan2, r.canLan1, r.canLan2, r.matHang, r.khachHang, r.klKg, r.klTan, r.donGia, r.thanhTien, r.dl, r.ng]), [2, 3]);
+      const body = _cotNgayThatChoXuat_(sheet, 2, rows.map(r => [_chu_(r.soPhieuCan), _docNgayVN_(r.ngayThanhToan) || r.ngayThanhToan, _docNgayVN_(r.ngayNhap1) || r.ngayNhap1, r.gioCan1, r.gioCan2, r.canLan1, r.canLan2, r.matHang, r.khachHang, r.klKg, r.klTan, r.donGia, r.thanhTien, r.dl, r.ng]), [2, 3]);
       sheet.getRange(2, 1, body.length, headers.length).setValues(_dongAnToan_(body));
       _canhLeTheoKieu_(sheet, 2, body);
     }
@@ -7110,7 +7110,7 @@ function exportChiTietCongNoPhieuCanExcel_(ngayStr, filters) {
     const headers = ["Số phiếu cân", "Ngày nhập 1", "Giờ cân 1", "Giờ cân 2", "Cân lần 1", "Cân lần 2", "Mặt hàng", "Khách hàng", "KL (kg)", "KL (tấn)", "Đơn giá", "Thành tiền", "Đại lý", "Nguồn gốc", "Chênh lệch ngày"];
     sheet.getRange(1, 1, 1, headers.length).setValues([headers]).setFontWeight("bold").setBackground("#d9d2e9");
     if (rows.length) {
-      const body = _cotNgayThatChoXuat_(sheet, 2, rows.map(r => [r.soPhieuCan, _docNgayVN_(r.ngayNhap1) || r.ngayNhap1, r.gioCan1, r.gioCan2, r.canLan1, r.canLan2, r.matHang, r.khachHang, r.klKg, r.klTan, r.donGia, r.thanhTien, r.dl, r.ng, r.chenhLechNgay]), [2]);
+      const body = _cotNgayThatChoXuat_(sheet, 2, rows.map(r => [_chu_(r.soPhieuCan), _docNgayVN_(r.ngayNhap1) || r.ngayNhap1, r.gioCan1, r.gioCan2, r.canLan1, r.canLan2, r.matHang, r.khachHang, r.klKg, r.klTan, r.donGia, r.thanhTien, r.dl, r.ng, r.chenhLechNgay]), [2]);
       sheet.getRange(2, 1, body.length, headers.length).setValues(_dongAnToan_(body));
       _canhLeTheoKieu_(sheet, 2, body);
     }
@@ -9658,7 +9658,7 @@ function exportDoiSoatTenKhachHangExcel_(rowsCoSan) {
     const headers = ["Số phiếu cân", "Số HĐ", "Tên trong CT (ĐNTT) - đúng", "Tên hiện tại trong Phiếu Cân - sẽ sửa lại"];
     sheet.getRange(1, 1, 1, headers.length).setValues([headers]).setFontWeight("bold").setBackground("#d9d2e9");
     if (rows.length) {
-      const body = rows.map(r => [r.soPhieuCan, r.soHD, r.chuRungCT, r.khachHangPC]);
+      const body = rows.map(r => [_chu_(r.soPhieuCan), _chu_(r.soHD), r.chuRungCT, r.khachHangPC]); // giữ số 0 đầu (kèm khóa "@")
       sheet.getRange(2, 1, body.length, headers.length).setValues(_dongAnToan_(body));
       _canhLeTheoKieu_(sheet, 2, body);
     }
