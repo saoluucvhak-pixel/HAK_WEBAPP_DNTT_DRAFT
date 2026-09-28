@@ -174,8 +174,11 @@ export class MockSheet {
   }
   clearContents() { return this.clear(); }
   setFrozenRows() { return this; }
-  setColumnWidths() { return this; }
-  setColumnWidth() { return this; }
+  // Độ rộng cột / chiều cao dòng lưu lại để test kiểm tra bố cục bảng xuất.
+  setColumnWidths(c, n, w) { for (let i = 0; i < n; i++) (this.colWidths ||= {})[c + i] = w; return this; }
+  setColumnWidth(c, w) { (this.colWidths ||= {})[c] = w; return this; }
+  setRowHeights(r, n, h) { for (let i = 0; i < n; i++) (this.rowHeights ||= {})[r + i] = h; return this; }
+  setRowHeight(r, h) { (this.rowHeights ||= {})[r] = h; return this; }
   autoResizeColumns() { return this; }
   autoResizeRows() { return this; }
   hideSheet() { return this; }

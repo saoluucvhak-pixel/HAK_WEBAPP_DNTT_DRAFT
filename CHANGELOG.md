@@ -2,6 +2,17 @@
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/). Phiên bản theo `NĂM.ĐỢT.SỬA`; thay đổi làm đổi hành vi nghiệp vụ (⚖️) sẽ tăng số ĐỢT và ghi rõ đã được người dùng đồng ý.
 
+## [2026.9.25] — Bảng Đề Xuất: cột Ghi chú vừa phải, xuống dòng cân đối (người dùng báo 28/09/2026)
+
+### Fixed
+- Cột **Ghi chú** của Bảng Đề Xuất (sheet 1 Báo Cáo ĐNTT, cả bản chờ duyệt và bản chính thức) chỉ dựa vào ký tự xuống dòng giữa các mục → ở chỗ không bật tự xuống dòng (file tải về, định dạng bị chép đè) chữ **dính liền** “214.11Đã trả”; cột rộng, dòng thấp nên **Nội dung CK bị cắt** dòng cuối.
+- Nay Ghi chú xếp **2 mục mỗi dòng** (“Tổng KL · Đã trả” / “Còn lại · Đề nghị đợt này” / “Phiếu”), mục dài không vừa thì tách riêng; trong mỗi mục dùng khoảng trắng không ngắt nên chỉ xuống dòng giữa các mục, và kể cả khi trình xem bỏ qua xuống dòng các mục vẫn cách nhau.
+- Độ rộng cột theo đo thực tế Arial cỡ 12 (giữ chữ to như 2026.7.2): Nội dung CK 270px (2 dòng), Ghi chú 300px; bật cả tự xuống dòng kiểu Excel; **chiều cao từng dòng tính theo số dòng chữ** (ngắt theo từ) thay cho tự co của Sheets. Thông số gom 1 chỗ `BANG_DE_XUAT`.
+- Dữ liệu Ghi chú trong sổ 112 và phần Diễn giải trên web giữ nguyên.
+
+### Tests
+- 129 test (thêm `bangDeXuat.test.mjs`: 2 mục/dòng, không dính chữ khi bỏ xuống dòng, không ngắt giữa mục, độ rộng vừa phải, chiều cao đủ — thất bại trên 2026.9.24). Mock lưu độ rộng cột / chiều cao dòng.
+
 ## [2026.9.24] — Khối lượng dự kiến của hợp đồng tạo trên app Hợp Đồng (người dùng báo 28/09/2026)
 
 ### Fixed
