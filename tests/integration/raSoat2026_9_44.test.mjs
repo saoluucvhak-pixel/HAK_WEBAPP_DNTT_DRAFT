@@ -37,7 +37,7 @@ test('a record whose amount no longer matches its weigh tickets cannot be confir
 
   const xn = run('runXacNhanDNTT_')(['A1']);
   assert.equal(xn.success, false);
-  assert.match(xn.message, /Đề Nghị Thanh Toán \(tính lại\)/);
+  assert.match(xn.message, /Tính lại số tiền/);
 
   // Dù ai đó ghi tay "Đang ĐNTT" vào File Nháp, In / UNC / Duyệt vẫn chặn.
   const sh112 = world.draft.getSheetByName('DNTT_GK_DN_112_DRAFT');
@@ -46,7 +46,7 @@ test('a record whose amount no longer matches its weigh tickets cannot be confir
   assert.equal(run('webCreateUNCFromDraft_')(['A1'], homNay(), '', '').success, false);
   const duyet = run('runConfirmPayment_')(['A1'], homNay());
   assert.doesNotMatch(duyet, /^✅/);
-  assert.match(duyet, /tính lại/);
+  assert.match(duyet, /tính lại/i);
   assert.equal(world.main.getSheetByName('DNTT_GK_DN_CT').rows().length, 1, 'nothing committed');
   assert.equal(world.pc.getSheetByName('PhieuCan_DN').rows(28).slice(1).filter(r => r[27] === 'Y').length, 0, 'no weigh ticket locked');
 });

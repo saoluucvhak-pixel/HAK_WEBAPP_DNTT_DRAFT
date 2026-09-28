@@ -1399,20 +1399,20 @@ function _renderDashTop5NoTable_(rows){
 }
 /** Nhãn trạng thái hồ sơ Nháp (Danh Sách ĐNTT, Quy trình thanh toán). */
 const DRAFT_STATUS_BADGE = {
-  cho_tinh: '<span class="badge pending dot">Chưa ĐNTT</span>',
-  cho_dntt: '<span class="badge wait dot">Chờ ĐNTT</span>',
-  dang_dntt: '<span class="badge ready dot">Đang ĐNTT</span>'
+  cho_tinh: '<span class="badge pending dot">Chưa tính tiền</span>',
+  cho_dntt: '<span class="badge wait dot">Chờ xác nhận</span>',
+  dang_dntt: '<span class="badge ready dot">Chờ duyệt</span>'
 };
 
 /** Quy trình thanh toán 5 bước - 1 nguồn dùng chung cho Trang chủ (gọn, đầu trang) và Hướng
  * Dẫn Sử Dụng (bảng đầy đủ). ten: tên bước; viec: mô tả đầy đủ (HTML); oDau: làm ở đâu;
  * sau: trạng thái sau khi xong (HTML). */
 const QUY_TRINH_TT = [
-  { ten: 'Tạo Mới', viec: '<b>Tạo Mới</b> - chọn Chủ rừng, Hợp đồng, chọn Phiếu cân cần thanh toán', oDau: 'Danh Sách ĐNTT → "➕ Tạo Mới"', sau: DRAFT_STATUS_BADGE.cho_tinh },
-  { ten: 'Đề Nghị Thanh Toán (tính tiền)', viec: '<b>Đề Nghị Thanh Toán (tính lại)</b> - hệ thống tự tính tiền, gộp theo Số HĐ, tự điền Ngân hàng', oDau: 'Danh Sách ĐNTT → nút "📤 Đề Nghị Thanh Toán"', sau: DRAFT_STATUS_BADGE.cho_dntt },
-  { ten: 'Xác Nhận chuyển ĐNTT', viec: 'Kiểm tra lại thông tin (Sửa nếu cần), rồi <b>Xác Nhận chuyển ĐNTT</b>', oDau: 'Tab "2 · Chờ ĐNTT" → chọn hồ sơ → "✅ Xác nhận"', sau: DRAFT_STATUS_BADGE.dang_dntt },
-  { ten: 'In Báo Cáo ĐNTT / Tạo UNC', viec: '<b>In Báo Cáo ĐNTT</b> để trình ký duyệt, hoặc <b>Tạo File UNC</b> để nộp ngân hàng chuyển tiền trước (chưa ghi vào sổ sách chính thức)', oDau: 'Tab "3 · Đang ĐNTT" → "🖨️ In Báo Cáo ĐNTT" / "🏦 Tạo File UNC"', sau: 'Không đổi trạng thái' },
-  { ten: 'Duyệt (Đóng Thanh Toán)', viec: '<b>Duyệt (Đóng Thanh Toán)</b> - nhập ngày thanh toán thực tế → ghi vào sổ sách CHÍNH THỨC, khóa Phiếu Cân vĩnh viễn', oDau: 'Tab "3 · Đang ĐNTT" → "📨 Duyệt"', sau: 'Chuyển sang "Báo Cáo Thanh Toán"' }
+  { ten: 'Tạo Mới', viec: '<b>Tạo Mới</b> - chọn Chủ rừng, Hợp đồng, chọn Phiếu cân cần thanh toán, bấm Lưu', oDau: 'Danh Sách ĐNTT → "➕ Tạo Mới"', sau: 'Tự tính tiền' },
+  { ten: 'Tự tính tiền', viec: 'Hệ thống <b>tự tính Số tiền</b> ngay khi Lưu / Thêm / Bỏ phiếu cân (gộp lũy kế theo Số HĐ, tự điền Ngân hàng). Nút "🔄 Tính lại số tiền" chỉ cần khi có cảnh báo', oDau: 'Tự động', sau: DRAFT_STATUS_BADGE.cho_dntt },
+  { ten: 'Xác Nhận chuyển ĐNTT', viec: 'Kiểm tra lại thông tin (Sửa nếu cần), rồi <b>Xác Nhận chuyển ĐNTT</b>', oDau: 'Tab "2 · Chờ xác nhận" → chọn hồ sơ → "✅ Xác nhận"', sau: DRAFT_STATUS_BADGE.dang_dntt },
+  { ten: 'In Báo Cáo ĐNTT / Tạo UNC', viec: '<b>In Báo Cáo ĐNTT</b> để trình ký duyệt, hoặc <b>Tạo File UNC</b> để nộp ngân hàng chuyển tiền trước (chưa ghi vào sổ sách chính thức)', oDau: 'Tab "3 · Chờ duyệt" → "🖨️ In Báo Cáo ĐNTT" / "🏦 Tạo File UNC"', sau: 'Không đổi trạng thái' },
+  { ten: 'Duyệt (Đóng Thanh Toán)', viec: '<b>Duyệt (Đóng Thanh Toán)</b> - nhập ngày thanh toán thực tế → ghi vào sổ sách CHÍNH THỨC, khóa Phiếu Cân vĩnh viễn', oDau: 'Tab "3 · Chờ duyệt" → "📨 Duyệt"', sau: 'Chuyển sang "Báo Cáo Thanh Toán"' }
 ];
 
 /** Ô số liệu Trang chủ bấm được: mở thẳng màn hình tương ứng (trang + tab con). */
@@ -2190,19 +2190,19 @@ function renderDraft(){
   document.getElementById('page-desc').textContent = PAGES.draft.desc;
   document.getElementById('topbar-actions').innerHTML = `
     <button class="btn" onclick="doLamMoiToanBo()">↻ Làm mới</button>
-    <button class="btn accent" onclick="doTongHop112()">📤 Đề Nghị Thanh Toán (tính lại)</button>
+    <button class="btn" onclick="doTongHop112()" title="Số tiền đã tự tính khi Lưu / Thêm / Bỏ phiếu - chỉ cần bấm khi có cảnh báo ⚠️ Cần tính lại">🔄 Tính lại số tiền</button>
     <button class="btn primary" onclick="startCreateFlow()">➕ Tạo Mới</button>`;
   if (!state.draftStatusFilter) state.draftStatusFilter = 'all';
   const c = document.getElementById('content');
   c.innerHTML = `
     <div class="subtabs">
       <div class="subtab" data-f="all">Tất cả <span class="dem"></span></div>
-      <div class="subtab" data-f="cho_tinh">1 · Chưa ĐNTT <span class="dem"></span></div>
-      <div class="subtab" data-f="cho_dntt">2 · Chờ ĐNTT <span class="dem"></span></div>
-      <div class="subtab" data-f="dang_dntt">3 · Đang ĐNTT (chờ duyệt) <span class="dem"></span></div>
+      <div class="subtab" data-f="cho_tinh">1 · Chưa tính tiền <span class="dem"></span></div>
+      <div class="subtab" data-f="cho_dntt">2 · Chờ xác nhận <span class="dem"></span></div>
+      <div class="subtab" data-f="dang_dntt">3 · Chờ duyệt <span class="dem"></span></div>
       <div class="subtab" data-f="san_sang">Đã có số tiền (2 + 3) <span class="dem"></span></div>
     </div>
-    <div class="hint-text" style="margin-bottom:10px">Quy trình: (1) Chưa ĐNTT → bấm "Đề Nghị Thanh Toán" để tính tiền → (2) Chờ ĐNTT → chọn hồ sơ, bấm "Xác Nhận" → (3) Đang ĐNTT → in Báo Cáo ĐNTT, rồi bấm "Duyệt" để Đóng Thanh Toán (copy sang sheet chính).</div>
+    <div class="hint-text" style="margin-bottom:10px">Quy trình: Tạo Mới → hệ thống tự tính tiền → (2) Chờ xác nhận → chọn hồ sơ, bấm "Xác Nhận" → (3) Chờ duyệt → in Báo Cáo ĐNTT / tạo UNC, rồi bấm "Duyệt" để Đóng Thanh Toán (ghi sổ chính thức).</div>
     <div class="card" id="draft-filter-card">
       <div class="grid cols-3" style="align-items:end">
         <div class="field" style="grid-column:span 2"><label for="draft-tu-khoa">Lọc theo tên khách hàng (chủ rừng / người nhận)</label>
@@ -2240,7 +2240,7 @@ function _khopTenDraft(r){
   const k = _khongDau(state.draftTuKhoa);
   return !k || _khongDau(r.chuRung).includes(k) || _khongDau(r.nguoiNhan).includes(k);
 }
-/** Hồ sơ thuộc tab `f`: all = tất cả; san_sang = đã có số tiền (Chờ + Đang ĐNTT); còn lại theo trạng thái. */
+/** Hồ sơ thuộc tab `f`: all = tất cả; san_sang = đã có số tiền (Chờ xác nhận + Chờ duyệt); còn lại theo trạng thái. */
 function _thuocTabDraft(r, f){
   return f === 'all' || (f === 'san_sang' ? !!r.sanSangChot : r.trangThaiKey === f);
 }
@@ -2253,7 +2253,7 @@ function boLocDraft(){
   const o = document.getElementById('draft-tu-khoa'); if (o) o.value = '';
   renderDraftTable();
 }
-const DRAFT_TEN_TAB = { all: 'Tất cả', cho_tinh: 'Chưa ĐNTT (chưa tính tiền)', cho_dntt: 'Chờ ĐNTT', dang_dntt: 'Đang ĐNTT - đã đề nghị, chưa chuyển tiền', san_sang: 'Đã có số tiền - sẵn sàng chốt (Chờ + Đang ĐNTT)' };
+const DRAFT_TEN_TAB = { all: 'Tất cả', cho_tinh: 'Chưa tính tiền', cho_dntt: 'Chờ xác nhận', dang_dntt: 'Chờ duyệt - đã xác nhận, chưa chuyển tiền', san_sang: 'Đã có số tiền - sẵn sàng chốt (Chờ xác nhận + Chờ duyệt)' };
 /** Dòng tổng phía trên bảng + tổng theo từng khách hàng (hồ sơ đang hiện). */
 function _veTongDraft(list){
   const box = document.getElementById('draft-tong');
@@ -2346,7 +2346,7 @@ function renderDraftTable(){
       <td class="num">${r.soLuongPhieu}</td>
       <td class="num">${fmtKl(r.klTongKg)}</td>
       <td class="num">${r.sanSangChot ? fmtMoney(r.soTien) : '–'}</td>
-      <td>${DRAFT_STATUS_BADGE[r.trangThaiKey] || esc(r.trangThaiLabel)}${r.canTinhLai ? `<br><span class="badge pending dot" title="Số tiền ${fmtMoney(r.soTien)} đ khác tổng phiếu cân ${fmtMoney(r.tongTienPhieu)} đ - bấm Đề Nghị Thanh Toán (tính lại)">⚠️ Cần tính lại</span>` : ''}</td>
+      <td>${DRAFT_STATUS_BADGE[r.trangThaiKey] || esc(r.trangThaiLabel)}${r.canTinhLai ? `<br><span class="badge pending dot" title="Số tiền ${fmtMoney(r.soTien)} đ khác tổng phiếu cân ${fmtMoney(r.tongTienPhieu)} đ - bấm Tính lại số tiền">⚠️ Cần tính lại</span>` : ''}</td>
       <td style="white-space:nowrap">${draftRowActionsHtml(r)}</td>
     </tr>`).join('')}
     </tbody>
@@ -2356,8 +2356,8 @@ function renderDraftTable(){
   updateDraftActionbar();
 }
 
-/** MỚI (mục W): Sửa/Xóa CHỈ cho phép ở trạng thái "Chờ ĐNTT". Hồ sơ
- * "Chưa ĐNTT" chỉ Xem. Hồ sơ "Đang ĐNTT" chỉ Xem + "Về Chờ ĐNTT" (để mở
+/** MỚI (mục W): Sửa/Xóa CHỈ cho phép ở trạng thái "Chờ xác nhận". Hồ sơ
+ * "Chưa tính tiền" chỉ Xem. Hồ sơ "Chờ duyệt" chỉ Xem + "Về Chờ xác nhận" (để mở
  * khóa Sửa/Xóa nếu cần). */
 function draftRowActionsHtml(r){
   const xem = `<button class="btn sm ghost" ${hanhDong('viewDraftDetail', r.idKey)}>Xem</button>`;
@@ -2368,13 +2368,13 @@ function draftRowActionsHtml(r){
   }
   if (r.trangThaiKey === 'dang_dntt') {
     return `${xem}
-      <button class="btn sm ghost" ${hanhDong('doHuyXacNhan', r.idKey)}>↩️ Về Chờ ĐNTT</button>`;
+      <button class="btn sm ghost" ${hanhDong('doHuyXacNhan', r.idKey)}>↩️ Về Chờ xác nhận</button>`;
   }
-  return xem; // cho_tinh (Chưa ĐNTT) - chỉ Xem
+  return xem; // cho_tinh (Chưa tính tiền) - chỉ Xem
 }
 
 function doHuyXacNhan(idKey){
-  if (!confirm(`Chuyển hồ sơ "${idKey}" về trạng thái "Chờ ĐNTT" để có thể Sửa/Xóa?`)) return;
+  if (!confirm(`Chuyển hồ sơ "${idKey}" về trạng thái "Chờ xác nhận" để có thể Sửa/Xóa?`)) return;
   call('runHuyXacNhanDNTT', [idKey], 'Đang chuyển trạng thái...').then(res => {
     // Hồ sơ đã có UNC: máy chủ hỏi xác nhận riêng (UNC có thể đã nộp ngân hàng).
     if (res && res.canXacNhanUnc) {
@@ -2418,12 +2418,12 @@ function updateDraftActionbar(){
   }
 }
 
-/** Nút hành động thay đổi theo tab đang xem: "Chờ ĐNTT" chỉ có "Xác
- * Nhận"; "Đang ĐNTT" chỉ có "In Báo Cáo ĐNTT" + "Duyệt". Tab "Tất cả"
+/** Nút hành động thay đổi theo tab đang xem: "Chờ xác nhận" chỉ có "Xác
+ * Nhận"; "Chờ duyệt" chỉ có "In Báo Cáo ĐNTT" + "Duyệt". Tab "Tất cả"
  * hiện đủ cả 3 (phòng khi chọn hồ sơ ở nhiều trạng thái khác nhau). */
 /** SỬA LỖI: trước đây dựa theo TAB đang xem (state.draftStatusFilter) -
- * nên ở tab "Tất cả", chọn 1 dòng "Chờ ĐNTT" vẫn hiện nhầm nút "Duyệt"/
- * "In Báo Cáo ĐNTT" (chỉ dành cho "Đang ĐNTT"). Giờ dựa ĐÚNG theo trạng
+ * nên ở tab "Tất cả", chọn 1 dòng "Chờ xác nhận" vẫn hiện nhầm nút "Duyệt"/
+ * "In Báo Cáo ĐNTT" (chỉ dành cho "Chờ duyệt"). Giờ dựa ĐÚNG theo trạng
  * thái THẬT của các dòng đang được chọn (state.draftSelected). */
 function getDraftActionButtonsHtml(){
   const selectedRows = state.draftList.filter(r => state.draftSelected.has(r.idKey));
@@ -2438,8 +2438,8 @@ function getDraftActionButtonsHtml(){
       <button class="btn" onclick="openCreateUNCModal()">🏦 Tạo File UNC (đã chọn)</button>
       <button class="btn primary" onclick="openConfirmPaymentModal()">📨 Duyệt (Đóng Thanh Toán)</button>`;
   }
-  if (!hasChoDntt && !hasDangDntt) return ''; // chỉ chọn "Chưa ĐNTT" - không có hành động nào khả dụng
-  // Chọn LẪN cả "Chờ ĐNTT" và "Đang ĐNTT" cùng lúc (thường ở tab "Tất
+  if (!hasChoDntt && !hasDangDntt) return ''; // chỉ chọn "Chưa tính tiền" - không có hành động nào khả dụng
+  // Chọn LẪN cả "Chờ xác nhận" và "Chờ duyệt" cùng lúc (thường ở tab "Tất
   // cả") -> hiện đủ 3 nút, backend sẽ tự bỏ qua phần không đúng trạng
   // thái kèm cảnh báo rõ ràng (không làm sai dữ liệu).
   return `<button class="btn" onclick="doXacNhanDNTT()">✅ Xác nhận đã chọn chuyển ĐNTT</button>
@@ -2448,8 +2448,8 @@ function getDraftActionButtonsHtml(){
     <button class="btn primary" onclick="openConfirmPaymentModal()">📨 Duyệt (Đóng Thanh Toán)</button>`;
 }
 
-/** Bước 2 → 3: "Xác Nhận" các hồ sơ đang "Chờ ĐNTT" (đã tính tiền)
- * chuyển sang "Đang ĐNTT" (sẵn sàng in Báo Cáo ĐNTT & chờ Duyệt). Hồ sơ
+/** Bước 2 → 3: "Xác Nhận" các hồ sơ đang "Chờ xác nhận" (đã tính tiền)
+ * chuyển sang "Chờ duyệt" (sẵn sàng in Báo Cáo ĐNTT & chờ Duyệt). Hồ sơ
  * chưa tính tiền trong lựa chọn sẽ tự bị bỏ qua kèm cảnh báo. */
 function doXacNhanDNTT(){
   const ids = Array.from(state.draftSelected);
@@ -2465,7 +2465,7 @@ function doXacNhanDNTT(){
   });
 }
 
-/** Bước 3: in "Báo Cáo ĐNTT" (mẫu excel) cho các hồ sơ đã "Đang ĐNTT". */
+/** Bước 3: in "Báo Cáo ĐNTT" (mẫu excel) cho các hồ sơ đã "Chờ duyệt". */
 function doInBaoCaoDNTT(){
   const ids = Array.from(state.draftSelected);
   if (!ids.length) { toast('Vui lòng chọn ít nhất 1 hồ sơ.', 'warn'); return; }
@@ -2482,7 +2482,7 @@ function doInBaoCaoDNTT(){
   });
 }
 
-/** MỚI (theo yêu cầu): Tạo File UNC (Ủy Nhiệm Chi) cho hồ sơ "Đang ĐNTT"
+/** MỚI (theo yêu cầu): Tạo File UNC (Ủy Nhiệm Chi) cho hồ sơ "Chờ duyệt"
  * đã chọn - CHƯA chốt thanh toán, chỉ để nộp ngân hàng chuyển tiền trước. */
 function openCreateUNCModal(){
   const ids = Array.from(state.draftSelected);
@@ -2536,12 +2536,12 @@ function doTongHop112(){
 function viewDraftDetail(idKey){
   call('getDraftRecordDetail', [idKey], 'Đang tải chi tiết...').then(r => {
     if (!r) { toast('Không tìm thấy hồ sơ.', 'err'); return; }
-    const editable = r.soTien > 0 && !r.daXacNhan; // mục W: chỉ "Chờ ĐNTT" mới cho sửa/xóa
+    const editable = r.soTien > 0 && !r.daXacNhan; // mục W: chỉ "Chờ xác nhận" mới cho sửa/xóa
     openModal(`
       <div class="modal-head"><h3>Chi tiết hồ sơ ${esc(r.idKey)}</h3><button class="x" onclick="closeModal()" aria-label="Đóng">&times;</button></div>
       <div class="modal-body">
         <div class="kv"><span class="k">Chủ rừng</span><span class="v">${esc(r.chuRung)}</span></div>
-        <div class="kv"><span class="k">Trạng thái</span><span class="v">${r.soTien>0 ? (r.daXacNhan ? '<span class="badge ready dot">Đang ĐNTT</span>' : '<span class="badge wait dot">Chờ ĐNTT</span>') : '<span class="badge pending dot">Chưa ĐNTT</span>'}</span></div>
+        <div class="kv"><span class="k">Trạng thái</span><span class="v">${r.soTien>0 ? (r.daXacNhan ? '<span class="badge ready dot">Chờ duyệt</span>' : '<span class="badge wait dot">Chờ xác nhận</span>') : '<span class="badge pending dot">Chưa tính tiền</span>'}</span></div>
         <div class="kv"><span class="k">Người nhận</span><span class="v">${esc(r.nguoiNhan)}</span></div>
         <div class="kv"><span class="k">Ngân hàng / STK</span><span class="v">${esc(r.nganHang)} · ${esc(r.stk)}</span></div>
         <div class="kv"><span class="k">Số hợp đồng</span><span class="v">${esc(r.soHD)}</span></div>
@@ -2561,7 +2561,7 @@ function viewDraftDetail(idKey){
             <button class="btn primary sm" ${hanhDong('searchPhieuCanForEdit', r.idKey, r.chuRung)}>🔍 Tìm</button>
           </div>
           <div id="edit-pc-results" class="muted" style="font-size:13px;margin-top:8px"></div>
-        </div>` : `<div class="hint-text" style="margin-top:16px">Hồ sơ đang ở trạng thái "${r.soTien>0?'Đang ĐNTT':'Chưa ĐNTT'}" - chỉ xem, không thể sửa/xóa phiếu cân. ${r.daXacNhan?'Bấm "Về Chờ ĐNTT" ở danh sách nếu cần sửa.':''}</div>`}
+        </div>` : `<div class="hint-text" style="margin-top:16px">Hồ sơ đang ở trạng thái "${r.soTien>0?'Chờ duyệt':'Chưa tính tiền'}" - chỉ xem, không thể sửa/xóa phiếu cân. ${r.daXacNhan?'Bấm "Về Chờ xác nhận" ở danh sách nếu cần sửa.':''}</div>`}
       </div>
       <div class="modal-foot"><span id="phieu-pdf-slot"><button class="btn" ${hanhDong('inPhieuChiTietThanhToan', r.idKey)}>🖨️ In phiếu chi tiết thanh toán (PDF)</button></span><button class="btn ghost" onclick="closeModal()">Đóng</button></div>
     `);
@@ -2693,7 +2693,7 @@ function editDraftRecord(idKey){
         </div>
         <div class="field"><label>Số hợp đồng</label><input type="text" id="e-soHD" value="${esc(r.soHD)}"></div>
         <div class="field"><label>Nội dung chuyển khoản</label><textarea id="e-noiDung" rows="2">${esc(r.noiDungCK)}</textarea></div>
-        <div class="hint-text">Số tiền / lũy kế theo hợp đồng do "Đề Nghị Thanh Toán" tự tính, không sửa tay ở đây. Số tài khoản phải có trong danh sách tài khoản (HD_STK) của Số hợp đồng - tài khoản mới thì thêm ở app Hợp Đồng trước.</div>
+        <div class="hint-text">Số tiền / lũy kế theo hợp đồng do hệ thống tự tính, không sửa tay ở đây. Số tài khoản phải có trong danh sách tài khoản (HD_STK) của Số hợp đồng - tài khoản mới thì thêm ở app Hợp Đồng trước.</div>
       </div>
       <div class="modal-foot"><button class="btn ghost" onclick="closeModal()">Hủy</button>
         <button class="btn primary" ${hanhDong('saveDraftEdit', r.idKey)}>💾 Lưu thay đổi</button></div>
@@ -4187,7 +4187,7 @@ function renderHuongDan(){
     <table><thead><tr><th style="width:60px">Bước</th><th>Việc làm</th><th>Ở đâu</th><th>Trạng thái sau khi xong</th></tr></thead><tbody>
       ${QUY_TRINH_TT.map((b, i) => `<tr><td class="mono">${i + 1}</td><td>${b.viec}</td><td>${esc(b.oDau)}</td><td>${b.sau}</td></tr>`).join('')}
     </tbody></table>
-    <p class="hint-text">⚠️ Chỉ có thể Sửa/Xóa hồ sơ khi đang ở trạng thái "Chờ ĐNTT". Muốn sửa hồ sơ "Đang ĐNTT", phải bấm "↩️ Về Chờ ĐNTT" trước.</p>
+    <p class="hint-text">⚠️ Chỉ có thể Sửa/Xóa hồ sơ khi đang ở trạng thái "Chờ xác nhận". Muốn sửa hồ sơ "Chờ duyệt", phải bấm "↩️ Về Chờ xác nhận" trước.</p>
     <p class="hint-text">⚠️ Nếu phiếu cân được chọn có tên Khách hàng KHÁC với Chủ rừng của hồ sơ, hệ thống sẽ cảnh báo ở bước 1 (lúc Lưu) và bước 3 (lúc Xác Nhận) - đọc kỹ trước khi bấm tiếp tục.</p>
     <p class="hint-text">🔓 Lỡ chốt sai và cần sửa lại hồ sơ ĐÃ Đóng Thanh Toán? Xem mục "Hệ Thống" bên dưới - có công cụ "Mở Đóng Thanh Toán" để đưa cả đợt thanh toán quay lại File Nháp.</p>
   </div>
@@ -4212,10 +4212,10 @@ function renderHuongDan(){
   <details class="card">
     <summary style="cursor:pointer;font-weight:700;font-size:15px">📄 Danh Sách ĐNTT (chờ duyệt)</summary>
     <div style="margin-top:10px;font-size:13px;line-height:1.7">
-      5 tab: <b>Tất cả</b>, <b>1·Chưa ĐNTT</b> (vừa tạo, chưa tính tiền), <b>2·Chờ ĐNTT</b> (đã tính tiền, có thể Sửa/Xóa), <b>3·Đang ĐNTT</b> (đã xác nhận, chờ Duyệt - có thể In Báo Cáo ĐNTT, Tạo File UNC, hoặc "Về Chờ ĐNTT"), <b>Đã có số tiền (2 + 3)</b>.<br><br>
-      <b>⚠️ Cần tính lại:</b> hồ sơ vừa Thêm / Bỏ phiếu cân có Số tiền chưa khớp tổng tiền phiếu cân - bấm "📤 Đề Nghị Thanh Toán (tính lại)" trước; hệ thống không cho Xác nhận, In, Tạo UNC hay Duyệt hồ sơ lệch tiền.<br><br>
+      5 tab: <b>Tất cả</b>, <b>1·Chưa tính tiền</b> (vừa tạo, chưa tính tiền), <b>2·Chờ xác nhận</b> (đã tính tiền, có thể Sửa/Xóa), <b>3·Chờ duyệt</b> (đã xác nhận, chờ Duyệt - có thể In Báo Cáo ĐNTT, Tạo File UNC, hoặc "Về Chờ xác nhận"), <b>Đã có số tiền (2 + 3)</b>.<br><br>
+      <b>Tự tính tiền:</b> Lưu hồ sơ mới, Thêm / Bỏ phiếu cân đều tự tính lại Số tiền ngay. <b>⚠️ Cần tính lại:</b> hiếm khi xảy ra (tự tính bị lỗi hoặc sửa tay File Nháp) - bấm "🔄 Tính lại số tiền"; hệ thống không cho Xác nhận, In, Tạo UNC hay Duyệt hồ sơ lệch tiền.<br><br>
       Nút hành động hiện đúng theo trạng thái của (các) dòng bạn đang chọn, không phải theo tab đang xem - vậy nên ở tab "Tất cả" bạn vẫn thấy đúng nút phù hợp với từng lựa chọn.<br><br>
-      <b>🏦 Tạo File UNC:</b> tạo file Excel Ủy Nhiệm Chi để nộp ngân hàng chuyển tiền TRƯỚC khi Duyệt chính thức - dùng cho hồ sơ "Đang ĐNTT". Tham số (TK Trích Nợ/Thu Phí, Bên Chịu Phí...) cấu hình ở Cài Đặt. Mỗi lần tạo đều được lưu vết lại - xem lịch sử ở mục Hệ Thống.<br><br>
+      <b>🏦 Tạo File UNC:</b> tạo file Excel Ủy Nhiệm Chi để nộp ngân hàng chuyển tiền TRƯỚC khi Duyệt chính thức - dùng cho hồ sơ "Chờ duyệt". Tham số (TK Trích Nợ/Thu Phí, Bên Chịu Phí...) cấu hình ở Cài Đặt. Mỗi lần tạo đều được lưu vết lại - xem lịch sử ở mục Hệ Thống.<br><br>
       <b>↻ Làm mới:</b> làm mới cache Phiếu Cân/Hợp Đồng rồi tải lại danh sách - dùng khi nghi ngờ dữ liệu chưa cập nhật kịp.
     </div>
   </details>
@@ -4253,7 +4253,7 @@ function renderHuongDan(){
       <b>🔍 Đối Soát Tên Khách Hàng:</b> so sánh "Chủ rừng" ở CT (bản chính) với "Khách hàng" ở PhieuCan_DN (tra theo Số phiếu cân) - chỉ hiện dòng LỆCH. Đồng bộ = cập nhật lại Phiếu Cân theo đúng tên ở CT (CT đã đối chiếu hợp đồng nên là nguồn đúng). Xuất Excel được danh sách trước khi đồng bộ.<br><br>
       <b>🩺 Bảo Trì - Kiểm Tra Đối Chiếu 4 Sheet:</b> đối chiếu chéo DNTT_GK_DN, DNTT_GK_DN_CT, DNTT_GK_DN_112, PhieuCan_DN - tìm Số phiếu cân không tồn tại, dòng mồ côi, tổng tiền 112 lệch với CT con, tên khách hàng lệch. Chạy định kỳ để phát hiện sớm sai lệch dữ liệu.<br><br>
       <b>🏦 Cập Nhật Ngân Hàng Tài Khoản Khách Hàng:</b> vá thông tin Ngân hàng còn thiếu trong dữ liệu đã chốt, tra theo Số tài khoản từ HD_STK.<br><br>
-      <b>🔓 Mở "Đóng" Thanh Toán:</b> dùng khi CHỐT SAI cần sửa lại - luôn mở NGUYÊN CẢ đợt thanh toán (theo Chủ rừng + Ngày Đóng TT + Lần Thanh Toán, không sửa lẻ từng phiếu cân, để tránh Số tiền ở 112 bị lệch so với các phiếu cân con). Gõ Chủ rừng sẽ có gợi ý tự động kèm sẵn Ngày Đóng TT/Lần TT - bấm chọn để điền đúng luôn cả 3 ô, không cần tự tra tay. Hệ thống sẽ: xóa khỏi bản chính (DNTT_GK_DN + tất cả CT con + 112), copy lại y hệt sang File Nháp (Chờ ĐNTT) để chỉnh sửa, mở khóa lại TẤT CẢ Phiếu Cân liên quan, đổi "Trạng Thái" từ "OK" sang "Test giá" - đồng thời dọn theo cả 3 "bảng con" (ChiTietDNTT, ChiTietUNC, Update_NganHang_DN) vì đây là dữ liệu tính sẵn/lịch sử gắn liền với đợt thanh toán này. <b style="color:#b00">Rủi ro cao - đụng dữ liệu tài chính đã chốt, không tự hoàn tác được.</b><br><br>
+      <b>🔓 Mở "Đóng" Thanh Toán:</b> dùng khi CHỐT SAI cần sửa lại - luôn mở NGUYÊN CẢ đợt thanh toán (theo Chủ rừng + Ngày Đóng TT + Lần Thanh Toán, không sửa lẻ từng phiếu cân, để tránh Số tiền ở 112 bị lệch so với các phiếu cân con). Gõ Chủ rừng sẽ có gợi ý tự động kèm sẵn Ngày Đóng TT/Lần TT - bấm chọn để điền đúng luôn cả 3 ô, không cần tự tra tay. Hệ thống sẽ: xóa khỏi bản chính (DNTT_GK_DN + tất cả CT con + 112), copy lại y hệt sang File Nháp (Chờ xác nhận) để chỉnh sửa, mở khóa lại TẤT CẢ Phiếu Cân liên quan, đổi "Trạng Thái" từ "OK" sang "Test giá" - đồng thời dọn theo cả 3 "bảng con" (ChiTietDNTT, ChiTietUNC, Update_NganHang_DN) vì đây là dữ liệu tính sẵn/lịch sử gắn liền với đợt thanh toán này. <b style="color:#b00">Rủi ro cao - đụng dữ liệu tài chính đã chốt, không tự hoàn tác được.</b><br><br>
       <b>📜 Lịch Sử Sửa Đổi:</b> theo dõi mọi lần Mở Đóng Thanh Toán, Đồng Bộ Tên Khách Hàng và Cập Nhật Ngân Hàng - kèm rõ Gmail người thực hiện, thời gian, chi tiết.<br><br>
 
       <b>🔧 Tạo Lại MISA / Tạo Lại UNC (dự phòng):</b> dùng cho hồ sơ CŨ (chốt trước khi có tính năng tự động) hoặc khi phát hiện lỗi/sai sót cần làm lại - chọn khoảng <b>Ngày CK</b> (ngày thanh toán) của hồ sơ, hệ thống tự xử lý theo lô nhỏ và lặp lại tới khi xong (không lo timeout dù chọn khoảng ngày rộng), tự bỏ qua phần đã có sẵn để không tạo trùng. Việc thường ngày (chuyển tiền, ghi sổ) không cần tới 2 mục này - chỉ dùng khi có sự cố.
@@ -4279,7 +4279,7 @@ function renderHuongDan(){
     <summary style="cursor:pointer;font-weight:700;font-size:15px">❓ Xử lý sự cố thường gặp</summary>
     <div style="margin-top:10px;font-size:13px;line-height:1.7">
       <b>Không thấy phiếu cân/hợp đồng mới vừa nhập?</b> Bấm "🔄 Tải &amp; Tính Lại" (Bước 2 Tạo Mới) hoặc "↻ Làm mới" (Danh Sách ĐNTT).<br><br>
-      <b>Không sửa/xóa được hồ sơ?</b> Chỉ sửa/xóa được khi đang "Chờ ĐNTT" - nếu đang "Đang ĐNTT", bấm "Về Chờ ĐNTT" trước. Nếu ĐÃ chốt (Đóng Thanh Toán), dùng "Mở Đóng Thanh Toán" ở mục Hệ Thống.<br><br>
+      <b>Không sửa/xóa được hồ sơ?</b> Chỉ sửa/xóa được khi đang "Chờ xác nhận" - nếu đang "Chờ duyệt", bấm "Về Chờ xác nhận" trước. Nếu ĐÃ chốt (Đóng Thanh Toán), dùng "Mở Đóng Thanh Toán" ở mục Hệ Thống.<br><br>
       <b>CCCD/STK/ID bị mất số 0 đầu, hoặc Ngày bị lộn ngày-tháng?</b> Vào Cài Đặt bấm "Khóa Định Dạng TEXT/Ngày" - lưu ý KHÔNG phục hồi được dữ liệu cũ đã sai, cần gõ lại tay.<br><br>
       <b>Xuất báo cáo Excel bị chậm/timeout?</b> Hệ thống đã tối ưu dùng cache chung cho Phiếu Cân/Hợp Đồng - nếu vẫn chậm, báo rõ báo cáo nào và khoảng bao nhiêu dòng dữ liệu để kiểm tra tiếp.<br><br>
       <b>Chọn "dd/mm/yyyy" nhưng file xuất ra vẫn hiện "mm/dd/yyyy"?</b> Kiểm tra lại "Vùng Định Dạng Báo Cáo Xuất Excel" ở Cài Đặt (khác với "Vùng Lãnh Thổ").<br><br>
@@ -4356,7 +4356,7 @@ function renderHeThong(){
     </div>
     <div class="card" style="border-color:#b00">
       <h3 style="color:#b00">🔓 Mở "Đóng" Thanh Toán (theo Chủ rừng + Ngày + Lần TT)</h3>
-      <p class="muted" style="font-size:13px">Luôn mở lại NGUYÊN CẢ đợt thanh toán (không sửa lẻ từng phiếu cân - để tránh Số tiền ở 112 bị lệch so với các phiếu cân con). Tìm đúng 1 hồ sơ khớp Chủ rừng + Ngày Đóng TT + Lần Thanh Toán - nếu khớp NHIỀU hơn 1, hệ thống sẽ dừng lại, không tự chọn để tránh nhầm. Hệ thống sẽ: xóa TOÀN BỘ DNTT_GK_DN + tất cả CT con + 112 khỏi bản chính, copy lại y hệt sang File Nháp (Chờ ĐNTT), mở khóa TẤT CẢ Phiếu Cân liên quan, đổi "Trạng Thái" từ "OK" sang "Test giá" - <b>đồng thời dọn theo cả 3 "bảng con" của CT: ChiTietDNTT, ChiTietUNC và Update_NganHang_DN</b> (vì đây là dữ liệu tính sẵn/lịch sử của đợt thanh toán này - không dọn sẽ để sót dữ liệu "mồ côi" trông như vẫn đang chốt).</p>
+      <p class="muted" style="font-size:13px">Luôn mở lại NGUYÊN CẢ đợt thanh toán (không sửa lẻ từng phiếu cân - để tránh Số tiền ở 112 bị lệch so với các phiếu cân con). Tìm đúng 1 hồ sơ khớp Chủ rừng + Ngày Đóng TT + Lần Thanh Toán - nếu khớp NHIỀU hơn 1, hệ thống sẽ dừng lại, không tự chọn để tránh nhầm. Hệ thống sẽ: xóa TOÀN BỘ DNTT_GK_DN + tất cả CT con + 112 khỏi bản chính, copy lại y hệt sang File Nháp (Chờ xác nhận), mở khóa TẤT CẢ Phiếu Cân liên quan, đổi "Trạng Thái" từ "OK" sang "Test giá" - <b>đồng thời dọn theo cả 3 "bảng con" của CT: ChiTietDNTT, ChiTietUNC và Update_NganHang_DN</b> (vì đây là dữ liệu tính sẵn/lịch sử của đợt thanh toán này - không dọn sẽ để sót dữ liệu "mồ côi" trông như vẫn đang chốt).</p>
       <div class="hint-text" style="color:#b00">⚠️ RỦI RO CAO - đụng vào dữ liệu tài chính ĐÃ CHỐT, xóa CẢ đợt thanh toán cùng lúc VÀ cả dữ liệu MISA/UNC liên quan. Nếu tiền ĐÃ THỰC SỰ chuyển qua ngân hàng dựa theo Update_NganHang_DN trước khi mở lại, việc xóa dòng đó KHÔNG hoàn tác được giao dịch ngân hàng thật - chỉ xóa bản ghi trong hệ thống. Kiểm tra kỹ trước khi bấm.</div>
       <div class="grid cols-3">
         <div class="field" style="position:relative"><label>Chủ rừng</label><input type="text" id="modong-churung" autocomplete="off" placeholder="Họ tên chủ rừng"><div id="modong-churung-suggest" class="suggest-box hidden"></div></div>
@@ -4547,7 +4547,7 @@ const NHAN_HANH_DONG = {
   THEM_PHIEU_NHAP: '➕ Thêm phiếu cân',
   XOA_PHIEU_NHAP: '➖ Bỏ phiếu cân',
   XAC_NHAN_DNTT: '✅ Xác nhận ĐNTT',
-  HUY_XAC_NHAN_DNTT: '↩️ Về Chờ ĐNTT',
+  HUY_XAC_NHAN_DNTT: '↩️ Về Chờ xác nhận',
   CHOT_THANH_TOAN: '📨 Duyệt (Đóng TT)',
   CAU_HINH_HE_THONG: '⚙️ Đổi cấu hình'
 };

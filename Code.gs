@@ -581,7 +581,7 @@ function _hoSoLechTien_(row112, tongTheoHoSo) {
 }
 /** Câu báo chung cho hồ sơ lệch số tiền. */
 function _canhBaoLechTien_(ids) {
-  return `Số tiền chưa khớp tổng tiền phiếu cân (vừa Thêm / Bỏ phiếu cân hoặc sửa tay File Nháp) - bấm "📤 Đề Nghị Thanh Toán (tính lại)" trước: ${ids.join(", ")}`;
+  return `Số tiền chưa khớp tổng tiền phiếu cân (vừa Thêm / Bỏ phiếu cân hoặc sửa tay File Nháp) - bấm "🔄 Tính lại số tiền" trước: ${ids.join(", ")}`;
 }
 
 const utils = {
@@ -2831,7 +2831,7 @@ function webMoDongThanhToanTheoHoSo_(chuRungInput, ngayDongTTInput, lanTTInput) 
     const newSrcRow = srcRow.slice(); // copy y hệt toàn bộ Src cũ
     newSrcRow[0] = newId; newSrcRow[1] = now;
     newSrcRow[12] = newId; // ID_112 trỏ tới 112 mới
-    newSrcRow[14] = ""; newSrcRow[15] = ""; newSrcRow[16] = ""; newSrcRow[17] = ""; // Trạng thái/Mã Lần TT/Ngày Đóng TT/Đã Xử Lý -> để trống (Chờ ĐNTT)
+    newSrcRow[14] = ""; newSrcRow[15] = ""; newSrcRow[16] = ""; newSrcRow[17] = ""; // Trạng thái/Mã Lần TT/Ngày Đóng TT/Đã Xử Lý -> để trống (Chờ xác nhận)
 
     const id112Moi = Utilities.formatDate(now, "GMT+7", "yyyyMMddHHmmss") + ("0000" + Math.floor(Math.random() * 10000)).slice(-4);
     let new112Row;
@@ -3017,7 +3017,7 @@ function webCreateUNCFromDraft_(selectedIds, ngayHieuLuc, tkTrichNoOverride, tkT
     });
 
     if (filteredRows.length === 0) {
-      let msg = "❌ Không có hồ sơ nào ở trạng thái 'Đang ĐNTT' để tạo UNC (phải bấm 'Xác Nhận' trước).";
+      let msg = "❌ Không có hồ sơ nào ở trạng thái 'Chờ duyệt' để tạo UNC (phải bấm 'Xác Nhận' trước).";
       if (skippedNotConfirmed.length) msg += ` Hồ sơ chưa Xác Nhận: ${skippedNotConfirmed.join(", ")}.`;
       if (skippedLechTien.length) msg += ` ⛔ ${_canhBaoLechTien_(skippedLechTien)}.`;
       return { success: false, message: msg };
@@ -5848,7 +5848,7 @@ function _tinhLai112Nhap_() {
     if (draft112MapIdx.has(id)) return;
     const first = ctGroupedById[id][0];
     session = session || getSessionInfo_();
-    const newRow = new Array(24).fill(""); // mục U: +1 cột "Trạng Thái ĐNTT" (mặc định rỗng = Chờ ĐNTT)
+    const newRow = new Array(24).fill(""); // mục U: +1 cột "Trạng Thái ĐNTT" (mặc định rỗng = Chờ xác nhận)
     newRow[0] = id;
     newRow[1] = first[2];
     newRow[2] = first[3];
@@ -8781,7 +8781,7 @@ function createNewPaymentRequest_(payload) {
     // 6. Tạo placeholder Draft 112 (Số tiền/Nội dung CK sẽ được tính khi
     // chạy "Tổng Hợp 112")
     const id112 = Utilities.formatDate(now, "GMT+7", "yyyyMMddHHmmss") + ("0000" + Math.floor(Math.random() * 10000)).slice(-4);
-    const new112Row = new Array(24).fill(""); // mục U: +1 cột "Trạng Thái ĐNTT" (mặc định rỗng = Chờ ĐNTT)
+    const new112Row = new Array(24).fill(""); // mục U: +1 cột "Trạng Thái ĐNTT" (mặc định rỗng = Chờ xác nhận)
     new112Row[0] = newId; new112Row[1] = now; new112Row[2] = payload.hoTenChuRung;
     new112Row[3] = payload.nguoiNhanTien; new112Row[4] = payload.nganHang;
     new112Row[5] = _chu_(payload.soTKNhanTien); new112Row[6] = ""; new112Row[7] = "";
@@ -8840,7 +8840,7 @@ function runDeleteDraftRecord_(idKey) {
     const all112 = c112LastRow > 1 ? shDraft112.getRange(2, 1, c112LastRow - 1, 24).getValues() : [];
     const row112Check = all112.find(r => String(r[0] || "").trim() === id);
     if (row112Check && !_isRecordEditable_(row112Check)) {
-      return `❌ Không thể xóa: hồ sơ "${id}" chưa/đã qua trạng thái "Chờ ĐNTT". Hãy bấm "Về Chờ ĐNTT" trước nếu đang ở "Đang ĐNTT".`;
+      return `❌ Không thể xóa: hồ sơ "${id}" chưa/đã qua trạng thái "Chờ xác nhận". Hãy bấm "Về Chờ xác nhận" trước nếu đang ở "Chờ duyệt".`;
     }
 
     const ctLastRow = shDraftCT.getLastRow();
@@ -9087,7 +9087,7 @@ function getDraftListSummary_() {
     // mục U: 3 trạng thái - "cho_tinh" (chưa tính tiền) / "cho_dntt" (đã
     // tính tiền, chưa Xác Nhận) / "dang_dntt" (đã Xác Nhận, chờ Duyệt).
     const trangThaiKey = !sanSangChot ? "cho_tinh" : (daXacNhan ? "dang_dntt" : "cho_dntt");
-    const trangThaiLabel = !sanSangChot ? "Chưa ĐNTT" : (daXacNhan ? "Đang ĐNTT" : "Chờ ĐNTT");
+    const trangThaiLabel = !sanSangChot ? "Chưa tính tiền" : (daXacNhan ? "Chờ duyệt" : "Chờ xác nhận");
     // Số tiền đã tính nhưng lệch tổng phiếu cân (vừa Thêm / Bỏ phiếu cân) -> cần tính lại.
     const tongTienPhieu = details.reduce((t, d) => t + utils.parseNum(d[16]), 0);
     const canTinhLai = sanSangChot && Math.abs(soTien - tongTienPhieu) > LECH_TIEN_CHO_PHEP;
@@ -9337,7 +9337,7 @@ function updateDraft112Info_(idKey, updates) {
     const row = data[idx];
     // MỚI (mục W): CHỈ được sửa khi hồ sơ đang ở "Chờ ĐNTT".
     if (!_isRecordEditable_(row)) {
-      throw new Error(`Không thể sửa: hồ sơ "${id}" chưa/đã qua trạng thái "Chờ ĐNTT". Hãy bấm "Về Chờ ĐNTT" trước nếu đang ở "Đang ĐNTT".`);
+      throw new Error(`Không thể sửa: hồ sơ "${id}" chưa/đã qua trạng thái "Chờ xác nhận". Hãy bấm "Về Chờ xác nhận" trước nếu đang ở "Chờ duyệt".`);
     }
     const truoc = _truongHoSo_(row);
     if (updates.chuRung !== undefined) row[2] = updates.chuRung;
@@ -9408,7 +9408,7 @@ function addPhieuCanToDraft_(idKey, soPhieuCan) {
       const all112Chk = sh112.getRange(2, 1, c112LastRowChk - 1, 24).getValues();
       const row112Chk = all112Chk.find(r => String(r[0] || "").trim() === id);
       if (row112Chk && !_isRecordEditable_(row112Chk)) {
-        throw new Error(`Không thể sửa: hồ sơ "${id}" chưa/đã qua trạng thái "Chờ ĐNTT". Hãy bấm "Về Chờ ĐNTT" trước nếu đang ở "Đang ĐNTT".`);
+        throw new Error(`Không thể sửa: hồ sơ "${id}" chưa/đã qua trạng thái "Chờ xác nhận". Hãy bấm "Về Chờ xác nhận" trước nếu đang ở "Chờ duyệt".`);
       }
     }
 
@@ -9477,7 +9477,7 @@ function removePhieuCanFromDraft_(idCT) {
       const all112Chk = sh112.getRange(2, 1, c112LastRowChk - 1, 24).getValues();
       const row112Chk = all112Chk.find(r => String(r[0] || "").trim() === ownerId);
       if (row112Chk && !_isRecordEditable_(row112Chk)) {
-        throw new Error(`Không thể sửa: hồ sơ "${ownerId}" chưa/đã qua trạng thái "Chờ ĐNTT". Hãy bấm "Về Chờ ĐNTT" trước nếu đang ở "Đang ĐNTT".`);
+        throw new Error(`Không thể sửa: hồ sơ "${ownerId}" chưa/đã qua trạng thái "Chờ xác nhận". Hãy bấm "Về Chờ xác nhận" trước nếu đang ở "Chờ duyệt".`);
       }
     }
 
@@ -10034,7 +10034,7 @@ function runXacNhanDNTT_(selectedIds, forceConfirm) {
     if (count === 0) {
       msg = "❌ Không có hồ sơ nào đủ điều kiện Xác Nhận (phải đã có Số tiền > 0, tức đã chạy 'Tổng Hợp 112').";
     } else {
-      msg = `✅ Đã Xác Nhận ${count} hồ sơ - chuyển sang trạng thái "Đang ĐNTT", có thể in Báo Cáo ĐNTT và chờ Duyệt để Đóng Thanh Toán.`;
+      msg = `✅ Đã Xác Nhận ${count} hồ sơ - chuyển sang trạng thái "Chờ duyệt", có thể in Báo Cáo ĐNTT và chờ Duyệt để Đóng Thanh Toán.`;
     }
     if (skippedNotCalculated.length) msg += ` ⚠️ Chưa tính tiền (bỏ qua): ${skippedNotCalculated.join(", ")}.`;
     if (skippedLechTien.length) msg += ` ⛔ Không Xác nhận - ${_canhBaoLechTien_(skippedLechTien)}.`;
@@ -10088,14 +10088,14 @@ function runHuyXacNhanDNTT_(idKey, dongYDaCoUnc) {
     const moTaUnc = unc.map(u => `UNC tạo ${u.taoLuc} - STK ${u.stk}, ${u.soTien.toLocaleString("vi-VN")} đ, ngày hiệu lực ${u.ngayHieuLuc}`).join("; ");
     if (unc.length && dongYDaCoUnc !== true) {
       return { success: false, canXacNhanUnc: true,
-        message: `⚠️ Hồ sơ "${id}" ĐÃ CÓ UNC (${moTaUnc}).\n\nNếu file UNC này ĐÃ NỘP ngân hàng, sửa STK / số tiền rồi tạo UNC mới có thể chuyển tiền 2 lần hoặc sai tài khoản - hãy hủy lệnh ở ngân hàng trước.\n\nVẫn chuyển hồ sơ về "Chờ ĐNTT"?` };
+        message: `⚠️ Hồ sơ "${id}" ĐÃ CÓ UNC (${moTaUnc}).\n\nNếu file UNC này ĐÃ NỘP ngân hàng, sửa STK / số tiền rồi tạo UNC mới có thể chuyển tiền 2 lần hoặc sai tài khoản - hãy hủy lệnh ở ngân hàng trước.\n\nVẫn chuyển hồ sơ về "Chờ xác nhận"?` };
     }
 
     sh112.getRange(idx + 2, COL_TRANG_THAI_DNTT + 1).setValue("");
     SpreadsheetApp.flush();
 
-    logAction_("HUY_XAC_NHAN_DNTT", id, `Chuyển hồ sơ "${id}" về "Chờ ĐNTT" để cho phép Sửa/Xóa.` + (unc.length ? ` Hồ sơ đã có UNC - người dùng xác nhận vẫn hủy: ${moTaUnc}.` : ""));
-    return { success: true, message: `✅ Đã chuyển hồ sơ "${id}" về trạng thái "Chờ ĐNTT" - giờ có thể Sửa/Xóa.` };
+    logAction_("HUY_XAC_NHAN_DNTT", id, `Chuyển hồ sơ "${id}" về "Chờ xác nhận" để cho phép Sửa/Xóa.` + (unc.length ? ` Hồ sơ đã có UNC - người dùng xác nhận vẫn hủy: ${moTaUnc}.` : ""));
+    return { success: true, message: `✅ Đã chuyển hồ sơ "${id}" về trạng thái "Chờ xác nhận" - giờ có thể Sửa/Xóa.` };
   } catch (e) {
     return { success: false, message: "❌ Lỗi: " + _loiChoNguoiDung_(e) };
   } finally { if (lock) lock.releaseLock(); }
@@ -10205,7 +10205,7 @@ function exportBaoCaoDNTTFromDraft_(selectedIds) {
       || ngayDNSo(a).localeCompare(ngayDNSo(b)) || a.viTri - b.viTri);
 
     if (rows.length === 0) {
-      let msg = "❌ Không có hồ sơ nào ở trạng thái 'Đang ĐNTT' để xuất báo cáo (phải bấm 'Xác Nhận' trước).";
+      let msg = "❌ Không có hồ sơ nào ở trạng thái 'Chờ duyệt' để xuất báo cáo (phải bấm 'Xác Nhận' trước).";
       if (skippedNotConfirmed.length) msg += ` Hồ sơ chưa Xác Nhận: ${skippedNotConfirmed.join(", ")}.`;
       if (skippedLechTien.length) msg += ` ⛔ ${_canhBaoLechTien_(skippedLechTien)}.`;
       return { success: false, message: msg };
@@ -10758,14 +10758,14 @@ function _layNgayVaSoLieuThatChoChatbot_() {
     let phanHoSoNhap = "";
     try {
       phanHoSoNhap = "\n\nDANH SÁCH HỒ SƠ ĐANG CHỜ XỬ LÝ (File Nháp, chưa chốt - đây là số tiền TỪNG HỒ SƠ cụ thể):\n" +
-        list.slice(0, 100).map(r => `- ${r.chuRung || r.hoTenChuRung || ''} (Số HĐ ${r.soHD || ''}): ${(r.soTien||0).toLocaleString('vi-VN')}đ, trạng thái ${r.trangThaiKey === 'cho_tinh' ? 'Chưa ĐNTT' : r.trangThaiKey === 'cho_dntt' ? 'Chờ ĐNTT' : 'Đang ĐNTT'}`).join("\n");
+        list.slice(0, 100).map(r => `- ${r.chuRung || r.hoTenChuRung || ''} (Số HĐ ${r.soHD || ''}): ${(r.soTien||0).toLocaleString('vi-VN')}đ, trạng thái ${r.trangThaiKey === 'cho_tinh' ? 'Chưa tính tiền' : r.trangThaiKey === 'cho_dntt' ? 'Chờ xác nhận' : 'Chờ duyệt'}`).join("\n");
     } catch (e) { phanHoSoNhap = "\n\nDANH SÁCH HỒ SƠ ĐANG CHỜ XỬ LÝ: KHÔNG ĐỌC ĐƯỢC lúc này (" + _loiChoNguoiDung_(e) + ") - không được coi là 0 / không có; nói rõ với người dùng là thiếu số liệu phần này."; } // B-13
 
     return `Thời điểm hiện tại: ${homNay}.
 Số liệu THẬT đang có trong hệ thống (hồ sơ Nháp đọc trực tiếp; công nợ / tổng hợp là bản tính gần nhất, tối đa 10 phút, tính lại ngay sau mỗi lần Duyệt / Mở Đóng TT):
-- Hồ sơ "Chưa ĐNTT" (mới tạo, chưa tính tiền): ${dem.cho_tinh}
-- Hồ sơ "Chờ ĐNTT" (đã tính tiền, chờ Xác Nhận): ${dem.cho_dntt}
-- Hồ sơ "Đang ĐNTT" (đã xác nhận, chờ Duyệt/Đóng Thanh Toán): ${dem.dang_dntt}
+- Hồ sơ "Chưa tính tiền" (mới tạo, chưa tính tiền): ${dem.cho_tinh}
+- Hồ sơ "Chờ xác nhận" (đã tính tiền, chờ Xác Nhận): ${dem.cho_dntt}
+- Hồ sơ "Chờ duyệt" (đã xác nhận, chờ Duyệt/Đóng Thanh Toán): ${dem.dang_dntt}
 - Tổng hồ sơ trong File Nháp: ${stats.draftCount}
 - Tổng tiền các hồ sơ đã sẵn sàng chốt (đang chờ): ${stats.draftTotalTien.toLocaleString('vi-VN')} đ
 - Số "đơn xin" cũ (quy trình nhập liệu thủ công) chưa xử lý: ${stats.nguonChoXuLy}${phanHoSoNhap}${phanNang}

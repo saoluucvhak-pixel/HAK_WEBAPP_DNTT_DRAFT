@@ -46,3 +46,16 @@ test('#12 the save button says what it really does', () => {
   assert.match(INDEX, /💾 Lưu hồ sơ \(vào Danh Sách ĐNTT, tự tính tiền\)/);
   assert.doesNotMatch(INDEX, /ghi sheet chính \+ tách vào Nháp/);
 });
+
+// ---------- #10 Tên trạng thái dễ phân biệt (chỉ đổi chữ hiển thị) ----------
+test('#10 statuses read "Chưa tính tiền / Chờ xác nhận / Chờ duyệt"; the stored value is unchanged', () => {
+  const { run, w } = theGioi();
+  const ds = run('getDraftListSummary_')();
+  assert.deepEqual([...new Set(ds.map(r => r.trangThaiLabel))].sort(), ['Chờ duyệt', 'Chờ xác nhận'].sort());
+  assert.equal(run('runHuyXacNhanDNTT_')('A1').success, true);
+  assert.equal(run('runXacNhanDNTT_')(['A1']).success, true);
+  assert.equal(w.draft.getSheetByName('DNTT_GK_DN_112_DRAFT').rows(24).find(r => r[0] === 'A1')[23], 'Đang ĐNTT', 'sheet value kept (older data, formulas)');
+  assert.doesNotMatch(INDEX, /Chưa ĐNTT|Chờ ĐNTT|Đang ĐNTT/);
+  assert.match(INDEX, /cho_dntt: '<span class="badge wait dot">Chờ xác nhận<\/span>'/);
+  assert.match(INDEX, /🔄 Tính lại số tiền/);
+});
