@@ -58,10 +58,15 @@ export class MockRange {
     for (let r = 0; r < this.numRows; r++) for (let c = 0; c < this.numCols; c++) this.sheet._set(this.row + r, this.col + c, '');
     return this;
   }
-  setNumberFormat() { return this; }
-  setNumberFormats() { return this; }
-  getNumberFormat() { return ''; }
-  getNumberFormats() { return Array.from({ length: this.numRows }, () => new Array(this.numCols).fill('')); }
+  // Định dạng số/ngày lưu theo từng ô (sheet.formats) để test kiểm tra được cột ngày/chữ.
+  _eachCell(fn) { for (let r = 0; r < this.numRows; r++) for (let c = 0; c < this.numCols; c++) fn(this.row + r, this.col + c, r, c); }
+  setNumberFormat(fmt) { const f = (this.sheet.formats ||= new Map()); this._eachCell((r, c) => f.set(r + ',' + c, fmt)); return this; }
+  setNumberFormats(m) { const f = (this.sheet.formats ||= new Map()); this._eachCell((r, c, i, j) => f.set(r + ',' + c, m[i][j])); return this; }
+  getNumberFormat() { return (this.sheet.formats && this.sheet.formats.get(this.row + ',' + this.col)) || ''; }
+  getNumberFormats() {
+    const f = this.sheet.formats || new Map();
+    return Array.from({ length: this.numRows }, (_, i) => Array.from({ length: this.numCols }, (_, j) => f.get((this.row + i) + ',' + (this.col + j)) || ''));
+  }
   setFontWeight() { return this; }
   setBackground() { return this; }
   setFontColor() { return this; }

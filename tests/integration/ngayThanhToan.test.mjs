@@ -45,7 +45,8 @@ test('standard regions: Google Sheet side US, exports (MISA) VN - even when only
   const misa = w.updateNh.getSheetByName('Update_NganHang_DN').rows(33).slice(1);
   assert.deepEqual(misa.map(r => [r[2], r[3]]), [['05/09/2026', '05/09/2026'], ['05/09/2026', '05/09/2026']], 'MISA dates dd/mm/yyyy');
   const chiTiet = w.main.getSheetByName('ChiTietDNTT').rows(28).slice(1).filter(r => r[0] === 'A1');
-  assert.ok(chiTiet.length && chiTiet.every(r => r[3] === '05/09/2026'), 'ChiTietDNTT payment date dd/mm/yyyy');
+  assert.ok(chiTiet.length && chiTiet.every(r => r[3] instanceof Date && r[3].toISOString().slice(0, 10) === '2026-09-05'), 'ChiTietDNTT (ledger) stores a real date');
+  assert.ok(run('getChiTietDNTTDaChot_')('2026-09-01', '2026-09-30').items.every(x => x.ngayCK === '05/09/2026'), 'web shows dd/mm/yyyy');
   const xuat = run('exportMisaTheoNgayExcel_')('2026-09-05', '2026-09-05');
   const file = env.SpreadsheetApp.openById(/\/d\/([^/]+)/.exec(xuat.url)[1]);
   assert.equal(file.getSheets()[0].rows(33)[1][2], '05/09/2026', 'MISA export file dd/mm/yyyy');

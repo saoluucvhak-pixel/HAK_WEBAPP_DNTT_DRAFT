@@ -48,7 +48,7 @@ test('runConfirmPayment commits the selected record end-to-end', () => {
 
   const chiTiet = world.main.getSheetByName('ChiTietDNTT').rows(28).slice(1);
   assert.equal(chiTiet.length, 2);
-  chiTiet.forEach(r => { assert.equal(r[26], 'Y'); assert.equal(r[3], '26/09/2026'); });
+  chiTiet.forEach(r => { assert.equal(r[26], 'Y'); assert.ok(r[3] instanceof Date, 'ledger stores a real date'); assert.equal(r[3].toISOString().slice(0, 10), '2026-09-26'); });
 
   const misa = world.updateNh.getSheetByName('Update_NganHang_DN').rows(33).slice(1);
   assert.equal(misa.length, 2);

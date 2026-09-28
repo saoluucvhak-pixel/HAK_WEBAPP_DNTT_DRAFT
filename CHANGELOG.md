@@ -2,6 +2,19 @@
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/). Phiên bản theo `NĂM.ĐỢT.SỬA`; thay đổi làm đổi hành vi nghiệp vụ (⚖️) sẽ tăng số ĐỢT và ghi rõ đã được người dùng đồng ý.
 
+## [2026.9.23] — Ghi sổ theo Vùng Lãnh Thổ, xuất file theo Vùng xuất (người dùng chốt 28/09/2026)
+
+### Fixed
+- **Sổ ChiTietUNC**: Ngày hiệu lực ghi CHỮ theo Vùng xuất ("05/09/2026") vào cột **không khóa TEXT** — file Sheet locale US tự đọc thành **09/05** (ngày ≤ 12) hoặc để chữ (ngày > 12). Nay ghi **Date thật**, cột định dạng theo Vùng Lãnh Thổ. ⚠️ Dòng cũ có ngày ≤ 12 có thể đã bị Sheets đọc lộn — cần soát tay.
+- **Sổ ChiTietDNTT**: Ngày CK, Ngày nhập ghi CHỮ theo Vùng xuất → nay **Date thật** theo Vùng Lãnh Thổ (cột được định dạng lại 1 lần; dòng cũ dạng chữ vẫn đọc đúng).
+- File **Báo Cáo Chi Tiết** khóa TEXT nhầm cột (3,4,5,7,17 thay vì Ngày CK/Ngày nhập/Số HĐ/Số TK) và ghi nguyên chữ từ sổ; file **Báo Cáo UNC** không khóa cột Ngày hiệu lực/Thời gian tạo và ghi ngày dd/MM cố định. Nay khóa đúng cột, ngày/giờ theo Vùng xuất.
+- Tiêu đề khoảng ngày của **Báo Cáo ĐNTT** (“Thời gian: 2026-09-01 - 2026-09-30”, “CHỜ DUYỆT - dd/MM/yyyy” viết cố định) nay theo Vùng xuất.
+- Dòng MISA ghi lúc Duyệt định dạng Ngày CK theo Vùng xuất ngay lúc ghi (không phụ thuộc cách sổ lưu).
+- Nút **Khóa định dạng** thêm cột ngày của ChiTietDNTT và ChiTietUNC.
+
+### Tests
+- 125 test (thêm `quyDinhNgay.test.mjs`: 2 sổ lưu Date + định dạng cột theo Vùng Lãnh Thổ, web dd/mm, file xuất/MISA đổi theo Vùng xuất VN/US, dòng cũ dạng chữ vẫn đọc đúng, tiêu đề khoảng ngày — 3 test thất bại trên 2026.9.22). Mock lưu định dạng ô.
+
 ## [2026.9.22] — Quy định định dạng ngày giờ: web VN, Google Sheet theo Vùng Lãnh Thổ, xuất theo Vùng xuất (người dùng chốt 28/09/2026)
 
 ### Changed

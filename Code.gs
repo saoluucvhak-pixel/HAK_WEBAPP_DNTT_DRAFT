@@ -1,6 +1,6 @@
 /**
  * ============================================================
- * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.22
+ * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.23
  * Lịch sử thay đổi: CHANGELOG.md · Kiến trúc: docs/ARCHITECTURE.md
  * ------------------------------------------------------------
  * *** QUAN TRỌNG - CẦN LÀM TRƯỚC KHI DÙNG BẢN NÀY (chỉ 1 LẦN DUY NHẤT
@@ -2789,6 +2789,7 @@ function webCreateUNCFromDraft_(selectedIds, ngayHieuLuc, tkTrichNoOverride, tkT
  * như cũ để nộp ngân hàng.
  */
 const CHITIET_UNC_SHEET = "ChiTietUNC";
+const CHITIET_UNC_COT_NGAY = [13]; // 1-based: Ngày hiệu lực - ghi Date, định dạng theo Vùng Lãnh Thổ
 const CHITIET_UNC_HEADERS = ["ID Hệ Thống", "STT", "Phương thức", "TK Trích Nợ", "Tên người nhận", "Số TK", "Ngân hàng", "Số tiền", "Loại tiền", "Nội dung", "Bên chịu phí", "TK Thu phí", "Ngày hiệu lực", "Người tạo", "Thời gian tạo", "Link file UNC", "Chủ rừng", "Số hợp đồng"];
 
 function _getChiTietUncSheet_() {
@@ -2800,14 +2801,18 @@ function _getChiTietUncSheet_() {
     sh.setFrozenRows(1);
     _lockTextCols_(sh, [1, 4, 6, 12, 18], 3000); // ID Hệ Thống, TK Trích Nợ, Số TK, TK Thu phí, Số hợp đồng
   }
+  _damBaoCotNgaySo_(sh, CHITIET_UNC_COT_NGAY); // Ngày hiệu lực: Date thật theo Vùng Lãnh Thổ (từ 2026.9.23)
   return sh;
 }
 
 /** Ghi lại lịch sử 1 lần tạo UNC vào ChiTietUNC - KHÔNG ảnh hưởng tới
  * việc tạo file Excel rời (vẫn giữ nguyên như cũ). */
-function _ghiLichSuUNC_(filteredRows, uncCfg, toDate, toDateXuat, fileUrl) {
+function _ghiLichSuUNC_(filteredRows, uncCfg, toDate, fileUrl) {
   try {
     const sh = _getChiTietUncSheet_();
+    // Ghi sổ theo Vùng Lãnh Thổ: Date thật (trước 2026.9.23 ghi CHỮ theo Vùng xuất vào
+    // cột không khóa TEXT - sheet locale US tự đọc "05/09/2026" thành 09/05).
+    const ngayHieuLuc = _docNgaySo_(toDate) || toDate;
     const user = _emailNguoiThucHien_() || "N/A";
     const now = new Date();
 
@@ -2820,7 +2825,7 @@ function _ghiLichSuUNC_(filteredRows, uncCfg, toDate, toDateXuat, fileUrl) {
       return [
         r.idHeThong || "", i + 1, phuongThucChuyen, _chu_(uncCfg.tkTrichNo), r.nguoiNhan,
         _chu_(r.stk), r.nganHang, utils.parseNum(r.soTien), uncCfg.loaiTien, r.noiDungCK,
-        uncCfg.benChiuPhi, _chu_(uncCfg.tkThuPhi), toDateXuat, user, now, fileUrl,
+        uncCfg.benChiuPhi, _chu_(uncCfg.tkThuPhi), ngayHieuLuc, user, now, fileUrl,
         r.chuRung || "", _chu_(r.soHD || "")
       ];
     });
@@ -2831,6 +2836,7 @@ function _ghiLichSuUNC_(filteredRows, uncCfg, toDate, toDateXuat, fileUrl) {
         const idTaoLai = new Set(rows.map(r => String(r[0] || "").trim()).filter(Boolean));
         if (idTaoLai.size) _saoLuuVaXoaDong_(sh, r => idTaoLai.has(String(r[0] || "").trim()), "TAO_LAI_UNC", _maThaoTacMoi_("TAO_LAI_UNC"));
         const startRow = sh.getLastRow() + 1;
+        _dinhDangCotNgaySo_(sh, CHITIET_UNC_COT_NGAY, startRow, rows.length);
         sh.getRange(startRow, 1, rows.length, CHITIET_UNC_HEADERS.length).setValues(_dongAnToan_(rows));
       });
     }
@@ -2857,12 +2863,47 @@ function _parseNgayXuatVeIso_(str) {
   if (fmt.startsWith("mm")) { month = m[1]; day = m[2]; } else { day = m[1]; month = m[2]; }
   return `${m[3]}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
 }
-/** Ngày dạng CHỮ đã ghi theo Vùng xuất (ChiTietDNTT, Update_NganHang_DN) -> dd/MM/yyyy
- * để hiện trên web app (quy định 28/09/2026: web luôn kiểu VN, dù Vùng xuất là gì).
- * Không đọc được thì giữ nguyên chuỗi. */
-function _ngayChuSangWeb_(s) {
-  const iso = _parseNgayXuatVeIso_(s);
-  return iso ? iso.slice(8, 10) + "/" + iso.slice(5, 7) + "/" + iso.slice(0, 4) : String(s || "");
+// ------------------------------------------------------------
+// QUY ĐỊNH ĐỊNH DẠNG NGÀY (người dùng chốt 28/09/2026): web app dd/MM/yyyy;
+// GHI SỔ (Google Sheet) theo Vùng Lãnh Thổ = ghi Date thật, cột ngày định dạng
+// theo _getRegionPreset_(); XUẤT FILE theo Vùng xuất = _formatNgayXuat_().
+// ------------------------------------------------------------
+/** Giá trị ngày đọc từ sổ -> Date ("" nếu không đọc được). Sổ ghi Date thật; dòng
+ * do bản cũ ghi dạng CHỮ (theo Vùng xuất lúc đó, hoặc yyyy-MM-dd) vẫn đọc được. */
+function _docNgaySo_(v) {
+  if (v instanceof Date) return isNaN(v.getTime()) ? "" : v;
+  const s = String(v || "").trim();
+  const iso = /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : _parseNgayXuatVeIso_(s);
+  return iso ? _ngayVNTruaThat_(+iso.slice(0, 4), +iso.slice(5, 7), +iso.slice(8, 10)) : "";
+}
+/** Ngày trong sổ -> chuỗi hiện trên web (dd/MM/yyyy); không đọc được thì giữ nguyên. */
+function _ngayWeb_(v) {
+  const d = _docNgaySo_(v);
+  return d ? utils.formatDate(d) : String(v || "");
+}
+/** Ngày trong sổ -> chuỗi cho FILE XUẤT (theo Vùng xuất). */
+function _ngayXuat_(v) {
+  const d = _docNgaySo_(v);
+  return d ? _formatNgayXuat_(d) : String(v || "");
+}
+/** Ngày giờ -> chuỗi cho FILE XUẤT (theo Vùng xuất, có giờ). */
+function _ngayGioXuat_(d) {
+  return d instanceof Date ? Utilities.formatDate(d, "GMT+7", _getExportRegionPreset_().dateTimeFmt) : String(d || "");
+}
+/** 1 lần cho mỗi sổ + mỗi Vùng Lãnh Thổ: định dạng cả cột ngày theo vùng (bản cũ để
+ * các cột này dạng TEXT). Ô đang chứa chữ vẫn là chữ - _docNgaySo_ đọc được cả 2. */
+function _damBaoCotNgaySo_(sh, cots) {
+  const khoa = "DINH_DANG_NGAY_SO_" + sh.getName() + "_" + _getRegion_();
+  const props = PropertiesService.getScriptProperties();
+  if (props.getProperty(khoa)) return;
+  _lockDateCols_(sh, cots.map(c => [c, _getRegionPreset_().dateFmt]));
+  props.setProperty(khoa, "1");
+}
+/** Định dạng các cột ngày (1-based) của đúng các dòng vừa ghi vào sổ theo Vùng Lãnh Thổ. */
+function _dinhDangCotNgaySo_(sh, cots, dongDau, soDong) {
+  if (!soDong) return;
+  const fmt = _getRegionPreset_().dateFmt;
+  cots.forEach(c => sh.getRange(dongDau, c, soDong, 1).setNumberFormat(fmt));
 }
 
 /**
@@ -2959,7 +3000,7 @@ function webDonDepMisa_(che, fDate, tDate, chayThat) {
       const dong = [];
       (lr > 1 ? shNH.getRange(2, 1, lr - 1, MISA_SO_COT).getValues() : []).forEach(r => {
         const lyDo = lyDoCua(r);
-        if (lyDo) dong.push(Object.assign(_tomTatDongMisa_(r), { ngayHachToan: _ngayChuSangWeb_(r[2]), lyDo }));
+        if (lyDo) dong.push(Object.assign(_tomTatDongMisa_(r), { ngayHachToan: _ngayWeb_(r[2]), lyDo }));
       });
       return { success: true, xemTruoc: true, soDong: dong.length, dong: dong.slice(0, MISA_DON_DEP_XEM_TOI_DA),
         message: dong.length ? `Sẽ xóa ${dong.length} dòng MISA (có sao lưu).` : "Không có dòng nào cần xóa." };
@@ -3064,7 +3105,7 @@ function getMisaDataTheoNgay_(fDate, tDate) {
     } catch (e) {
       thieu = { loi: _loiChoNguoiDung_(e) };
     }
-    const items = kq.dong.map(r => Object.assign(_tomTatDongMisa_(r), { ngayHachToan: _ngayChuSangWeb_(r[2]) }));
+    const items = kq.dong.map(r => Object.assign(_tomTatDongMisa_(r), { ngayHachToan: _ngayWeb_(r[2]) }));
     return { items, total: kq.total, truncated: kq.truncated, thieu };
   } catch (e) {
     return { items: [], total: 0, truncated: false, error: "❌ Lỗi: " + _loiChoNguoiDung_(e) };
@@ -3111,7 +3152,8 @@ function exportMisaTheoNgayExcel_(fDate, tDate) {
   }
 }
 
-function getLichSuUNC_(fDate, tDate) {
+/** choXuat = true: ngày theo Vùng xuất (file Báo Cáo UNC); mặc định kiểu VN cho web. */
+function getLichSuUNC_(fDate, tDate, choXuat) {
   const CHUNK = 1000;
   const GIOI_HAN_KET_QUA = 1000;
   const results = [];
@@ -3135,8 +3177,8 @@ function getLichSuUNC_(fDate, tDate) {
       idHeThong: String(r[0] || ""), soTT: r[1], phuongThuc: String(r[2] || ""),
       tenNguoiNhan: String(r[4] || ""), soTK: String(r[5] || "").replace(/'/g, ""),
       nganHang: String(r[6] || ""), soTien: utils.parseNum(r[7]), noiDung: String(r[9] || ""),
-      ngayHieuLuc: String(r[12] || ""), nguoiTao: String(r[13] || ""),
-      thoiGianTao: Utilities.formatDate(d, "GMT+7", "dd/MM/yyyy HH:mm:ss"),
+      ngayHieuLuc: choXuat ? _ngayXuat_(r[12]) : _ngayWeb_(r[12]), nguoiTao: String(r[13] || ""),
+      thoiGianTao: choXuat ? _ngayGioXuat_(d) : Utilities.formatDate(d, "GMT+7", "dd/MM/yyyy HH:mm:ss"),
       linkFile: String(r[15] || ""),
       chuRung: String(r[16] || ""), soHD: String(r[17] || "").replace(/'/g, "")
     });
@@ -3167,7 +3209,7 @@ function getLichSuUNC_(fDate, tDate) {
  * nhiều lần tạo UNC trong 1 khoảng ngày thành 1 file duy nhất. */
 function exportLichSuUNCExcel_(fDate, tDate) {
   try {
-    const rows = getLichSuUNC_(fDate, tDate);
+    const rows = getLichSuUNC_(fDate, tDate, true);
     if (!rows.length) return { success: false, message: "⚠️ Không có dữ liệu UNC nào trong khoảng ngày đã chọn." };
 
     const folder = DriveApp.getFolderById(getReportFolderId_());
@@ -3176,7 +3218,8 @@ function exportLichSuUNCExcel_(fDate, tDate) {
 
     const sheet = ss.getSheets()[0];
     sheet.setName("BaoCaoUNC");
-    _lockTextCols_(sheet, [3, 4, 11], rows.length + 5); // Số TK, Ngày hiệu lực, Số HĐ
+    // SỬA LỖI: trước khóa cột 3,4,11 - Ngày hiệu lực (cột 1) và Thời gian tạo (cột 8) không được khóa.
+    _lockTextCols_(sheet, [1, 3, 8, 11], rows.length + 5); // Ngày hiệu lực, Số TK, Thời gian tạo, Số HĐ
     const headers = ["Ngày hiệu lực", "Tên người nhận", "Số TK", "Ngân hàng", "Số tiền", "Nội dung", "Người tạo", "Thời gian tạo", "Link file gốc", "Chủ rừng", "Số hợp đồng"];
     sheet.getRange(1, 1, 1, headers.length).setValues([headers]).setFontWeight("bold").setBackground("#d9d2e9");
     const body = rows.map(r => [r.ngayHieuLuc, r.tenNguoiNhan, _chu_(r.soTK), r.nganHang, r.soTien, r.noiDung, r.nguoiTao, r.thoiGianTao, r.linkFile, r.chuRung, _chu_(r.soHD)]);
@@ -3225,21 +3268,24 @@ function _docChiTietDNTTDaChot_(fDate, tDate) {
     if (results.length >= GIOI_HAN) return; // vẫn đếm tongKhopLoc để báo đúng tổng, chỉ dừng thêm vào mảng trả về
     results.push({
       idHeThong: String(r[0] || ""), lanTT: String(r[1] || ""), soPhieuCan: String(r[2] || "").replace(/'/g, ""),
-      ngayCK: String(r[3] || ""), ngayNhap: String(r[4] || ""), daiLy: String(r[5] || ""),
+      ngayCK: r[3], ngayNhap: r[4], daiLy: String(r[5] || ""), // giá trị gốc trong sổ - web/xuất tự định dạng
       soHD: String(r[6] || "").replace(/'/g, ""), hoTenChuRung: String(r[8] || ""),
       tenThuHuong: String(r[10] || ""), diaChi: String(r[12] || ""),
       klKg: utils.parseNum(r[18]), klTan: utils.parseNum(r[19]), donGia: utils.parseNum(r[20]),
       thanhTien: utils.parseNum(r[21]), nguonGoc: String(r[22] || ""),
       nganHang: String(r[23] || ""), soTaiKhoan: String(r[24] || "").replace(/'/g, ""),
-      ngayGhi: Utilities.formatDate(ngayGhi, "GMT+7", "dd/MM/yyyy HH:mm:ss")
+      ngayGhi
     });
   });
   return { items: results.reverse(), total: tongKhopLoc, truncated: tongKhopLoc > GIOI_HAN };
 }
-/** #Web: như _docChiTietDNTTDaChot_ nhưng ngày hiển thị kiểu VN (file xuất giữ Vùng xuất). */
+/** #Web: như _docChiTietDNTTDaChot_, ngày hiển thị kiểu VN (file xuất theo Vùng xuất). */
 function getChiTietDNTTDaChot_(fDate, tDate) {
   const kq = _docChiTietDNTTDaChot_(fDate, tDate);
-  kq.items.forEach(x => { x.ngayCK = _ngayChuSangWeb_(x.ngayCK); x.ngayNhap = _ngayChuSangWeb_(x.ngayNhap); });
+  kq.items.forEach(x => {
+    x.ngayCK = _ngayWeb_(x.ngayCK); x.ngayNhap = _ngayWeb_(x.ngayNhap);
+    x.ngayGhi = Utilities.formatDate(x.ngayGhi, "GMT+7", "dd/MM/yyyy HH:mm:ss");
+  });
   return kq;
 }
 
@@ -3257,12 +3303,13 @@ function exportChiTietDNTTDaChotExcel_(fDate, tDate) {
 
     const sheet = ss.getSheets()[0];
     sheet.setName("ChiTiet");
-    _lockTextCols_(sheet, [3, 4, 5, 7, 17], rows.length + 5); // Số phiếu cân, Ngày CK, Ngày nhập, Số HĐ, Số TK
+    // SỬA LỖI: trước khóa nhầm cột 3,4,5,7,17 (lệch với tiêu đề bên dưới).
+    _lockTextCols_(sheet, [1, 2, 3, 5, 15, 16], rows.length + 5); // Số phiếu cân, Ngày CK, Ngày nhập, Số HĐ, Số TK, Ngày ghi
     const headers = ["Số phiếu cân", "Ngày CK", "Ngày nhập", "Đại lý", "Số hợp đồng", "Họ tên chủ rừng", "Tên người thụ hưởng", "Địa chỉ", "KL (kg)", "KL (tấn)", "Đơn giá", "Thành tiền", "Nguồn gốc", "Ngân hàng", "Số tài khoản", "Ngày ghi"];
     sheet.getRange(1, 1, 1, headers.length).setValues([headers]).setFontWeight("bold").setBackground("#d9d2e9");
     const body = rows.map(r => [
-      _chu_(r.soPhieuCan), r.ngayCK, r.ngayNhap, r.daiLy, _chu_(r.soHD), r.hoTenChuRung, r.tenThuHuong, r.diaChi,
-      r.klKg, r.klTan, r.donGia, r.thanhTien, r.nguonGoc, r.nganHang, _chu_(r.soTaiKhoan), r.ngayGhi
+      _chu_(r.soPhieuCan), _ngayXuat_(r.ngayCK), _ngayXuat_(r.ngayNhap), r.daiLy, _chu_(r.soHD), r.hoTenChuRung, r.tenThuHuong, r.diaChi,
+      r.klKg, r.klTan, r.donGia, r.thanhTien, r.nguonGoc, r.nganHang, _chu_(r.soTaiKhoan), _ngayGioXuat_(r.ngayGhi)
     ]);
     sheet.getRange(2, 1, body.length, headers.length).setValues(_dongAnToan_(body));
     sheet.getRange(2, 9, body.length, 1).setNumberFormat("#,##0");
@@ -3379,7 +3426,7 @@ function runCreateUNCOnly_(filteredRows, toDate, tkTrichNoOverride, tkThuPhiOver
     }
 
     logAction_("TAO_UNC", filteredRows.map(r => r.idHeThong).join(","), `Tạo file UNC ngày ${toDate}, ${rows.length} dòng - ${newSS.getUrl()}`);
-    _ghiLichSuUNC_(filteredRows, uncCfg, toDate, toDateXuat, newSS.getUrl()); // MỚI (theo yêu cầu): lưu vết để xem lại sau này
+    _ghiLichSuUNC_(filteredRows, uncCfg, toDate, newSS.getUrl()); // MỚI (theo yêu cầu): lưu vết để xem lại sau này
     return { success: true, url: newSS.getUrl(), count: rows.length, canhBaoTrung: canhBaoTrungUNC };
   } catch (e) {
     return { success: false, message: _loiChoNguoiDung_(e) };
@@ -3489,6 +3536,12 @@ function khoaDinhDangTextTatCa_() {
       ketQua.push("Nguồn thật: OK");
     }
   } catch (e) { ketQua.push("Nguồn thật: lỗi - " + _loiChoNguoiDung_(e)); }
+  // Sổ ChiTietDNTT (Ngày CK, Ngày nhập, Ngày ghi) và ChiTietUNC (Ngày hiệu lực, Thời gian tạo) - 2026.9.23.
+  try {
+    _lockDateCols_(_getChiTietDnttSheet_(), CHITIET_DNTT_COT_NGAY.map(c => [c, FMT_NGAY]).concat([[28, FMT_NGAY_GIO]]));
+    _lockDateCols_(_getChiTietUncSheet_(), CHITIET_UNC_COT_NGAY.map(c => [c, FMT_NGAY]).concat([[15, FMT_NGAY_GIO]]));
+    ketQua.push("ChiTietDNTT/ChiTietUNC: OK");
+  } catch (e) { ketQua.push("ChiTietDNTT/ChiTietUNC: lỗi - " + _loiChoNguoiDung_(e)); }
 
   logAction_("KHOA_DINH_DANG_TEXT", "-", ketQua.join(" · "));
   return ketQua.join(" · ");
@@ -3847,7 +3900,12 @@ function _docSheetToiUuTheoNgay_(sh, totalDataRows, numCols, fDate, colNgayIdx0B
 // NÚT 6: TẠO BÁO CÁO & SHEET NGÂN HÀNG (giữ nguyên logic gốc - đọc từ
 // dữ liệu CHÍNH THỨC, tức chỉ gồm các hồ sơ ĐÃ CHỐT qua File Nháp)
 // ============================================================
-function createFinalReportFromFilteredData_(filteredRows, dateRange) {
+/** Chuỗi khoảng ngày cho tiêu đề file xuất: mọi ngày yyyy-MM-dd -> theo Vùng xuất. */
+function _khoangNgayXuat_(chuoi) {
+  return String(chuoi || "").replace(/\d{4}-\d{2}-\d{2}/g, iso => _formatNgayXuat_(iso));
+}
+function createFinalReportFromFilteredData_(filteredRows, dateRangeGoc) {
+  const dateRange = _khoangNgayXuat_(dateRangeGoc);
   try {
     const folder = DriveApp.getFolderById(getReportFolderId_());
     const fileName = "BÁO CÁO ĐNTT (" + dateRange + ") - " + Utilities.formatDate(new Date(), "GMT+7", "HHmm");
@@ -3946,6 +4004,7 @@ function renderSheet1Full_(sheet, filteredRows, dateRange) {
 // việc Đóng Thanh Toán sẽ nhanh và ổn định hơn nhiều.
 // ============================================================
 const CHITIET_DNTT_SHEET = "ChiTietDNTT";
+const CHITIET_DNTT_COT_NGAY = [4, 5]; // 1-based: Ngày CK, Ngày nhập - ghi Date, định dạng theo Vùng Lãnh Thổ
 const CHITIET_DNTT_HEADERS = ["ID Hệ Thống", "Lần TT", "Số phiếu cân", "Ngày CK", "Ngày nhập", "Đại lý", "Số hợp đồng", "Số xe", "Họ tên chủ rừng", "CCCD Chủ rừng", "Tên người thụ hưởng", "CCCD Người thụ hưởng", "Địa chỉ Chủ rừng", "Địa chỉ rừng", "Giờ vào", "Giờ ra", "KL hàng + xe", "Bì", "KL_KG", "KL_Tấn", "Đơn giá", "Thành tiền", "Nguồn gốc", "Ngân hàng", "Số tài khoản", "Thời gian nhập liệu", "Trạng thái (Y/N)", "Ngày ghi"];
 
 function _getChiTietDnttSheet_() {
@@ -3955,8 +4014,9 @@ function _getChiTietDnttSheet_() {
     sh = ss.insertSheet(CHITIET_DNTT_SHEET);
     sh.getRange(1, 1, 1, CHITIET_DNTT_HEADERS.length).setValues([CHITIET_DNTT_HEADERS]).setFontWeight("bold").setBackground("#d9d2e9");
     sh.setFrozenRows(1);
-    _lockTextCols_(sh, [1, 3, 4, 5, 7, 10, 12, 25, 27], 3000); // ID, Số phiếu cân, Ngày CK, Ngày nhập, Số HĐ, CCCD Chủ rừng, CCCD Thụ hưởng, STK, Trạng thái
+    _lockTextCols_(sh, [1, 3, 7, 10, 12, 25, 27], 3000); // ID, Số phiếu cân, Số HĐ, CCCD Chủ rừng, CCCD Thụ hưởng, STK, Trạng thái
   }
+  _damBaoCotNgaySo_(sh, CHITIET_DNTT_COT_NGAY); // Ngày CK, Ngày nhập: Date thật theo Vùng Lãnh Thổ (từ 2026.9.23)
   return sh;
 }
 
@@ -4003,7 +4063,7 @@ function _xayChiTietDNTTRows_(ctRowsDaLoc, layLanTT, layThongTinNhanTien) {
     const tt112 = (layThongTinNhanTien && layThongTinNhanTien(idHeThong)) || null;
     const { tenThuHuong, nganHangThat, stkThat } = _resolveNguoiNhanTien_(tt112, hd);
     return [
-      idHeThong, layLanTT(idHeThong) || "", _chu_(soP), _formatNgayXuat_(ctRow[20]), _formatNgayXuat_(pc[PC_COL.NGAY_CAN_1]),
+      idHeThong, layLanTT(idHeThong) || "", _chu_(soP), _docNgaySo_(ctRow[20]), _docNgaySo_(pc[PC_COL.NGAY_CAN_1]),
       pc[PC_COL.DAI_LY], _chu_(soHD), pc[PC_COL.BIEN_SO_1], ctRow[3], _chu_(_chuanHoaCCCD_(hd[6])), tenThuHuong, _chu_(_chuanHoaCCCD_(hd[11])),
       hd[5], hd[18], pc[PC_COL.GIO_CAN_1], pc[PC_COL.GIO_CAN_2], utils.parseNum(pc[PC_COL.CAN_LAN_1]), utils.parseNum(pc[PC_COL.CAN_LAN_2]),
       utils.parseNum(pc[PC_COL.KL_KG]), utils.parseNum(pc[PC_COL.KL_KG]) / 1000, utils.parseNum(pc[PC_COL.DON_GIA_TC]),
@@ -4037,6 +4097,7 @@ function _ghiChiTietDNTT_N_(idHeThongList, ctRowsDaLoc, layLanTT, layThongTinNha
       }
       if (rows.length) {
         const startRow = sh.getLastRow() + 1;
+        _dinhDangCotNgaySo_(sh, CHITIET_DNTT_COT_NGAY, startRow, rows.length);
         sh.getRange(startRow, 1, rows.length, CHITIET_DNTT_HEADERS.length).setValues(_dongAnToan_(rows));
       }
     });
@@ -4137,6 +4198,7 @@ function dongBoChiTietDNTTTuDauLichSu_(gioiHanMoiLan) {
       r[27] = (ngayCK instanceof Date) ? ngayCK : new Date(); // Ngày ghi = ĐÚNG Ngày CK lịch sử, không phải lúc chạy hàm
     });
     const startRow = sh.getLastRow() + 1;
+    _dinhDangCotNgaySo_(sh, CHITIET_DNTT_COT_NGAY, startRow, rowsMoi.length);
     sh.getRange(startRow, 1, rowsMoi.length, CHITIET_DNTT_HEADERS.length).setValues(_dongAnToan_(rowsMoi));
 
     logAction_("DONG_BO_CHITIET_DNTT_LICH_SU", "-", `Đồng bộ lịch sử ChiTietDNTT: đã bổ sung ${rowsMoi.length} dòng từ CT thật (còn lại ${conLaiSauLoNay} dòng).`);
@@ -4201,7 +4263,7 @@ function _chuyenChiTietDNTTSangYVaTinhBu_(validIds, ctToCommit, mapSoLan, mapNha
       const soP = String(r[2] || "").replace(/'/g, "").trim();
       const ngayCK = ngayCkByKey.get(id + "|" + utils.standardize(soP));
       if (ngayCK) {
-        r[3] = _formatNgayXuat_(ngayCK);
+        r[3] = _docNgaySo_(ngayCK);
         capNhatNgayCk.push({ row: i + 2, values: [r[3]] });
       }
       r[26] = "Y"; r[27] = now;
@@ -4228,6 +4290,7 @@ function _chuyenChiTietDNTTSangYVaTinhBu_(validIds, ctToCommit, mapSoLan, mapNha
       const now = new Date();
       rowsMoi.forEach(r => { r[26] = "Y"; r[27] = now; });
       const startRow = sh.getLastRow() + 1;
+      _dinhDangCotNgaySo_(sh, CHITIET_DNTT_COT_NGAY, startRow, rowsMoi.length);
       sh.getRange(startRow, 1, rowsMoi.length, CHITIET_DNTT_HEADERS.length).setValues(_dongAnToan_(rowsMoi));
       rowsDaChuyenY.push(...rowsMoi);
     }
@@ -4444,7 +4507,7 @@ function _tuDongXuatMisaKhiDong_(rowsChiTietY) {
       const noiDung = `Thanh toán phiếu cân ${soPClean}`;
       const row = new Array(33).fill("");
       row[0] = ""; row[1] = 0;
-      row[2] = r[3]; row[3] = r[3]; // Ngày hạch toán, Ngày chứng từ = Ngày CK
+      row[2] = _ngayXuat_(r[3]); row[3] = row[2]; // Ngày hạch toán, Ngày chứng từ = Ngày CK - file MISA theo Vùng xuất
       row[4] = _chu_(soPClean);
       row[5] = _chu_(bankInfo.account); row[6] = bankInfo.name; row[7] = bankInfo.code;
       row[8] = noiDung;
@@ -9121,7 +9184,7 @@ function exportBaoCaoDNTTFromDraft_(selectedIds) {
       return { success: false, message: msg };
     }
 
-    const dateRange = "CHỜ DUYỆT - " + Utilities.formatDate(new Date(), "GMT+7", "dd/MM/yyyy");
+    const dateRange = "CHỜ DUYỆT - " + _formatNgayXuat_(new Date());
     const folder = DriveApp.getFolderById(getReportFolderId_());
     const fileName = "BÁO CÁO ĐNTT (chờ duyệt) - " + Utilities.formatDate(new Date(), "GMT+7", "yyyyMMdd_HHmm");
     const newSS = _taoFileBaoCao_(fileName, folder);
