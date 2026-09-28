@@ -2,6 +2,16 @@
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/). Phiên bản theo `NĂM.ĐỢT.SỬA`; thay đổi làm đổi hành vi nghiệp vụ (⚖️) sẽ tăng số ĐỢT và ghi rõ đã được người dùng đồng ý.
 
+## [2026.9.24] — Khối lượng dự kiến của hợp đồng tạo trên app Hợp Đồng (người dùng báo 28/09/2026)
+
+### Fixed
+- Hợp đồng ông Bình (tạo hôm trước trên app Hợp Đồng) **không có khối lượng dự kiến** khi làm thanh toán. Nguyên nhân (đọc code app Hợp Đồng HDMB_HAK): app chỉ ghi KL dự kiến vào **từng lô rừng (HD_RUNG)** và bảng `ct_hopdong`; cột Z “SL_Dự kiến” của HD_NCC chỉ ghi từ ô `slDuKien` mà màn hình nhập hợp đồng không gửi → **Z = 0** với mọi hợp đồng tạo trên app. Web app thanh toán chỉ đọc cột Z.
+- Nay SL dự kiến = **tổng KhoiLuongDuKien các lô rừng** của hợp đồng (theo ID_HD), không có lô rừng thì dùng cột Z — đúng quy tắc app Hợp Đồng dùng trong báo cáo của nó. Áp dụng ở bản sao HD_NCC (tạo hồ sơ, tóm lược hợp đồng, tiến độ, SL HĐ dự kiến của 112) và báo cáo công nợ theo hợp đồng. Cột HD_RUNG tra theo tiêu đề; không có sheet HD_RUNG thì như cũ.
+- Hồ sơ Nháp đã tạo với SL HĐ = 0: bấm “Đề Nghị Thanh Toán (tính lại)” để tự bù (sau khi bản sao HD_NCC làm mới — tối đa 10 phút hoặc bấm Làm mới).
+
+### Tests
+- 127 test (thêm `klDuKienHopDong.test.mjs`: HĐ tạo trên app = tổng lô rừng, HĐ cũ giữ cột Z, có cả 2 thì theo lô rừng, báo cáo công nợ cùng quy tắc, không có HD_RUNG như cũ — thất bại trên 2026.9.23).
+
 ## [2026.9.23] — Ghi sổ theo Vùng Lãnh Thổ, xuất file theo Vùng xuất (người dùng chốt 28/09/2026)
 
 ### Fixed

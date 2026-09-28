@@ -1,6 +1,6 @@
 /**
  * ============================================================
- * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.23
+ * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.24
  * Lịch sử thay đổi: CHANGELOG.md · Kiến trúc: docs/ARCHITECTURE.md
  * ------------------------------------------------------------
  * *** QUAN TRỌNG - CẦN LÀM TRƯỚC KHI DÙNG BẢN NÀY (chỉ 1 LẦN DUY NHẤT
@@ -5373,7 +5373,11 @@ function getSessionInfo_() {
 //    cột thật sự cần) - mọi nơi khác trong code vẫn gọi
 //    HDNCC_COL.TEN_TRUONG y hệt như cũ, không cần sửa gì thêm, chỉ số
 //    bên dưới tự trỏ đúng cột mới gọn hơn.
-const HDNCC_SRC_COL = { SO_HD: 2, NGAY_KY: 3, HO_TEN: 4, CCCD: 6, NGUOI_UQ: 10, UY_QUYEN_TT: 24, SL_DU_KIEN: 25, TINH_TRANG: 30 };
+const HDNCC_SRC_COL = { SO_HD: 2, NGAY_KY: 3, HO_TEN: 4, CCCD: 6, NGUOI_UQ: 10, UY_QUYEN_TT: 24, SL_DU_KIEN: 25, ID_HD: 29, TINH_TRANG: 30 };
+// Sheet HD_RUNG (file Hợp Đồng, do app Hợp Đồng HDMB_HAK quản lý): mỗi dòng 1 lô rừng.
+// Tìm cột theo TIÊU ĐỀ (không cố định vị trí) - app Hợp Đồng có thể thêm cột.
+const HD_RUNG_SHEET = "HD_RUNG";
+const HD_RUNG_TIEU_DE = { ID_HD: "ID_KEY_HD", KL_DU_KIEN: "KhoiLuongDuKien" };
 const HDNCC_COL = { SO_HD: 0, NGAY_KY: 1, HO_TEN: 2, CCCD: 3, NGUOI_UQ: 4, UY_QUYEN_TT: 5, SL_DU_KIEN: 6, TINH_TRANG: 7 };
 const HDNCC_MIRROR_HEADER = ["Số HĐ", "Ngày Ký", "Họ Tên", "CCCD", "Người Được Ủy Quyền", "Ủy Quyền TT", "SL Dự Kiến", "Tình Trạng"];
 
@@ -5572,6 +5576,30 @@ function getHdStkCacheSheet_() {
  * từ HD_NCC qua Số HĐ). */
 const HD_TRANG_THAI_DANG_THUC_HIEN = utils.standardize("Đang Thực Hiện");
 
+/** Khối lượng dự kiến theo hợp đồng = tổng KhoiLuongDuKien các lô rừng (HD_RUNG), khóa
+ * ID_HD. SỬA LỖI (người dùng báo 28/09/2026 - HĐ ông Bình mới tạo không có khối lượng
+ * dự kiến khi làm thanh toán): app Hợp Đồng chỉ ghi KL dự kiến vào các lô rừng (+ bảng
+ * ct_hopdong), cột Z "SL_Dự kiến" của HD_NCC để 0 với hợp đồng tạo trên app; chính
+ * app Hợp Đồng cũng lấy tổng lô rừng trước, cột Z sau. Không có sheet -> Map rỗng. */
+function _klDuKienTheoIdHD_() {
+  const dong = _getCachedRefData_("hdrung_kl_v1", () => {
+    const sh = SpreadsheetApp.openById(CFG.HD_SS_ID).getSheetByName(HD_RUNG_SHEET);
+    if (!sh || sh.getLastRow() < 2) return [];
+    const data = sh.getRange(1, 1, sh.getLastRow(), sh.getLastColumn()).getValues();
+    const tieuDe = data[0].map(v => String(v || "").trim());
+    const cId = tieuDe.indexOf(HD_RUNG_TIEU_DE.ID_HD), cKl = tieuDe.indexOf(HD_RUNG_TIEU_DE.KL_DU_KIEN);
+    if (cId < 0 || cKl < 0) return [];
+    return data.slice(1).map(r => [String(r[cId] || "").trim(), utils.parseNum(r[cKl])]).filter(r => r[0]);
+  });
+  const tong = new Map();
+  dong.forEach(([id, kl]) => { const k = utils.standardize(id); tong.set(k, (tong.get(k) || 0) + kl); });
+  return tong;
+}
+/** SL dự kiến của 1 dòng HD_NCC GỐC: tổng lô rừng nếu có (> 0), không thì cột Z. */
+function _slDuKienHopDong_(rGoc, klTheoIdHD) {
+  const tongLo = klTheoIdHD.get(utils.standardize(rGoc[HDNCC_SRC_COL.ID_HD])) || 0;
+  return tongLo > 0 ? tongLo : utils.parseNum(rGoc[HDNCC_SRC_COL.SL_DU_KIEN]);
+}
 function refreshHdNccCache_() {
   const shSrc = openExternalSheet_(CFG.HD_SS_ID, "HD_NCC", "Hợp Đồng NCC");
   const lastRow = shSrc.getLastRow();
@@ -5580,6 +5608,8 @@ function refreshHdNccCache_() {
   // rạc), rồi chỉ TRÍCH XUẤT đúng 8 cột cần dùng ở bước dưới - giảm mirror
   // từ 31 cột xuống còn 8 cột thật sự dùng tới.
   const allRaw = lastRow > 1 ? shSrc.getRange(2, 1, lastRow - 1, lastColSrc).getValues() : [];
+  _invalidateChunkedCache_("hdrung_kl_v1"); // làm mới cùng lúc với HD_NCC
+  const klTheoIdHD = _klDuKienTheoIdHD_();
   // SỬA LỖI NGHIÊM TRỌNG (rà soát phát hiện - "Số tài khoản/CCCD/Số HĐ
   // mất số 0 đầu"): "Số HĐ"/"CCCD" đọc thẳng từ HD_NCC gốc rồi ghi vào
   // mirror KHÔNG có dấu ' bảo vệ - nếu giá trị gốc là chuỗi số có số 0
@@ -5589,7 +5619,7 @@ function refreshHdNccCache_() {
   const allCompact = allRaw.map(r => [
     "'" + String(r[HDNCC_SRC_COL.SO_HD] || "").replace(/'/g, ""), r[HDNCC_SRC_COL.NGAY_KY], r[HDNCC_SRC_COL.HO_TEN],
     _chu_(_chuanHoaCCCD_(r[HDNCC_SRC_COL.CCCD])),
-    r[HDNCC_SRC_COL.NGUOI_UQ], r[HDNCC_SRC_COL.UY_QUYEN_TT], r[HDNCC_SRC_COL.SL_DU_KIEN], r[HDNCC_SRC_COL.TINH_TRANG]
+    r[HDNCC_SRC_COL.NGUOI_UQ], r[HDNCC_SRC_COL.UY_QUYEN_TT], _slDuKienHopDong_(r, klTheoIdHD), r[HDNCC_SRC_COL.TINH_TRANG]
   ]);
 
   const active = allCompact.filter(r => utils.standardize(String(r[HDNCC_COL.TINH_TRANG] || "")) === HD_TRANG_THAI_DANG_THUC_HIEN);
@@ -7235,6 +7265,7 @@ function getDoiChieuCongNoCccd_(fDate, tDate) {
 function _computeDebtByContractLive_(fDate, tDate) {
   fDate = _clampReportRange_(fDate, tDate); // mục R - xem ghi chú tại _clampReportRange_
   const byHD = new Map();
+  const klTheoIdHD = _klDuKienTheoIdHD_();
   // mục Z: cần TOÀN BỘ hợp đồng (kể cả Đã Thanh lý/Đã Hủy) để không mất
   // hợp đồng đã xong khỏi báo cáo công nợ.
   _hdNccFullData_().forEach(r => {
@@ -7247,7 +7278,7 @@ function _computeDebtByContractLive_(fDate, tDate) {
     if (byHD.has(key)) return;
     byHD.set(key, {
       soHD, chuRung: String(r[HDNCC_SRC_COL.HO_TEN] || ""), ngayKy: utils.formatDate(r[HDNCC_SRC_COL.NGAY_KY]),
-      slDuKien: utils.parseNum(r[HDNCC_SRC_COL.SL_DU_KIEN]),
+      slDuKien: _slDuKienHopDong_(r, klTheoIdHD),
       klThucHienLuyKe: 0, giaTriThucHienLuyKe: 0, giaTriTrongKy: 0, giaTriDangCho: 0
     });
   });

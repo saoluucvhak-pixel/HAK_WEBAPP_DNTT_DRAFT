@@ -1,4 +1,4 @@
-# ARCHITECTURE — HAK Quản Lý Thanh Toán (v2026.9.23)
+# ARCHITECTURE — HAK Quản Lý Thanh Toán (v2026.9.24)
 
 > Tài liệu sống: cập nhật mỗi khi đổi module, lớp, luồng dữ liệu hoặc schema.
 > Phân tích chi tiết hiện trạng: `docs/PROJECT_ANALYSIS.md`. Kiến trúc đích: `docs/REFACTOR_PLAN.md` §3–§4.
@@ -163,7 +163,8 @@ Chỉ khi khoảng ngày **chạm năm đã đăng ký**; báo cáo năm đang m
   2. **Ghi sổ (Google Sheet)**: theo **Vùng Lãnh Thổ** (`REGION_LOCALE`, hiện **US** = locale file en_US) — ngày lưu là **Date thật**, cột ngày định dạng theo vùng (`_dinhDangCotNgaySo_` cho dòng vừa ghi, `_damBaoCotNgaySo_` 1 lần cho cả cột mỗi sổ/vùng, nút Khóa định dạng). Gồm sổ CT/112/Nguồn, **ChiTietDNTT** (Ngày CK, Ngày nhập — `CHITIET_DNTT_COT_NGAY`) và **ChiTietUNC** (Ngày hiệu lực — `CHITIET_UNC_COT_NGAY`), từ 2026.9.23. Dòng bản cũ ghi dạng chữ vẫn đọc được (`_docNgaySo_`).
   3. **Xuất file / in báo cáo** (Excel, PDF, Update_NganHang_DN/MISA): theo **Vùng xuất** (`EXPORT_REGION_LOCALE`, hiện **VN**) qua `_formatNgayXuat_` / `_ngayXuat_` / `_ngayGioXuat_` / `_khoangNgayXuat_` (tiêu đề khoảng ngày); cột ngày dạng chữ trong file xuất luôn khóa TEXT. Web đọc sổ qua `_ngayWeb_`.
   Bảng tính sẵn trong File Nháp (công nợ, phân tích) là bộ nhớ đệm hiển thị web, giữ chữ dd/MM/yyyy ở cột khóa TEXT.
-  Mặc định khi Cài đặt để trống: `VUNG_MAC_DINH` (US / VN). Ngày thanh toán lúc Duyệt gửi `yyyy-mm-dd`; `_parseNgayTheoVung_` từ chối ngày không có thật.
+  Mặc định khi Cài đặt để trống: `VUNG_MAC_DINH` (US / VN).
+- **SL dự kiến hợp đồng** (`_slDuKienHopDong_`): tổng `KhoiLuongDuKien` các lô rừng sheet HD_RUNG (file Hợp Đồng, theo ID_HD, cột tra theo tiêu đề — `_klDuKienTheoIdHD_`), không có lô rừng thì cột Z “SL_Dự kiến” HD_NCC. Áp dụng khi dựng bản sao HD_NCC và báo cáo công nợ theo hợp đồng. Ngày thanh toán lúc Duyệt gửi `yyyy-mm-dd`; `_parseNgayTheoVung_` từ chối ngày không có thật.
 - Theo ngày cân / lũy kế đến ngày D (Phân tích, Công nợ KH, Sổ chi tiết KH, Công nợ phiếu cân tại D): `(f hoặc D, "")` — năm khóa sổ **từ** năm đó trở đi; năm khóa sổ trước đó chỉ mang sang phiếu chưa trả (lũy kế tính từ đầu năm của “Từ ngày”, công nợ không đổi).
 - Tiến độ hợp đồng / Công nợ theo HĐ / Sổ chi tiết HĐ: mọi năm `("", "")` (hợp đồng kéo dài nhiều năm).
 
