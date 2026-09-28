@@ -2,6 +2,25 @@
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/). Phiên bản theo `NĂM.ĐỢT.SỬA`; thay đổi làm đổi hành vi nghiệp vụ (⚖️) sẽ tăng số ĐỢT và ghi rõ đã được người dùng đồng ý.
 
+## [2026.9.32] — Kiểm tra hiệu năng Báo Cáo Thanh Toán / Chi Tiết; xuất Excel Chi Tiết không còn cắt 2.000 dòng (người dùng yêu cầu 28/09/2026)
+
+### Fixed
+- **Xuất Excel Báo Cáo Thanh Toán Chi Tiết** bị cắt ở 2.000 dòng (giới hạn dành cho màn hình): khoảng 3 tháng (~6.600 phiếu) chỉ ra 2.000 dòng. Nay xem trên web vẫn tối đa 2.000 dòng, **xuất Excel tối đa 30.000 dòng** (`CHI_TIET_DNTT_GIOI_HAN`).
+
+### Đo hiệu năng (dữ liệu thử: 30.000 phiếu cân, 20.000 dòng CT / ChiTietDNTT, 9 tháng; so với 2026.9.27)
+| Thao tác | Lời gọi Google | Ô đọc | Trước (9.27) |
+|---|---|---|---|
+| Báo Cáo TT: xem 3 tháng | 5 | 44 nghìn | 5 lời gọi, 44 nghìn ô |
+| Báo Cáo TT: xuất 30 hồ sơ | 177 | 46 nghìn | 185 lời gọi, **1,25 triệu** ô |
+| Báo Cáo TT: xuất 300 hồ sơ | 169 | 100 nghìn | **442** lời gọi, 1,16 triệu ô |
+| Báo Cáo TT: xuất tất cả 1.648 hồ sơ | 169 | 370 nghìn | **1.790** lời gọi, 1,16 triệu ô |
+| Chi Tiết: xem 7 ngày | 7 | 37 nghìn | 560 nghìn ô |
+| Chi Tiết: xuất Excel 3 tháng | 47 | 205 nghìn (ghi đủ 6.592 dòng) | 560 nghìn ô, **chỉ 2.000 dòng** |
+- Số lời gọi Google khi xuất không tăng theo số hồ sơ; ô đọc tỉ lệ với số hồ sơ/khoảng ngày chọn, không theo độ lớn cả sổ.
+
+### Tests
+- 159 test (thêm: xem giới hạn 2.000 dòng nhưng xuất Excel đủ 2.500 dòng — thất bại trên 2026.9.31).
+
 ## [2026.9.31] — Phiếu PDF luôn có Nội dung chuyển khoản và Ghi chú (người dùng báo 28/09/2026)
 
 ### Fixed

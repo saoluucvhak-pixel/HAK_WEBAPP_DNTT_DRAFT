@@ -97,3 +97,17 @@ test('(c) a record whose transfer text is empty in the ledger gets the standard 
   assert.match(html, /Nội dung chuyển khoản<\/th><td class="">Thanh toán tiền mua gỗ keo HĐ số HD01 ngày 01\.09\.2026</);
   assert.match(html, /Ghi chú<\/th><td class="">—</, 'the note row is always printed');
 });
+
+test('(b) the detailed report view is capped for the browser, but the Excel export contains every row', () => {
+  const w = buildWorld();
+  const ctd = w.main.getSheetByName('ChiTietDNTT'); ctd.data = [ctd.data[0]];
+  for (let i = 0; i < 2500; i++) { const r = new Array(28).fill(''); r[0] = 'K' + i; r[2] = 'S' + i; r[3] = new Date(Date.UTC(2026, 8, 1 + (i % 20), 5)); r[21] = 1000; r[26] = 'Y'; r[27] = new Date(); ctd.data.push(r); }
+  const { run } = loadCode(w.options);
+  const xem = run('getChiTietDNTTDaChot_')('2026-09-01', '2026-09-30');
+  assert.equal(xem.items.length, 2000);
+  assert.equal(xem.truncated, true);
+  const xuat = run('exportChiTietDNTTDaChotExcel_')('2026-09-01', '2026-09-30');
+  assert.equal(xuat.success, true, xuat.message);
+  assert.equal(xuat.count, 2500, 'no row dropped from the Excel file');
+  assert.doesNotMatch(xuat.message, /giới hạn/);
+});

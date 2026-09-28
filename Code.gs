@@ -1,6 +1,6 @@
 /**
  * ============================================================
- * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.31
+ * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.32
  * Lịch sử thay đổi: CHANGELOG.md · Kiến trúc: docs/ARCHITECTURE.md
  * ------------------------------------------------------------
  * *** QUAN TRỌNG - CẦN LÀM TRƯỚC KHI DÙNG BẢN NÀY (chỉ 1 LẦN DUY NHẤT
@@ -3339,8 +3339,10 @@ function exportLichSuUNCExcel_(fDate, tDate) {
 // MỚI (theo yêu cầu): "BÁO CÁO THANH TOÁN CHI TIẾT" - xem/xuất lại
 // TRỰC TIẾP từ ChiTietDNTT (Trạng thái = Y, đã tính sẵn) - KHÔNG cần
 // join lại CT+PhieuCan_DN+HD_NCC như "Xuất Báo Cáo" ở tab Gỗ Keo, nên
-// nhanh hơn nhiều. Lọc theo "Ngày ghi" (thời điểm Đóng Thanh Toán).
+// nhanh hơn nhiều. Lọc theo Ngày CK (từ 2026.9.30).
 // ============================================================
+/** Số dòng tối đa mỗi lần: xem trên web (trình duyệt vẽ bảng) / xuất Excel (file). */
+const CHI_TIET_DNTT_GIOI_HAN = { XEM: 2000, XUAT: 30000 };
 /**
  * SỬA (rà soát phát hiện - "xử lý tải báo cáo quá giới hạn"): trước đây
  * KHÔNG giới hạn số dòng trả về - khác với các báo cáo khác (Lịch Sử
@@ -3350,7 +3352,7 @@ function exportLichSuUNCExcel_(fDate, tDate) {
  * trình duyệt khi vẽ bảng. Giờ giới hạn 2000 dòng/lần xem, báo rõ khi
  * đạt giới hạn để người dùng thu hẹp khoảng ngày.
  */
-function _docChiTietDNTTDaChot_(fDate, tDate) {
+function _docChiTietDNTTDaChot_(fDate, tDate, gioiHan) {
   // Lọc theo NGÀY CK (ngày thanh toán - cùng ngày với Báo Cáo MISA; người dùng chọn
   // 28/09/2026, trước đây lọc theo Ngày ghi). Sổ đang mở chỉ đọc dòng có Ngày CK trong khoảng.
   const isoNgayCK = v => { const d = _docNgaySo_(v); return d ? Utilities.formatDate(d, "GMT+7", "yyyy-MM-dd") : ""; };
@@ -3361,7 +3363,7 @@ function _docChiTietDNTTDaChot_(fDate, tDate) {
     .map((r, i) => ({ r, i, iso: isoNgayCK(r[3]) }))
     .sort((a, b) => a.iso < b.iso ? -1 : a.iso > b.iso ? 1 : a.i - b.i) // Ngày CK tăng dần, cùng ngày giữ thứ tự sổ
     .map(x => x.r);
-  const GIOI_HAN = 2000;
+  const GIOI_HAN = gioiHan || CHI_TIET_DNTT_GIOI_HAN.XEM;
   const results = [];
   let tongKhopLoc = 0;
   data.forEach(r => {
@@ -3395,7 +3397,7 @@ function getChiTietDNTTDaChot_(fDate, tDate) {
  * ChiTietDNTT đã tính sẵn, không phải join lại từ đầu. */
 function exportChiTietDNTTDaChotExcel_(fDate, tDate) {
   try {
-    const ketQua = _docChiTietDNTTDaChot_(fDate, tDate);
+    const ketQua = _docChiTietDNTTDaChot_(fDate, tDate, CHI_TIET_DNTT_GIOI_HAN.XUAT);
     const rows = ketQua.items;
     if (!rows.length) return { success: false, message: "⚠️ Không có dữ liệu nào trong khoảng ngày đã chọn." };
 
@@ -3422,7 +3424,7 @@ function exportChiTietDNTTDaChotExcel_(fDate, tDate) {
 
     logAction_("XUAT_BAO_CAO_CHITIET_DNTT", "-", `Xuất Báo Cáo Thanh Toán Chi Tiết (${fDate} - ${tDate}), ${rows.length} dòng - ${ss.getUrl()}`);
     let msgKq = `✅ Đã xuất ${rows.length} dòng.`;
-    if (ketQua.truncated) msgKq += ` ⚠️ Tổng khớp bộ lọc là ${ketQua.total} dòng, đã đạt giới hạn 2000 dòng/lần xuất - thu hẹp khoảng ngày để xuất đầy đủ hơn.`;
+    if (ketQua.truncated) msgKq += ` ⚠️ Tổng khớp bộ lọc là ${ketQua.total} dòng, đã đạt giới hạn ${CHI_TIET_DNTT_GIOI_HAN.XUAT} dòng/lần xuất - thu hẹp khoảng ngày để xuất đầy đủ hơn.`;
     return { success: true, url: ss.getUrl(), count: rows.length, message: msgKq };
   } catch (e) {
     return { success: false, message: "❌ Lỗi: " + _loiChoNguoiDung_(e) };

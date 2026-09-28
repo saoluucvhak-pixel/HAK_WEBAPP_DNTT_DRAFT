@@ -24,6 +24,8 @@
 | Làm mới 10 phút | 5 | 0,48 triệu | 112 nghìn | Bản sao phiếu cân chưa TT + hợp đồng. Chạy nền |
 | Công nợ HĐ (khoảng khác mặc định) | 3 | 0,37 triệu | 24 nghìn | Sổ CT + 112 mọi năm |
 | Tổng hợp 112 | 2 | 0,31 triệu | 4 nghìn | |
+| Xuất Báo Cáo TT 1.648 hồ sơ (2026.9.32) | 1 | 370 nghìn | file mới | 169 lời gọi Google, không tăng theo số hồ sơ (9.27: 1.790) |
+| Báo cáo Chi Tiết xem 7 ngày / xuất 3 tháng (2026.9.32) | 0 | 37 / 205 nghìn | file mới | Chỉ đọc dòng ChiTietDNTT có Ngày CK trong khoảng (9.27: 560 nghìn ô mỗi lần) |
 | Xuất Báo Cáo TT 30 hồ sơ (2026.9.29) | 1 | 57 nghìn (trước: 1,16 triệu) | file mới | Chỉ đọc dòng CT của hồ sơ chọn + phiếu cân của chúng (đo trên 30.000 phiếu / 20.000 dòng CT) |
 | Báo cáo MISA (2026.9.29) | 2 | 58 nghìn (trước: 0,44 triệu) | 0 | Chỉ đọc dòng CT có Ngày CK trong khoảng (cùng bộ dữ liệu) |
 | Chọn phiếu cân (Tạo mới) | 1 | 97 nghìn | 0 | Đọc bản sao "chưa TT" ở File Nháp |
