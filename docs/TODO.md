@@ -59,7 +59,7 @@ Trạng thái: ✅ xong · 🟡 một phần · ⏳ chưa làm · ⚖️ cần n
 - ✅ Khóa sổ năm (quy trình người dùng): kiểm chứng công nợ đầu năm = phiếu chưa trả mang sang (test `khoaSoNam`); không cần bộ nhớ đệm 6 tháng.
 - ✅ 2026.9.16: Nhật ký thao tác giữ dạng chữ cho Mã hồ sơ / mã lỗi (không mất số 0 đầu).
 - ✅ 2026.9.15: Hệ Thống › Dọn Dẹp MISA (trùng / mồ côi / tất cả trong khoảng Ngày CK), xem trước + sao lưu. UNC không cần nút xóa riêng (xem CHANGELOG).
-- ✅ 2026.9.33: ⚖️ Báo Cáo Thanh Toán (Gỗ Keo, Chi Tiết, MISA, UNC) chỉ trong phạm vi 1 tháng. ❓ Hỏi người dùng có áp dụng cho các báo cáo Công Nợ (Tình hình TT, Công nợ KH/HĐ…) không.
+- ✅ 2026.9.33: ⚖️ Báo Cáo Thanh Toán (Gỗ Keo, Chi Tiết, MISA, UNC) chỉ trong phạm vi 1 tháng. Người dùng xác nhận 28/09/2026: "1 tháng" = khoảng 1 tháng bất kỳ (không theo tháng lịch); KHÔNG áp dụng cho báo cáo Công Nợ.
 - ✅ 2026.9.32: Đo lại hiệu năng Báo Cáo TT / Chi Tiết (xem CHANGELOG); xuất Excel Chi Tiết đủ dòng (tối đa 30.000). ⏳ Người dùng đo thời gian thật ở Hệ Thống › Hiệu Năng sau khi triển khai.
 - ✅ 2026.9.31: Phiếu PDF luôn có Nội dung chuyển khoản + Ghi chú; tự điền Nội dung CK chuẩn khi sổ trống.
 - ✅ 2026.9.30: Bảng Kê Chi Tiết CK từ ChiTietDNTT; Báo cáo Chi Tiết lọc theo Ngày CK; nút In phiếu hoàn thành thanh toán (Ngày CK). ⏳ Hồ sơ cũ chưa có ChiTietDNTT: chạy Hệ Thống › Đồng Bộ Lịch Sử để Bảng Kê và tab Chi Tiết đầy đủ.

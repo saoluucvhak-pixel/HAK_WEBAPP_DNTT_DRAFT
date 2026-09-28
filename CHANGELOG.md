@@ -11,6 +11,7 @@
   - Máy chủ kiểm tra lại ở cổng API (`_theoKhoangBaoCao_`, `webExportReport_`) — gọi thẳng API cũng không vượt được. Hàm nội bộ, trigger, Hệ Thống (Tạo lại / Dọn dẹp MISA, UNC) và các báo cáo Công Nợ không đổi.
   - Số tháng cấu hình 1 chỗ `KHOANG_BAO_CAO.SO_THANG` (máy chủ gửi xuống trang), quy tắc ngày giống hệt nhau ở trình duyệt và máy chủ (test so từng ngày 2024–2026).
 - Tab Gỗ Keo mở mặc định **từ đầu tháng hiện tại đến hôm nay** (trước: 90 ngày).
+- Người dùng xác nhận (28/09/2026): “1 tháng” là **khoảng 1 tháng bất kỳ** (không bắt buộc từ ngày 1 đến cuối tháng); **không áp dụng** cho các báo cáo Công Nợ.
 
 ### Tests
 - 163 test (thêm: ngày cuối tối đa, trình duyệt = máy chủ, cổng API từ chối > 1 tháng ở cả 7 chức năng xem/xuất + Xuất Báo Cáo, trang gắn quy định vào đủ ô ngày và nút). Kiểm tra trình duyệt: gõ ngày quá 1 tháng, bấm Xem khi sai.
