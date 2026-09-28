@@ -37,6 +37,8 @@
       --shadow:0 1px 2px rgba(31,41,55,.06), 0 4px 14px rgba(31,41,55,.05);
       --border:var(--line); /* v2026.9.7: tên cũ còn dùng ở vài chỗ - trước đây chưa khai báo nên viền bị mất */
       --focus:#2563eb;
+      /* #7 biểu đồ: 2 màu đầu của bảng màu phân loại đã kiểm định (mù màu, tương phản) cho nền sáng */
+      --series-1:#2a78d6; --series-2:#eb6834;
       color-scheme:light;
     }
     *{box-sizing:border-box;}
@@ -279,7 +281,8 @@
     .step.done .n{background:var(--moss);}
 
     /* toast */
-    #toast-wrap{position:fixed; bottom:22px; right:26px; z-index:999; display:flex; flex-direction:column; gap:8px;}
+    /* U-04: nằm trên nút Trợ lý AI (nút ở góc phải dưới, cao 54px) - trước đây che mất nút. */
+    #toast-wrap{position:fixed; bottom:86px; right:26px; z-index:999; display:flex; flex-direction:column; gap:8px;}
     .toast{
       background:var(--forest); color:#fff; padding:12px 16px; border-radius:9px;
       font-size:13px; box-shadow:0 8px 24px rgba(0,0,0,.18); max-width:380px;
@@ -325,6 +328,28 @@
     .modal-head .x{cursor:pointer; font-size:18px; color:var(--ink-soft); background:none; border:none;}
     .modal-body{padding:20px; max-height:65vh; overflow:auto;}
     .modal.rong{max-width:880px;}
+    /* #8 tìm nhanh (thanh bên) */
+    .tim-nhanh{padding:0 14px 10px;}
+    .tim-nhanh input{width:100%; box-sizing:border-box; background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.18); color:#f9fafb; border-radius:8px; padding:8px 10px; font-size:13px;}
+    .tim-nhanh input::placeholder{color:#9ca3af;}
+    .ket-qua-tim tr{cursor:pointer;}
+    /* #7 biểu đồ xu hướng Trang chủ */
+    .bieu-do{position:relative;}
+    .bieu-do svg{width:100%; height:auto; display:block;}
+    .bieu-do .luoi{stroke:var(--line); stroke-width:1;}
+    .bieu-do .chu-truc{fill:var(--ink-soft); font-size:11px;}
+    .bieu-do .duong{fill:none; stroke-width:2; stroke-linejoin:round; stroke-linecap:round;}
+    .bieu-do .nhan-cuoi{font-size:12px; font-weight:600; fill:var(--ink);}
+    .bieu-do .chu-thich{display:flex; gap:16px; font-size:13px; margin-bottom:6px; color:var(--ink);}
+    .bieu-do .chu-thich i{display:inline-block; width:14px; height:3px; border-radius:2px; vertical-align:middle; margin-right:6px;}
+    .bieu-do .goi-y{position:absolute; pointer-events:none; background:var(--white); color:var(--ink); border:1px solid var(--line); border-radius:8px; padding:6px 10px; font-size:12px; box-shadow:var(--shadow); white-space:nowrap; display:none; z-index:2;}
+    /* #3 (2026.9.49): hộp xác nhận trong trang - nằm TRÊN cả hộp thoại đang mở. */
+    #hop-xac-nhan{z-index:950;}
+    #hop-xac-nhan .modal{max-width:480px;}
+    #hop-xac-nhan .noi-dung{white-space:pre-line; font-size:14px; line-height:1.6;}
+    #hop-xac-nhan .modal-head.nguy-hiem{background:var(--danger-light);}
+    #hop-xac-nhan .modal-head.nguy-hiem h3{color:var(--danger);}
+    #hop-xac-nhan input{width:100%; margin-top:10px;}
     /* Trang chủ (thiết kế lại 28/09/2026): tiêu đề nhóm, quy trình dạng bước có đường nối */
     .muc-tieu-de{font-size:var(--fs-nho); font-weight:700; text-transform:uppercase; letter-spacing:.07em; color:var(--ink-soft); margin:26px 0 10px;}
     .muc-tieu-de:first-child{margin-top:0;}
@@ -507,6 +532,7 @@
         --forest:#020617; --forest-2:#1e293b; --accent:#60a5fa; --moss:#4ade80; --moss-light:#14532d;
         --timber:#f59e0b; --timber-light:#422006; --danger:#f87171; --danger-light:#450a0a; --white:#111827;
         --shadow:0 1px 2px rgba(0,0,0,.4), 0 4px 14px rgba(0,0,0,.35); --focus:#93c5fd; color-scheme:dark;
+        --series-1:#3987e5; --series-2:#d95926;
       }
     }
     :root[data-theme="dark"]{
@@ -514,6 +540,7 @@
       --forest:#020617; --forest-2:#1e293b; --accent:#60a5fa; --moss:#4ade80; --moss-light:#14532d;
       --timber:#f59e0b; --timber-light:#422006; --danger:#f87171; --danger-light:#450a0a; --white:#111827;
       --shadow:0 1px 2px rgba(0,0,0,.4), 0 4px 14px rgba(0,0,0,.35); --focus:#93c5fd; color-scheme:dark;
+      --series-1:#3987e5; --series-2:#d95926;
     }
     #loading-overlay{background:color-mix(in srgb, var(--paper) 94%, transparent);}
     .btn.primary:hover{filter:brightness(1.08);}
@@ -532,7 +559,12 @@
 
     /* Bảng rộng hơn khung tự cuộn ngang trong thẻ (trước đây tràn ra ngoài thẻ) -
        trừ thẻ có hộp gợi ý tìm kiếm (hộp đó nổi ra ngoài thẻ). */
-    .card:not(:has(.suggest-box)), .modal-body{overflow-x:auto;}
+    /* U-06: không dùng bộ chọn "has" (Firefox < 121 bỏ cả quy tắc) - thẻ có hộp gợi ý được gắn lớp
+       co-goi-y lúc vẽ (_xuLyDomMoi_). */
+    .card:not(.co-goi-y), .modal-body{overflow-x:auto;}
+    /* U-03: cột thao tác (Sửa / Xóa…) của Danh Sách ĐNTT luôn thấy ở mép phải khi bảng cuộn ngang. */
+    .cuon-ngang{overflow-x:auto;} /* khung cuộn không lề: cột dính che hẳn các cột phía sau */
+    table.cot-cuoi-dinh th:last-child, table.cot-cuoi-dinh td:last-child{position:sticky; right:0; background:var(--white); z-index:1; box-shadow:-8px 0 8px -8px rgba(0,0,0,.25);}
     .grid > *{min-width:0;}
     /* Máy tính bảng / điện thoại. */
     @media (max-width:900px){
@@ -579,6 +611,9 @@
         <div class="sub">Quản lý thanh toán</div>
       </div>
     </div>
+    <form id="tim-nhanh" class="tim-nhanh hidden" role="search" onsubmit="event.preventDefault(); timNhanh();">
+      <input type="search" id="tim-nhanh-o" placeholder="🔍 Tìm mã hồ sơ, phiếu cân, STK… (/)" aria-label="Tìm nhanh hồ sơ theo mã, số phiếu cân, số tài khoản, số hợp đồng hoặc tên" autocomplete="off">
+    </form>
     <nav id="nav" aria-label="Điều hướng chính">
       <div class="nav-item" role="button" tabindex="0" data-page="dashboard"><span class="ic">🏠</span> Trang chủ</div>
       <div class="nav-sep"></div>
@@ -592,7 +627,7 @@
       <div class="nav-item" role="button" tabindex="0" data-page="settings"><span class="ic">⚙️</span> Cài đặt / Nháp</div>
     </nav>
     <div class="nguoi-dung-chip" id="nguoi-dung-chip"></div>
-    <div class="sidebar-footer">Hệ thống Quản Lý Thanh Toán · v2026.9.43<br><button type="button" class="theme-toggle" id="theme-toggle" aria-label="Đổi giao diện sáng / tối">🌓 Giao diện: Tự động</button></div>
+    <div class="sidebar-footer">Hệ thống Quản Lý Thanh Toán · v2026.9.49<br><button type="button" class="theme-toggle" id="theme-toggle" aria-label="Đổi giao diện sáng / tối">🌓 Giao diện: Tự động</button></div>
   </aside>
 
   <main class="main">
@@ -613,6 +648,11 @@
   <div id="toast-wrap" role="status" aria-live="polite"></div>
   <div id="bang-dong-bo" class="bang-dong-bo hidden" role="status" aria-live="polite"></div>
   <div class="modal-bg" id="modal-bg"><div class="modal" id="modal" role="dialog" aria-modal="true" tabindex="-1"></div></div>
+  <div class="modal-bg" id="hop-xac-nhan"><div class="modal" role="alertdialog" aria-modal="true" aria-labelledby="xn-tieu-de" aria-describedby="xn-noi-dung" tabindex="-1">
+    <div class="modal-head" id="xn-dau"><h3 id="xn-tieu-de"></h3></div>
+    <div class="modal-body"><div class="noi-dung" id="xn-noi-dung"></div><div id="xn-nhap"></div></div>
+    <div class="modal-foot"><button class="btn" id="xn-huy">Hủy</button><button class="btn primary" id="xn-ok">Đồng ý</button></div>
+  </div></div>
 
   <!-- MỚI (theo yêu cầu): widget chatbot AI nổi -->
   <div id="chatbotNut" title="Hỏi Trợ Lý AI" role="button" tabindex="0" aria-label="Mở Trợ Lý AI" aria-controls="chatbotHop">🤖</div>
@@ -705,6 +745,15 @@ function pageSlice(rows, page, size){
   const start = (page - 1) * size;
   return rows.slice(start, start + size);
 }
+/** P-07 (rà soát 28/09/2026): bảng MISA / Chi tiết (tới 2.000 dòng) vẽ theo trang thay vì
+ * cả 2.000 dòng một lúc (máy yếu, điện thoại đơ vài giây). Tổng tiền vẫn tính trên mọi dòng. */
+const BANG_LON_MOI_TRANG = 100;
+/** Trang hiện tại của state[khoa], kẹp trong [1, số trang] (vd bộ lọc làm ít dòng đi). */
+function _trangHopLe_(khoa, soDong){
+  const soTrang = Math.max(1, Math.ceil(soDong / BANG_LON_MOI_TRANG));
+  state[khoa] = Math.min(Math.max(1, state[khoa] || 1), soTrang);
+  return state[khoa];
+}
 function renderPager(totalRows, page, onChangeFnName, size){
   size = size || PAGE_SIZE;
   const totalPages = Math.max(1, Math.ceil(totalRows / size));
@@ -796,18 +845,19 @@ function isoDaysAgoVN(days){
 const BULK_REF_CACHE_KEY = 'hak_bulk_ref_v1';
 let _bulkRefPromise = null;
 
-/** Mốc giờ CỐ ĐỊNH gần nhất đã qua trong ngày (7:30 hoặc 13:00, theo giờ
- * máy tính người dùng) - cache tải trước mốc này coi là CŨ, phải tải lại. */
+/** Mốc giờ CỐ ĐỊNH gần nhất đã qua trong ngày (7:30 hoặc 13:00 GIỜ VIỆT NAM - cùng lịch
+ * làm mới phía máy chủ) - cache tải trước mốc này coi là CŨ, phải tải lại. U-08 (rà soát
+ * 28/09/2026): trước đây theo giờ máy người dùng - máy đặt múi giờ khác thì làm mới lệch giờ. */
 function _bulkRefBoundary_(){
-  const now = new Date();
+  const bayGio = Date.now(), vn = _vnNow_(); // vn: các trường UTC = giờ Việt Nam
   const mk = (h, m, dayOffset) => {
-    const t = new Date(now);
-    t.setDate(t.getDate() + (dayOffset||0));
-    t.setHours(h, m, 0, 0);
-    return t.getTime();
+    const t = new Date(vn);
+    t.setUTCDate(t.getUTCDate() + (dayOffset||0));
+    t.setUTCHours(h, m, 0, 0);
+    return t.getTime() - 7 * 3600 * 1000; // về mốc thời gian thật
   };
-  if (now.getTime() >= mk(13,0)) return mk(13,0);
-  if (now.getTime() >= mk(7,30)) return mk(7,30);
+  if (bayGio >= mk(13,0)) return mk(13,0);
+  if (bayGio >= mk(7,30)) return mk(7,30);
   return mk(13,0,-1); // trước 7:30 sáng -> mốc gần nhất là 13:00 hôm qua
 }
 
@@ -873,7 +923,11 @@ function _phanTramUocTinh_(daChoMs, thuongLeMs){
   if (thuongLeMs > 0) return Math.min(95, Math.round(daChoMs / thuongLeMs * 100));
   return Math.round(90 * (1 - Math.exp(-daChoMs / 8000)));
 }
+// Số thao tác đang chờ có màn hình chờ: 2 thao tác chạy cùng lúc thì thao tác xong trước
+// không được ẩn màn hình khi thao tác kia còn chạy (trước đây ẩn ngay -> bấm được nút khác).
+let _soLuotCho_ = 0;
 function showLoading(msg, fnName){
+  _soLuotCho_++;
   document.getElementById('loading-msg').textContent = msg || 'Đang xử lý...';
   document.getElementById('loading-overlay').classList.add('show');
   clearInterval(_tienDo_ && _tienDo_.timer);
@@ -888,6 +942,8 @@ function showLoading(msg, fnName){
   _tienDo_ = { fnName, batDau, timer: setInterval(ve, 250) };
 }
 function hideLoading(thanhCong){
+  _soLuotCho_ = Math.max(0, _soLuotCho_ - 1);
+  if (_soLuotCho_ > 0) return; // còn thao tác khác đang chờ - giữ màn hình chờ
   if (_tienDo_) {
     clearInterval(_tienDo_.timer);
     if (thanhCong && _tienDo_.fnName) _ghiThoiGianChay_(_tienDo_.fnName, Date.now() - _tienDo_.batDau);
@@ -1023,6 +1079,7 @@ function _veNguoiDungChip_(){
 }
 function apDungQuyenGiaoDien(){
   document.body.classList.remove('chua-dang-nhap');
+  document.getElementById('tim-nhanh').classList.toggle('hidden', !coQuyen('NGHIEP_VU')); // #8: tìm cả hồ sơ Nháp -> quyền Nghiệp vụ
   document.querySelectorAll('#nav .nav-item').forEach(el => {
     const meta = PAGES[el.dataset.page];
     el.style.display = (meta && coQuyen(meta.quyen)) ? '' : 'none';
@@ -1033,6 +1090,7 @@ function dangXuatWeb(){
   const phien = PHIEN;
   google.script.run.withSuccessHandler(() => {}).withFailureHandler(() => {}).dangXuat(phien);
   state.nguoiDung = Object.assign({}, state.nguoiDung, { daDangNhap: false, quyen: [] });
+  _xoaNhapTaoMoi_();
   hienManHinhDangNhap('Đã đăng xuất.');
 }
 
@@ -1145,6 +1203,51 @@ function openModal(html, tuyChon){
   const oDau = modal.querySelector('input:not([disabled]), select, textarea, .modal-foot .btn');
   (oDau || modal).focus();
 }
+/* ---------- #3 Hộp xác nhận trong trang (nâng cấp 28/09/2026) ----------
+ * Thay confirm() / prompt() của trình duyệt (hộp xám không đọc được hết nội dung dài, trang
+ * nhúng có thể chặn, dễ bấm Enter nhầm). tc: { tieuDe, nutOk, nguyHiem (nút đỏ, Enter không
+ * đồng ý), maGo (phải gõ đúng chuỗi này mới bấm được - thao tác nguy hiểm), oNhap (giá trị mặc
+ * định -> hộp nhập chữ, trả về chuỗi) }. Trả Promise: true/false, hoặc chuỗi/null khi oNhap. */
+function xacNhan(noiDung, tc){
+  tc = tc || {};
+  return new Promise(xong => {
+    const hop = document.getElementById('hop-xac-nhan');
+    const truoc = document.activeElement;
+    const ok = document.getElementById('xn-ok'), huy = document.getElementById('xn-huy');
+    const coNhap = tc.oNhap !== undefined;
+    document.getElementById('xn-dau').classList.toggle('nguy-hiem', !!tc.nguyHiem);
+    document.getElementById('xn-tieu-de').textContent = tc.tieuDe || (tc.nguyHiem ? '⚠️ Xác nhận thao tác quan trọng' : 'Xác nhận');
+    document.getElementById('xn-noi-dung').textContent = noiDung;
+    const vungNhap = document.getElementById('xn-nhap');
+    vungNhap.innerHTML = coNhap ? '<input type="text" id="xn-o">'
+      : tc.maGo ? `<div class="hint-text" style="margin-top:12px">Gõ <b>${esc(tc.maGo)}</b> để xác nhận:</div><input type="text" id="xn-o" autocomplete="off" aria-label="Gõ ${esc(tc.maGo)} để xác nhận">` : '';
+    const o = document.getElementById('xn-o');
+    if (o && coNhap) o.value = tc.oNhap || '';
+    ok.textContent = tc.nutOk || (coNhap ? 'Lưu' : 'Đồng ý');
+    ok.className = 'btn ' + (tc.nguyHiem ? 'danger' : 'primary');
+    const chuanMa = s => _khongDau(String(s || '')).replace(/\s+/g, ' ').trim().toUpperCase();
+    const hopLe = () => !tc.maGo || (o && chuanMa(o.value) === chuanMa(tc.maGo));
+    ok.disabled = !hopLe();
+    if (o) o.oninput = () => { ok.disabled = !hopLe(); };
+    const dong = kq => {
+      hop.classList.remove('show');
+      ok.onclick = huy.onclick = hop.onclick = hop.onkeydown = null;
+      if (truoc && document.body.contains(truoc)) truoc.focus();
+      xong(kq);
+    };
+    ok.onclick = () => { if (hopLe()) dong(coNhap ? o.value : true); };
+    huy.onclick = () => dong(coNhap ? null : false);
+    hop.onclick = e => { if (e.target === hop) dong(coNhap ? null : false); };
+    hop.onkeydown = e => {
+      if (e.key === 'Escape') { e.stopPropagation(); dong(coNhap ? null : false); }
+      else if (e.key === 'Enter' && e.target === o && !ok.disabled && (coNhap || !tc.nguyHiem || tc.maGo)) { e.preventDefault(); ok.click(); }
+    };
+    hop.classList.add('show');
+    (o || (tc.nguyHiem ? huy : ok)).focus(); // thao tác nguy hiểm: con trỏ đứng ở "Hủy"
+  });
+}
+function nhapChu(noiDung, macDinh, tc){ return xacNhan(noiDung, Object.assign({ oNhap: macDinh || '' }, tc || {})); }
+
 function closeModal(){
   document.getElementById('modal-bg').classList.remove('show');
   if (_truocKhiMoModal_ && document.body.contains(_truocKhiMoModal_)) _truocKhiMoModal_.focus();
@@ -1157,8 +1260,9 @@ document.getElementById('modal-bg').addEventListener('click', e => { if(e.target
  * tabindex cho mọi phần tử mới vẽ, và cho Enter/Space bấm như chuột.
  * Esc đóng hộp thoại / Trợ lý AI. */
 const BAM_DUOC_BANG_PHIM = '.subtab, tr.clickable, .suggest-item, .stat-nut';
+const BAM_DUOC_CHUA_GAN = BAM_DUOC_BANG_PHIM.split(',').map(s => s.trim() + ':not([tabindex])').join(', ');
 function _ganBamDuoc_(goc){
-  goc.querySelectorAll(BAM_DUOC_BANG_PHIM).forEach(el => {
+  goc.querySelectorAll(BAM_DUOC_CHUA_GAN).forEach(el => { // chỉ phần tử chưa gắn (không duyệt lại cả bảng mỗi lần)
     if (el.hasAttribute('tabindex')) return;
     el.setAttribute('tabindex', '0');
     el.setAttribute('role', 'button');
@@ -1209,7 +1313,6 @@ function _ganONgayVN_(goc){
   });
 }
 _ganONgayVN_(document);
-new MutationObserver(() => _ganONgayVN_(document.body)).observe(document.body, { childList: true, subtree: true });
 
 /* ---------- Căn lề bảng theo kiểu dữ liệu (quy định người dùng 28/09/2026) ----------
  * Toàn web app: cột toàn SỐ căn phải; tên, chuỗi căn trái. "Số" = có dấu phân cách
@@ -1236,17 +1339,43 @@ function _canhLeBangWeb_(goc){
     bodies.forEach(tb => tb.setAttribute('data-canh', '1'));
   });
 }
-['content', 'modal'].forEach(id => {
-  const goc = document.getElementById(id);
-  new MutationObserver(() => _canhLeBangWeb_(goc)).observe(goc, { childList: true, subtree: true });
-  _canhLeBangWeb_(goc);
-});
-['content', 'modal'].forEach(id => {
-  const goc = document.getElementById(id);
-  new MutationObserver(() => _ganBamDuoc_(goc)).observe(goc, { childList: true, subtree: true });
-});
+/* P-06 (rà soát 28/09/2026): trước đây 5 bộ theo dõi DOM (ô ngày, căn lề ×2, bấm được ×2)
+ * mỗi thay đổi nhỏ (toast, màn hình chờ, gõ lọc) đều quét lại cả trang -> bảng 2.000 dòng giật.
+ * Nay 1 bộ theo dõi, gom mọi thay đổi trong 1 khung hình rồi xử lý 1 lần. */
+function _xuLyDomMoi_(){
+  _ganONgayVN_(document.body);
+  document.querySelectorAll('.suggest-box').forEach(b => { const the = b.closest('.card'); if (the) the.classList.add('co-goi-y'); });
+  ['content', 'modal'].forEach(id => { const goc = document.getElementById(id); _canhLeBangWeb_(goc); _ganBamDuoc_(goc); });
+}
+let _henXuLyDom_ = 0;
+new MutationObserver(() => {
+  if (_henXuLyDom_) return;
+  const chay = () => { _henXuLyDom_ = 0; _xuLyDomMoi_(); };
+  // Tab ẩn không có khung hình -> hẹn giờ ngắn.
+  _henXuLyDom_ = document.hidden ? setTimeout(chay, 50) : requestAnimationFrame(chay);
+}).observe(document.body, { childList: true, subtree: true });
+_xuLyDomMoi_();
+/** U-05 (rà soát 28/09/2026): hộp thoại đang mở giữ phím Tab bên trong (trước đây Tab đi ra
+ * trang phía sau - người dùng bàn phím / trình đọc màn hình bị lạc khỏi hộp thoại). */
+function _giuTabTrongModal_(e){
+  if (e.key !== 'Tab') return false;
+  const hopXn = document.getElementById('hop-xac-nhan');
+  const moXn = hopXn.classList.contains('show');
+  if (!moXn && !document.getElementById('modal-bg').classList.contains('show')) return false;
+  const modal = moXn ? hopXn.querySelector('.modal') : document.getElementById('modal');
+  const ds = Array.from(modal.querySelectorAll('a[href], button:not([disabled]), input:not([disabled]):not([type=hidden]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'))
+    .filter(el => el.offsetParent !== null || el === document.activeElement);
+  if (!ds.length) { e.preventDefault(); modal.focus(); return true; }
+  const dau = ds[0], cuoi = ds[ds.length - 1], dangO = document.activeElement;
+  if (!modal.contains(dangO)) { e.preventDefault(); (e.shiftKey ? cuoi : dau).focus(); return true; }
+  if (e.shiftKey && dangO === dau) { e.preventDefault(); cuoi.focus(); return true; }
+  if (!e.shiftKey && dangO === cuoi) { e.preventDefault(); dau.focus(); return true; }
+  return false;
+}
 document.addEventListener('keydown', e => {
+  if (_giuTabTrongModal_(e)) return;
   if (e.key === 'Escape') {
+    if (document.getElementById('hop-xac-nhan').classList.contains('show')) return; // hộp xác nhận tự xử lý Esc
     if (document.getElementById('modal-bg').classList.contains('show')) { closeModal(); return; }
     const hop = document.getElementById('chatbotHop');
     if (hop && hop.classList.contains('mo')) { hop.classList.remove('mo'); document.getElementById('chatbotNut').focus(); }
@@ -1291,7 +1420,7 @@ const PAGES = {
   report:    {title:'Báo Cáo Thanh Toán', desc:'Danh sách hồ sơ đã chốt thanh toán chính thức', render: renderReport, quyen:'XEM'},
   debt:      {title:'Báo Cáo Công Nợ Khách Hàng Gỗ Keo', desc:'Công nợ theo khách hàng / hợp đồng, sổ chi tiết, phân tích tình hình thanh toán', render: renderDebt, quyen:'XEM'},
   huongdan:  {title:'Hướng Dẫn Sử Dụng', desc:'Quy trình thực hiện thủ tục thanh toán và hướng dẫn từng màn hình', render: renderHuongDan, quyen:'XEM'},
-  hethong:   {title:'Hệ Thống', desc:'Đối soát tên khách hàng và bảo trì kiểm tra đối chiếu dữ liệu', render: renderHeThong, quyen:'HE_THONG'},
+  hethong:   {title:'Hệ Thống', desc:'Tra cứu, kiểm tra dữ liệu và (tab riêng) các công cụ can thiệp dữ liệu đã chốt', render: renderHeThong, quyen:'HE_THONG'},
   settings:  {title:'Cài đặt / File Nháp', desc:'Khởi tạo và quản lý File Nháp, người dùng & đăng nhập', render: renderSettings, quyen:'QUAN_TRI'}
 };
 
@@ -1355,22 +1484,91 @@ function _renderDashTop5NoTable_(rows){
 }
 /** Nhãn trạng thái hồ sơ Nháp (Danh Sách ĐNTT, Quy trình thanh toán). */
 const DRAFT_STATUS_BADGE = {
-  cho_tinh: '<span class="badge pending dot">Chưa ĐNTT</span>',
-  cho_dntt: '<span class="badge wait dot">Chờ ĐNTT</span>',
-  dang_dntt: '<span class="badge ready dot">Đang ĐNTT</span>'
+  cho_tinh: '<span class="badge pending dot">Chưa tính tiền</span>',
+  cho_dntt: '<span class="badge wait dot">Chờ xác nhận</span>',
+  dang_dntt: '<span class="badge ready dot">Chờ duyệt</span>'
 };
 
 /** Quy trình thanh toán 5 bước - 1 nguồn dùng chung cho Trang chủ (gọn, đầu trang) và Hướng
  * Dẫn Sử Dụng (bảng đầy đủ). ten: tên bước; viec: mô tả đầy đủ (HTML); oDau: làm ở đâu;
  * sau: trạng thái sau khi xong (HTML). */
 const QUY_TRINH_TT = [
-  { ten: 'Tạo Mới', viec: '<b>Tạo Mới</b> - chọn Chủ rừng, Hợp đồng, chọn Phiếu cân cần thanh toán', oDau: 'Danh Sách ĐNTT → "➕ Tạo Mới"', sau: DRAFT_STATUS_BADGE.cho_tinh },
-  { ten: 'Đề Nghị Thanh Toán (tính tiền)', viec: '<b>Đề Nghị Thanh Toán (tính lại)</b> - hệ thống tự tính tiền, gộp theo Số HĐ, tự điền Ngân hàng', oDau: 'Danh Sách ĐNTT → nút "📤 Đề Nghị Thanh Toán"', sau: DRAFT_STATUS_BADGE.cho_dntt },
-  { ten: 'Xác Nhận chuyển ĐNTT', viec: 'Kiểm tra lại thông tin (Sửa nếu cần), rồi <b>Xác Nhận chuyển ĐNTT</b>', oDau: 'Tab "2 · Chờ ĐNTT" → chọn hồ sơ → "✅ Xác nhận"', sau: DRAFT_STATUS_BADGE.dang_dntt },
-  { ten: 'In Báo Cáo ĐNTT / Tạo UNC', viec: '<b>In Báo Cáo ĐNTT</b> để trình ký duyệt, hoặc <b>Tạo File UNC</b> để nộp ngân hàng chuyển tiền trước (chưa ghi vào sổ sách chính thức)', oDau: 'Tab "3 · Đang ĐNTT" → "🖨️ In Báo Cáo ĐNTT" / "🏦 Tạo File UNC"', sau: 'Không đổi trạng thái' },
-  { ten: 'Duyệt (Đóng Thanh Toán)', viec: '<b>Duyệt (Đóng Thanh Toán)</b> - nhập ngày thanh toán thực tế → ghi vào sổ sách CHÍNH THỨC, khóa Phiếu Cân vĩnh viễn', oDau: 'Tab "3 · Đang ĐNTT" → "📨 Duyệt"', sau: 'Chuyển sang "Báo Cáo Thanh Toán"' }
+  { ten: 'Tạo Mới', viec: '<b>Tạo Mới</b> - chọn Chủ rừng, Hợp đồng, chọn Phiếu cân cần thanh toán, bấm Lưu', oDau: 'Danh Sách ĐNTT → "➕ Tạo Mới"', sau: 'Tự tính tiền' },
+  { ten: 'Tự tính tiền', viec: 'Hệ thống <b>tự tính Số tiền</b> ngay khi Lưu / Thêm / Bỏ phiếu cân (gộp lũy kế theo Số HĐ, tự điền Ngân hàng). Nút "🔄 Tính lại số tiền" chỉ cần khi có cảnh báo', oDau: 'Tự động', sau: DRAFT_STATUS_BADGE.cho_dntt },
+  { ten: 'Xác Nhận chuyển ĐNTT', viec: 'Kiểm tra lại thông tin (Sửa nếu cần), rồi <b>Xác Nhận chuyển ĐNTT</b>', oDau: 'Tab "2 · Chờ xác nhận" → chọn hồ sơ → "✅ Xác nhận"', sau: DRAFT_STATUS_BADGE.dang_dntt },
+  { ten: 'In Báo Cáo ĐNTT / Tạo UNC', viec: '<b>In Báo Cáo ĐNTT</b> để trình ký duyệt, hoặc <b>Tạo File UNC</b> để nộp ngân hàng chuyển tiền trước (chưa ghi vào sổ sách chính thức)', oDau: 'Tab "3 · Chờ duyệt" → "🖨️ In Báo Cáo ĐNTT" / "🏦 Tạo File UNC"', sau: 'Không đổi trạng thái' },
+  { ten: 'Duyệt (Đóng Thanh Toán)', viec: '<b>Duyệt (Đóng Thanh Toán)</b> - nhập ngày thanh toán thực tế → ghi vào sổ sách CHÍNH THỨC, khóa Phiếu Cân vĩnh viễn', oDau: 'Tab "3 · Chờ duyệt" → "📨 Duyệt"', sau: 'Chuyển sang "Báo Cáo Thanh Toán"' }
 ];
 
+/** #7: 4 ô tuổi nợ (0-30 / 31-60 / 61-90 / >90 ngày) từ ảnh chụp Công nợ phiếu cân (15h). */
+function _veTuoiNo_(tn){
+  const ghiChu = document.getElementById('tn-tinh-den');
+  if (!tn) { if (ghiChu) ghiChu.textContent = 'Chưa có số liệu tuổi nợ - tổng hợp tự động lúc 15h (hoặc mở Công Nợ › Chi tiết theo phiếu cân).'; return; }
+  tn.nhom.forEach((g, i) => {
+    const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+    set('tn-nhan-' + i, g.nhan); set('tn-tien-' + i, fmtMoney(g.tien)); set('tn-so-' + i, g.soPhieu + ' phiếu cân · VNĐ');
+  });
+  if (ghiChu) ghiChu.textContent = `Tính đến hết ngày ${tn.tinhDen} (tổng hợp lúc 15h) - tuổi = số ngày từ ngày cân tới nay chưa thanh toán.`;
+}
+/** Số tiền gọn cho trục: 1,2 tỷ / 350 tr / 12 ng. */
+function _tienGon_(v){
+  const a = Math.abs(v);
+  if (a >= 1e9) return (v / 1e9).toLocaleString('vi-VN', { maximumFractionDigits: 1 }) + ' tỷ';
+  if (a >= 1e6) return Math.round(v / 1e6).toLocaleString('vi-VN') + ' tr';
+  if (a >= 1e3) return Math.round(v / 1e3).toLocaleString('vi-VN') + ' ng';
+  return String(Math.round(v));
+}
+/** #7: biểu đồ đường 2 chuỗi (Mua theo ngày cân / Thanh toán theo Ngày CK), 1 trục tiền, chú giải +
+ * nhãn cuối đường, rê chuột xem số từng ngày, bảng số liệu kèm theo (không chỉ dựa vào màu). */
+function _veXuHuong_(box, ds){
+  if (!box) return;
+  if (!ds.length || ds.every(d => !d.mua && !d.tt)) { box.innerHTML = '<div class="empty"><div class="ic">📭</div>Chưa có phát sinh mua / thanh toán trong 30 ngày (hoặc bảng Phân tích chưa tổng hợp).</div>'; return; }
+  const W = 720, H = 240, L = 64, R = 92, T = 12, B = 28;
+  const lonNhat = Math.max(...ds.map(d => Math.max(d.mua, d.tt)), 1);
+  const buoc = (() => { const tho = lonNhat / 4, mu = Math.pow(10, Math.floor(Math.log10(tho))); return [1, 2, 2.5, 5, 10].map(k => k * mu).find(v => v >= tho); })();
+  const tran = buoc * 4;
+  const x = i => L + (ds.length === 1 ? 0 : i * (W - L - R) / (ds.length - 1));
+  const y = v => T + (H - T - B) * (1 - v / tran);
+  const duong = k => ds.map((d, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(d[k]).toFixed(1)}`).join('');
+  const chuoi = [{ k: 'mua', ten: 'Mua (theo ngày cân)', mau: 'var(--series-1)', nhan: 'Mua' }, { k: 'tt', ten: 'Thanh toán (theo Ngày CK)', mau: 'var(--series-2)', nhan: 'Thanh toán' }];
+  const cuoi = ds.length - 1;
+  // Nhãn cuối đường: đẩy xa nhau tối thiểu 14px để không đè.
+  let yNhan = chuoi.map(c => y(ds[cuoi][c.k]) + 4);
+  if (Math.abs(yNhan[0] - yNhan[1]) < 14) { const g = (yNhan[0] + yNhan[1]) / 2, tren = yNhan[0] <= yNhan[1] ? 0 : 1; yNhan[tren] = g - 7; yNhan[1 - tren] = g + 7; }
+  box.innerHTML = `<div class="bieu-do">
+    <div class="chu-thich">${chuoi.map(c => `<span><i style="background:${c.mau}"></i>${c.ten}</span>`).join('')}</div>
+    <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Biểu đồ tiền mua và tiền thanh toán 30 ngày gần nhất">
+      ${[0, 1, 2, 3, 4].map(k => `<line class="luoi" x1="${L}" x2="${W - R}" y1="${y(buoc * k)}" y2="${y(buoc * k)}"/><text class="chu-truc" x="${L - 8}" y="${y(buoc * k) + 4}" text-anchor="end">${_tienGon_(buoc * k)}</text>`).join('')}
+      ${ds.map((d, i) => (i % 5 === cuoi % 5) ? `<text class="chu-truc" x="${x(i)}" y="${H - 8}" text-anchor="middle">${esc(d.ngay)}</text>` : '').join('')}
+      ${chuoi.map(c => `<path class="duong" d="${duong(c.k)}" style="stroke:${c.mau}"/>`).join('')}
+      ${chuoi.map((c, n) => `<circle cx="${x(cuoi)}" cy="${y(ds[cuoi][c.k])}" r="4" style="fill:${c.mau};stroke:var(--white);stroke-width:2"/><text class="nhan-cuoi" x="${x(cuoi) + 8}" y="${yNhan[n]}">${c.nhan}</text>`).join('')}
+      <line id="xh-doc" y1="${T}" y2="${H - B}" style="stroke:var(--ink-soft);stroke-width:1;display:none"/>
+      ${chuoi.map(c => `<circle class="xh-diem" data-k="${c.k}" r="4" style="fill:${c.mau};stroke:var(--white);stroke-width:2;display:none"/>`).join('')}
+      <rect id="xh-vung" x="${L}" y="${T}" width="${W - L - R}" height="${H - T - B}" fill="transparent"/>
+    </svg>
+    <div class="goi-y" id="xh-goi-y"></div>
+    <details style="margin-top:6px"><summary style="cursor:pointer;font-size:13px">Xem bảng số liệu</summary>
+      <table><thead><tr><th>Ngày</th><th class="num">Mua</th><th class="num">Thanh toán</th></tr></thead><tbody>
+      ${ds.slice().reverse().map(d => `<tr><td class="mono">${esc(d.ngay)}</td><td class="num">${fmtMoney(d.mua)}</td><td class="num">${fmtMoney(d.tt)}</td></tr>`).join('')}
+      </tbody></table></details></div>`;
+  const svg = box.querySelector('svg'), vung = box.querySelector('#xh-vung'), goiY = box.querySelector('#xh-goi-y'), doc = box.querySelector('#xh-doc');
+  const hien = e => {
+    const r = svg.getBoundingClientRect(), tiLe = W / r.width;
+    const vx = (e.clientX - r.left) * tiLe;
+    const i = Math.max(0, Math.min(cuoi, Math.round((vx - L) / ((W - L - R) / Math.max(1, cuoi)))));
+    const d = ds[i];
+    doc.setAttribute('x1', x(i)); doc.setAttribute('x2', x(i)); doc.style.display = '';
+    box.querySelectorAll('.xh-diem').forEach(c => { c.setAttribute('cx', x(i)); c.setAttribute('cy', y(d[c.dataset.k])); c.style.display = ''; });
+    goiY.innerHTML = `<b>${esc(d.ngay)}</b><br>${chuoi.map(c => `<i style="display:inline-block;width:10px;height:3px;background:${c.mau};margin-right:6px;vertical-align:middle"></i>${c.nhan}: <b>${fmtMoney(d[c.k])}</b> đ`).join('<br>')}`;
+    goiY.style.display = 'block';
+    const px = x(i) / tiLe, rong = goiY.offsetWidth;
+    goiY.style.left = Math.min(Math.max(0, px + 12), r.width - rong) + 'px';
+    goiY.style.top = '28px';
+  };
+  const an = () => { goiY.style.display = 'none'; doc.style.display = 'none'; box.querySelectorAll('.xh-diem').forEach(c => { c.style.display = 'none'; }); };
+  vung.addEventListener('mousemove', hien); vung.addEventListener('mouseleave', an);
+  vung.addEventListener('touchstart', e => hien(e.touches[0]), { passive: true });
+}
 /** Ô số liệu Trang chủ bấm được: mở thẳng màn hình tương ứng (trang + tab con). */
 function moTrang(trang, tab){
   if (trang === 'draft') { state.draftStatusFilter = tab || 'all'; state.draftTuKhoa = ''; }
@@ -1387,7 +1585,7 @@ function _oSoMo(trang, tab, lopThem){
 }
 function renderDashboard(){
   const c = document.getElementById('content');
-  c.innerHTML = `<div id="dash-setup-warning"></div>
+  c.innerHTML = `<div id="dash-setup-warning"></div><div id="dash-kiem-tra-dem"></div>
   <div class="card" id="dash-quy-trinh">
     <h3>Quy trình thanh toán</h3>
     <ol class="quy-trinh">
@@ -1400,7 +1598,7 @@ function renderDashboard(){
   <div class="grid cols-4 o-so" id="dash-stats">
     <div ${_oSoMo('draft', 'all')}><div class="label">Hồ sơ đang ở Nháp</div><div class="value" id="s-draft">–</div><div class="hint">Chưa chốt thanh toán</div></div>
     <div ${_oSoMo('draft', 'san_sang')}><div class="label">Sẵn sàng chốt</div><div class="value" id="s-ready">–</div><div class="hint">Đã có Số tiền</div></div>
-    <div ${_oSoMo('draft', 'cho_tinh')}><div class="label">Chờ Đề Nghị TT</div><div class="value" id="s-pending">–</div><div class="hint">Chưa tính số tiền</div></div>
+    <div ${_oSoMo('draft', 'cho_tinh')}><div class="label">Chưa tính tiền</div><div class="value" id="s-pending">–</div><div class="hint">Chưa tính số tiền</div></div>
     <div ${_oSoMo('draft', 'san_sang')}><div class="label">Tổng tiền sẵn sàng</div><div class="value timber" id="s-total">–</div><div class="hint">VNĐ</div></div>
   </div>
   <div class="muc-tieu-de">Mua &amp; thanh toán tháng này</div>
@@ -1424,6 +1622,11 @@ function renderDashboard(){
       <div id="dash-top5-no"><div class="empty"><div class="ic">⏳</div>Đang tải...</div></div>
     </div>
   </div>
+  <div class="muc-tieu-de">Tuổi nợ phiếu cân chưa thanh toán</div>
+  <div class="grid cols-4 o-so" id="dash-tuoi-no">${[0, 1, 2, 3].map(i => `<div ${_oSoMo('debt', 'ctcn')}><div class="label" id="tn-nhan-${i}">–</div><div class="value${i >= 2 ? ' timber' : ''}" id="tn-tien-${i}">–</div><div class="hint" id="tn-so-${i}">phiếu cân</div></div>`).join('')}</div>
+  <div class="hint-text" id="tn-tinh-den" style="margin-top:8px"></div>
+  <div class="muc-tieu-de">Xu hướng 30 ngày: mua và thanh toán</div>
+  <div class="card"><div id="dash-xu-huong"><div class="empty"><div class="ic">⏳</div>Đang tải...</div></div></div>
   <div class="muc-tieu-de">Mua tháng này theo nguồn gốc &amp; đại lý</div>
   <div class="grid cols-2">
     <div class="card">
@@ -1457,6 +1660,14 @@ function renderDashboard(){
       + (s.congNoCapNhatLuc ? ` - lần gần nhất: ${esc(s.congNoCapNhatLuc)}` : '')
       + '. <button class="btn sm ghost" onclick="doCapNhatCongNoTrangChu()">🔄 Cập nhật ngay</button>';
     document.getElementById('dash-top5-no').innerHTML = _renderDashTop5NoTable_(s.top5KhachHangNo);
+    _veTuoiNo_(s.tuoiNo);
+    _veXuHuong_(document.getElementById('dash-xu-huong'), s.xuHuong30Ngay || []);
+    if (s.canhBao && s.canhBao.length) toast('⚠️ Trang chủ thiếu số liệu - ' + s.canhBao.join(' · '), 'warn');
+    const kt = s.kiemTraDem, ktBox = document.getElementById('dash-kiem-tra-dem');
+    if (ktBox) ktBox.innerHTML = kt && kt.tong ? `<div class="card" style="border-color:var(--danger);background:var(--danger-light)">
+      <b>⚠️ Kiểm tra dữ liệu lúc ${esc(kt.luc)} phát hiện ${kt.muc.length} loại vấn đề:</b>
+      <ul style="margin:6px 0 0 18px">${kt.muc.map(m => `<li>${esc(m.ten)}: <b>${m.so}</b>${m.chiTiet ? ` <span class="muted">(${esc(m.chiTiet)})</span>` : ''}</li>`).join('')}</ul>
+      <div style="margin-top:8px"><button class="btn sm" onclick="goTo('hethong')">Mở Hệ Thống › Bảo Trì</button></div></div>` : '';
     if (!s.draftSetup) {
       document.getElementById('dash-setup-warning').innerHTML = `
         <div class="card" style="border-color:var(--timber); background:var(--timber-light)">
@@ -1490,15 +1701,47 @@ if (!state.createData || state.createData.cccdOptions === undefined) resetCreate
 
 /** Bấm "➕ Tạo Mới" trong Danh Sách ĐNTT - chuyển sang xem wizard tạo
  * mới NGAY TRONG cùng trang (không đổi mục nav). */
-function startCreateFlow(){
+/* ---------- #9 Tạo Mới tự lưu nháp (nâng cấp 28/09/2026) ----------
+ * Dữ liệu đang nhập lưu vào sessionStorage (còn khi tải lại trang / mất kết nối, tự xóa khi
+ * đóng tab - không để CCCD / STK nằm lâu trên máy). Xóa khi Lưu thành công, bỏ, hoặc đăng xuất. */
+const TAO_MOI_NHAP_KHOA = 'hak_tao_moi_nhap_v1';
+function _luuNhapTaoMoi_(){
+  try {
+    const d = state.createData;
+    if (!d || (!d.hoTenChuRung && !(d.phieuCan || []).length)) { sessionStorage.removeItem(TAO_MOI_NHAP_KHOA); return; }
+    sessionStorage.setItem(TAO_MOI_NHAP_KHOA, JSON.stringify({ luc: Date.now(), step: state.createStep, data: d }));
+  } catch (e) { /* trình duyệt chặn lưu trữ - bỏ qua */ }
+}
+function _docNhapTaoMoi_(){
+  try { return JSON.parse(sessionStorage.getItem(TAO_MOI_NHAP_KHOA) || 'null'); } catch (e) { return null; }
+}
+function _xoaNhapTaoMoi_(){ try { sessionStorage.removeItem(TAO_MOI_NHAP_KHOA); } catch (e) { /* bỏ qua */ } }
+let _henLuuNhap_ = 0;
+['input', 'change', 'click'].forEach(loai => document.addEventListener(loai, () => { // gõ, chọn, bấm chọn phiếu cân
+  if (state.draftView !== 'create') return;
+  clearTimeout(_henLuuNhap_); _henLuuNhap_ = setTimeout(_luuNhapTaoMoi_, 400);
+}));
+
+async function startCreateFlow(){
   resetCreateData();
+  const cu = _docNhapTaoMoi_();
+  if (cu && cu.data) {
+    const luc = new Date(cu.luc), gio = String(luc.getHours()).padStart(2, '0') + ':' + String(luc.getMinutes()).padStart(2, '0');
+    const tiep = await xacNhan(`Có hồ sơ đang nhập dở lúc ${gio}: Chủ rừng "${cu.data.hoTenChuRung || '(chưa chọn)'}", ${(cu.data.phieuCan || []).length} phiếu cân.\n\nTiếp tục nhập hồ sơ đó?`,
+      { tieuDe: 'Tiếp tục hồ sơ đang nhập dở?', nutOk: 'Tiếp tục' });
+    if (tiep) { state.createData = Object.assign(state.createData, cu.data); state.createStep = cu.step || 1; }
+    else _xoaNhapTaoMoi_();
+  }
   state.draftView = 'create';
   renderDraft();
 }
 /** Bấm "← Quay lại Danh Sách ĐNTT" trong wizard - hủy bỏ dữ liệu đang
  * nhập dở và quay về danh sách. */
-function cancelCreateFlow(){
+async function cancelCreateFlow(){
+  const d = state.createData;
+  if (d && (d.hoTenChuRung || (d.phieuCan || []).length) && !(await xacNhan('Bỏ hồ sơ đang nhập dở và quay về Danh Sách ĐNTT?', { nutOk: 'Bỏ hồ sơ', nguyHiem: true }))) return;
   resetCreateData();
+  _xoaNhapTaoMoi_();
   state.draftView = 'list';
   renderDraft();
 }
@@ -1528,6 +1771,7 @@ function updateStepper(){
 
 function renderCreateStep(){
   updateStepper();
+  _luuNhapTaoMoi_(); // #9: mỗi lần đổi bước / chọn phiếu cân (vẽ lại) đều lưu nháp
   const body = document.getElementById('create-step-body');
   if (state.createStep === 1) return renderCreateStep1(body);
   if (state.createStep === 2) return renderCreateStep2(body);
@@ -1771,7 +2015,7 @@ function renderSoHDOptions(){
   const list = d.soHopDongOptions;
   sel.innerHTML = (list.length?'<option value="">-- Chọn hợp đồng --</option>':'<option value="">Không có hợp đồng nào</option>') +
     list.map(h => `<option value="${esc(h.soHD)}" ${h.soHD===d.soHopDong?'selected':''}>${esc(h.soHD)} (ký ${esc(h.ngayKy)})</option>`).join('');
-  sel.addEventListener('change', onSoHDChange);
+  sel.onchange = onSoHDChange; // gán (không addEventListener): hàm này chạy lại trên cùng ô chọn -> không nhân bản lượt gọi máy chủ
   if (d.soHopDong) renderHopDongSummary();
 }
 
@@ -1783,7 +2027,7 @@ function renderNguoiNhanOptions(){
   const list = d.nguoiNhanOptions;
   sel.innerHTML = (list.length?'<option value="">-- Chọn người nhận --</option>':'<option value="">Không có dữ liệu Số TK (HD_STK)</option>') +
     list.map(n => `<option value="${esc(n)}" ${n===d.nguoiNhanTien?'selected':''}>${esc(n)}</option>`).join('');
-  sel.addEventListener('change', onNguoiNhanChange);
+  sel.onchange = onNguoiNhanChange;
   if (d.nguoiNhanTien) loadStkOptions();
 }
 
@@ -1942,10 +2186,10 @@ function suaTenPcTaoMoi(i){
  * cảnh báo "khác tên" - dùng chung cho cả Bước 2 "Tạo Mới" (không
  * truyền idKeyForEdit) và modal "Sửa hồ sơ" (có truyền idKeyForEdit/
  * chuRungForEdit) để biết tải lại đúng danh sách nào sau khi sửa. */
-function suaTenKhachHangPC(soPhieuCan, tenHienTai, idKeyForEdit, chuRungForEdit){
+async function suaTenKhachHangPC(soPhieuCan, tenHienTai, idKeyForEdit, chuRungForEdit){
   // Mục đích sửa tên là đưa phiếu cân về ĐÚNG Chủ rừng -> điền sẵn tên Chủ rừng đang chọn.
   const chuRung = idKeyForEdit ? chuRungForEdit : state.createData.hoTenChuRung;
-  const tenMoi = prompt(`Sửa tên khách hàng cho phiếu cân "${soPhieuCan}"\nTên hiện tại: "${tenHienTai || ''}"\nTên mới:`, chuRung || tenHienTai || '');
+  const tenMoi = (await nhapChu(`Sửa tên khách hàng cho phiếu cân "${soPhieuCan}"\nTên hiện tại: "${tenHienTai || ''}"\nTên mới:`, chuRung || tenHienTai || '', { tieuDe: 'Sửa tên khách hàng phiếu cân' }));
   if (tenMoi === null) return; // bấm Hủy
   const clean = tenMoi.trim();
   if (!clean) { toast('Vui lòng nhập tên khách hàng.', 'warn'); return; }
@@ -2042,7 +2286,7 @@ function loadStkOptions(){
     sel.disabled = list.length === 0;
     sel.innerHTML = (list.length?'<option value="">-- Chọn số tài khoản --</option>':'<option value="">Không có STK phù hợp</option>') +
       list.map(s => `<option value="${esc(s.stk)}|${esc(s.nganHang)}" ${(s.stk===d.soTKNhanTien && s.nganHang===d.nganHang)?'selected':''}>${esc(s.stk)} · ${esc(s.nganHang)}</option>`).join('');
-    sel.addEventListener('change', onStkChange);
+    sel.onchange = onStkChange;
   });
 }
 
@@ -2093,13 +2337,13 @@ function renderCreateStep3(body){
     </div>
     <div class="sticky-actionbar">
       <button class="btn ghost" onclick="goCreateStep(2)">← Quay lại</button>
-      <button class="btn accent" onclick="submitCreate()">💾 Lưu (ghi sheet chính + tách vào Nháp)</button>
+      <button class="btn accent" onclick="submitCreate()">💾 Lưu hồ sơ (vào Danh Sách ĐNTT, tự tính tiền)</button>
     </div>`;
 }
 
 /** MỚI (mục AF): cảnh báo nếu có phiếu cân với tên Khách hàng KHÁC Chủ
  * rừng đang chọn (không chặn, chỉ hỏi xác nhận trước khi lưu). */
-function submitCreate(){
+async function submitCreate(){
   const d = state.createData;
   const genericNames = new Set(['KH','KL','KHACHLE','KHÁCHLẺ']); // khớp TEN_KHACH_CHUNG (Code.gs) - standardizeClient giữ dấu
   const nameStd = standardizeClient(d.hoTenChuRung);
@@ -2109,7 +2353,7 @@ function submitCreate(){
   });
   if (mismatched.length > 0) {
     const danhSach = mismatched.map(p => `${p.soPhieuCan} (KH: ${p.khachHang})`).join(', ');
-    const ok = confirm(`⚠️ Có ${mismatched.length} phiếu cân với tên Khách hàng KHÁC Chủ rừng "${d.hoTenChuRung}" đã chọn:\n${danhSach}\n\nBạn có chắc muốn tiếp tục lưu không?`);
+    const ok = (await xacNhan(`⚠️ Có ${mismatched.length} phiếu cân với tên Khách hàng KHÁC Chủ rừng "${d.hoTenChuRung}" đã chọn:\n${danhSach}\n\nBạn có chắc muốn tiếp tục lưu không?`, { tieuDe: '⚠️ Tên khách hàng khác Chủ rừng', nutOk: 'Vẫn lưu' }));
     if (!ok) return;
   }
   doSubmitCreate();
@@ -2127,6 +2371,7 @@ function doSubmitCreate(){
   call('createNewPaymentRequest', [payload], 'Đang lưu...').then(res => {
     handleResult(res, () => {
       resetCreateData();
+      _xoaNhapTaoMoi_();
       state.draftView = 'list';
       refreshBadge();
       goTo('draft');
@@ -2145,19 +2390,19 @@ function renderDraft(){
   document.getElementById('page-desc').textContent = PAGES.draft.desc;
   document.getElementById('topbar-actions').innerHTML = `
     <button class="btn" onclick="doLamMoiToanBo()">↻ Làm mới</button>
-    <button class="btn accent" onclick="doTongHop112()">📤 Đề Nghị Thanh Toán (tính lại)</button>
+    <button class="btn" onclick="doTongHop112()" title="Số tiền đã tự tính khi Lưu / Thêm / Bỏ phiếu - chỉ cần bấm khi có cảnh báo ⚠️ Cần tính lại">🔄 Tính lại số tiền</button>
     <button class="btn primary" onclick="startCreateFlow()">➕ Tạo Mới</button>`;
   if (!state.draftStatusFilter) state.draftStatusFilter = 'all';
   const c = document.getElementById('content');
   c.innerHTML = `
     <div class="subtabs">
       <div class="subtab" data-f="all">Tất cả <span class="dem"></span></div>
-      <div class="subtab" data-f="cho_tinh">1 · Chưa ĐNTT <span class="dem"></span></div>
-      <div class="subtab" data-f="cho_dntt">2 · Chờ ĐNTT <span class="dem"></span></div>
-      <div class="subtab" data-f="dang_dntt">3 · Đang ĐNTT (chờ duyệt) <span class="dem"></span></div>
+      <div class="subtab" data-f="cho_tinh">1 · Chưa tính tiền <span class="dem"></span></div>
+      <div class="subtab" data-f="cho_dntt">2 · Chờ xác nhận <span class="dem"></span></div>
+      <div class="subtab" data-f="dang_dntt">3 · Chờ duyệt <span class="dem"></span></div>
       <div class="subtab" data-f="san_sang">Đã có số tiền (2 + 3) <span class="dem"></span></div>
     </div>
-    <div class="hint-text" style="margin-bottom:10px">Quy trình: (1) Chưa ĐNTT → bấm "Đề Nghị Thanh Toán" để tính tiền → (2) Chờ ĐNTT → chọn hồ sơ, bấm "Xác Nhận" → (3) Đang ĐNTT → in Báo Cáo ĐNTT, rồi bấm "Duyệt" để Đóng Thanh Toán (copy sang sheet chính).</div>
+    <div class="hint-text" style="margin-bottom:10px">Quy trình: Tạo Mới → hệ thống tự tính tiền → (2) Chờ xác nhận → chọn hồ sơ, bấm "Xác Nhận" → (3) Chờ duyệt → in Báo Cáo ĐNTT / tạo UNC, rồi bấm "Duyệt" để Đóng Thanh Toán (ghi sổ chính thức).</div>
     <div class="card" id="draft-filter-card">
       <div class="grid cols-3" style="align-items:end">
         <div class="field" style="grid-column:span 2"><label for="draft-tu-khoa">Lọc theo tên khách hàng (chủ rừng / người nhận)</label>
@@ -2167,6 +2412,7 @@ function renderDraft(){
       </div>
       <div id="draft-tong" style="margin-top:10px"></div>
     </div>
+    <div id="duyet-do-dang"></div>
     <div class="card" id="draft-table-wrap"><div class="empty"><div class="ic">⏳</div>Đang tải...</div></div>
     <div class="sticky-actionbar hidden" id="draft-actionbar">
       <span id="draft-selected-info" style="font-size:13px"></span>
@@ -2176,7 +2422,12 @@ function renderDraft(){
     el.classList.toggle('active', el.dataset.f === state.draftStatusFilter);
     el.addEventListener('click', () => { state.draftStatusFilter = el.dataset.f; renderDraftTable(); });
   });
-  document.getElementById('draft-tu-khoa').addEventListener('input', e => { state.draftTuKhoa = e.target.value; renderDraftTable(); });
+  // P-08 (rà soát 28/09/2026): chờ ngừng gõ 150 ms rồi mới vẽ lại (trước đây vẽ lại cả bảng mỗi phím).
+  document.getElementById('draft-tu-khoa').addEventListener('input', e => {
+    state.draftTuKhoa = e.target.value;
+    clearTimeout(state._henLocDraft);
+    state._henLocDraft = setTimeout(renderDraftTable, 150);
+  });
   loadDraftList();
 }
 
@@ -2190,7 +2441,7 @@ function _khopTenDraft(r){
   const k = _khongDau(state.draftTuKhoa);
   return !k || _khongDau(r.chuRung).includes(k) || _khongDau(r.nguoiNhan).includes(k);
 }
-/** Hồ sơ thuộc tab `f`: all = tất cả; san_sang = đã có số tiền (Chờ + Đang ĐNTT); còn lại theo trạng thái. */
+/** Hồ sơ thuộc tab `f`: all = tất cả; san_sang = đã có số tiền (Chờ xác nhận + Chờ duyệt); còn lại theo trạng thái. */
 function _thuocTabDraft(r, f){
   return f === 'all' || (f === 'san_sang' ? !!r.sanSangChot : r.trangThaiKey === f);
 }
@@ -2203,7 +2454,7 @@ function boLocDraft(){
   const o = document.getElementById('draft-tu-khoa'); if (o) o.value = '';
   renderDraftTable();
 }
-const DRAFT_TEN_TAB = { all: 'Tất cả', cho_tinh: 'Chưa ĐNTT (chưa tính tiền)', cho_dntt: 'Chờ ĐNTT', dang_dntt: 'Đang ĐNTT - đã đề nghị, chưa chuyển tiền', san_sang: 'Đã có số tiền - sẵn sàng chốt (Chờ + Đang ĐNTT)' };
+const DRAFT_TEN_TAB = { all: 'Tất cả', cho_tinh: 'Chưa tính tiền', cho_dntt: 'Chờ xác nhận', dang_dntt: 'Chờ duyệt - đã xác nhận, chưa chuyển tiền', san_sang: 'Đã có số tiền - sẵn sàng chốt (Chờ xác nhận + Chờ duyệt)' };
 /** Dòng tổng phía trên bảng + tổng theo từng khách hàng (hồ sơ đang hiện). */
 function _veTongDraft(list){
   const box = document.getElementById('draft-tong');
@@ -2222,7 +2473,22 @@ function _veTongDraft(list){
       </tbody></table></details>` : ''}`;
 }
 
+/** #6: lượt Duyệt bị dừng giữa chừng (giới hạn 6 phút / mất kết nối) -> cảnh báo + nút hoàn tất nốt. */
+function kiemTraDuyetDoDang(){
+  call('getDuyetDoDang', [], null).then(j => {
+    const box = document.getElementById('duyet-do-dang');
+    if (!box) return;
+    box.innerHTML = j && Array.isArray(j.ids) ? `<div class="card" style="border-color:var(--danger);background:var(--danger-light)">
+      <b>⚠️ Lượt Duyệt lúc ${esc(j.luc)}${j.nguoi ? ' (' + esc(j.nguoi) + ')' : ''} bị dừng giữa chừng</b> - ${j.ids.length} hồ sơ, ngày thanh toán ${esc(/^\d{4}-\d{2}-\d{2}$/.test(j.ngay) ? _isoSangVN(j.ngay) : j.ngay)}.
+      Một phần có thể đã ghi vào sổ. Bấm <b>Hoàn tất</b> để hệ thống làm nốt các bước còn lại (tự bỏ qua phần đã ghi, không ghi trùng).
+      <div style="margin-top:8px"><button class="btn danger" onclick="hoanTatDuyetDoDang()">🔁 Hoàn tất lượt Duyệt</button></div></div>` : '';
+  }, () => {});
+}
+function hoanTatDuyetDoDang(){
+  call('webHoanTatDuyetDoDang', [], 'Đang hoàn tất lượt Duyệt...').then(res => handleResult(res, () => loadDraftList()));
+}
 function loadDraftList(){
+  kiemTraDuyetDoDang();
   call('getDraftListSummary', [], 'Đang tải Danh Sách ĐNTT...').then(list => {
     state.draftList = list;
     state.draftSelected.clear();
@@ -2281,7 +2547,7 @@ function renderDraftTable(){
   }
   const chonDuoc = list.filter(r => r.sanSangChot);
   const daChonHet = chonDuoc.length > 0 && chonDuoc.every(r => state.draftSelected.has(r.idKey));
-  wrap.innerHTML = `<table><thead><tr>
+  wrap.innerHTML = `<div class="cuon-ngang"><table class="cot-cuoi-dinh"><thead><tr>
       <th><input type="checkbox" id="chk-all" ${daChonHet ? 'checked' : ''} onchange="toggleAll(this)"></th>
       <th>Ngày đề nghị</th><th>Chủ rừng</th><th>Người nhận</th><th>Ngân hàng / STK</th><th>Số HĐ</th>
       <th class="num">Số phiếu</th><th class="num">KL (kg)</th><th class="num">Số tiền</th><th>Trạng thái</th><th></th>
@@ -2296,18 +2562,18 @@ function renderDraftTable(){
       <td class="num">${r.soLuongPhieu}</td>
       <td class="num">${fmtKl(r.klTongKg)}</td>
       <td class="num">${r.sanSangChot ? fmtMoney(r.soTien) : '–'}</td>
-      <td>${DRAFT_STATUS_BADGE[r.trangThaiKey] || esc(r.trangThaiLabel)}</td>
+      <td>${DRAFT_STATUS_BADGE[r.trangThaiKey] || esc(r.trangThaiLabel)}${r.canTinhLai ? `<br><span class="badge pending dot" title="Số tiền ${fmtMoney(r.soTien)} đ khác tổng phiếu cân ${fmtMoney(r.tongTienPhieu)} đ - bấm Tính lại số tiền">⚠️ Cần tính lại</span>` : ''}</td>
       <td style="white-space:nowrap">${draftRowActionsHtml(r)}</td>
     </tr>`).join('')}
     </tbody>
     <tfoot><tr style="font-weight:700"><td colspan="6" style="text-align:right">TỔNG CỘNG (${list.length} hồ sơ)</td>
       <td class="num">${list.reduce((t, r) => t + r.soLuongPhieu, 0)}</td><td class="num">${fmtKl(list.reduce((t, r) => t + r.klTongKg, 0))}</td>
-      <td class="num">${fmtMoney(list.filter(r => r.sanSangChot).reduce((t, r) => t + r.soTien, 0))}</td><td colspan="2"></td></tr></tfoot></table>`;
+      <td class="num">${fmtMoney(list.filter(r => r.sanSangChot).reduce((t, r) => t + r.soTien, 0))}</td><td colspan="2"></td></tr></tfoot></table></div>`;
   updateDraftActionbar();
 }
 
-/** MỚI (mục W): Sửa/Xóa CHỈ cho phép ở trạng thái "Chờ ĐNTT". Hồ sơ
- * "Chưa ĐNTT" chỉ Xem. Hồ sơ "Đang ĐNTT" chỉ Xem + "Về Chờ ĐNTT" (để mở
+/** MỚI (mục W): Sửa/Xóa CHỈ cho phép ở trạng thái "Chờ xác nhận". Hồ sơ
+ * "Chưa tính tiền" chỉ Xem. Hồ sơ "Chờ duyệt" chỉ Xem + "Về Chờ xác nhận" (để mở
  * khóa Sửa/Xóa nếu cần). */
 function draftRowActionsHtml(r){
   const xem = `<button class="btn sm ghost" ${hanhDong('viewDraftDetail', r.idKey)}>Xem</button>`;
@@ -2318,14 +2584,21 @@ function draftRowActionsHtml(r){
   }
   if (r.trangThaiKey === 'dang_dntt') {
     return `${xem}
-      <button class="btn sm ghost" ${hanhDong('doHuyXacNhan', r.idKey)}>↩️ Về Chờ ĐNTT</button>`;
+      <button class="btn sm ghost" ${hanhDong('doHuyXacNhan', r.idKey)}>↩️ Về Chờ xác nhận</button>`;
   }
-  return xem; // cho_tinh (Chưa ĐNTT) - chỉ Xem
+  return xem; // cho_tinh (Chưa tính tiền) - chỉ Xem
 }
 
-function doHuyXacNhan(idKey){
-  if (!confirm(`Chuyển hồ sơ "${idKey}" về trạng thái "Chờ ĐNTT" để có thể Sửa/Xóa?`)) return;
-  call('runHuyXacNhanDNTT', [idKey], 'Đang chuyển trạng thái...').then(res => handleResult(res, loadDraftList));
+async function doHuyXacNhan(idKey){
+  if (!(await xacNhan(`Chuyển hồ sơ "${idKey}" về trạng thái "Chờ xác nhận" để có thể Sửa/Xóa?`))) return;
+  call('runHuyXacNhanDNTT', [idKey], 'Đang chuyển trạng thái...').then(async res => {
+    // Hồ sơ đã có UNC: máy chủ hỏi xác nhận riêng (UNC có thể đã nộp ngân hàng).
+    if (res && res.canXacNhanUnc) {
+      if (!(await xacNhan(res.message, { nguyHiem: true, tieuDe: '⚠️ Hồ sơ đã có UNC', nutOk: 'Vẫn chuyển về Chờ xác nhận' }))) return;
+      return call('runHuyXacNhanDNTT', [idKey, true], 'Đang chuyển trạng thái...').then(r2 => handleResult(r2, loadDraftList));
+    }
+    handleResult(res, loadDraftList);
+  });
 }
 
 function toggleAll(cb){
@@ -2361,12 +2634,12 @@ function updateDraftActionbar(){
   }
 }
 
-/** Nút hành động thay đổi theo tab đang xem: "Chờ ĐNTT" chỉ có "Xác
- * Nhận"; "Đang ĐNTT" chỉ có "In Báo Cáo ĐNTT" + "Duyệt". Tab "Tất cả"
+/** Nút hành động thay đổi theo tab đang xem: "Chờ xác nhận" chỉ có "Xác
+ * Nhận"; "Chờ duyệt" chỉ có "In Báo Cáo ĐNTT" + "Duyệt". Tab "Tất cả"
  * hiện đủ cả 3 (phòng khi chọn hồ sơ ở nhiều trạng thái khác nhau). */
 /** SỬA LỖI: trước đây dựa theo TAB đang xem (state.draftStatusFilter) -
- * nên ở tab "Tất cả", chọn 1 dòng "Chờ ĐNTT" vẫn hiện nhầm nút "Duyệt"/
- * "In Báo Cáo ĐNTT" (chỉ dành cho "Đang ĐNTT"). Giờ dựa ĐÚNG theo trạng
+ * nên ở tab "Tất cả", chọn 1 dòng "Chờ xác nhận" vẫn hiện nhầm nút "Duyệt"/
+ * "In Báo Cáo ĐNTT" (chỉ dành cho "Chờ duyệt"). Giờ dựa ĐÚNG theo trạng
  * thái THẬT của các dòng đang được chọn (state.draftSelected). */
 function getDraftActionButtonsHtml(){
   const selectedRows = state.draftList.filter(r => state.draftSelected.has(r.idKey));
@@ -2381,8 +2654,8 @@ function getDraftActionButtonsHtml(){
       <button class="btn" onclick="openCreateUNCModal()">🏦 Tạo File UNC (đã chọn)</button>
       <button class="btn primary" onclick="openConfirmPaymentModal()">📨 Duyệt (Đóng Thanh Toán)</button>`;
   }
-  if (!hasChoDntt && !hasDangDntt) return ''; // chỉ chọn "Chưa ĐNTT" - không có hành động nào khả dụng
-  // Chọn LẪN cả "Chờ ĐNTT" và "Đang ĐNTT" cùng lúc (thường ở tab "Tất
+  if (!hasChoDntt && !hasDangDntt) return ''; // chỉ chọn "Chưa tính tiền" - không có hành động nào khả dụng
+  // Chọn LẪN cả "Chờ xác nhận" và "Chờ duyệt" cùng lúc (thường ở tab "Tất
   // cả") -> hiện đủ 3 nút, backend sẽ tự bỏ qua phần không đúng trạng
   // thái kèm cảnh báo rõ ràng (không làm sai dữ liệu).
   return `<button class="btn" onclick="doXacNhanDNTT()">✅ Xác nhận đã chọn chuyển ĐNTT</button>
@@ -2391,15 +2664,15 @@ function getDraftActionButtonsHtml(){
     <button class="btn primary" onclick="openConfirmPaymentModal()">📨 Duyệt (Đóng Thanh Toán)</button>`;
 }
 
-/** Bước 2 → 3: "Xác Nhận" các hồ sơ đang "Chờ ĐNTT" (đã tính tiền)
- * chuyển sang "Đang ĐNTT" (sẵn sàng in Báo Cáo ĐNTT & chờ Duyệt). Hồ sơ
+/** Bước 2 → 3: "Xác Nhận" các hồ sơ đang "Chờ xác nhận" (đã tính tiền)
+ * chuyển sang "Chờ duyệt" (sẵn sàng in Báo Cáo ĐNTT & chờ Duyệt). Hồ sơ
  * chưa tính tiền trong lựa chọn sẽ tự bị bỏ qua kèm cảnh báo. */
 function doXacNhanDNTT(){
   const ids = Array.from(state.draftSelected);
   if (!ids.length) { toast('Vui lòng chọn ít nhất 1 hồ sơ.', 'warn'); return; }
-  call('runXacNhanDNTT', [ids], 'Đang Xác Nhận...').then(res => {
+  call('runXacNhanDNTT', [ids], 'Đang Xác Nhận...').then(async res => {
     if (res && res.needConfirm) {
-      if (confirm(res.message)) {
+      if ((await xacNhan(res.message, { tieuDe: '⚠️ Tên khách hàng khác Chủ rừng', nutOk: 'Vẫn Xác nhận' }))) {
         call('runXacNhanDNTT', [ids, true], 'Đang Xác Nhận...').then(res2 => handleResult(res2, () => loadDraftList()));
       }
       return;
@@ -2408,7 +2681,7 @@ function doXacNhanDNTT(){
   });
 }
 
-/** Bước 3: in "Báo Cáo ĐNTT" (mẫu excel) cho các hồ sơ đã "Đang ĐNTT". */
+/** Bước 3: in "Báo Cáo ĐNTT" (mẫu excel) cho các hồ sơ đã "Chờ duyệt". */
 function doInBaoCaoDNTT(){
   const ids = Array.from(state.draftSelected);
   if (!ids.length) { toast('Vui lòng chọn ít nhất 1 hồ sơ.', 'warn'); return; }
@@ -2425,7 +2698,7 @@ function doInBaoCaoDNTT(){
   });
 }
 
-/** MỚI (theo yêu cầu): Tạo File UNC (Ủy Nhiệm Chi) cho hồ sơ "Đang ĐNTT"
+/** MỚI (theo yêu cầu): Tạo File UNC (Ủy Nhiệm Chi) cho hồ sơ "Chờ duyệt"
  * đã chọn - CHƯA chốt thanh toán, chỉ để nộp ngân hàng chuyển tiền trước. */
 function openCreateUNCModal(){
   const ids = Array.from(state.draftSelected);
@@ -2479,18 +2752,19 @@ function doTongHop112(){
 function viewDraftDetail(idKey){
   call('getDraftRecordDetail', [idKey], 'Đang tải chi tiết...').then(r => {
     if (!r) { toast('Không tìm thấy hồ sơ.', 'err'); return; }
-    const editable = r.soTien > 0 && !r.daXacNhan; // mục W: chỉ "Chờ ĐNTT" mới cho sửa/xóa
+    const editable = r.soTien > 0 && !r.daXacNhan; // mục W: chỉ "Chờ xác nhận" mới cho sửa/xóa
     openModal(`
       <div class="modal-head"><h3>Chi tiết hồ sơ ${esc(r.idKey)}</h3><button class="x" onclick="closeModal()" aria-label="Đóng">&times;</button></div>
       <div class="modal-body">
         <div class="kv"><span class="k">Chủ rừng</span><span class="v">${esc(r.chuRung)}</span></div>
-        <div class="kv"><span class="k">Trạng thái</span><span class="v">${r.soTien>0 ? (r.daXacNhan ? '<span class="badge ready dot">Đang ĐNTT</span>' : '<span class="badge wait dot">Chờ ĐNTT</span>') : '<span class="badge pending dot">Chưa ĐNTT</span>'}</span></div>
+        <div class="kv"><span class="k">Trạng thái</span><span class="v">${r.soTien>0 ? (r.daXacNhan ? '<span class="badge ready dot">Chờ duyệt</span>' : '<span class="badge wait dot">Chờ xác nhận</span>') : '<span class="badge pending dot">Chưa tính tiền</span>'}</span></div>
         <div class="kv"><span class="k">Người nhận</span><span class="v">${esc(r.nguoiNhan)}</span></div>
         <div class="kv"><span class="k">Ngân hàng / STK</span><span class="v">${esc(r.nganHang)} · ${esc(r.stk)}</span></div>
         <div class="kv"><span class="k">Số hợp đồng</span><span class="v">${esc(r.soHD)}</span></div>
         <div class="kv"><span class="k">SL HĐ Dự Kiến / Lũy Kế / Còn Lại</span><span class="v mono">${fmtKl(r.slDuKien)} / ${fmtKl(r.slLuyKe)} / ${fmtKl(r.conLai)} tấn</span></div>
         <div class="kv"><span class="k">Số tiền</span><span class="v mono">${fmtMoney(r.soTien)} đ</span></div>
         ${veDienGiaiHoSo(r)}
+        <details id="lich-su-ho-so" style="margin-top:12px" data-id="${esc(r.idKey)}" ontoggle="if (this.open) taiLichSuHoSo(this.dataset.id)"><summary style="cursor:pointer;font-weight:600">📜 Lịch sử hồ sơ (ai tạo, sửa gì, xác nhận, duyệt - lúc nào)</summary><div id="lich-su-ho-so-noi-dung" class="muted" style="font-size:13px;margin-top:8px">Đang tải...</div></details>
         <h3 style="margin:16px 0 8px 0; font-size:14px">Danh sách phiếu cân (${r.chiTiet.length})</h3>
         <table><thead><tr><th>Số phiếu cân</th><th class="num">KL (Tấn)</th><th class="num">Thành tiền</th>${editable?'<th></th>':''}</tr></thead><tbody>
         ${r.chiTiet.map(d => `<tr><td class="mono">${esc(d.soPhieuCan)}</td><td class="num">${fmtKl(d.klTan)}</td><td class="num">${fmtMoney(d.thanhTien)}</td>
@@ -2504,7 +2778,7 @@ function viewDraftDetail(idKey){
             <button class="btn primary sm" ${hanhDong('searchPhieuCanForEdit', r.idKey, r.chuRung)}>🔍 Tìm</button>
           </div>
           <div id="edit-pc-results" class="muted" style="font-size:13px;margin-top:8px"></div>
-        </div>` : `<div class="hint-text" style="margin-top:16px">Hồ sơ đang ở trạng thái "${r.soTien>0?'Đang ĐNTT':'Chưa ĐNTT'}" - chỉ xem, không thể sửa/xóa phiếu cân. ${r.daXacNhan?'Bấm "Về Chờ ĐNTT" ở danh sách nếu cần sửa.':''}</div>`}
+        </div>` : `<div class="hint-text" style="margin-top:16px">Hồ sơ đang ở trạng thái "${r.soTien>0?'Chờ duyệt':'Chưa tính tiền'}" - chỉ xem, không thể sửa/xóa phiếu cân. ${r.daXacNhan?'Bấm "Về Chờ xác nhận" ở danh sách nếu cần sửa.':''}</div>`}
       </div>
       <div class="modal-foot"><span id="phieu-pdf-slot"><button class="btn" ${hanhDong('inPhieuChiTietThanhToan', r.idKey)}>🖨️ In phiếu chi tiết thanh toán (PDF)</button></span><button class="btn ghost" onclick="closeModal()">Đóng</button></div>
     `);
@@ -2520,6 +2794,44 @@ function viewDraftDetail(idKey){
   });
 }
 
+/** #8: tìm nhanh toàn hệ thống (ô trên thanh bên, phím / hoặc Ctrl+K). */
+function timNhanh(){
+  const o = document.getElementById('tim-nhanh-o'), q = o.value.trim();
+  if (q.length < 2) { toast('Gõ ít nhất 2 ký tự để tìm.', 'warn'); return; }
+  call('timKiemNhanh', [q], 'Đang tìm...').then(res => {
+    const ds = (res && res.ketQua) || [];
+    openModal(`<div class="modal-head"><h3>Kết quả tìm "${esc(q)}"</h3><button class="x" onclick="closeModal()" aria-label="Đóng">&times;</button></div>
+      <div class="modal-body">${ds.length ? `<table class="ket-qua-tim"><thead><tr><th>Hồ sơ</th><th>Chủ rừng</th><th>Số HĐ / STK</th><th class="num">Số tiền</th><th>Trạng thái</th><th>Khớp theo</th></tr></thead><tbody>
+        ${ds.map((r, i) => `<tr tabindex="0" role="button" data-i="${i}"><td class="mono">${esc(r.idKey)}<div class="muted" style="font-size:11.5px">${esc(r.ngay)}</div></td><td>${esc(r.chuRung)}</td>
+          <td class="mono" style="font-size:12.5px">${esc(r.soHD)}<br>${esc(r.stk)}</td><td class="num">${fmtMoney(r.soTien)}</td>
+          <td>${r.loai === 'nhap' ? `<span class="badge wait dot">${esc(r.trangThai)}</span>` : '<span class="badge ready dot">Đã thanh toán</span>'}</td><td class="muted" style="font-size:12.5px">${esc(r.khop)}</td></tr>`).join('')}
+        </tbody></table>${res.thongBao ? `<div class="hint-text" style="margin-top:8px">${esc(res.thongBao)}</div>` : ''}`
+        : `<div class="empty"><div class="ic">🔎</div>Không tìm thấy hồ sơ nào khớp "${esc(q)}" trong Nháp và sổ đang mở.${res && res.thongBao ? '<br>' + esc(res.thongBao) : ''}<br><span class="muted">Hồ sơ năm đã khóa sổ: tra ở Báo Cáo Thanh Toán.</span></div>`}</div>`, { rong: true });
+    document.querySelectorAll('.ket-qua-tim tbody tr').forEach(tr => {
+      const mo = () => { const r = ds[+tr.dataset.i]; closeModal(); if (r.loai === 'nhap') viewDraftDetail(r.idKey); else xemPhieuHoanThanh(r.idKey, r.ngayISO); };
+      tr.addEventListener('click', mo);
+      tr.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); mo(); } });
+    });
+  });
+}
+document.addEventListener('keydown', e => {
+  const oTim = document.getElementById('tim-nhanh-o');
+  if (!oTim || document.getElementById('tim-nhanh').classList.contains('hidden')) return;
+  const dangGo = /^(INPUT|TEXTAREA|SELECT)$/.test((document.activeElement || {}).tagName || '') || (document.activeElement && document.activeElement.isContentEditable);
+  if ((e.key === '/' && !dangGo) || ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k')) { e.preventDefault(); oTim.focus(); oTim.select(); }
+});
+/** #4: lịch sử 1 hồ sơ (từ Nhật Ký Thao Tác) trong modal chi tiết - tải khi mở mục. */
+function taiLichSuHoSo(idKey){
+  const box = document.getElementById('lich-su-ho-so-noi-dung');
+  if (!box || box.dataset.daTai) return;
+  call('getLichSuHoSo', [idKey], null).then(ds => {
+    box.dataset.daTai = '1';
+    if (!ds || !ds.length) { box.textContent = 'Chưa có ghi chép nào cho hồ sơ này.'; return; }
+    box.innerHTML = `<table><thead><tr><th>Thời gian</th><th>Người thực hiện</th><th>Thao tác</th><th>Chi tiết</th></tr></thead><tbody>
+      ${ds.map(x => `<tr><td class="mono" style="white-space:nowrap">${esc(x.thoiGian)}</td><td>${esc(x.nguoiThucHien)}</td><td>${esc(NHAN_HANH_DONG[x.hanhDong] || x.hanhDong)}</td><td style="white-space:pre-line">${esc(x.chiTiet)}</td></tr>`).join('')}
+    </tbody></table>`;
+  }, () => { box.textContent = 'Không tải được lịch sử - thử lại.'; });
+}
 /** Tạo phiếu PDF (fn máy chủ + tham số); xong thì nút In trong ô #phieu-pdf-slot đổi thành link mở file. */
 function _inPhieuPdf(fn, thamSo){
   call(fn, thamSo, 'Đang tạo phiếu PDF...').then(res => {
@@ -2558,8 +2870,8 @@ function veDienGiaiHoSo(r){
   return `<div class="dien-giai" style="margin-top:12px"><div class="tieu-de">Diễn giải</div>${dong.join('')}</div>`;
 }
 
-function removePhieuCan(idCT, idKey){
-  if (!confirm('Xóa phiếu cân "'+idCT+'" khỏi hồ sơ này?')) return;
+async function removePhieuCan(idCT, idKey){
+  if (!(await xacNhan('Xóa phiếu cân "'+idCT+'" khỏi hồ sơ này?', { nguyHiem: true, nutOk: 'Xóa phiếu cân' }))) return;
   call('removePhieuCanFromDraft', [idCT], 'Đang xóa...').then(res => {
     if (!handleResult(res)) return;
     loadDraftList();
@@ -2636,7 +2948,7 @@ function editDraftRecord(idKey){
         </div>
         <div class="field"><label>Số hợp đồng</label><input type="text" id="e-soHD" value="${esc(r.soHD)}"></div>
         <div class="field"><label>Nội dung chuyển khoản</label><textarea id="e-noiDung" rows="2">${esc(r.noiDungCK)}</textarea></div>
-        <div class="hint-text">Số tiền / lũy kế theo hợp đồng do "Đề Nghị Thanh Toán" tự tính, không sửa tay ở đây.</div>
+        <div class="hint-text">Số tiền / lũy kế theo hợp đồng do hệ thống tự tính, không sửa tay ở đây. Số tài khoản phải có trong danh sách tài khoản (HD_STK) của Số hợp đồng - tài khoản mới thì thêm ở app Hợp Đồng trước.</div>
       </div>
       <div class="modal-foot"><button class="btn ghost" onclick="closeModal()">Hủy</button>
         <button class="btn primary" ${hanhDong('saveDraftEdit', r.idKey)}>💾 Lưu thay đổi</button></div>
@@ -2658,8 +2970,8 @@ function saveDraftEdit(idKey){
   });
 }
 
-function confirmDeleteDraft(idKey){
-  if (!confirm('Xóa TOÀN BỘ hồ sơ "'+idKey+'" khỏi File Nháp?\nCác số phiếu cân liên quan sẽ được giải phóng ngay.')) return;
+async function confirmDeleteDraft(idKey){
+  if (!(await xacNhan('Xóa TOÀN BỘ hồ sơ "'+idKey+'" khỏi File Nháp?\nCác số phiếu cân liên quan sẽ được giải phóng ngay.', { nguyHiem: true, tieuDe: 'Xóa hồ sơ khỏi Nháp', nutOk: 'Xóa hồ sơ' }))) return;
   call('runDeleteDraftRecord', [idKey], 'Đang xóa...').then(res => handleResult(res, loadDraftList));
 }
 
@@ -2705,11 +3017,11 @@ function hienNgayThanhToan(){
     : '<span style="color:var(--danger)">Ngày chưa đúng - gõ ngày/tháng/năm, vd 26/09/2026.</span>';
 }
 
-function submitConfirmPayment(){
+async function submitConfirmPayment(){
   const dateStr = document.getElementById('pay-date').value;
   if (!dateStr) { toast('Ngày thanh toán chưa đúng - gõ ngày/tháng/năm, vd 26/09/2026.', 'warn'); return; }
   const vn = _isoSangVN(dateStr);
-  if (dateStr > todayISOVN() && !confirm(`Ngày thanh toán ${vn} là ngày SAU hôm nay. Vẫn Đóng Thanh Toán với ngày này?`)) return;
+  if (dateStr > todayISOVN() && !(await xacNhan(`Ngày thanh toán ${vn} là ngày SAU hôm nay. Vẫn Đóng Thanh Toán với ngày này?`, { tieuDe: '⚠️ Ngày thanh toán ở tương lai', nutOk: 'Vẫn Đóng Thanh Toán' }))) return;
   const ids = Array.from(state.draftSelected);
   call('webConfirmPayment', [ids, dateStr], 'Đang chốt thanh toán...').then(res => {
     closeModal();
@@ -2730,6 +3042,7 @@ function renderReport(){
       <div class="subtab" data-t="chitiet">Báo Cáo Thanh Toán Chi Tiết</div>
       <div class="subtab" data-t="misa">Báo Cáo Kết Xuất MISA</div>
       <div class="subtab" data-t="unc">Báo Cáo UNC</div>
+      ${coQuyen('NGHIEP_VU') ? '<div class="subtab" data-t="saoke">🏦 Đối chiếu sao kê</div>' : ''}
     </div>
     <div id="report-body"></div>`;
   document.querySelectorAll('#content .subtab').forEach(el => {
@@ -2739,7 +3052,149 @@ function renderReport(){
   if (state.reportTab === 'misa') renderMisaTab();
   else if (state.reportTab === 'chitiet') renderChiTietTab();
   else if (state.reportTab === 'unc') renderBaoCaoUncTab();
+  else if (state.reportTab === 'saoke' && coQuyen('NGHIEP_VU')) renderSaoKeTab();
   else renderGoKeoTab();
+}
+
+/* ============================================================
+ * #13 ĐỐI CHIẾU SAO KÊ NGÂN HÀNG (nâng cấp 28/09/2026)
+ * Đọc file sao kê (.xlsx/.xls qua thư viện SheetJS tải khi cần; .csv tự đọc), tự nhận cột
+ * Ngày / Số tiền chi / Nội dung / Tài khoản (sửa được), gửi các khoản CHI lên máy chủ khớp với UNC.
+ * File không rời máy người dùng ngoài 4 cột này.
+ * ============================================================ */
+const SAO_KE_MAU_COT = {
+  ngay: /ng[aà]y\s*(gd|giao d[iị]ch|h[aạ]ch to[aá]n|hi[eệ]u l[uự]c)?|date|posting/i,
+  soTien: /ghi\s*n[oợ]|debit|s[oố] ti[eề]n\s*(r[uú]t|chi|ghi n[oợ])|ph[aá]t sinh\s*n[oợ]|withdraw|^chi$|s[oố] ti[eề]n|amount/i,
+  noiDung: /n[oộ]i dung|di[eễ]n gi[aả]i|m[oô] t[aả]|description|remark|narrative|details/i,
+  tk: /t[aà]i kho[aả]n\s*(nh[aậ]n|[dđ][oố]i [uứ]ng|th[uụ] h[uư][oở]ng)|beneficiary|s[oố] tk|account no|đơn vị hưởng|ng[uư][oờ]i nh[aậ]n/i
+};
+function renderSaoKeTab(){
+  const body = document.getElementById('report-body');
+  body.innerHTML = `
+    <div class="card">
+      <h3>🏦 Đối chiếu sao kê ngân hàng với UNC</h3>
+      <p class="muted" style="font-size:13px">Tải file sao kê tài khoản công ty (Excel .xlsx/.xls hoặc .csv tải từ ngân hàng điện tử). Hệ thống lấy các khoản <b>chi</b>, khớp với UNC đã tạo theo <b>số tiền đúng từng đồng</b> + <b>STK hoặc tên người nhận có trong nội dung</b> + <b>ngày lệch tối đa 3 ngày</b> so với Ngày hiệu lực. Chỉ xem - không ghi sổ.</p>
+      <input type="file" id="saoke-file" accept=".xlsx,.xls,.csv,.txt" aria-label="Chọn file sao kê">
+      <div id="saoke-cot" style="margin-top:12px"></div>
+      <div id="saoke-ketqua" style="margin-top:12px"></div>
+    </div>`;
+  document.getElementById('saoke-file').addEventListener('change', e => { const f = e.target.files[0]; if (f) _docFileSaoKe_(f); });
+}
+/** Thư viện đọc Excel (SheetJS) - chỉ tải khi người dùng chọn file .xlsx/.xls. */
+function _taiThuVienExcel_(){
+  if (window.XLSX) return Promise.resolve(window.XLSX);
+  return new Promise((ok, loi) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    s.onload = () => ok(window.XLSX); s.onerror = () => loi(new Error('Không tải được thư viện đọc Excel - lưu file sao kê dạng .csv rồi thử lại.'));
+    document.head.appendChild(s);
+  });
+}
+/** CSV (dấu phẩy / chấm phẩy / tab, có ngoặc kép) -> mảng dòng. */
+function _docCsv_(text){
+  const dauNgan = [',', ';', '\t'].map(k => [k, (text.split('\n')[0].match(new RegExp(k === '\t' ? '\t' : '\\' + k, 'g')) || []).length]).sort((a, b) => b[1] - a[1])[0][0];
+  const dong = []; let o = '', hang = [], ngoac = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (ngoac) { if (ch === '"' && text[i + 1] === '"') { o += '"'; i++; } else if (ch === '"') ngoac = false; else o += ch; }
+    else if (ch === '"') ngoac = true;
+    else if (ch === dauNgan) { hang.push(o); o = ''; }
+    else if (ch === '\n' || ch === '\r') { if (ch === '\r' && text[i + 1] === '\n') i++; hang.push(o); dong.push(hang); hang = []; o = ''; }
+    else o += ch;
+  }
+  if (o || hang.length) { hang.push(o); dong.push(hang); }
+  return dong;
+}
+function _docFileSaoKe_(file){
+  const hop = document.getElementById('saoke-cot');
+  hop.innerHTML = '<span class="muted">Đang đọc file...</span>';
+  const laCsv = /\.(csv|txt)$/i.test(file.name);
+  const doc = laCsv ? file.text().then(_docCsv_)
+    : Promise.all([_taiThuVienExcel_(), file.arrayBuffer()]).then(([X, buf]) => {
+        const wb = X.read(buf, { type: 'array', cellDates: true });
+        return X.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, raw: true, defval: '' });
+      });
+  doc.then(bang => {
+    bang = bang.filter(r => r.some(v => String(v).trim() !== ''));
+    // Dòng tiêu đề: dòng đầu (trong 30 dòng) có cả cột ngày và cột số tiền.
+    let h = bang.slice(0, 30).findIndex(r => r.some(v => SAO_KE_MAU_COT.ngay.test(String(v))) && r.some(v => SAO_KE_MAU_COT.soTien.test(String(v))));
+    if (h < 0) h = 0;
+    const tieuDe = bang[h].map((v, i) => String(v).trim() || ('Cột ' + (i + 1)));
+    const doan = k => { const i = tieuDe.findIndex(t => SAO_KE_MAU_COT[k].test(t)); return i; };
+    const chon = { ngay: doan('ngay'), soTien: tieuDe.findIndex(t => /ghi\s*n[oợ]|debit|r[uú]t|ph[aá]t sinh\s*n[oợ]|^chi$/i.test(t)), noiDung: doan('noiDung'), tk: doan('tk') };
+    if (chon.soTien < 0) chon.soTien = doan('soTien');
+    state.saoKe = { du: bang.slice(h + 1), tieuDe, tenFile: file.name };
+    const sel = (k, nhan, batBuoc) => `<div class="field"><label>${nhan}${batBuoc ? ' *' : ''}</label><select id="saoke-${k}">${batBuoc ? '' : '<option value="-1">(không có)</option>'}${tieuDe.map((t, i) => `<option value="${i}" ${i === chon[k] ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select></div>`;
+    hop.innerHTML = `<div class="hint-text">File <b>${esc(file.name)}</b>: ${state.saoKe.du.length} dòng. Kiểm tra lại các cột hệ thống tự nhận:</div>
+      <div class="grid cols-4">${sel('ngay', 'Ngày giao dịch', true)}${sel('soTien', 'Số tiền CHI (ghi nợ)', true)}${sel('noiDung', 'Nội dung / Diễn giải')}${sel('tk', 'Tài khoản / tên người nhận')}</div>
+      <label style="font-size:13px"><input type="checkbox" id="saoke-am"> Cột số tiền có cả thu và chi - chỉ lấy số <b>âm</b> là khoản chi</label>
+      <div style="margin-top:10px"><button class="btn primary" onclick="doiChieuSaoKe()">🔍 Đối chiếu với UNC</button></div>`;
+  }).catch(e => { hop.innerHTML = `<div style="color:var(--danger)">❌ ${esc(e.message || String(e))}</div>`; });
+}
+/** "1.234.567" / "1,234,567.00" / "1.234.567,50" / "-2.000.000" / "(2,000)" / số -> số (âm giữ dấu).
+ * Có cả "." và "," -> dấu xuất hiện SAU CÙNG là thập phân. Chỉ 1 loại dấu: lặp lại hoặc đứng trước
+ * đúng 3 chữ số -> phân cách nghìn; ngược lại là thập phân. */
+function _docSoTienSaoKe_(v){
+  if (typeof v === 'number') return v;
+  let s = String(v || '').replace(/[^\d.,\-()]/g, '');
+  const am = /^\(.*\)$/.test(s) || s.startsWith('-');
+  s = s.replace(/[()\-]/g, '');
+  const cham = s.lastIndexOf('.'), phay = s.lastIndexOf(',');
+  let tp = -1;
+  if (cham >= 0 && phay >= 0) tp = Math.max(cham, phay);
+  else if (cham >= 0 || phay >= 0) {
+    const dau = cham >= 0 ? '.' : ',', vt = Math.max(cham, phay);
+    if (s.split(dau).length === 2 && s.length - vt - 1 !== 3) tp = vt;
+  }
+  const n = Number(tp >= 0 ? s.slice(0, tp).replace(/[.,]/g, '') + '.' + s.slice(tp + 1) : s.replace(/[.,]/g, ''));
+  return isNaN(n) ? 0 : (am ? -n : n);
+}
+/** Ngày sao kê (Date, dd/mm/yyyy, dd-mm-yyyy, yyyy-mm-dd, có thể kèm giờ) -> yyyy-mm-dd. */
+function _docNgaySaoKe_(v){
+  if (v instanceof Date && !isNaN(v)) return `${v.getFullYear()}-${String(v.getMonth() + 1).padStart(2, '0')}-${String(v.getDate()).padStart(2, '0')}`;
+  const s = String(v || '').trim();
+  let m = s.match(/^(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})/);
+  if (m) return `${m[1]}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')}`;
+  m = s.match(/^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{4})/); // ngân hàng Việt Nam: ngày/tháng/năm
+  return m ? `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}` : '';
+}
+function doiChieuSaoKe(){
+  if (!coQuyen('NGHIEP_VU')) { toast('Chức năng dành cho Kế toán.', 'warn'); return; }
+  const sk = state.saoKe; if (!sk) return;
+  const cot = k => +document.getElementById('saoke-' + k).value;
+  const chiLayAm = document.getElementById('saoke-am').checked;
+  const dong = [];
+  sk.du.forEach(r => {
+    const tien = _docSoTienSaoKe_(r[cot('soTien')]);
+    if (!tien || (chiLayAm && tien > 0)) return;
+    dong.push({ ngay: _docNgaySaoKe_(r[cot('ngay')]), soTien: Math.abs(tien), noiDung: cot('noiDung') >= 0 ? String(r[cot('noiDung')]) : '', tk: cot('tk') >= 0 ? String(r[cot('tk')]) : '' });
+  });
+  if (!dong.length) { toast('Không có khoản chi nào đọc được - kiểm tra lại cột Số tiền / Ngày.', 'warn'); return; }
+  call('doiChieuSaoKe', [dong], `Đang đối chiếu ${dong.length} khoản chi...`).then(res => {
+    const box = document.getElementById('saoke-ketqua');
+    if (!res || !res.success) { handleResult(res); return; }
+    state.saoKeKetQua = res;
+    const bangUnc = (ds, coSaoKe) => ds.length ? `<table><thead><tr><th>Ngày UNC</th><th>Hồ sơ</th><th>Người nhận / STK</th><th class="num">Số tiền</th>${coSaoKe ? '<th>Dòng sao kê</th>' : ''}</tr></thead><tbody>
+      ${ds.map(x => { const u = x.unc || x, d = x.saoKe; return `<tr><td class="mono">${esc(_isoSangVN(u.ngay))}</td><td class="mono">${esc(u.idHeThong)}<div class="muted" style="font-size:11.5px">${esc(u.chuRung)}</div></td><td>${esc(u.nguoiNhan)}<br><span class="mono muted" style="font-size:12px">${esc(u.stk)}</span></td><td class="num">${fmtMoney(u.soTien)}</td>${coSaoKe ? `<td style="font-size:12.5px">${esc(_isoSangVN(d.ngay))} · ${esc(d.noiDung)}${x.theo ? ` <span class="badge ready">khớp ${esc(x.theo)}</span>` : ''}</td>` : ''}</tr>`; }).join('')}</tbody></table>` : '<span class="muted">Không có.</span>';
+    const bangSk = ds => ds.length ? `<table><thead><tr><th>Ngày</th><th class="num">Số tiền</th><th>Nội dung</th></tr></thead><tbody>${ds.map(d => `<tr><td class="mono">${esc(_isoSangVN(d.ngay))}</td><td class="num">${fmtMoney(d.soTien)}</td><td style="font-size:12.5px">${esc(d.noiDung)} ${esc(d.tk)}</td></tr>`).join('')}</tbody></table>` : '<span class="muted">Không có.</span>';
+    box.innerHTML = `<div class="hint-text">Sao kê ${esc(_isoSangVN(res.tuNgay))} → ${esc(_isoSangVN(res.denNgay))}: ${res.soDongSaoKe} khoản chi · ${res.soUnc} UNC trong khoảng (±3 ngày). <button class="btn sm ghost" onclick="taiKetQuaSaoKe()">📥 Tải kết quả (CSV)</button></div>
+      <h4 style="margin:12px 0 6px">✅ Khớp (${res.khop.length})</h4>${bangUnc(res.khop, true)}
+      <h4 style="margin:16px 0 6px;color:var(--timber)">⚠️ Khớp số tiền nhưng không thấy STK / tên - cần kiểm tra (${res.canKiem.length})</h4>${bangUnc(res.canKiem, true)}
+      <h4 style="margin:16px 0 6px;color:var(--danger)">⛔ UNC chưa thấy trên sao kê (${res.uncThieu.length})</h4>${bangUnc(res.uncThieu, false)}
+      <h4 style="margin:16px 0 6px">ℹ️ Khoản chi trên sao kê không có UNC (${res.saoKeThua.length})</h4>${bangSk(res.saoKeThua)}`;
+  });
+}
+function taiKetQuaSaoKe(){
+  const r = state.saoKeKetQua; if (!r) return;
+  const q = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+  const dong = [['Nhóm', 'Ngày UNC', 'Hồ sơ', 'Người nhận', 'STK', 'Số tiền', 'Ngày sao kê', 'Nội dung sao kê']];
+  const u = (nhom, x) => { const a = x.unc || x, d = x.saoKe || {}; dong.push([nhom, a.ngay, a.idHeThong, a.nguoiNhan, "'" + a.stk, a.soTien, d.ngay || '', d.noiDung || '']); };
+  r.khop.forEach(x => u('Khớp', x)); r.canKiem.forEach(x => u('Cần kiểm tra', x)); r.uncThieu.forEach(x => u('UNC chưa thấy trên sao kê', x));
+  r.saoKeThua.forEach(d => dong.push(['Khoản chi không có UNC', '', '', '', '', d.soTien, d.ngay, d.noiDung + ' ' + d.tk]));
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob(['\ufeff' + dong.map(x => x.map(q).join(',')).join('\r\n')], { type: 'text/csv;charset=utf-8' }));
+  a.download = `doi-chieu-sao-ke-${r.tuNgay}_${r.denNgay}.csv`;
+  document.body.appendChild(a); a.click(); a.remove();
 }
 
 function renderGoKeoTab(){
@@ -2810,7 +3265,7 @@ function loadMisaTab(){
   box.innerHTML = '<div class="empty"><div class="ic">⏳</div>Đang tải...</div>';
   call('getMisaDataTheoNgay', [f, t], null).then(ketQua => {
     if (ketQua && ketQua.error) { box.innerHTML = `<div class="empty"><div class="ic">⚠️</div>${esc(ketQua.error)}</div>`; return; }
-    state.misaRows = (ketQua && ketQua.items) || [];
+    state.misaRows = (ketQua && ketQua.items) || []; state.misaPage = 1;
     state.misaTruncated = ketQua && ketQua.truncated;
     state.misaTotal = ketQua && ketQua.total;
     state.misaFilters = {};
@@ -2868,7 +3323,7 @@ function renderMisaFilterOptions(){
   const build = (id, key) => {
     const sel = document.getElementById(id);
     sel.innerHTML = '<option value="">-- Tất cả --</option>' + distinct(key).map(v => `<option value="${esc(v)}">${esc(v)}</option>`).join('');
-    sel.onchange = () => { state.misaFilters[key] = sel.value; renderMisaResultTable(); };
+    sel.onchange = () => { state.misaFilters[key] = sel.value; state.misaPage = 1; renderMisaResultTable(); };
   };
   build('misa-f-churung', 'hoTenChuRung');
   build('misa-f-sohd', 'soHD');
@@ -2891,13 +3346,15 @@ function renderMisaResultTable(){
   <div style="overflow-x:auto"><table><thead><tr>
     <th>Ngày hạch toán</th><th>Số phiếu cân</th><th>Chủ rừng</th><th>Người thụ hưởng</th><th>Số TK</th><th>Ngân hàng</th><th>Thành tiền</th><th>Số HĐ</th>
   </tr></thead><tbody>
-    ${rows.map(r => `<tr>
+    ${pageSlice(rows, _trangHopLe_('misaPage', rows.length), BANG_LON_MOI_TRANG).map(r => `<tr>
       <td class="mono">${esc(r.ngayHachToan)}</td><td class="mono">${esc(r.soPhieuCan)}</td><td>${esc(r.hoTenChuRung)}</td>
       <td>${esc(r.tenThuHuong)}</td><td class="mono">${esc(r.soTK)}</td><td>${esc(r.nganHang)}</td>
       <td class="mono">${(r.thanhTien||0).toLocaleString('vi-VN')}</td><td class="mono">${esc(r.soHD)}</td>
     </tr>`).join('')}
-  </tbody></table></div>`;
+  </tbody></table></div>
+  ${renderPager(rows.length, state.misaPage, 'goMisaPage', BANG_LON_MOI_TRANG)}`;
 }
+function goMisaPage(p){ state.misaPage = p; renderMisaResultTable(); }
 function doExportMisaTheoNgay(){
   const f = document.getElementById('misa-from').value, t = document.getElementById('misa-to').value;
   if (!_khoangBaoCaoHopLe('misa')) return;
@@ -2945,7 +3402,7 @@ function loadChiTietTab(){
   document.getElementById('chitiet-filter-card').classList.add('hidden');
   box.innerHTML = '<div class="empty"><div class="ic">⏳</div>Đang tải...</div>';
   call('getChiTietDNTTDaChot', [f, t], null).then(ketQua => {
-    state.chiTietRows = (ketQua && ketQua.items) || [];
+    state.chiTietRows = (ketQua && ketQua.items) || []; state.chiTietPage = 1;
     state.chiTietTruncated = ketQua && ketQua.truncated;
     state.chiTietTotal = ketQua && ketQua.total;
     state.chiTietFilters = {};
@@ -2964,7 +3421,7 @@ function renderChiTietFilterOptions(){
   const build = (id, key) => {
     const sel = document.getElementById(id);
     sel.innerHTML = '<option value="">-- Tất cả --</option>' + distinct(key).map(v => `<option value="${esc(v)}">${esc(v)}</option>`).join('');
-    sel.onchange = () => { state.chiTietFilters[key] = sel.value; renderChiTietResultTable(); };
+    sel.onchange = () => { state.chiTietFilters[key] = sel.value; state.chiTietPage = 1; renderChiTietResultTable(); };
   };
   build('chitiet-f-churung', 'hoTenChuRung');
   build('chitiet-f-sohd', 'soHD');
@@ -2982,19 +3439,21 @@ function renderChiTietResultTable(){
   );
   if (!rows.length) { box.innerHTML = '<div class="empty"><div class="ic">📭</div>Không có dữ liệu khớp bộ lọc.</div>'; return; }
   const tongTien = rows.reduce((s, r) => s + (r.thanhTien || 0), 0);
-  const canhBaoGioiHan = state.chiTietTruncated ? ` <span style="color:#b00">⚠️ Tổng khớp khoảng ngày là ${state.chiTietTotal} dòng, đã đạt giới hạn 2000 - thu hẹp khoảng ngày để xem/xuất đầy đủ hơn.</span>` : '';
+  const canhBaoGioiHan = state.chiTietTruncated ? ` <span style="color:#b00">⚠️ Tổng khớp khoảng ngày là ${state.chiTietTotal} dòng, đang hiện 2000 dòng có Ngày CK mới nhất - thu hẹp khoảng ngày để xem/xuất đầy đủ hơn.</span>` : '';
   box.innerHTML = `<div class="hint-text" style="margin-bottom:6px">${rows.length} phiếu cân - Tổng thành tiền: ${tongTien.toLocaleString('vi-VN')}${canhBaoGioiHan}</div>
   <div style="overflow-x:auto"><table><thead><tr>
     <th>Số phiếu cân</th><th>Ngày CK</th><th>Đại lý</th><th>Số HĐ</th><th>Chủ rừng</th><th>Người thụ hưởng</th><th>KL (tấn)</th><th>Đơn giá</th><th>Thành tiền</th><th>Ngân hàng</th><th>Số TK</th>
   </tr></thead><tbody>
-    ${rows.map(r => `<tr>
+    ${pageSlice(rows, _trangHopLe_('chiTietPage', rows.length), BANG_LON_MOI_TRANG).map(r => `<tr>
       <td class="mono">${esc(r.soPhieuCan)}</td><td class="mono">${esc(r.ngayCK)}</td><td>${esc(r.daiLy)}</td>
       <td class="mono">${esc(r.soHD)}</td><td>${esc(r.hoTenChuRung)}</td><td>${esc(r.tenThuHuong)}</td>
       <td class="mono">${(r.klTan||0).toLocaleString('vi-VN')}</td><td class="mono">${(r.donGia||0).toLocaleString('vi-VN')}</td>
       <td class="mono">${(r.thanhTien||0).toLocaleString('vi-VN')}</td><td>${esc(r.nganHang)}</td><td class="mono">${esc(r.soTaiKhoan)}</td>
     </tr>`).join('')}
-  </tbody></table></div>`;
+  </tbody></table></div>
+  ${renderPager(rows.length, state.chiTietPage, 'goChiTietPage', BANG_LON_MOI_TRANG)}`;
 }
+function goChiTietPage(p){ state.chiTietPage = p; renderChiTietResultTable(); }
 function doExportChiTietDNTT(){
   const f = document.getElementById('chitiet-from').value, t = document.getElementById('chitiet-to').value;
   if (!_khoangBaoCaoHopLe('chitiet')) return;
@@ -3094,8 +3553,8 @@ function doExportBaoCaoUnc(){
     _hienKetQuaXuat_(res, () => `Đã xuất ${res.count} dòng.`);
   });
 }
-function doDongBoChiTietLichSu(){
-  if (!confirm('Quét TOÀN BỘ CT thật để bổ sung dữ liệu lịch sử còn thiếu vào ChiTietDNTT?\n\nVới hệ thống đã dùng lâu, sẽ tự động xử lý THEO LÔ (300 dòng/lượt) và tự gọi lại liên tiếp cho tới khi xong - không cần bấm nhiều lần, không lo timeout. Có thể mất vài phút nếu dữ liệu lớn - cứ để yên tab này cho tới khi thấy "HOÀN TẤT".\n\nBấm OK để tiếp tục.')) return;
+async function doDongBoChiTietLichSu(){
+  if (!(await xacNhan('Quét TOÀN BỘ CT thật để bổ sung dữ liệu lịch sử còn thiếu vào ChiTietDNTT?\n\nVới hệ thống đã dùng lâu, sẽ tự động xử lý THEO LÔ (300 dòng/lượt) và tự gọi lại liên tiếp cho tới khi xong - không cần bấm nhiều lần, không lo timeout. Có thể mất vài phút nếu dữ liệu lớn - cứ để yên tab này cho tới khi thấy "HOÀN TẤT".'))) return;
   const box = document.getElementById('dongbolichsu-result');
 
   if (!box) return; // đã rời tab trước khi dữ liệu về
@@ -3125,10 +3584,10 @@ function doDongBoChiTietLichSu(){
   chayMotLot();
 }
 
-function doTaoLaiMisaTheoNgay(){
+async function doTaoLaiMisaTheoNgay(){
   const f = document.getElementById('taolaimisa-from').value, t = document.getElementById('taolaimisa-to').value;
   if (!f || !t) { toast('Vui lòng chọn đủ Từ ngày/Đến ngày.', 'warn'); return; }
-  if (!confirm(`Tạo lại MISA cho các hồ sơ thanh toán (Ngày CK) trong khoảng ${f} → ${t}?\n\nHệ thống tự bỏ qua dòng đã có sẵn (không trùng), xử lý theo lô và tự lặp tới khi xong.\n\nBấm OK để tiếp tục.`)) return;
+  if (!(await xacNhan(`Tạo lại MISA cho các hồ sơ thanh toán (Ngày CK) trong khoảng ${f} → ${t}?\n\nHệ thống tự bỏ qua dòng đã có sẵn (không trùng), xử lý theo lô và tự lặp tới khi xong.`))) return;
   const box = document.getElementById('taolaimisa-result');
 
   if (!box) return; // đã rời tab trước khi dữ liệu về
@@ -3165,7 +3624,7 @@ const DON_DEP_WEB = {
 /** Đổi điều kiện sau khi xem trước -> bỏ kết quả cũ (nút Xóa chỉ đi với đúng điều kiện đã xem). */
 function _xoaKetQuaDonDep(loai){ const box = document.getElementById('dondep' + loai + '-result'); if (box) box.innerHTML = ''; }
 /** chayThat = false: xem trước (không đổi dữ liệu); true: xóa sau khi xác nhận. */
-function doDonDep(loai, chayThat){
+async function doDonDep(loai, chayThat){
   const cf = DON_DEP_WEB[loai];
   const [che, f, t] = ['che', 'from', 'to'].map(k => document.getElementById('dondep' + loai + '-' + k).value);
   if (!f || !t) { toast('Vui lòng chọn đủ Từ ngày/Đến ngày.', 'warn'); return; }
@@ -3173,7 +3632,7 @@ function doDonDep(loai, chayThat){
   if (!box) return; // đã rời tab trước khi dữ liệu về
   if (chayThat) {
     const nhan = document.getElementById('dondep' + loai + '-che').selectedOptions[0].textContent;
-    if (!confirm(`Xóa các dòng ${cf.ten} "${nhan}" có ${cf.ngay} ${f} → ${t}?\n\nDòng bị xóa được sao lưu, khôi phục được ở Hệ Thống › Khôi Phục Dữ Liệu Đã Xóa.`)) return;
+    if (!(await xacNhan(`Xóa các dòng ${cf.ten} "${nhan}" có ${cf.ngay} ${f} → ${t}?\n\nDòng bị xóa được sao lưu, khôi phục được ở Hệ Thống › Khôi Phục Dữ Liệu Đã Xóa.`, { nguyHiem: true, nutOk: 'Xóa' }))) return;
   }
   box.innerHTML = `<div class="empty"><div class="ic">⏳</div>${chayThat ? 'Đang xóa...' : 'Đang quét...'}</div>`;
   call(cf.fn, [che, f, t, !!chayThat], null).then(res => {
@@ -3196,13 +3655,13 @@ function doDonDep(loai, chayThat){
   });
 }
 
-function doTaoLaiUncTheoNgay(){
+async function doTaoLaiUncTheoNgay(){
   const f = document.getElementById('taolaiuncht-from').value, t = document.getElementById('taolaiuncht-to').value;
   const hieuLuc = document.getElementById('taolaiuncht-hieuluc').value;
   const tkTrichNo = document.getElementById('taolaiuncht-tktrichno').value.trim();
   const tkThuPhi = document.getElementById('taolaiuncht-tkthuphi').value.trim();
   if (!f || !t || !hieuLuc) { toast('Vui lòng chọn đủ Từ ngày/Đến ngày/Ngày hiệu lực.', 'warn'); return; }
-  if (!confirm(`Tạo lại UNC cho các hồ sơ ĐÃ CHỐT có Ngày CK trong khoảng ${f} → ${t}?\n\nVới khoảng ngày rộng, có thể tạo ra NHIỀU file UNC (mỗi lô 1 file). Xử lý theo lô và tự lặp tới khi xong.\n\nBấm OK để tiếp tục.`)) return;
+  if (!(await xacNhan(`Tạo lại UNC cho các hồ sơ ĐÃ CHỐT có Ngày CK trong khoảng ${f} → ${t}?\n\nVới khoảng ngày rộng, có thể tạo ra NHIỀU file UNC (mỗi lô 1 file). Xử lý theo lô và tự lặp tới khi xong.`))) return;
   const box = document.getElementById('taolaiuncht-result');
 
   if (!box) return; // đã rời tab trước khi dữ liệu về
@@ -3219,7 +3678,7 @@ function doTaoLaiUncTheoNgay(){
       tongDaTao += (res.count || 0);
       offset = res.offsetMoi || offset;
       if (res.url) links.push(res.url);
-      const dsLink = links.map((u, i) => `<a href="${u}" target="_blank">File ${i+1}</a>`).join(' · ');
+      const dsLink = links.map((u, i) => `<a href="${esc(u)}" target="_blank" rel="noopener">File ${i+1}</a>`).join(' · ');
       if (res.xong) {
         box.innerHTML = `<div class="empty"><div class="ic">✅</div>${esc(res.message)}<br>${dsLink}</div>`;
       } else {
@@ -3354,11 +3813,12 @@ function exportReport(){
   const f = document.getElementById('rp-from').value, t = document.getElementById('rp-to').value;
   if (!_khoangBaoCaoHopLe('rp')) return;
   const dateRange = `${f} - ${t}`;
-  call('webExportReport', [selectedRows, dateRange], 'Đang xuất báo cáo...').then(res => {
+  // Chỉ gửi mã hồ sơ - máy chủ đọc lại số tiền / STK / người nhận từ sổ đã chốt.
+  call('webExportReport', [selectedRows.map(r => ({ idHeThong: r.idHeThong })), dateRange], 'Đang xuất báo cáo...').then(res => {
     if (res && res.success) {
-      toast('✅ Đã xuất báo cáo thành công.');
+      toast(res.message || '✅ Đã xuất báo cáo thành công.', res.message ? 'warn' : null);
       openModal(`<div class="modal-head"><h3>Xuất báo cáo thành công</h3><button class="x" onclick="closeModal()" aria-label="Đóng">&times;</button></div>
-        <div class="modal-body"><p>Báo cáo (${selectedRows.length} dòng) đã được tạo trong Google Drive.</p>
+        <div class="modal-body"><p>Báo cáo (${res.soHoSo || selectedRows.length} dòng) đã được tạo trong Google Drive.</p>
         ${nutMoFile_(res.url, 'Mở file báo cáo', 'btn primary')}
         <p class="muted" style="font-size:12px;margin-top:8px">Cần xuất file nộp ngân hàng/MISA? Sang tab "Báo Cáo Kết Xuất MISA" (dùng lại đúng lựa chọn này).</p>
         </div>
@@ -4125,7 +4585,7 @@ function renderHuongDan(){
     <table><thead><tr><th style="width:60px">Bước</th><th>Việc làm</th><th>Ở đâu</th><th>Trạng thái sau khi xong</th></tr></thead><tbody>
       ${QUY_TRINH_TT.map((b, i) => `<tr><td class="mono">${i + 1}</td><td>${b.viec}</td><td>${esc(b.oDau)}</td><td>${b.sau}</td></tr>`).join('')}
     </tbody></table>
-    <p class="hint-text">⚠️ Chỉ có thể Sửa/Xóa hồ sơ khi đang ở trạng thái "Chờ ĐNTT". Muốn sửa hồ sơ "Đang ĐNTT", phải bấm "↩️ Về Chờ ĐNTT" trước.</p>
+    <p class="hint-text">⚠️ Chỉ có thể Sửa/Xóa hồ sơ khi đang ở trạng thái "Chờ xác nhận". Muốn sửa hồ sơ "Chờ duyệt", phải bấm "↩️ Về Chờ xác nhận" trước.</p>
     <p class="hint-text">⚠️ Nếu phiếu cân được chọn có tên Khách hàng KHÁC với Chủ rừng của hồ sơ, hệ thống sẽ cảnh báo ở bước 1 (lúc Lưu) và bước 3 (lúc Xác Nhận) - đọc kỹ trước khi bấm tiếp tục.</p>
     <p class="hint-text">🔓 Lỡ chốt sai và cần sửa lại hồ sơ ĐÃ Đóng Thanh Toán? Xem mục "Hệ Thống" bên dưới - có công cụ "Mở Đóng Thanh Toán" để đưa cả đợt thanh toán quay lại File Nháp.</p>
   </div>
@@ -4150,9 +4610,10 @@ function renderHuongDan(){
   <details class="card">
     <summary style="cursor:pointer;font-weight:700;font-size:15px">📄 Danh Sách ĐNTT (chờ duyệt)</summary>
     <div style="margin-top:10px;font-size:13px;line-height:1.7">
-      4 tab: <b>Tất cả</b>, <b>1·Chưa ĐNTT</b> (vừa tạo, chưa tính tiền), <b>2·Chờ ĐNTT</b> (đã tính tiền, có thể Sửa/Xóa), <b>3·Đang ĐNTT</b> (đã xác nhận, chờ Duyệt - có thể In Báo Cáo ĐNTT, Tạo File UNC, hoặc "Về Chờ ĐNTT").<br><br>
+      5 tab: <b>Tất cả</b>, <b>1·Chưa tính tiền</b> (vừa tạo, chưa tính tiền), <b>2·Chờ xác nhận</b> (đã tính tiền, có thể Sửa/Xóa), <b>3·Chờ duyệt</b> (đã xác nhận, chờ Duyệt - có thể In Báo Cáo ĐNTT, Tạo File UNC, hoặc "Về Chờ xác nhận"), <b>Đã có số tiền (2 + 3)</b>.<br><br>
+      <b>Tự tính tiền:</b> Lưu hồ sơ mới, Thêm / Bỏ phiếu cân đều tự tính lại Số tiền ngay. <b>⚠️ Cần tính lại:</b> hiếm khi xảy ra (tự tính bị lỗi hoặc sửa tay File Nháp) - bấm "🔄 Tính lại số tiền"; hệ thống không cho Xác nhận, In, Tạo UNC hay Duyệt hồ sơ lệch tiền.<br><br>
       Nút hành động hiện đúng theo trạng thái của (các) dòng bạn đang chọn, không phải theo tab đang xem - vậy nên ở tab "Tất cả" bạn vẫn thấy đúng nút phù hợp với từng lựa chọn.<br><br>
-      <b>🏦 Tạo File UNC:</b> tạo file Excel Ủy Nhiệm Chi để nộp ngân hàng chuyển tiền TRƯỚC khi Duyệt chính thức - dùng cho hồ sơ "Đang ĐNTT". Tham số (TK Trích Nợ/Thu Phí, Bên Chịu Phí...) cấu hình ở Cài Đặt. Mỗi lần tạo đều được lưu vết lại - xem lịch sử ở mục Hệ Thống.<br><br>
+      <b>🏦 Tạo File UNC:</b> tạo file Excel Ủy Nhiệm Chi để nộp ngân hàng chuyển tiền TRƯỚC khi Duyệt chính thức - dùng cho hồ sơ "Chờ duyệt". Tham số (TK Trích Nợ/Thu Phí, Bên Chịu Phí...) cấu hình ở Cài Đặt. Mỗi lần tạo đều được lưu vết lại - xem lịch sử ở mục Hệ Thống.<br><br>
       <b>↻ Làm mới:</b> làm mới cache Phiếu Cân/Hợp Đồng rồi tải lại danh sách - dùng khi nghi ngờ dữ liệu chưa cập nhật kịp.
     </div>
   </details>
@@ -4172,7 +4633,7 @@ function renderHuongDan(){
   </details>
 
   <details class="card">
-    <summary style="cursor:pointer;font-weight:700;font-size:15px">💰 Báo Cáo Công Nợ Khách Hàng Gỗ Keo (8 mục)</summary>
+    <summary style="cursor:pointer;font-weight:700;font-size:15px">💰 Báo Cáo Công Nợ Khách Hàng Gỗ Keo (7 mục)</summary>
     <div style="margin-top:10px;font-size:13px;line-height:1.7">
       <b>1 · Công nợ theo Khách hàng</b> - tổng khối lượng nhập/đã trả/còn nợ theo từng khách hàng, trong 1 khoảng ngày.<br>
       <b>2 · Công nợ theo Hợp đồng</b> - tương tự nhưng theo từng hợp đồng (kể cả hợp đồng đã thanh lý).<br>
@@ -4190,7 +4651,7 @@ function renderHuongDan(){
       <b>🔍 Đối Soát Tên Khách Hàng:</b> so sánh "Chủ rừng" ở CT (bản chính) với "Khách hàng" ở PhieuCan_DN (tra theo Số phiếu cân) - chỉ hiện dòng LỆCH. Đồng bộ = cập nhật lại Phiếu Cân theo đúng tên ở CT (CT đã đối chiếu hợp đồng nên là nguồn đúng). Xuất Excel được danh sách trước khi đồng bộ.<br><br>
       <b>🩺 Bảo Trì - Kiểm Tra Đối Chiếu 4 Sheet:</b> đối chiếu chéo DNTT_GK_DN, DNTT_GK_DN_CT, DNTT_GK_DN_112, PhieuCan_DN - tìm Số phiếu cân không tồn tại, dòng mồ côi, tổng tiền 112 lệch với CT con, tên khách hàng lệch. Chạy định kỳ để phát hiện sớm sai lệch dữ liệu.<br><br>
       <b>🏦 Cập Nhật Ngân Hàng Tài Khoản Khách Hàng:</b> vá thông tin Ngân hàng còn thiếu trong dữ liệu đã chốt, tra theo Số tài khoản từ HD_STK.<br><br>
-      <b>🔓 Mở "Đóng" Thanh Toán:</b> dùng khi CHỐT SAI cần sửa lại - luôn mở NGUYÊN CẢ đợt thanh toán (theo Chủ rừng + Ngày Đóng TT + Lần Thanh Toán, không sửa lẻ từng phiếu cân, để tránh Số tiền ở 112 bị lệch so với các phiếu cân con). Gõ Chủ rừng sẽ có gợi ý tự động kèm sẵn Ngày Đóng TT/Lần TT - bấm chọn để điền đúng luôn cả 3 ô, không cần tự tra tay. Hệ thống sẽ: xóa khỏi bản chính (DNTT_GK_DN + tất cả CT con + 112), copy lại y hệt sang File Nháp (Chờ ĐNTT) để chỉnh sửa, mở khóa lại TẤT CẢ Phiếu Cân liên quan, đổi "Trạng Thái" từ "OK" sang "Test giá" - đồng thời dọn theo cả 3 "bảng con" (ChiTietDNTT, ChiTietUNC, Update_NganHang_DN) vì đây là dữ liệu tính sẵn/lịch sử gắn liền với đợt thanh toán này. <b style="color:#b00">Rủi ro cao - đụng dữ liệu tài chính đã chốt, không tự hoàn tác được.</b><br><br>
+      <b>🔓 Mở "Đóng" Thanh Toán:</b> dùng khi CHỐT SAI cần sửa lại - luôn mở NGUYÊN CẢ đợt thanh toán (theo Chủ rừng + Ngày Đóng TT + Lần Thanh Toán, không sửa lẻ từng phiếu cân, để tránh Số tiền ở 112 bị lệch so với các phiếu cân con). Gõ Chủ rừng sẽ có gợi ý tự động kèm sẵn Ngày Đóng TT/Lần TT - bấm chọn để điền đúng luôn cả 3 ô, không cần tự tra tay. Hệ thống sẽ: xóa khỏi bản chính (DNTT_GK_DN + tất cả CT con + 112), copy lại y hệt sang File Nháp (Chờ xác nhận) để chỉnh sửa, mở khóa lại TẤT CẢ Phiếu Cân liên quan, đổi "Trạng Thái" từ "OK" sang "Test giá" - đồng thời dọn theo cả 3 "bảng con" (ChiTietDNTT, ChiTietUNC, Update_NganHang_DN) vì đây là dữ liệu tính sẵn/lịch sử gắn liền với đợt thanh toán này. <b style="color:#b00">Rủi ro cao - đụng dữ liệu tài chính đã chốt, không tự hoàn tác được.</b><br><br>
       <b>📜 Lịch Sử Sửa Đổi:</b> theo dõi mọi lần Mở Đóng Thanh Toán, Đồng Bộ Tên Khách Hàng và Cập Nhật Ngân Hàng - kèm rõ Gmail người thực hiện, thời gian, chi tiết.<br><br>
 
       <b>🔧 Tạo Lại MISA / Tạo Lại UNC (dự phòng):</b> dùng cho hồ sơ CŨ (chốt trước khi có tính năng tự động) hoặc khi phát hiện lỗi/sai sót cần làm lại - chọn khoảng <b>Ngày CK</b> (ngày thanh toán) của hồ sơ, hệ thống tự xử lý theo lô nhỏ và lặp lại tới khi xong (không lo timeout dù chọn khoảng ngày rộng), tự bỏ qua phần đã có sẵn để không tạo trùng. Việc thường ngày (chuyển tiền, ghi sổ) không cần tới 2 mục này - chỉ dùng khi có sự cố.
@@ -4216,7 +4677,7 @@ function renderHuongDan(){
     <summary style="cursor:pointer;font-weight:700;font-size:15px">❓ Xử lý sự cố thường gặp</summary>
     <div style="margin-top:10px;font-size:13px;line-height:1.7">
       <b>Không thấy phiếu cân/hợp đồng mới vừa nhập?</b> Bấm "🔄 Tải &amp; Tính Lại" (Bước 2 Tạo Mới) hoặc "↻ Làm mới" (Danh Sách ĐNTT).<br><br>
-      <b>Không sửa/xóa được hồ sơ?</b> Chỉ sửa/xóa được khi đang "Chờ ĐNTT" - nếu đang "Đang ĐNTT", bấm "Về Chờ ĐNTT" trước. Nếu ĐÃ chốt (Đóng Thanh Toán), dùng "Mở Đóng Thanh Toán" ở mục Hệ Thống.<br><br>
+      <b>Không sửa/xóa được hồ sơ?</b> Chỉ sửa/xóa được khi đang "Chờ xác nhận" - nếu đang "Chờ duyệt", bấm "Về Chờ xác nhận" trước. Nếu ĐÃ chốt (Đóng Thanh Toán), dùng "Mở Đóng Thanh Toán" ở mục Hệ Thống.<br><br>
       <b>CCCD/STK/ID bị mất số 0 đầu, hoặc Ngày bị lộn ngày-tháng?</b> Vào Cài Đặt bấm "Khóa Định Dạng TEXT/Ngày" - lưu ý KHÔNG phục hồi được dữ liệu cũ đã sai, cần gõ lại tay.<br><br>
       <b>Xuất báo cáo Excel bị chậm/timeout?</b> Hệ thống đã tối ưu dùng cache chung cho Phiếu Cân/Hợp Đồng - nếu vẫn chậm, báo rõ báo cáo nào và khoảng bao nhiêu dòng dữ liệu để kiểm tra tiếp.<br><br>
       <b>Chọn "dd/mm/yyyy" nhưng file xuất ra vẫn hiện "mm/dd/yyyy"?</b> Kiểm tra lại "Vùng Định Dạng Báo Cáo Xuất Excel" ở Cài Đặt (khác với "Vùng Lãnh Thổ").<br><br>
@@ -4273,12 +4734,26 @@ function renderHeThong(){
   document.getElementById('topbar-actions').innerHTML = '';
   const c = document.getElementById('content');
   c.innerHTML = `
+    <div class="subtabs" id="hethong-tabs">
+      <div class="subtab" data-ht="tracuu">🔎 Tra cứu &amp; kiểm tra</div>
+      <div class="subtab" data-ht="canthiep" style="color:var(--danger)">⚠️ Can thiệp dữ liệu</div>
+    </div>
+    <div id="hethong-tracuu">
     <div class="card">
-      <h3>🔍 Đối Soát Tên Khách Hàng (CT ↔ Phiếu Cân)</h3>
-      <p class="muted" style="font-size:13px">So sánh "Chủ rừng" ở CT (bản chính, đã chốt) với "Khách hàng" tương ứng ở PhieuCan_DN (tra theo Số phiếu cân) - chỉ những dòng LỆCH mới hiện ra. Đồng bộ = cập nhật <b>Phiếu Cân</b> theo đúng tên ở CT (CT đã đối chiếu hợp đồng nên là nguồn đúng).</p>
-      <div class="hint-text" style="color:#b00">⚠️ Thao tác này ghi trực tiếp vào file PhieuCan_DN gốc (bên ngoài hệ thống này).</div>
-      <button class="btn accent" onclick="doDoiSoatTenKhachHang()">🔍 Kiểm Tra Đối Soát</button>
-      <div id="doisoat-result" style="margin-top:10px"></div>
+      <h3>🌙 Kiểm Tra Dữ Liệu Hằng Đêm</h3>
+      <p class="muted" style="font-size:13px">Tự chạy lúc 2:00 mỗi đêm (bật ở Cài đặt): Bảo Trì + phiếu cân đã thanh toán chưa có dòng MISA (30 ngày) + phiếu cân đã thanh toán nhưng chưa khóa. Có vấn đề mới thì email Quản trị.</p>
+      <button class="btn accent" onclick="doChayKiemTraDem()">▶️ Chạy kiểm tra ngay</button>
+      <div id="kiemtradem-result" style="margin-top:10px"></div>
+    </div>
+    <div class="card">
+      <h3>📜 Lịch Sử Sửa Đổi</h3>
+      <p class="muted" style="font-size:13px">Theo dõi mọi thay đổi dữ liệu - sửa / thêm / bỏ phiếu cân / xóa hồ sơ Nháp (kèm giá trị trước → sau), Xác nhận, Duyệt, Mở Đóng Thanh Toán, Đồng Bộ Tên, Cập Nhật Ngân Hàng, dọn dẹp - kèm người thực hiện (Gmail). Xem theo khoảng ngày, không hiện dồn tất cả.</p>
+      <div class="grid cols-3">
+        <div class="field"><label>Từ ngày</label><input type="date" id="lichsu-from" value="${isoDaysAgoVN(7)}"></div>
+        <div class="field"><label>Đến ngày</label><input type="date" id="lichsu-to" value="${todayISOVN()}"></div>
+        <div class="field" style="display:flex;align-items:flex-end"><button class="btn primary" onclick="loadLichSuSuaDoi()">🔍 Xem</button></div>
+      </div>
+      <div id="lichsu-result" style="margin-top:10px"></div>
     </div>
     <div class="card">
       <h3>🩺 Bảo Trì - Kiểm Tra Đối Chiếu 4 Sheet</h3>
@@ -4287,13 +4762,28 @@ function renderHeThong(){
       <div id="baotri-result" style="margin-top:10px"></div>
     </div>
     <div class="card">
-      <h3>🏦 Cập Nhật Ngân Hàng Tài Khoản Khách Hàng</h3>
-      <p class="muted" style="font-size:13px">Vá thông tin Ngân hàng còn thiếu trong dữ liệu chính thức (đã chốt) - tra theo Số tài khoản từ HD_STK.</p>
-      <button class="btn accent" onclick="runFillBank()">🏦 Cập Nhật Ngân Hàng Tài Khoản Khách Hàng</button>
+      <h3>⏱️ Hiệu Năng (chức năng chạy chậm)</h3>
+      <p class="muted" style="font-size:13px">Hệ thống tự ghi mọi lần chạy từ vài giây trở lên - trên web app lẫn các trigger 7:30/13:00, 15h, 10 phút - và các lần bị Google <b>dừng vì quá 6 phút</b>. Số liệu thật trên dữ liệu của công ty, chậm nhất / quá giờ xếp trước.</p>
+      <div class="grid cols-3">
+        <div class="field"><label>Từ ngày</label><input type="date" id="hieunang-from" value="${isoDaysAgoVN(30)}"></div>
+        <div class="field"><label>Đến ngày</label><input type="date" id="hieunang-to" value="${todayISOVN()}"></div>
+        <div class="field" style="display:flex;align-items:flex-end"><button class="btn primary" onclick="loadHieuNang()">🔍 Xem</button></div>
+      </div>
+      <div id="hieunang-result" style="margin-top:10px"></div>
     </div>
+    <div class="card">
+      <h3>🔍 Đối Soát Tên Khách Hàng (CT ↔ Phiếu Cân)</h3>
+      <p class="muted" style="font-size:13px">So sánh "Chủ rừng" ở CT (bản chính, đã chốt) với "Khách hàng" tương ứng ở PhieuCan_DN (tra theo Số phiếu cân) - chỉ những dòng LỆCH mới hiện ra. Đồng bộ = cập nhật <b>Phiếu Cân</b> theo đúng tên ở CT (CT đã đối chiếu hợp đồng nên là nguồn đúng).</p>
+      <div class="hint-text" style="color:#b00">⚠️ Thao tác này ghi trực tiếp vào file PhieuCan_DN gốc (bên ngoài hệ thống này).</div>
+      <button class="btn accent" onclick="doDoiSoatTenKhachHang()">🔍 Kiểm Tra Đối Soát</button>
+      <div id="doisoat-result" style="margin-top:10px"></div>
+    </div>
+    </div>
+    <div id="hethong-canthiep" class="hidden">
+    <div class="hint-text" style="color:var(--danger);margin-bottom:10px">⚠️ Các chức năng dưới đây SỬA / XÓA dữ liệu đã chốt hoặc tạo lại file gửi ngân hàng / MISA. Chỉ dùng khi đã kiểm tra kỹ; mọi dòng bị xóa đều được sao lưu (xem "Khôi Phục Dữ Liệu Đã Xóa").</div>
     <div class="card" style="border-color:#b00">
       <h3 style="color:#b00">🔓 Mở "Đóng" Thanh Toán (theo Chủ rừng + Ngày + Lần TT)</h3>
-      <p class="muted" style="font-size:13px">Luôn mở lại NGUYÊN CẢ đợt thanh toán (không sửa lẻ từng phiếu cân - để tránh Số tiền ở 112 bị lệch so với các phiếu cân con). Tìm đúng 1 hồ sơ khớp Chủ rừng + Ngày Đóng TT + Lần Thanh Toán - nếu khớp NHIỀU hơn 1, hệ thống sẽ dừng lại, không tự chọn để tránh nhầm. Hệ thống sẽ: xóa TOÀN BỘ DNTT_GK_DN + tất cả CT con + 112 khỏi bản chính, copy lại y hệt sang File Nháp (Chờ ĐNTT), mở khóa TẤT CẢ Phiếu Cân liên quan, đổi "Trạng Thái" từ "OK" sang "Test giá" - <b>đồng thời dọn theo cả 3 "bảng con" của CT: ChiTietDNTT, ChiTietUNC và Update_NganHang_DN</b> (vì đây là dữ liệu tính sẵn/lịch sử của đợt thanh toán này - không dọn sẽ để sót dữ liệu "mồ côi" trông như vẫn đang chốt).</p>
+      <p class="muted" style="font-size:13px">Luôn mở lại NGUYÊN CẢ đợt thanh toán (không sửa lẻ từng phiếu cân - để tránh Số tiền ở 112 bị lệch so với các phiếu cân con). Tìm đúng 1 hồ sơ khớp Chủ rừng + Ngày Đóng TT + Lần Thanh Toán - nếu khớp NHIỀU hơn 1, hệ thống sẽ dừng lại, không tự chọn để tránh nhầm. Hệ thống sẽ: xóa TOÀN BỘ DNTT_GK_DN + tất cả CT con + 112 khỏi bản chính, copy lại y hệt sang File Nháp (Chờ xác nhận), mở khóa TẤT CẢ Phiếu Cân liên quan, đổi "Trạng Thái" từ "OK" sang "Test giá" - <b>đồng thời dọn theo cả 3 "bảng con" của CT: ChiTietDNTT, ChiTietUNC và Update_NganHang_DN</b> (vì đây là dữ liệu tính sẵn/lịch sử của đợt thanh toán này - không dọn sẽ để sót dữ liệu "mồ côi" trông như vẫn đang chốt).</p>
       <div class="hint-text" style="color:#b00">⚠️ RỦI RO CAO - đụng vào dữ liệu tài chính ĐÃ CHỐT, xóa CẢ đợt thanh toán cùng lúc VÀ cả dữ liệu MISA/UNC liên quan. Nếu tiền ĐÃ THỰC SỰ chuyển qua ngân hàng dựa theo Update_NganHang_DN trước khi mở lại, việc xóa dòng đó KHÔNG hoàn tác được giao dịch ngân hàng thật - chỉ xóa bản ghi trong hệ thống. Kiểm tra kỹ trước khi bấm.</div>
       <div class="grid cols-3">
         <div class="field" style="position:relative"><label>Chủ rừng</label><input type="text" id="modong-churung" autocomplete="off" placeholder="Họ tên chủ rừng"><div id="modong-churung-suggest" class="suggest-box hidden"></div></div>
@@ -4301,6 +4791,12 @@ function renderHeThong(){
         <div class="field"><label>Lần Thanh Toán (số đơn giản: 1, 2, 3...)</label><input type="text" id="modong-lantt" placeholder="VD: 1 (xem cột &quot;Lần TT&quot; ở Báo Cáo Thanh Toán)"></div>
       </div>
       <button class="btn" style="background:#b00;color:#fff;border-color:#b00" onclick="doMoDongThanhToanHoSo()">🔓 Mở Đóng Thanh Toán</button>
+    </div>
+    <div class="card">
+      <h3>♻️ Khôi Phục Dữ Liệu Đã Xóa</h3>
+      <p class="muted" style="font-size:13px">Mọi dòng bị xóa (Mở Đóng Thanh Toán, Xóa Mồ Côi) đều được sao lưu. Khôi phục theo <b>từng lần xóa</b>: ghi lại đủ các sheet của lần đó và khóa lại phiếu cân nếu là dữ liệu đã chốt. Hệ thống <b>từ chối</b> khôi phục nếu làm 1 phiếu cân bị trả 2 lần (vd hồ sơ Nháp tạo ra khi Mở Đóng TT vẫn còn - xóa hồ sơ Nháp đó trước).</p>
+      <button class="btn primary" onclick="loadSaoLuuXoa()">🔍 Xem các lần xóa</button>
+      <div id="saoluu-result" style="margin-top:10px"></div>
     </div>
     <div class="card">
       <h3>🔒 Khóa Sổ Năm</h3>
@@ -4315,30 +4811,9 @@ function renderHeThong(){
       <div id="khoaso-result" style="margin-top:10px"></div>
     </div>
     <div class="card">
-      <h3>♻️ Khôi Phục Dữ Liệu Đã Xóa</h3>
-      <p class="muted" style="font-size:13px">Mọi dòng bị xóa (Mở Đóng Thanh Toán, Xóa Mồ Côi) đều được sao lưu. Khôi phục theo <b>từng lần xóa</b>: ghi lại đủ các sheet của lần đó và khóa lại phiếu cân nếu là dữ liệu đã chốt. Hệ thống <b>từ chối</b> khôi phục nếu làm 1 phiếu cân bị trả 2 lần (vd hồ sơ Nháp tạo ra khi Mở Đóng TT vẫn còn - xóa hồ sơ Nháp đó trước).</p>
-      <button class="btn primary" onclick="loadSaoLuuXoa()">🔍 Xem các lần xóa</button>
-      <div id="saoluu-result" style="margin-top:10px"></div>
-    </div>
-    <div class="card">
-      <h3>⏱️ Hiệu Năng (chức năng chạy chậm)</h3>
-      <p class="muted" style="font-size:13px">Hệ thống tự ghi mọi lần chạy từ vài giây trở lên - trên web app lẫn các trigger 7:30/13:00, 15h, 10 phút - và các lần bị Google <b>dừng vì quá 6 phút</b>. Số liệu thật trên dữ liệu của công ty, chậm nhất / quá giờ xếp trước.</p>
-      <div class="grid cols-3">
-        <div class="field"><label>Từ ngày</label><input type="date" id="hieunang-from" value="${isoDaysAgoVN(30)}"></div>
-        <div class="field"><label>Đến ngày</label><input type="date" id="hieunang-to" value="${todayISOVN()}"></div>
-        <div class="field" style="display:flex;align-items:flex-end"><button class="btn primary" onclick="loadHieuNang()">🔍 Xem</button></div>
-      </div>
-      <div id="hieunang-result" style="margin-top:10px"></div>
-    </div>
-    <div class="card">
-      <h3>📜 Lịch Sử Sửa Đổi</h3>
-      <p class="muted" style="font-size:13px">Theo dõi mọi thay đổi dữ liệu - sửa / thêm / bỏ phiếu cân / xóa hồ sơ Nháp (kèm giá trị trước → sau), Xác nhận, Duyệt, Mở Đóng Thanh Toán, Đồng Bộ Tên, Cập Nhật Ngân Hàng, dọn dẹp - kèm người thực hiện (Gmail). Xem theo khoảng ngày, không hiện dồn tất cả.</p>
-      <div class="grid cols-3">
-        <div class="field"><label>Từ ngày</label><input type="date" id="lichsu-from" value="${isoDaysAgoVN(7)}"></div>
-        <div class="field"><label>Đến ngày</label><input type="date" id="lichsu-to" value="${todayISOVN()}"></div>
-        <div class="field" style="display:flex;align-items:flex-end"><button class="btn primary" onclick="loadLichSuSuaDoi()">🔍 Xem</button></div>
-      </div>
-      <div id="lichsu-result" style="margin-top:10px"></div>
+      <h3>🏦 Cập Nhật Ngân Hàng Tài Khoản Khách Hàng</h3>
+      <p class="muted" style="font-size:13px">Vá thông tin Ngân hàng còn thiếu trong dữ liệu chính thức (đã chốt) - tra theo Số tài khoản từ HD_STK.</p>
+      <button class="btn accent" onclick="runFillBank()">🏦 Cập Nhật Ngân Hàng Tài Khoản Khách Hàng</button>
     </div>
     <div class="card">
       <h3>🔄 Đồng Bộ Lịch Sử vào ChiTietDNTT</h3>
@@ -4396,9 +4871,18 @@ function renderHeThong(){
       </div>
       <button class="btn" onclick="doDonDep('unc', false)">🔍 Xem trước</button>
       <div id="dondepunc-result" style="margin-top:10px"></div>
-    </div>
+    </div>    </div>
   `;
-  _ganMucLuc(); // trang dài: thanh "Đi nhanh" tới từng mục
+  // #11: 2 tab - Tra cứu (xem, kiểm tra) / Can thiệp dữ liệu (sửa, xóa, tạo lại). Nhớ tab đang mở.
+  const chonTabHt = t => {
+    state.hethongTab = t;
+    document.querySelectorAll('#hethong-tabs .subtab').forEach(el => el.classList.toggle('active', el.dataset.ht === t));
+    document.getElementById('hethong-tracuu').classList.toggle('hidden', t !== 'tracuu');
+    document.getElementById('hethong-canthiep').classList.toggle('hidden', t !== 'canthiep');
+  };
+  document.querySelectorAll('#hethong-tabs .subtab').forEach(el => el.addEventListener('click', () => chonTabHt(el.dataset.ht)));
+  chonTabHt(state.hethongTab || 'tracuu');
+  hienKiemTraDem();
   loadLichSuSuaDoi();
   call('getUncConfigForWeb', [], null).then(cfg => {
     if (!cfg) return;
@@ -4436,12 +4920,12 @@ function pickModongChuRung(r){
   document.getElementById('modong-lantt').value = r.lanTT;
   document.getElementById('modong-churung-suggest').classList.add('hidden');
 }
-function doMoDongThanhToanHoSo(){
+async function doMoDongThanhToanHoSo(){
   const chuRung = document.getElementById('modong-churung').value.trim();
   const ngay = document.getElementById('modong-ngaydongtt').value;
   const lanTT = document.getElementById('modong-lantt').value.trim();
   if (!chuRung || !ngay || !lanTT) { toast('Vui lòng nhập đủ Chủ rừng, Ngày Đóng TT và Lần Thanh Toán.', 'warn'); return; }
-  if (!confirm(`XÁC NHẬN: Mở Đóng Thanh Toán cho CẢ HỒ SƠ của "${chuRung}" (Ngày Đóng TT ${ngay}, Lần TT ${lanTT})?\n\nHành động này sẽ XÓA TOÀN BỘ hồ sơ (DNTT_GK_DN + tất cả CT con + 112) khỏi bản chính và tạo lại y hệt trong File Nháp. KHÔNG thể hoàn tác tự động.\n\nBấm OK để tiếp tục.`)) return;
+  if (!(await xacNhan(`XÁC NHẬN: Mở Đóng Thanh Toán cho CẢ HỒ SƠ của "${chuRung}" (Ngày Đóng TT ${ngay}, Lần TT ${lanTT})?\n\nHành động này sẽ XÓA TOÀN BỘ hồ sơ (DNTT_GK_DN + tất cả CT con + 112) khỏi bản chính và tạo lại y hệt trong File Nháp. KHÔNG thể hoàn tác tự động.`, { nguyHiem: true, tieuDe: '⚠️ Mở Đóng Thanh Toán', maGo: 'MO DONG', nutOk: 'Mở Đóng Thanh Toán' }))) return;
   call('webMoDongThanhToanTheoHoSo', [chuRung, ngay, lanTT], 'Đang mở Đóng Thanh Toán cả hồ sơ...').then(res => {
     handleResult(res, () => {
       document.getElementById('modong-churung').value = '';
@@ -4482,18 +4966,23 @@ const NHAN_HANH_DONG = {
   XOA_UNC: '🧹 Dọn UNC',
   SUA_NHAP: '✏️ Sửa hồ sơ Nháp',
   THEM_PHIEU_NHAP: '➕ Thêm phiếu cân',
+  // Chỉ hiện ở Lịch sử 1 hồ sơ (#4) - không thuộc Lịch sử sửa đổi.
+  TAO_MOI_DNTT_NHAP: '🆕 Tạo mới hồ sơ', HOAN_TAT_DUYET_DO_DANG: '🔁 Hoàn tất lượt Duyệt dở', TAO_UNC: '🏦 Tạo file UNC', XUAT_BAO_CAO_DNTT_NHAP: '🖨️ In Báo Cáo ĐNTT',
+  LOI_MO_DONG_THANH_TOAN: '⚠️ Lỗi Mở Đóng TT', LOI_DON_DEP_KHI_MO_DONG: '⚠️ Lỗi dọn khi Mở Đóng TT', LOI_MO_KHOA_PHIEU_CAN: '⚠️ Lỗi mở khóa phiếu cân',
+  LOI_DON_DEP_KHI_XOA_NHAP: '⚠️ Lỗi dọn khi xóa hồ sơ', LOI_CHOT_THANH_TOAN: '⚠️ Lỗi Duyệt', LOI_CHITIET_DNTT_LUC_CHOT: '⚠️ Lỗi ghi chi tiết lúc Duyệt',
   XOA_PHIEU_NHAP: '➖ Bỏ phiếu cân',
   XAC_NHAN_DNTT: '✅ Xác nhận ĐNTT',
-  HUY_XAC_NHAN_DNTT: '↩️ Về Chờ ĐNTT',
-  CHOT_THANH_TOAN: '📨 Duyệt (Đóng TT)'
+  HUY_XAC_NHAN_DNTT: '↩️ Về Chờ xác nhận',
+  CHOT_THANH_TOAN: '📨 Duyệt (Đóng TT)',
+  CAU_HINH_HE_THONG: '⚙️ Đổi cấu hình'
 };
-function doKhoaSoNam(chayThat){
+async function doKhoaSoNam(chayThat){
   const box = document.getElementById('khoaso-result');
 
   if (!box) return; // đã rời tab trước khi dữ liệu về
   const nam = (document.getElementById('khoaso-nam') || {}).value;
   if (!box || !nam) return;
-  if (chayThat && !confirm(`Khóa sổ năm ${nam}?\nSổ ĐNTT của năm chuyển sang file DATA${nam} và xóa khỏi File Chính; phiếu cân đã trả chuyển sang sheet lưu trữ.`)) return;
+  if (chayThat && !(await xacNhan(`Khóa sổ năm ${nam}?\nSổ ĐNTT của năm chuyển sang file DATA${nam} và xóa khỏi File Chính; phiếu cân đã trả chuyển sang sheet lưu trữ.`, { nguyHiem: true, tieuDe: '⚠️ Khóa sổ năm', maGo: String(nam), nutOk: 'Khóa sổ' }))) return;
   call('webKhoaSoNam', [nam, chayThat], chayThat ? `Đang khóa sổ năm ${nam}...` : 'Đang kiểm tra...').then(res => {
     if (!res || !res.success) { handleResult(res); return; }
     if (chayThat) toast(res.message, res.conLai ? 'warn' : null);
@@ -4531,11 +5020,11 @@ function loadSaoLuuXoa(){
     </tbody></table></div>`;
   });
 }
-function doKhoiPhucSaoLuu(i){
+async function doKhoiPhucSaoLuu(i){
   const g = state.saoLuuXoa[i];
   if (!g) return;
   const moTa = g.theoSheet.map(x => `${x.sheet}: ${x.soDong} dòng`).join(', ');
-  if (!confirm(`Khôi phục lần "${NHAN_HANH_DONG[g.hanhDong] || g.hanhDong}" lúc ${g.thoiGian}?\n${moTa}\n\nCác dòng sẽ được ghi lại vào cuối sheet gốc.`)) return;
+  if (!(await xacNhan(`Khôi phục lần "${NHAN_HANH_DONG[g.hanhDong] || g.hanhDong}" lúc ${g.thoiGian}?\n${moTa}\n\nCác dòng sẽ được ghi lại vào cuối sheet gốc.`))) return;
   call('webKhoiPhucSaoLuuXoa', [g.ma], 'Đang khôi phục...').then(res => handleResult(res, loadSaoLuuXoa));
 }
 /** Tên dễ hiểu cho các chức năng hay gặp trong bảng Hiệu Năng (còn lại hiện tên kỹ thuật). */
@@ -4592,7 +5081,21 @@ function loadLichSuSuaDoi(){
     </tbody></table></div>`;
   });
 }
+/** P-05: số liệu Cài đặt lấy 1 lần (getCaiDatTongHop) cho lần mở trang; mỗi phần dùng đúng 1
+ * lần - tải lại sau khi lưu thì gọi riêng như cũ. Phần lỗi / gọi gộp lỗi -> gọi riêng (hiện lỗi). */
+let _caiDatSan_ = null;
+function _caiDat_(ten, ham){
+  if (!_caiDatSan_) return call(ham, [], null);
+  return _caiDatSan_.then(d => {
+    if (d && Object.prototype.hasOwnProperty.call(d, ten)) {
+      const v = d[ten]; delete d[ten];
+      if (!(v && v.__loi)) return v;
+    }
+    return call(ham, [], null);
+  });
+}
 function renderSettings(){
+  _caiDatSan_ = null;
   document.getElementById('topbar-actions').innerHTML = '';
   const c = document.getElementById('content');
   c.innerHTML = `<div class="card"><div class="empty"><div class="ic">⏳</div>Đang kiểm tra...</div></div>`;
@@ -4647,6 +5150,10 @@ function renderSettings(){
           <button class="btn" onclick="doRunDaily15hNow()" title="Chạy ngay nội dung trigger 15h - không cần chờ tới giờ đã hẹn, không đụng gì tới lịch tự động đang chạy">🔄 Đồng bộ ngay</button>
           <span id="badge-trigger15h" class="badge dot">Đang kiểm tra...</span>
         </div>
+        <div style="margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <button class="btn" onclick="doSetupKiemTraDem()" title="Mỗi đêm 2:00 chạy Bảo Trì + MISA thiếu dòng + phiếu cân đã trả chưa khóa; email Quản trị khi có vấn đề mới">🌙 Bật kiểm tra dữ liệu hằng đêm (2:00)</button>
+          <span id="badge-kiemtradem" class="badge dot">Đang kiểm tra...</span>
+        </div>
         <button class="btn" style="margin-top:8px" onclick="doResetPhanTich()">🧹 Xóa Sạch &amp; Nạp Lại Phân Tích NG-ĐL</button>
         <button class="btn" style="margin-top:8px" onclick="doResetChiTietCongNo()">🧹 Xóa Sạch &amp; Nạp Lại Chi Tiết Công Nợ PC</button>
         <div style="margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
@@ -4670,7 +5177,7 @@ function renderSettings(){
       </div>
       <div class="card">
         <h3>📊 Vùng Định Dạng Báo Cáo Xuất Excel</h3>
-        <p class="muted" style="font-size:13px">TÁCH RIÊNG với "Vùng Lãnh Thổ" ở trên - chỉ ảnh hưởng định dạng ngày/số trong các FILE EXCEL XUẤT RA (Update_NganHang_DN, MISA, đơn vị khác...). <b>Tiêu chuẩn: VN</b> (dd/mm/yyyy, theo mẫu nhập MISA) - chưa chọn thì dùng VN, không đi theo Vùng Lãnh Thổ.</p>
+        <p class="muted" style="font-size:13px">TÁCH RIÊNG với "Vùng Lãnh Thổ" ở trên - chỉ ảnh hưởng định dạng ngày/số trong các FILE EXCEL XUẤT RA (Update_NganHang_DN, MISA, đơn vị khác...). <b>Tiêu chuẩn: VN</b> (dd/mm/yyyy, theo mẫu nhập MISA) - chưa chọn thì dùng VN, không đi theo Vùng Lãnh Thổ. Báo cáo xuất ghi cột ngày là <b>ngày thật</b> (lọc / sắp xếp được trong Excel) theo vùng này; file UNC nộp ngân hàng và sheet nhập MISA giữ ngày dạng chữ theo vùng này.</p>
         <div class="field"><select id="export-region-select"><option value="">Đang tải...</option></select></div>
       </div>
       <div class="card">
@@ -4714,6 +5221,10 @@ function renderSettings(){
         <button class="btn" onclick="doGenerateThongSo()">📋 Tạo/Cập Nhật Sheet Thông Số</button>
       </div>`;
       _ganMucLuc(); // trang dài: thanh "Đi nhanh" tới từng mục
+      // P-05: 1 lời gọi lấy hết; lỗi gọi gộp -> từng phần tự gọi riêng như cũ.
+      _caiDatSan_ = new Promise(ok => {
+        google.script.run.withSuccessHandler(ok).withFailureHandler(() => ok({})).api(PHIEN, 'getCaiDatTongHop', []);
+      });
       loadNguoiDung();
       loadCauHinhDangNhap();
       loadChatbotSettings();
@@ -4733,7 +5244,7 @@ function renderSettings(){
 
 /* ---------- Người dùng & Phân quyền (Quản trị) ---------- */
 function loadNguoiDung(){
-  call('getDanhSachNguoiDungForWeb', [], null).then(d => {
+  _caiDat_('nguoiDung', 'getDanhSachNguoiDungForWeb').then(d => {
     state.nguoiDungDs = d;
     const box = document.getElementById('nguoidung-card');
     if (!box) return;
@@ -4779,7 +5290,7 @@ function luuNguoiDung(){
 
 /* ---------- Cổng đăng nhập Gmail (Quản trị) ---------- */
 function loadCauHinhDangNhap(){
-  call('getCauHinhDangNhapForWeb', [], null).then(c => {
+  _caiDat_('cauHinhDangNhap', 'getCauHinhDangNhapForWeb').then(c => {
     const box = document.getElementById('dangnhap-card');
     if (!box) return;
     box.innerHTML = `<h3>🔐 Cổng Đăng Nhập Gmail</h3>
@@ -4814,8 +5325,8 @@ function luuCongDangNhap(){
     if (state.nguoiDung) state.nguoiDung.congDangNhapUrl = url;
   }));
 }
-function taoLaiSsoSecret(){
-  if (!confirm('Tạo mã bí mật mới? Cổng đăng nhập hiện tại sẽ NGỪNG hoạt động cho tới khi bạn dán lại mã nguồn mới vào dự án Cổng đăng nhập và Deploy lại.')) return;
+async function taoLaiSsoSecret(){
+  if (!(await xacNhan('Tạo mã bí mật mới? Cổng đăng nhập hiện tại sẽ NGỪNG hoạt động cho tới khi bạn dán lại mã nguồn mới vào dự án Cổng đăng nhập và Deploy lại.', { nguyHiem: true, maGo: 'MA MOI', nutOk: 'Tạo mã mới' }))) return;
   call('webTaoLaiSsoSecret', [], 'Đang tạo mã mới...').then(res => handleResult(res, () => loadCauHinhDangNhap()));
 }
 
@@ -4823,7 +5334,7 @@ function taoLaiSsoSecret(){
 function loadLuuTruNam(){
   const el = document.getElementById('luutru-nam-card');
   if (!el) return;
-  call('getLuuTruNamForWeb', [], null).then(ds => {
+  _caiDat_('luuTruNam', 'getLuuTruNamForWeb').then(ds => {
     state.luuTruNam = ds || [];
     el.innerHTML = `<h3>🗄️ File lưu trữ theo năm</h3>
       <p class="muted" style="font-size:13px">Các năm đã khóa sổ và file DATA của từng năm. <b>Hệ Thống › Khóa Sổ Năm</b> tự tạo và đăng ký file - mục này chỉ dùng khi cần trỏ lại file (vd file DATA bị di chuyển hoặc sao chép sang file khác).</p>
@@ -4845,9 +5356,9 @@ function doDangKyLuuTruNam(){
   if (!nam || !link) { toast('Nhập năm và URL/ID file DATA.', 'warn'); return; }
   call('webSetLuuTruNam', [nam, link], 'Đang kiểm tra file...').then(res => handleResult(res, loadLuuTruNam));
 }
-function doBoLuuTruNam(i){
+async function doBoLuuTruNam(i){
   const x = state.luuTruNam[i];
-  if (!x || !confirm(`Bỏ file lưu trữ năm ${x.nam}? Báo cáo sẽ không đọc dữ liệu năm này nữa.`)) return;
+  if (!x || !(await xacNhan(`Bỏ file lưu trữ năm ${x.nam}? Báo cáo sẽ không đọc dữ liệu năm này nữa.`, { nguyHiem: true, nutOk: 'Bỏ file' }))) return;
   call('webSetLuuTruNam', [x.nam, ''], 'Đang lưu...').then(res => handleResult(res, loadLuuTruNam));
 }
 function doConnectMainSs(){
@@ -4858,11 +5369,11 @@ function doConnectMainSs(){
   });
 }
 function loadMainSsInfo(){
-  call('getMainSsInfoForWeb', [], null).then(info => {
+  _caiDat_('mainSs', 'getMainSsInfoForWeb').then(info => {
     const el = document.getElementById('main-ss-info');
     if (!el) return;
     if (info && info.configured) {
-      el.innerHTML = `Đang dùng File Chính: <a href="${info.url}" target="_blank"><b>${esc(info.name)}</b></a>`;
+      el.innerHTML = `Đang dùng File Chính: <a href="${esc(info.url)}" target="_blank" rel="noopener"><b>${esc(info.name)}</b></a>`;
     } else {
       el.textContent = 'Không lấy được thông tin File Chính.';
     }
@@ -4879,12 +5390,13 @@ function _setBadgeOnOff_(id, isOn, onText, offText){
   el.textContent = isOn ? ('✅ ' + onText) : ('⭕ ' + offText);
 }
 function loadTriggerStatus(){
-  call('getTriggerStatusForWeb', [], null).then(s => {
+  _caiDat_('trigger', 'getTriggerStatusForWeb').then(s => {
     if (!s) return;
     _setBadgeOnOff_('badge-trigger10min', s.trigger10Min, 'Đã bật', 'Chưa bật');
     _setBadgeOnOff_('badge-triggerdaily', s.triggerDaily, 'Đã bật', 'Chưa bật');
     const gio15h = String(s.trigger15hGio).padStart(2, '0'), phut15h = String(s.trigger15hPhut).padStart(2, '0');
     _setBadgeOnOff_('badge-trigger15h', s.trigger15h, `Đã bật lúc ${gio15h}:${phut15h}`, 'Chưa bật');
+    _setBadgeOnOff_('badge-kiemtradem', s.triggerKiemTraDem, 'Đã bật', 'Chưa bật');
     // Chỉ tự điền giờ/phút nếu người dùng CHƯA gõ dở (tránh ghi đè lúc đang sửa) -
     // so document.activeElement để không "giật" giá trị đang gõ khi loadTriggerStatus() gọi lại sau mỗi thao tác khác.
     const elGio = document.getElementById('trigger15h-gio'), elPhut = document.getElementById('trigger15h-phut');
@@ -4904,11 +5416,26 @@ function loadTriggerStatus(){
     }
   });
 }
+/** #5: kết quả kiểm tra đêm gần nhất (Hệ Thống › Tra cứu). */
+function _veKiemTraDem_(kt){
+  const box = document.getElementById('kiemtradem-result');
+  if (!box) return;
+  if (!kt) { box.innerHTML = '<span class="muted">Chưa chạy lần nào.</span>'; return; }
+  box.innerHTML = kt.tong ? `<div style="color:var(--danger)"><b>Lúc ${esc(kt.luc)} phát hiện:</b></div><ul style="margin:6px 0 0 18px">${kt.muc.map(m => `<li>${esc(m.ten)}: <b>${m.so}</b>${m.chiTiet ? ` <span class="muted">(${esc(m.chiTiet)})</span>` : ''}</li>`).join('')}</ul>`
+    : `<span class="badge ready dot">Lúc ${esc(kt.luc)}: không phát hiện vấn đề</span>`;
+}
+function hienKiemTraDem(){ call('getKiemTraDem', [], null).then(_veKiemTraDem_, () => {}); }
+function doChayKiemTraDem(){
+  call('webChayKiemTraDemNgay', [], 'Đang kiểm tra toàn bộ dữ liệu...').then(res => handleResult(res, () => _veKiemTraDem_(res.ketQua)));
+}
+function doSetupKiemTraDem(){
+  call('setupKiemTraDemTrigger', [], 'Đang bật...').then(res => handleResult(res, () => loadTriggerStatus()));
+}
 function doXacNhanHeaderPhieuCanMoi(){
   call('webXacNhanHeaderPhieuCanMoi', [], 'Đang lưu chuẩn mới...').then(res => handleResult(res, () => loadTriggerStatus()));
 }
 function loadFormatLockStatus(){
-  call('getFormatLockStatusForWeb', [], null).then(s => {
+  _caiDat_('khoaDinhDang', 'getFormatLockStatusForWeb').then(s => {
     if (!s) return;
     _setBadgeOnOff_('badge-formatlock', s.locked, `Đã khóa ${s.lockedCount}/${s.total} cột`, `Mới khóa ${s.lockedCount}/${s.total} cột`);
     const el = document.getElementById('formatlock-detail');
@@ -4935,7 +5462,7 @@ function doSetupPcCacheTrigger(){
 /** MỚI (theo yêu cầu): hiện định dạng THẬT (locale/múi giờ) đang cài đặt
  * trên File Chính + File Nháp - để xem và đồng bộ Vùng Lãnh Thổ cho khớp. */
 function loadSheetLocaleInfo(){
-  call('getSheetLocaleInfoForWeb', [], null).then(info => {
+  _caiDat_('localeFile', 'getSheetLocaleInfoForWeb').then(info => {
     const el = document.getElementById('sheet-locale-info');
     if (!el || !info) return;
     const renderOne = (label, d, err) => {
@@ -4958,7 +5485,7 @@ function doSyncRegionFromSheet(){
 }
 
 function loadRegionSelector(){
-  call('getRegionInfoForWeb', [], null).then(info => {
+  _caiDat_('vung', 'getRegionInfoForWeb').then(info => {
     const sel = document.getElementById('region-select');
     if (!sel || !info) return;
     sel.innerHTML = info.presets.map(p => `<option value="${esc(p.code)}" ${p.code===info.current?'selected':''}>${esc(p.code)} - ${esc(p.label)}</option>`).join('');
@@ -4970,7 +5497,7 @@ function loadRegionSelector(){
 
 /** MỚI (theo yêu cầu): Vùng Định Dạng RIÊNG cho báo cáo xuất Excel - tách biệt với Vùng Lãnh Thổ chung. */
 function loadExportRegionSelector(){
-  call('getExportRegionInfoForWeb', [], null).then(info => {
+  _caiDat_('vungXuat', 'getExportRegionInfoForWeb').then(info => {
     const sel = document.getElementById('export-region-select');
     if (!sel || !info) return;
     sel.innerHTML = info.presets.map(p => `<option value="${esc(p.code)}" ${p.code===info.current?'selected':''}>${esc(p.code)} - ${esc(p.label)}</option>`).join('');
@@ -4982,7 +5509,7 @@ function loadExportRegionSelector(){
 
 /** MỚI (theo yêu cầu): Giá trị mặc định xuất báo cáo MISA/Ngân hàng - sửa được ngay, không cần sửa code. */
 function loadMisaDefaults(){
-  call('getMisaDefaultsForWeb', [], null).then(info => {
+  _caiDat_('misa', 'getMisaDefaultsForWeb').then(info => {
     if (!info) return;
     const a = document.getElementById('misa-account'), n = document.getElementById('misa-bankname'), c = document.getElementById('misa-bankcode');
     if (a) a.value = info.account || '';
@@ -5001,7 +5528,7 @@ function doSaveMisaDefaults(){
 
 /** MỚI (theo yêu cầu): tham số UNC (TK trích nợ/thu phí, Bên chịu phí, Loại tiền, tên sheet Danh Mục NH). */
 function loadUncConfig(){
-  call('getUncConfigForWeb', [], null).then(cfg => {
+  _caiDat_('unc', 'getUncConfigForWeb').then(cfg => {
     if (!cfg) return;
     const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v || ''; };
     set('unc-tktrichno', cfg.tkTrichNo);
@@ -5022,7 +5549,7 @@ function doSaveUncConfig(){
   call('webSetUncConfig', [values], 'Đang lưu...').then(res => handleResult(res));
 }
 function loadChatbotSettings(){
-  call('getChatbotSettingsForWeb', [], null).then(s => {
+  _caiDat_('chatbot', 'getChatbotSettingsForWeb').then(s => {
     const el = document.getElementById('chatbot-status');
     if (!el) return;
     el.innerHTML = s && s.coApiKey
@@ -5094,7 +5621,7 @@ function renderDoiSoatResult(){
 function toggleAllDoiSoat(checked){
   document.querySelectorAll('.doisoat-chk').forEach(el => el.checked = checked);
 }
-function doDongBoTenKhachHang(){
+async function doDongBoTenKhachHang(){
   const rows = state.doiSoatRows || [];
   const selected = [];
   document.querySelectorAll('.doisoat-chk:checked').forEach(el => {
@@ -5102,7 +5629,7 @@ function doDongBoTenKhachHang(){
     if (r) selected.push({ soPhieuCan: r.soPhieuCan, chuRungCT: r.chuRungCT });
   });
   if (!selected.length) { toast('Vui lòng chọn ít nhất 1 dòng.', 'warn'); return; }
-  if (!confirm(`Đồng bộ tên khách hàng cho ${selected.length} dòng đã chọn? Sẽ cập nhật trực tiếp vào Phiếu Cân (file gốc PhieuCan_DN) theo đúng tên ở CT.`)) return;
+  if (!(await xacNhan(`Đồng bộ tên khách hàng cho ${selected.length} dòng đã chọn? Sẽ cập nhật trực tiếp vào Phiếu Cân (file gốc PhieuCan_DN) theo đúng tên ở CT.`, { nutOk: 'Đồng bộ' }))) return;
   call('webDongBoTenKhachHang', [selected], 'Đang đồng bộ...').then(res => {
     handleResult(res, () => doDoiSoatTenKhachHang()); // đối soát lại để cập nhật danh sách
   });
@@ -5164,7 +5691,7 @@ function doKiemTraBaoTri(){
       </div>`;
   });
 }
-function doXoaMoCoiBaoTri(sid, dataKey, fnName, riskLevel){
+async function doXoaMoCoiBaoTri(sid, dataKey, fnName, riskLevel){
   const data = state.baoTriData[dataKey];
   const items = [];
   document.querySelectorAll('.' + sid + '-chk:checked').forEach(el => {
@@ -5175,14 +5702,14 @@ function doXoaMoCoiBaoTri(sid, dataKey, fnName, riskLevel){
   const canhBao = riskLevel === 'danger'
     ? `⚠️ CẢNH BÁO RỦI RO CAO: đây là dữ liệu TÀI CHÍNH ĐÃ CHỐT (CT/DNTT_GK_DN thật) - xóa KHÔNG THỂ hoàn tác tự động.\n\nChỉ xóa nếu bạn CHẮC CHẮN đây là dữ liệu rác/lỗi, không phải hồ sơ thật đang thiếu liên kết.\n\n`
     : '';
-  if (!confirm(`${canhBao}Xóa ${items.length} dòng đã chọn?`)) return;
+  if (!(await xacNhan(`${canhBao}Xóa ${items.length} dòng đã chọn?`, { nguyHiem: true, tieuDe: '⚠️ Xóa dòng mồ côi', maGo: riskLevel === 'danger' ? 'XOA' : undefined, nutOk: 'Xóa' }))) return;
   call(fnName, [items], 'Đang xóa...').then(res => {
     handleResult(res, () => doKiemTraBaoTri()); // kiểm tra lại để cập nhật danh sách
   });
 }
 
 function loadConfigLinks(){
-  call('getConfigLinksForSettings', [], null).then(links => {
+  _caiDat_('links', 'getConfigLinksForSettings').then(links => {
     const box = document.getElementById('config-links-card');
     if (!box) return;
     box.innerHTML = `<h3>Link các file liên quan (xem + đổi để dùng cho đơn vị/năm khác)</h3>
@@ -5261,7 +5788,7 @@ function loadSharedUsers(key){
     `).join('');
   }).catch(() => { listEl.innerHTML = '<span class="muted" style="font-size:12px">Không tải được danh sách.</span>'; });
 }
-function doShareLink(key){
+async function doShareLink(key){
   const box = document.getElementById('share-box-' + key);
   const label = box ? box.dataset.label : '';
   const emailEl = document.getElementById('share-email-' + key);
@@ -5270,7 +5797,7 @@ function doShareLink(key){
   const role = roleEl ? roleEl.value : 'view';
   if (!email) { toast('Vui lòng nhập email người nhận.', 'warn'); return; }
   const quyenText = role === 'edit' ? 'CHỈNH SỬA' : 'chỉ xem';
-  if (!confirm(`Chia sẻ "${label}" cho ${email} với quyền ${quyenText}?\n\nNgười này sẽ truy cập được TRỰC TIẾP Google Sheet này (kể cả không qua Web App).`)) return;
+  if (!(await xacNhan(`Chia sẻ "${label}" cho ${email} với quyền ${quyenText}?\n\nNgười này sẽ truy cập được TRỰC TIẾP Google Sheet này (kể cả không qua Web App).`))) return;
   call('webShareConfigLink', [key || null, email, role], 'Đang chia sẻ...').then(res => {
     handleResult(res, () => { if (emailEl) emailEl.value = ''; loadSharedUsers(key); });
   });
@@ -5278,10 +5805,10 @@ function doShareLink(key){
 /** Thu hồi quyền truy cập trực tiếp Google Sheet/Drive của 1 email -
  * KHÔNG ảnh hưởng gì tới quyền dùng Web App của người đó (2 việc tách
  * biệt), chỉ chặn họ mở thẳng file Google Sheet/Drive. */
-function doRevokeLink(key, email){
+async function doRevokeLink(key, email){
   const box = document.getElementById('share-box-' + key);
   const label = box ? box.dataset.label : '';
-  if (!confirm(`Thu hồi quyền truy cập trực tiếp "${label}" của ${email}?\n\nNgười này sẽ không mở được Google Sheet/Drive này nữa (trừ khi file được chia sẻ công khai theo cách khác).`)) return;
+  if (!(await xacNhan(`Thu hồi quyền truy cập trực tiếp "${label}" của ${email}?\n\nNgười này sẽ không mở được Google Sheet/Drive này nữa (trừ khi file được chia sẻ công khai theo cách khác).`, { nguyHiem: true, nutOk: 'Thu hồi' }))) return;
   call('webRevokeConfigLinkAccess', [key || null, email], 'Đang thu hồi...').then(res => {
     handleResult(res, () => loadSharedUsers(key));
   });
@@ -5332,16 +5859,16 @@ function doLamMoiCongNo(){
   const f = fromEl ? fromEl.value : state.debtFrom, t = toEl ? toEl.value : state.debtTo;
   call('webRunCongNoRefreshNow', [f, t], 'Đang làm mới Công Nợ...').then(res => handleResult(res, () => loadDebtTab()));
 }
-function doResetPhanTich(){
-  if (!confirm('Xóa sạch toàn bộ dữ liệu Phân Tích Nhập/TT hiện có (kể cả dữ liệu đúng) để nạp lại từ đầu? Dữ liệu sẽ tự tính lại dần, không mất số liệu gốc (Phiếu Cân/CT thật vẫn còn nguyên).')) return;
+async function doResetPhanTich(){
+  if (!(await xacNhan('Xóa sạch toàn bộ dữ liệu Phân Tích Nhập/TT hiện có (kể cả dữ liệu đúng) để nạp lại từ đầu? Dữ liệu sẽ tự tính lại dần, không mất số liệu gốc (Phiếu Cân/CT thật vẫn còn nguyên).', { nguyHiem: true, maGo: 'XOA', nutOk: 'Xóa sạch' }))) return;
   call('webResetPhanTichNhapTTSheet', [], 'Đang xóa sạch và chuẩn bị nạp lại...').then(res => handleResult(res));
 }
-function doResetChiTietCongNo(){
-  if (!confirm('Xóa sạch toàn bộ dữ liệu Chi Tiết Công Nợ theo Phiếu Cân hiện có để nạp lại từ đầu? Không mất số liệu gốc (Phiếu Cân vẫn còn nguyên).')) return;
+async function doResetChiTietCongNo(){
+  if (!(await xacNhan('Xóa sạch toàn bộ dữ liệu Chi Tiết Công Nợ theo Phiếu Cân hiện có để nạp lại từ đầu? Không mất số liệu gốc (Phiếu Cân vẫn còn nguyên).', { nguyHiem: true, maGo: 'XOA', nutOk: 'Xóa sạch' }))) return;
   call('webResetChiTietCongNoSheet', [], 'Đang xóa sạch và chuẩn bị nạp lại...').then(res => handleResult(res));
 }
-function doKhoaDinhDangText(){
-  if (!confirm('Khóa định dạng cho các cột CCCD/STK/Số HĐ/Số Phiếu Cân (TEXT) và Timestamp/Ngày (dd/MM/yyyy) trên cả Draft và bản chính? Việc này chỉ ngăn lỗi xảy ra THÊM từ bây giờ, KHÔNG tự phục hồi dữ liệu cũ đã bị sai (nếu có).')) return;
+async function doKhoaDinhDangText(){
+  if (!(await xacNhan('Khóa định dạng cho các cột CCCD/STK/Số HĐ/Số Phiếu Cân (TEXT) và Timestamp/Ngày (dd/MM/yyyy) trên cả Draft và bản chính? Việc này chỉ ngăn lỗi xảy ra THÊM từ bây giờ, KHÔNG tự phục hồi dữ liệu cũ đã bị sai (nếu có).'))) return;
   call('webKhoaDinhDangTextTatCa', [], 'Đang khóa định dạng...').then(res => handleResult(res, () => loadFormatLockStatus()));
 }
 function doGenerateThongSo(){
@@ -5395,23 +5922,20 @@ function chatbotGuiCauHoi(){
   const elDangTra = chatbotThemTin_('bot', '⏳ Đang trả lời...');
   input.value = '';
 
-  google.script.run
-    .withSuccessHandler(function (kq) {
-      const traLoi = kq.thanhCong ? (kq.khongDungAI ? '🔧 ' : '') + kq.traLoi : '❌ ' + kq.loi;
-      elDangTra.textContent = traLoi;
-      document.getElementById('chatbotNoiDung').scrollTop = 999999;
-      if (kq.thanhCong) {
-        chatbotLichSu_.push({ vaiTro: 'nguoi', noiDung: cauHoi }, { vaiTro: 'bot', noiDung: kq.traLoi });
-        chatbotLichSu_ = chatbotLichSu_.slice(-8); // chỉ giữ 4 lượt gần nhất
-      }
-    })
-    .withFailureHandler(function (err) {
-      const msg = String((err && err.message) || err);
-      const loiDangNhap = _phanSauTienTo_(msg, LOI_DANG_NHAP);
-      elDangTra.textContent = '❌ ' + (loiDangNhap || _phanSauTienTo_(msg, LOI_QUYEN) || ('Lỗi hệ thống: ' + msg));
-      if (loiDangNhap) hienManHinhDangNhap(loiDangNhap);
-    })
-    .api(PHIEN, 'TRA_LOI_CHATBOT', [cauHoi, chatbotLichSu_]);
+  // U-07 (rà soát 28/09/2026): qua call() chung - đang đồng bộ thì chờ xong rồi tự hỏi lại,
+  // lỗi đăng nhập / quyền xử lý như mọi màn (trước đây hiện nguyên chuỗi lỗi kỹ thuật [DONG_BO]...).
+  call('TRA_LOI_CHATBOT', [cauHoi, chatbotLichSu_.slice()], null).then(function (kq) {
+    const traLoi = kq.thanhCong ? (kq.khongDungAI ? '🔧 ' : '') + kq.traLoi : '❌ ' + kq.loi;
+    elDangTra.textContent = traLoi;
+    document.getElementById('chatbotNoiDung').scrollTop = 999999;
+    if (kq.thanhCong) {
+      chatbotLichSu_.push({ vaiTro: 'nguoi', noiDung: cauHoi }, { vaiTro: 'bot', noiDung: kq.traLoi });
+      chatbotLichSu_ = chatbotLichSu_.slice(-8); // chỉ giữ 4 lượt gần nhất
+    }
+  }, function (err) {
+    const msg = String((err && err.message) || err);
+    elDangTra.textContent = '❌ ' + (_phanSauTienTo_(msg, LOI_DANG_NHAP) || _phanSauTienTo_(msg, LOI_QUYEN) || (msg.indexOf('Đã hủy') === 0 ? msg : 'Chưa trả lời được - thử lại.'));
+  });
 }
 
 /* ============================================================
