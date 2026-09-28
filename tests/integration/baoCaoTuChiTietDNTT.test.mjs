@@ -74,3 +74,26 @@ test('(a) same detail sheet whether taken from ChiTietDNTT or rebuilt by the joi
   b.ctd.data = b.ctd.data.filter((r, i) => i === 0 || r[0] !== 'A1');
   assert.deepEqual(bangKe(a), bangKe(b));
 });
+
+test('(c) the completed-payment slip always shows the transfer text and the note', () => {
+  const w = buildWorld();
+  const h = w.draft.getSheetByName('DNTT_GK_DN_112_DRAFT').data[1];
+  h[7] = 'Thanh toán tiền mua gỗ keo HĐ số HD01 ngày 01.09.2026'; h[15] = 'Tổng KL: 2.00 | Đã trả: 0.00 | Còn lại: 2.00';
+  const { run, env } = loadCode(w.options);
+  assert.match(run('runConfirmPayment_')(['A1'], NGAY_CK), /^✅/);
+  const html = (run('webInPhieuHoanThanhThanhToan_')('A1', ''), env.driveFiles[0].nguon);
+  assert.match(html, /Nội dung chuyển khoản<\/th><td class="">Thanh toán tiền mua gỗ keo HĐ số HD01 ngày 01\.09\.2026</);
+  assert.match(html, /Ghi chú<\/th><td class="">Tổng KL: 2\.00<br>Đã trả: 0\.00<br>Còn lại: 2\.00</);
+});
+
+test('(c) a record whose transfer text is empty in the ledger gets the standard text from its contract', () => {
+  const w = buildWorld();
+  const h = w.draft.getSheetByName('DNTT_GK_DN_112_DRAFT').data[1];
+  h[7] = ''; h[9] = new Date(Date.UTC(2026, 8, 1, 5)); h[15] = '';
+  const { run, env } = loadCode(w.options);
+  assert.match(run('runConfirmPayment_')(['A1'], NGAY_CK), /^✅/);
+  run('webInPhieuHoanThanhThanhToan_')('A1', '');
+  const html = env.driveFiles[0].nguon;
+  assert.match(html, /Nội dung chuyển khoản<\/th><td class="">Thanh toán tiền mua gỗ keo HĐ số HD01 ngày 01\.09\.2026</);
+  assert.match(html, /Ghi chú<\/th><td class="">—</, 'the note row is always printed');
+});

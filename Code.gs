@@ -1,6 +1,6 @@
 /**
  * ============================================================
- * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.30
+ * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.31
  * Lịch sử thay đổi: CHANGELOG.md · Kiến trúc: docs/ARCHITECTURE.md
  * ------------------------------------------------------------
  * *** QUAN TRỌNG - CẦN LÀM TRƯỚC KHI DÙNG BẢN NÀY (chỉ 1 LẦN DUY NHẤT
@@ -5595,8 +5595,7 @@ function runCreate112() {
       // dd.mm.yyyy (dấu chấm) - lấy theo Ngày Đề Nghị của hồ sơ.
       // SỬA (theo yêu cầu làm rõ): "ngày" trong Nội dung CK là NGÀY HỢP
       // ĐỒNG (row112[9] - Ngày Ký HĐ), KHÔNG PHẢI Ngày Đề Nghị (row112[16]).
-      const ngayHDStr = row112[9] instanceof Date ? Utilities.formatDate(row112[9], "GMT+7", "dd.MM.yyyy") : "";
-      row112[7] = `Thanh toán tiền mua gỗ keo HĐ số ${soHD}${ngayHDStr ? " ngày " + ngayHDStr : ""}`;
+      row112[7] = _noiDungCK_(soHD, row112[9]);
       row112[11] = valL_Tan * 1000; // KL Tổng (kg)
       row112[12] = slHD_TuDong;
       row112[13] = daTra_N;
@@ -8687,6 +8686,15 @@ function getDraftRecordDetail_(idKey) {
   });
 }
 
+/** Nội dung chuyển khoản của hồ sơ: "Thanh toán tiền mua gỗ keo HĐ số <Số HĐ> ngày <Ngày ký
+ * HĐ dd.MM.yyyy>" (Tổng Hợp 112 ghi vào sổ; phiếu PDF dùng khi ô trong sổ trống). */
+function _noiDungCK_(soHD, ngayHD) {
+  const so = String(soHD || "").replace(/'/g, "").trim();
+  if (!so) return "";
+  const ngay = _docNgaySo_(ngayHD);
+  return `Thanh toán tiền mua gỗ keo HĐ số ${so}${ngay ? " ngày " + Utilities.formatDate(ngay, "GMT+7", "dd.MM.yyyy") : ""}`;
+}
+
 /** 1 hồ sơ (dòng sổ 112 - Nháp hoặc đã chốt, cùng bố cục cột) + các dòng sổ CT của nó
  * (cùng bố cục ở Nháp và đã chốt) -> dữ liệu cho modal Chi tiết và phiếu PDF. */
 function _chiTietHoSo_(row, ctRows) {
@@ -8703,7 +8711,7 @@ function _chiTietHoSo_(row, ctRows) {
     nganHang: String(row[4] || ""),
     stk: String(row[5] || "").replace(/'/g, ""),
     soTien: utils.parseNum(row[6]),
-    noiDungCK: String(row[7] || ""),
+    noiDungCK: String(row[7] || "").trim() || _noiDungCK_(row[8], row[9]),
     soHD: String(row[8] || "").replace(/'/g, ""),
     klTongKg: utils.parseNum(row[11]),
     // MỚI (theo yêu cầu - trước đây thiếu, luôn hiện rỗng): Sản Lượng HĐ
@@ -8802,8 +8810,8 @@ function _htmlPhieuChiTietThanhToan_(r, luc, tieuDe) {
       ${dong("Số hợp đồng", e(r.soHD))}
       ${dong("SL HĐ Dự kiến / Lũy kế / Còn lại (tấn)", [r.slDuKien, r.slLuyKe, r.conLai].map(x => so(x, soLeKl)).join(" / "), true)}
       ${dong(r.ngayCK ? "Số tiền đã thanh toán (đ)" : "Số tiền đề nghị (đ)", so(r.soTien, 0), true)}
-      ${dong("Nội dung chuyển khoản", e(r.noiDungCK))}
-      ${dienGiai.length ? dong("Diễn giải", dienGiai.map(e).join("<br>")) : ""}
+      ${dong("Nội dung chuyển khoản", e(r.noiDungCK) || "—")}
+      ${dong("Ghi chú", dienGiai.length ? dienGiai.map(e).join("<br>") : "—")}
     </table>
     <table class="pc">
       <tr><th>STT</th><th>Số phiếu cân</th><th>KL (Tấn)</th><th>Thành tiền (đ)</th></tr>

@@ -59,6 +59,7 @@ Trạng thái: ✅ xong · 🟡 một phần · ⏳ chưa làm · ⚖️ cần n
 - ✅ Khóa sổ năm (quy trình người dùng): kiểm chứng công nợ đầu năm = phiếu chưa trả mang sang (test `khoaSoNam`); không cần bộ nhớ đệm 6 tháng.
 - ✅ 2026.9.16: Nhật ký thao tác giữ dạng chữ cho Mã hồ sơ / mã lỗi (không mất số 0 đầu).
 - ✅ 2026.9.15: Hệ Thống › Dọn Dẹp MISA (trùng / mồ côi / tất cả trong khoảng Ngày CK), xem trước + sao lưu. UNC không cần nút xóa riêng (xem CHANGELOG).
+- ✅ 2026.9.31: Phiếu PDF luôn có Nội dung chuyển khoản + Ghi chú; tự điền Nội dung CK chuẩn khi sổ trống.
 - ✅ 2026.9.30: Bảng Kê Chi Tiết CK từ ChiTietDNTT; Báo cáo Chi Tiết lọc theo Ngày CK; nút In phiếu hoàn thành thanh toán (Ngày CK). ⏳ Hồ sơ cũ chưa có ChiTietDNTT: chạy Hệ Thống › Đồng Bộ Lịch Sử để Bảng Kê và tab Chi Tiết đầy đủ.
 - ✅ 2026.9.29: Xuất báo cáo / MISA chỉ đọc dòng cần (không đọc cả sổ CT, cả file Phiếu Cân); Dọn Dẹp UNC. ⏳ Người dùng đo lại thời gian Xuất Báo Cáo trên Google thật (Hệ Thống › Hiệu Năng).
 - ✅ 2026.9.28: Xuất Báo Cáo ĐNTT nhanh lại (lỗi chậm từ 2026.9.25); font web đồng bộ; nút in phiếu chi tiết thanh toán PDF. ⏳ Kiểm chứng trên Google thật: chuyển HTML → PDF (`getAs`) hiển thị đúng tiếng Việt; người dùng xác nhận các ô ký trên phiếu.

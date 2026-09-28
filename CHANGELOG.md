@@ -2,6 +2,15 @@
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/). Phiên bản theo `NĂM.ĐỢT.SỬA`; thay đổi làm đổi hành vi nghiệp vụ (⚖️) sẽ tăng số ĐỢT và ghi rõ đã được người dùng đồng ý.
 
+## [2026.9.31] — Phiếu PDF luôn có Nội dung chuyển khoản và Ghi chú (người dùng báo 28/09/2026)
+
+### Fixed
+- **Phiếu chi tiết hoàn thành thanh toán** (và Phiếu chi tiết thanh toán ở Nháp) thiếu Ghi chú: mục ghi chú chỉ in khi có dữ liệu và mang tên “Diễn giải”. Nay luôn in 2 dòng **Nội dung chuyển khoản** và **Ghi chú** (mỗi phần ghi chú 1 dòng; trống thì “—”).
+- Hồ sơ có ô Nội dung CK trong sổ 112 trống: phiếu (và modal Chi tiết hồ sơ) tự điền nội dung chuẩn “Thanh toán tiền mua gỗ keo HĐ số … ngày …” theo Số HĐ + Ngày ký HĐ. Công thức gom 1 hàm `_noiDungCK_`, Tổng Hợp 112 dùng chung (trước đây viết thẳng trong Tổng Hợp 112).
+
+### Tests
+- 158 test (thêm: phiếu hoàn thành in Nội dung CK + Ghi chú; tự điền Nội dung CK khi sổ trống — thất bại trên 2026.9.30).
+
 ## [2026.9.30] — Bảng Kê lấy từ ChiTietDNTT, Báo cáo Chi Tiết lọc theo Ngày CK, Phiếu hoàn thành thanh toán (người dùng chốt 28/09/2026)
 
 ### Changed
