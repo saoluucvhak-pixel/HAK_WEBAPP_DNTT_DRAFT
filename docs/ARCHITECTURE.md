@@ -1,4 +1,4 @@
-# ARCHITECTURE — HAK Quản Lý Thanh Toán (v2026.9.28)
+# ARCHITECTURE — HAK Quản Lý Thanh Toán (v2026.9.29)
 
 > Tài liệu sống: cập nhật mỗi khi đổi module, lớp, luồng dữ liệu hoặc schema.
 > Phân tích chi tiết hiện trạng: `docs/PROJECT_ANALYSIS.md`. Kiến trúc đích: `docs/REFACTOR_PLAN.md` §3–§4.
@@ -166,6 +166,8 @@ Chỉ khi khoảng ngày **chạm năm đã đăng ký**; báo cáo năm đang m
   Mặc định khi Cài đặt để trống: `VUNG_MAC_DINH` (US / VN).
 - **QUY ĐỊNH CĂN LỀ** (người dùng chốt 28/09/2026, toàn web app): cột toàn **số** căn **phải**; **tên, chuỗi** căn **trái**; tiêu đề căn giữa. File xuất: `_canhLeTheoKieu_(sheet, dòngĐầu, rows)` theo kiểu giá trị (số, hoặc chuỗi Sheets tự đổi thành số → phải; chuỗi có dấu ' / số 0 đầu như Số TK, CCCD, Số HĐ → trái) — gọi ở mọi hàm xuất. Web: `_canhLeBangWeb_` tự chạy cho mọi bảng mới vẽ, thêm class `num` cho cột toàn số (`_LA_SO_WEB_`: có dấu phân cách hoặc 1–3 chữ số; dãy số dài không phân cách là mã → trái), chỉ thêm không gỡ.
 - **FONT & CỠ CHỮ**: web 1 font `--font-chu` cho chữ và số (số `tabular-nums`). File xuất Bảng Đề Xuất cỡ `BANG_DE_XUAT.CO_CHU` (11), độ rộng cột đo theo chữ (`_rongCotVua_`), chiều cao dòng đặt theo nhóm (`_datChieuCaoDong_`, tối đa `NHOM_CAO_TOI_DA` lệnh) — **không gọi API Sheets theo từng dòng** trong hàm xuất.
+- **ĐỌC THEO KHÓA**: chức năng chỉ cần vài chục/trăm dòng (xuất báo cáo hồ sơ đã chọn, MISA theo Ngày CK) **không đọc cả sheet**: `_docDongTheoKhoa_(sh, cộtKhóa, rộng, khớp)` đọc 1 cột khóa rồi các đoạn dòng khớp (`DOC_THEO_KHOA`). Dùng qua `_ctDongCuaHoSo_`, `_ctTheoNgayCK_`, `_pcTheoSoPhieu_`. Quét cả sổ chỉ dành cho công nợ/phân tích/bảo trì (cần mọi dòng).
+- **DỌN DẸP** (MISA, UNC): `_donDep_(cấu hình, chayThat)` — xem trước, rồi trong khóa hệ thống quét lại, sao lưu (`_saoLuuVaXoaDong_`), xóa; mỗi sổ chỉ viết hàm chọn dòng (`_boChonMisaDonDep_`, `_boChonUncDonDep_`).
 - **Phiếu PDF**: `webInPhieuChiTietThanhToan_` dựng HTML từ `getDraftRecordDetail_` → `Utilities.newBlob(html).getAs("application/pdf")` → thư mục Báo cáo. Số/ngày theo Vùng xuất (`_soHienThi_(n, soLe, preset)`, `_ngayGioXuat_`).
 - **SL dự kiến hợp đồng** (`_slDuKienHopDong_`): tổng `KhoiLuongDuKien` các lô rừng sheet HD_RUNG (file Hợp Đồng, theo ID_HD, cột tra theo tiêu đề — `_klDuKienTheoIdHD_`), không có lô rừng thì cột Z “SL_Dự kiến” HD_NCC. Áp dụng khi dựng bản sao HD_NCC và báo cáo công nợ theo hợp đồng. Ngày thanh toán lúc Duyệt gửi `yyyy-mm-dd`; `_parseNgayTheoVung_` từ chối ngày không có thật.
 - Theo ngày cân / lũy kế đến ngày D (Phân tích, Công nợ KH, Sổ chi tiết KH, Công nợ phiếu cân tại D): `(f hoặc D, "")` — năm khóa sổ **từ** năm đó trở đi; năm khóa sổ trước đó chỉ mang sang phiếu chưa trả (lũy kế tính từ đầu năm của “Từ ngày”, công nợ không đổi).

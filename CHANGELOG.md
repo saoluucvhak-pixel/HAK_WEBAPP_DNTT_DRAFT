@@ -2,6 +2,21 @@
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/). Phiên bản theo `NĂM.ĐỢT.SỬA`; thay đổi làm đổi hành vi nghiệp vụ (⚖️) sẽ tăng số ĐỢT và ghi rõ đã được người dùng đồng ý.
 
+## [2026.9.29] — Xuất báo cáo chỉ đọc dòng cần, Dọn Dẹp UNC (người dùng báo 28/09/2026)
+
+### Fixed
+- **Xuất Báo Cáo (đã chọn)** ở Báo Cáo Thanh Toán chậm (~108 giây với 30 hồ sơ, có lần Google dừng vì quá 6 phút): mỗi lần xuất đọc **cả sổ CT và cả file Phiếu Cân** chỉ để lấy vài chục dòng. Nay đọc 1 cột mã rồi chỉ đọc các dòng của hồ sơ đã chọn và đúng các phiếu cân của chúng (`_docDongTheoKhoa_`; dòng gần nhau gộp 1 lần đọc, tối đa 40 lần). Dữ liệu thử 1 năm (30.000 phiếu, 20.000 dòng CT), 30 hồ sơ: **1,16 triệu → 57 nghìn ô**.
+- Áp dụng cùng cách cho mọi chức năng dùng chung phần này: Tạo lại / Tạo bổ sung MISA, In Báo Cáo ĐNTT (bản chờ duyệt), và **Báo Cáo MISA** theo Ngày CK (chỉ đọc dòng CT có Ngày CK trong khoảng: 440 → 58 nghìn ô). Sổ năm đã khóa đọc như cũ. Kết quả không đổi (test so với cách quét cả sổ).
+
+### Added
+- **Hệ Thống › 🧹 Dọn Dẹp UNC** (cạnh Tạo Lại UNC), cùng cách với Dọn Dẹp MISA: theo khoảng **Thời gian tạo** (như Báo Cáo UNC); 3 loại — **Trùng hồ sơ** (giữ lần tạo UNC mới nhất, đúng dòng Báo Cáo UNC đang hiện), **Mồ côi** (hồ sơ không còn trong sổ 112 / Nháp), **Tất cả trong khoảng ngày**. Luôn xem trước; xóa có sao lưu, khôi phục được (nhãn “🧹 Dọn UNC”), ghi Lịch sử sửa đổi. Chỉ xóa dòng lịch sử ChiTietUNC, không đụng file UNC đã gửi ngân hàng. Quyền: Hệ Thống (như Dọn Dẹp MISA). Thay quyết định “không thêm nút xóa cho UNC” ở 2026.9.15 theo yêu cầu người dùng.
+
+### Changed
+- Dọn Dẹp MISA và UNC dùng chung khung `_donDep_` (xem trước → khóa hệ thống → sao lưu → xóa) phía máy chủ và `doDonDep(loai)` phía web — không lặp code.
+
+### Tests
+- 151 test (thêm: đọc theo khóa — đúng dòng, số ô đọc, số lần đọc có giới hạn; Dọn Dẹp UNC — xem trước, trùng/mồ côi/tất cả, khôi phục, quyền — thất bại trên 2026.9.28). Kiểm tra trình duyệt: Hệ Thống › Dọn Dẹp UNC / MISA.
+
 ## [2026.9.28] — Xuất báo cáo nhanh lại, font đồng bộ, in phiếu chi tiết thanh toán PDF (người dùng báo 28/09/2026)
 
 ### Fixed

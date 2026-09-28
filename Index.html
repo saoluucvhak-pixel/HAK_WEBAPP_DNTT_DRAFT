@@ -534,7 +534,7 @@
       <div class="nav-item" role="button" tabindex="0" data-page="settings"><span class="ic">⚙️</span> Cài đặt / Nháp</div>
     </nav>
     <div class="nguoi-dung-chip" id="nguoi-dung-chip"></div>
-    <div class="sidebar-footer">Hệ thống Quản Lý Thanh Toán · v2026.9.28<br><button type="button" class="theme-toggle" id="theme-toggle" aria-label="Đổi giao diện sáng / tối">🌓 Giao diện: Tự động</button></div>
+    <div class="sidebar-footer">Hệ thống Quản Lý Thanh Toán · v2026.9.29<br><button type="button" class="theme-toggle" id="theme-toggle" aria-label="Đổi giao diện sáng / tối">🌓 Giao diện: Tự động</button></div>
   </aside>
 
   <main class="main">
@@ -619,7 +619,7 @@ function hanhDong(ten, ...thamSo){ return hanhDongKhi('click', ten, ...thamSo); 
 const HANH_DONG = {
   goToLedgerFor, openLedgerFor, pickChuRung, pickModongChuRung,
   viewDraftDetail, editDraftRecord, confirmDeleteDraft, doHuyXacNhan, saveDraftEdit,
-  removePhieuCan, searchPhieuCanForEdit, inPhieuChiTietThanhToan,
+  removePhieuCan, searchPhieuCanForEdit, inPhieuChiTietThanhToan, doDonDep,
   toggleShareBox, doSwapLink, doShareLink, doRevokeLink
 };
 ['click', 'mousedown'].forEach(loai => document.addEventListener(loai, e => {
@@ -2887,24 +2887,29 @@ function doTaoLaiMisaTheoNgay(){
   chayMotLot();
 }
 
-function _thamSoDonDepMisa(){
-  return ['che', 'from', 'to'].map(k => document.getElementById('dondepmisa-' + k).value);
-}
+/** Dọn dẹp MISA / UNC (Hệ Thống): cùng 1 luồng xem trước -> xác nhận -> xóa có sao lưu.
+ * Mỗi loại chỉ khác chức năng máy chủ, tên ngày và các cột xem trước. */
+const DON_DEP_WEB = {
+  misa: { fn: 'webDonDepMisa', ten: 'MISA', ngay: 'Ngày CK',
+    cot: [['Số phiếu cân', d => esc(d.soPhieuCan)], ['Ngày hạch toán', d => esc(d.ngayHachToan)], ['Chủ rừng', d => esc(d.hoTenChuRung)], ['Thành tiền', d => fmtMoney(d.thanhTien), 'num']] },
+  unc: { fn: 'webDonDepUnc', ten: 'UNC', ngay: 'Thời gian tạo',
+    cot: [['Mã hồ sơ', d => esc(d.idHeThong)], ['Thời gian tạo', d => esc(d.thoiGianTao)], ['Chủ rừng', d => esc(d.chuRung)], ['Người nhận', d => esc(d.tenNguoiNhan)], ['Số tiền', d => fmtMoney(d.soTien), 'num']] }
+};
 /** Đổi điều kiện sau khi xem trước -> bỏ kết quả cũ (nút Xóa chỉ đi với đúng điều kiện đã xem). */
-function _xoaKetQuaDonDepMisa(){ document.getElementById('dondepmisa-result').innerHTML = ''; }
+function _xoaKetQuaDonDep(loai){ const box = document.getElementById('dondep' + loai + '-result'); if (box) box.innerHTML = ''; }
 /** chayThat = false: xem trước (không đổi dữ liệu); true: xóa sau khi xác nhận. */
-function doDonDepMisa(chayThat){
-  const [che, f, t] = _thamSoDonDepMisa();
+function doDonDep(loai, chayThat){
+  const cf = DON_DEP_WEB[loai];
+  const [che, f, t] = ['che', 'from', 'to'].map(k => document.getElementById('dondep' + loai + '-' + k).value);
   if (!f || !t) { toast('Vui lòng chọn đủ Từ ngày/Đến ngày.', 'warn'); return; }
-  const box = document.getElementById('dondepmisa-result');
-
+  const box = document.getElementById('dondep' + loai + '-result');
   if (!box) return; // đã rời tab trước khi dữ liệu về
   if (chayThat) {
-    const nhan = document.getElementById('dondepmisa-che').selectedOptions[0].textContent;
-    if (!confirm(`Xóa các dòng MISA "${nhan}" có Ngày CK ${f} → ${t}?\n\nDòng bị xóa được sao lưu, khôi phục được ở Hệ Thống › Khôi Phục Dữ Liệu Đã Xóa.`)) return;
+    const nhan = document.getElementById('dondep' + loai + '-che').selectedOptions[0].textContent;
+    if (!confirm(`Xóa các dòng ${cf.ten} "${nhan}" có ${cf.ngay} ${f} → ${t}?\n\nDòng bị xóa được sao lưu, khôi phục được ở Hệ Thống › Khôi Phục Dữ Liệu Đã Xóa.`)) return;
   }
   box.innerHTML = `<div class="empty"><div class="ic">⏳</div>${chayThat ? 'Đang xóa...' : 'Đang quét...'}</div>`;
-  call('webDonDepMisa', [che, f, t, !!chayThat], null).then(res => {
+  call(cf.fn, [che, f, t, !!chayThat], null).then(res => {
     if (!res || !res.success) {
       box.innerHTML = `<div class="empty"><div class="ic">⚠️</div>${esc((res && res.message) || 'Thất bại.')}</div>`;
       return;
@@ -2915,11 +2920,12 @@ function doDonDepMisa(chayThat){
       return;
     }
     if (!res.soDong) { box.innerHTML = `<div class="empty"><div class="ic">✅</div>${esc(res.message)}</div>`; return; }
-    const dongHtml = res.dong.map(d => `<tr><td>${esc(d.soPhieuCan)}</td><td>${esc(d.ngayHachToan)}</td><td>${esc(d.hoTenChuRung)}</td><td class="num">${fmtMoney(d.thanhTien)}</td><td>${esc(d.lyDo)}</td></tr>`).join('');
+    const dau = cf.cot.map(([ten, , lop]) => `<th${lop ? ` class="${lop}"` : ''}>${ten}</th>`).join('') + '<th>Lý do</th>';
+    const dongHtml = res.dong.map(d => '<tr>' + cf.cot.map(([, ve, lop]) => `<td${lop ? ` class="${lop}"` : ''}>${ve(d)}</td>`).join('') + `<td>${esc(d.lyDo)}</td></tr>`).join('');
     const conNua = res.soDong > res.dong.length ? `<p class="muted" style="font-size:12px">Hiển thị ${res.dong.length}/${res.soDong} dòng đầu.</p>` : '';
     box.innerHTML = `<p><b>${esc(res.message)}</b></p>${conNua}
-      <div style="overflow-x:auto"><table><thead><tr><th>Số phiếu cân</th><th>Ngày hạch toán</th><th>Chủ rừng</th><th>Thành tiền</th><th>Lý do</th></tr></thead><tbody>${dongHtml}</tbody></table></div>
-      <button class="btn danger" style="margin-top:8px" onclick="doDonDepMisa(true)">🗑️ Xóa ${res.soDong} dòng</button>`;
+      <div style="overflow-x:auto"><table><thead><tr>${dau}</tr></thead><tbody>${dongHtml}</tbody></table></div>
+      <button class="btn danger" style="margin-top:8px" ${hanhDong('doDonDep', loai, true)}>🗑️ Xóa ${res.soDong} dòng</button>`;
   });
 }
 
@@ -4028,15 +4034,15 @@ function renderHeThong(){
       <h4 style="margin:18px 0 6px">🧹 Dọn Dẹp MISA</h4>
       <p class="muted" style="font-size:13px">Xóa dòng thừa trong Update_NganHang_DN theo khoảng Ngày CK. Luôn bấm <b>Xem trước</b> để kiểm tra danh sách; khi xóa, dòng được sao lưu và khôi phục được ở <b>Khôi Phục Dữ Liệu Đã Xóa</b>.</p>
       <div class="grid cols-3">
-        <div class="field"><label>Loại dòng cần xóa</label><select id="dondepmisa-che" onchange="_xoaKetQuaDonDepMisa()">
+        <div class="field"><label>Loại dòng cần xóa</label><select id="dondepmisa-che" onchange="_xoaKetQuaDonDep('misa')">
           <option value="trung">Trùng Số phiếu cân (giữ dòng đầu)</option>
           <option value="moCoi">Mồ côi (Số phiếu cân không còn trong sổ đã chốt)</option>
           <option value="tatCa">Tất cả dòng trong khoảng ngày</option>
         </select></div>
-        <div class="field"><label>Từ ngày (Ngày CK)</label><input type="date" id="dondepmisa-from" value="${isoDaysAgoVN(7)}" onchange="_xoaKetQuaDonDepMisa()"></div>
-        <div class="field"><label>Đến ngày</label><input type="date" id="dondepmisa-to" value="${todayISOVN()}" onchange="_xoaKetQuaDonDepMisa()"></div>
+        <div class="field"><label>Từ ngày (Ngày CK)</label><input type="date" id="dondepmisa-from" value="${isoDaysAgoVN(7)}" onchange="_xoaKetQuaDonDep('misa')"></div>
+        <div class="field"><label>Đến ngày</label><input type="date" id="dondepmisa-to" value="${todayISOVN()}" onchange="_xoaKetQuaDonDep('misa')"></div>
       </div>
-      <button class="btn" onclick="doDonDepMisa(false)">🔍 Xem trước</button>
+      <button class="btn" onclick="doDonDep('misa', false)">🔍 Xem trước</button>
       <div id="dondepmisa-result" style="margin-top:10px"></div>
     </div>
     <div class="card" style="border-color:var(--timber)">
@@ -4053,6 +4059,19 @@ function renderHeThong(){
       </div>
       <button class="btn" style="background:var(--timber);color:#fff;border-color:var(--timber)" onclick="doTaoLaiUncTheoNgay()">🔧 Tạo Lại Ngay</button>
       <div id="taolaiuncht-result" style="margin-top:10px"></div>
+      <h4 style="margin:18px 0 6px">🧹 Dọn Dẹp UNC</h4>
+      <p class="muted" style="font-size:13px">Xóa dòng thừa trong lịch sử UNC (ChiTietUNC - dữ liệu của Báo Cáo UNC) theo khoảng <b>Thời gian tạo</b>. Không xóa file UNC đã gửi ngân hàng. Luôn bấm <b>Xem trước</b>; khi xóa, dòng được sao lưu và khôi phục được ở <b>Khôi Phục Dữ Liệu Đã Xóa</b>.</p>
+      <div class="grid cols-3">
+        <div class="field"><label>Loại dòng cần xóa</label><select id="dondepunc-che" onchange="_xoaKetQuaDonDep('unc')">
+          <option value="trung">Trùng hồ sơ (giữ lần tạo UNC mới nhất)</option>
+          <option value="moCoi">Mồ côi (hồ sơ không còn trong sổ 112 / Nháp)</option>
+          <option value="tatCa">Tất cả dòng trong khoảng ngày</option>
+        </select></div>
+        <div class="field"><label>Từ ngày (Thời gian tạo)</label><input type="date" id="dondepunc-from" value="${isoDaysAgoVN(7)}" onchange="_xoaKetQuaDonDep('unc')"></div>
+        <div class="field"><label>Đến ngày</label><input type="date" id="dondepunc-to" value="${todayISOVN()}" onchange="_xoaKetQuaDonDep('unc')"></div>
+      </div>
+      <button class="btn" onclick="doDonDep('unc', false)">🔍 Xem trước</button>
+      <div id="dondepunc-result" style="margin-top:10px"></div>
     </div>
   `;
   loadLichSuSuaDoi();
@@ -4134,7 +4153,8 @@ const NHAN_HANH_DONG = {
   KHOA_SO_NAM: '🔒 Khóa Sổ Năm',
   XOA_NHAP: '🗑️ Xóa hồ sơ Nháp',
   TAO_LAI_UNC: '🔁 Tạo lại UNC (thay bản cũ)',
-  XOA_MISA: '🧹 Dọn MISA'
+  XOA_MISA: '🧹 Dọn MISA',
+  XOA_UNC: '🧹 Dọn UNC'
 };
 function doKhoaSoNam(chayThat){
   const box = document.getElementById('khoaso-result');
