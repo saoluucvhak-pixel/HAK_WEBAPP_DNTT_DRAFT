@@ -319,7 +319,9 @@ export function createGasEnvironment({ activeSpreadsheet, spreadsheets = [], pro
     return out;
   };
 
+  const driveFiles = []; // file đã lưu vào Drive (createFile)
   const env = {
+    driveFiles,
     SpreadsheetApp,
     PropertiesService: { getScriptProperties: () => scriptProps, getUserProperties: () => makeStore(), getDocumentProperties: () => makeStore() },
     CacheService: { getScriptCache: () => scriptCache, getUserCache: () => makeCache(), getDocumentCache: () => makeCache() },
@@ -328,7 +330,11 @@ export function createGasEnvironment({ activeSpreadsheet, spreadsheets = [], pro
       formatDate,
       getUuid: () => randomUUID(),
       sleep: () => {},
-      newBlob: (s) => ({ getDataAsString: () => toBuffer(typeof s === 'string' ? s : s).toString('utf8'), getBytes: () => Array.from(toBuffer(s)) }),
+      newBlob: (s, loai, ten) => ({
+        getDataAsString: () => toBuffer(typeof s === 'string' ? s : s).toString('utf8'), getBytes: () => Array.from(toBuffer(s)),
+        // HTML -> PDF: giữ nguồn HTML để test đọc nội dung phiếu.
+        getAs: (mime) => ({ mime, nguon: s, name: ten, setName(n) { this.name = n; return this; } })
+      }),
       computeDigest: () => [],
       computeHmacSha256Signature: (value, key) => Array.from(createHmac('sha256', toBuffer(key)).update(toBuffer(value)).digest()).map(b => (b > 127 ? b - 256 : b)),
       base64Encode: s => toBuffer(s).toString('base64'),
@@ -343,7 +349,10 @@ export function createGasEnvironment({ activeSpreadsheet, spreadsheets = [], pro
       getScriptTimeZone: () => 'Asia/Ho_Chi_Minh'
     },
     DriveApp: {
-      getFolderById: () => ({ addFile() {}, createFile() { return {}; } }),
+      getFolderById: () => ({ addFile() {}, createFile(blob) {
+        driveFiles.push(blob);
+        return { setName(n) { blob.name = n; return this; }, getUrl: () => 'https://drive.test/' + encodeURIComponent(blob && blob.name || '') };
+      } }),
       getFileById: () => ({ getId: () => 'file', getUrl: () => 'url', moveTo() {}, getParents: () => ({ hasNext: () => false }) }),
       getRootFolder: () => ({ removeFile() {} })
     },

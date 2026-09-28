@@ -16,3 +16,18 @@ test('web tables: codes, dates and names are text', () => {
   for (const v of ['4230205094617', '048074003768', '9941', '20260901002', '28/09/2026', '2026-09-28', 'NGUYỄN VĂN BÌNH', 'PC001', '9941/2026/NK', 'HĐ 293', '0123'])
     assert.ok(!laSo.test(v), v);
 });
+
+// Người dùng báo 28/09/2026: "FONT CHỮ KG ĐỒNG BỘ" - số dùng cùng font với chữ.
+test('web: one font for text and numbers (numbers keep aligned digits)', () => {
+  assert.doesNotMatch(INDEX, /IBM Plex Mono|IBM\+Plex\+Mono/, 'no second font for numbers');
+  assert.match(INDEX, /--font-chu:'Inter',sans-serif;/);
+  assert.match(INDEX, /td\.num, th\.num\{text-align:right; font-family:var\(--font-chu\); font-variant-numeric:tabular-nums;\}/);
+});
+
+test('record detail modal: contract volumes in tonnes and a PDF print button', () => {
+  const m = /function viewDraftDetail\(idKey\)\{[\s\S]*?\n\}/.exec(INDEX)[0];
+  assert.match(m, /fmtKl\(r\.conLai\)\} tấn/);
+  assert.doesNotMatch(m, /\} kg</);
+  assert.match(m, /hanhDong\('inPhieuChiTietThanhToan', r\.idKey\)/);
+  assert.match(INDEX, /searchPhieuCanForEdit, inPhieuChiTietThanhToan,/, 'action registered');
+});

@@ -2,6 +2,24 @@
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/). Phiên bản theo `NĂM.ĐỢT.SỬA`; thay đổi làm đổi hành vi nghiệp vụ (⚖️) sẽ tăng số ĐỢT và ghi rõ đã được người dùng đồng ý.
 
+## [2026.9.28] — Xuất báo cáo nhanh lại, font đồng bộ, in phiếu chi tiết thanh toán PDF (người dùng báo 28/09/2026)
+
+### Fixed
+- **Xuất Báo Cáo ĐNTT rất chậm** (247–325 giây với 2141 hồ sơ). Nguyên nhân: bản 2026.9.25 đặt chiều cao **từng dòng** một (2141 lệnh gọi Google). Nay gom các dòng liền nhau cùng chiều cao thành 1 lệnh; quá 30 nhóm thì cả bảng dùng 1 chiều cao chung (cao nhất). Căn lề đặt theo **từng cột** thay vì gửi cả ma trận; tra hồ sơ bằng Map thay vì tìm lần lượt. Số lệnh gọi khi xuất 2141 hồ sơ: **2329 → 213** (không đổi theo số hồ sơ).
+- Lỗi trình duyệt `Cannot read properties of null (reading 'classList')` ở `renderBaoCaoUncFilterOptions` (và 18 chỗ tương tự): dữ liệu về khi đã rời tab thì bỏ qua, không báo lỗi.
+- Modal **Chi tiết hồ sơ**: SL HĐ Dự Kiến / Lũy Kế / Còn Lại ghi đơn vị **tấn** (trước ghi nhầm “kg”).
+
+### Changed
+- **Font đồng bộ**: web app dùng 1 font (Inter) cho cả chữ và số; số giữ chữ số đều cột (`tabular-nums`) — bỏ font số riêng IBM Plex Mono. Biến `--font-chu`.
+- **Bảng Đề Xuất** (Báo Cáo ĐNTT): cả bảng cùng cỡ chữ 11 (`BANG_DE_XUAT.CO_CHU`); mọi cột rộng **vừa nội dung** theo đo chữ Arial 11 (Họ tên Chủ rừng, Người nhận tiền đủ rộng cho tên dài; cột **Lần** hẹp lại). Tên đơn vị đầu báo cáo gom 1 hằng `TEN_DON_VI_BAO_CAO`.
+
+### Added
+- Nút **🖨️ In phiếu chi tiết thanh toán (PDF)** trong modal Chi tiết hồ sơ: phiếu gồm chủ rừng, người nhận, ngân hàng/STK, số HĐ, SL HĐ (tấn), số tiền, nội dung CK, diễn giải, bảng phiếu cân kèm dòng tổng, ô ký (Người lập phiếu / Kế toán trưởng / Giám đốc). Ngày giờ và số theo **Vùng xuất**; số căn phải, chữ căn trái. File lưu vào thư mục Báo cáo; nút đổi thành “📄 Mở phiếu PDF”. Quyền: nghiệp vụ (như xem chi tiết hồ sơ). `webInPhieuChiTietThanhToan_`, thông số `PHIEU_CT_TT`.
+- `REGION_PRESETS` có thêm dấu phân cách nghìn/thập phân theo vùng (VN `.` `,` — US `,` `.`).
+
+### Tests
+- 144 test (thêm: phiếu PDF — lưu Drive, nội dung, số theo Vùng xuất VN/US, chặn chèn HTML, hồ sơ không tồn tại, quyền; font web đồng bộ, đơn vị tấn và nút in trong modal; số lệnh chỉnh chiều cao dòng khi xuất 2000 hồ sơ ≤ 31 — thất bại trên 2026.9.27). Mock lưu file Drive và chuyển HTML → PDF. Kiểm tra trình duyệt: modal Chi tiết hồ sơ và phiếu PDF.
+
 ## [2026.9.27] — Quy tắc căn lề toàn web app (người dùng yêu cầu 28/09/2026)
 
 ### Changed

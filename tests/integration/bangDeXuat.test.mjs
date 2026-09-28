@@ -37,7 +37,7 @@ test('the transfer text is always exactly two balanced lines', () => {
   const o = sh.rows(11)[4][9];
   const dong = o.split('\n').map(d => d.trim());
   assert.deepEqual(dong, ['Thanh toán tiền mua gỗ keo', 'HĐ số 20260901002 ngày 01.09.2026'], 'balanced, "HĐ số" kept with the number');
-  assert.ok(sh.colWidths[10] >= Math.ceil(Math.max(...dong.map(d => d.length)) * 8.2), 'column wide enough that each half stays on one line');
+  assert.ok(sh.colWidths[10] >= 248 + 8, 'column wide enough that each half stays on one line (longest half measured 248px in Arial 11pt)');
 });
 
 test('names and text are left-aligned, numbers right-aligned (header stays centred)', () => {
@@ -81,4 +81,26 @@ test('every export file follows the alignment rule (numbers right, text left)', 
   kiem(mo(run('exportChiTietDNTTDaChotExcel_')('2026-09-01', '2026-09-30')).getSheets()[0], 2, 'detail report');
   const misa = mo(run('exportMisaTheoNgayExcel_')('2026-09-01', '2026-09-30')).getSheets();
   kiem(misa[0], 2, 'MISA'); kiem(misa[1], 2, 'MISA summary');
+});
+
+test('one font size for the whole table; name columns fit the names; "Lần" is narrow', () => {
+  const sh = ve();
+  assert.equal(sh.colWidths[3] < 50, true, '"Lần" column narrow');
+  assert.ok(sh.colWidths[4] >= 100 && sh.colWidths[5] >= 150, 'names fit ("NGUYỄN QUỐC PHỤNG" ~168px at 11pt)');
+});
+
+test('a large report (2,000 records) sets row heights with a handful of calls, not one per row', () => {
+  const w = buildWorld();
+  const { run, env } = loadCode(w.options);
+  const sh = env.SpreadsheetApp.create('BIG').getSheets()[0];
+  let goi = 0;
+  const goc = sh.setRowHeights.bind(sh), goc1 = sh.setRowHeight.bind(sh);
+  sh.setRowHeights = (...a) => { goi++; return goc(...a); };
+  sh.setRowHeight = (...a) => { goi++; return goc1(...a); };
+  const rows = Array.from({ length: 2000 }, (_, i) => ({ ngayISO: '2026-09-28', soLan: '1', chuRung: 'CHỦ RỪNG ' + i, nguoiNhan: 'NGƯỜI NHẬN ' + i, stk: '4230205094617',
+    nganHang: 'AGRIBANK', klTan: 10 + (i % 150), soTien: 1e7, noiDungCK: `Thanh toán tiền mua gỗ keo HĐ số 2026090${i % 10}002 ngày 01.09.2026`,
+    ghiChu: `Tổng KL: ${100 + i} | Đã trả: 90 | Còn lại: ${10 + (i % 150)} | Đề nghị đợt này: ${10 + (i % 150)} | Phiếu: ${9000 + i}` }));
+  run('renderSheet1Full_')(sh, rows, 'x');
+  assert.ok(goi <= 31, `row height calls: ${goi}`);
+  assert.ok(Object.keys(sh.rowHeights).length >= 2000, 'every data row has a height');
 });

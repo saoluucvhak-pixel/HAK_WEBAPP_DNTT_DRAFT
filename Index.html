@@ -6,9 +6,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Quản Lý Thanh Toán HAK</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,500;8..60,600;8..60,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,500;8..60,600;8..60,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     :root{
+      /* Một font chữ cho toàn web app (chữ và số); số dùng chữ số đều cột (tabular-nums). */
+      --font-chu:'Inter',sans-serif;
       --paper:#f3f4f6;
       --paper-2:#f3f4f6;
       --ink:#1f2937;
@@ -33,7 +35,7 @@
     *{box-sizing:border-box;}
     html,body{margin:0;padding:0;height:100%;}
     body{
-      font-family:'Inter',sans-serif;
+      font-family:var(--font-chu);
       background:var(--paper);
       color:var(--ink);
       display:flex;
@@ -41,7 +43,7 @@
     }
     ::selection{background:var(--moss-light);}
     h1,h2,h3,.serif{font-family:'Source Serif 4',serif;}
-    .mono{font-family:'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums;}
+    .mono{font-family:var(--font-chu);font-variant-numeric:tabular-nums;}
     a{color:inherit;}
     button{font-family:inherit;}
 
@@ -156,7 +158,7 @@
       padding:18px; box-shadow:var(--shadow);
     }
     .stat .label{font-size:11.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-soft); font-weight:600;}
-    .stat .value{font-family:'IBM Plex Mono',monospace; font-size:26px; font-weight:600; color:var(--accent); margin-top:6px;}
+    .stat .value{font-family:var(--font-chu); font-variant-numeric:tabular-nums; font-size:26px; font-weight:600; color:var(--accent); margin-top:6px;}
     .stat .value.timber{color:var(--timber);}
     .stat .hint{font-size:11.5px; color:var(--ink-soft); margin-top:4px;}
 
@@ -219,7 +221,7 @@
     tbody td{padding:11px 10px; border-bottom:1px solid var(--paper-2); vertical-align:middle;}
     tbody tr:hover{background:var(--paper-2);}
     tbody tr:last-child td{border-bottom:none;}
-    td.num, th.num{text-align:right; font-family:'IBM Plex Mono',monospace;}
+    td.num, th.num{text-align:right; font-family:var(--font-chu); font-variant-numeric:tabular-nums;}
 
     .badge{
       display:inline-flex; align-items:center; gap:5px;
@@ -532,7 +534,7 @@
       <div class="nav-item" role="button" tabindex="0" data-page="settings"><span class="ic">⚙️</span> Cài đặt / Nháp</div>
     </nav>
     <div class="nguoi-dung-chip" id="nguoi-dung-chip"></div>
-    <div class="sidebar-footer">Hệ thống Quản Lý Thanh Toán · v2026.9.27<br><button type="button" class="theme-toggle" id="theme-toggle" aria-label="Đổi giao diện sáng / tối">🌓 Giao diện: Tự động</button></div>
+    <div class="sidebar-footer">Hệ thống Quản Lý Thanh Toán · v2026.9.28<br><button type="button" class="theme-toggle" id="theme-toggle" aria-label="Đổi giao diện sáng / tối">🌓 Giao diện: Tự động</button></div>
   </aside>
 
   <main class="main">
@@ -617,7 +619,7 @@ function hanhDong(ten, ...thamSo){ return hanhDongKhi('click', ten, ...thamSo); 
 const HANH_DONG = {
   goToLedgerFor, openLedgerFor, pickChuRung, pickModongChuRung,
   viewDraftDetail, editDraftRecord, confirmDeleteDraft, doHuyXacNhan, saveDraftEdit,
-  removePhieuCan, searchPhieuCanForEdit,
+  removePhieuCan, searchPhieuCanForEdit, inPhieuChiTietThanhToan,
   toggleShareBox, doSwapLink, doShareLink, doRevokeLink
 };
 ['click', 'mousedown'].forEach(loai => document.addEventListener(loai, e => {
@@ -1217,7 +1219,7 @@ function renderDashboard(){
   <div class="grid cols-2" style="margin-top:14px">
     <div class="card">
       <h3>Tổng Nợ Tiền Gỗ Keo</h3>
-      <div class="value" id="s-tong-no" style="font-family:'IBM Plex Mono',monospace; font-size:26px; font-weight:600; color:var(--danger)">–</div>
+      <div class="value" id="s-tong-no" style="font-variant-numeric:tabular-nums; font-size:26px; font-weight:600; color:var(--danger)">–</div>
       <div class="muted" style="font-size:12px; margin-top:4px">VNĐ - cộng dồn công nợ còn lại của TẤT CẢ khách hàng (khoảng 90 ngày gần nhất), chỉ tính khách hàng còn nợ</div>
       <div class="hint-text" id="s-congno-cap-nhat" style="margin-top:6px"></div>
     </div>
@@ -2241,7 +2243,7 @@ function viewDraftDetail(idKey){
         <div class="kv"><span class="k">Người nhận</span><span class="v">${esc(r.nguoiNhan)}</span></div>
         <div class="kv"><span class="k">Ngân hàng / STK</span><span class="v">${esc(r.nganHang)} · ${esc(r.stk)}</span></div>
         <div class="kv"><span class="k">Số hợp đồng</span><span class="v">${esc(r.soHD)}</span></div>
-        <div class="kv"><span class="k">SL HĐ Dự Kiến / Lũy Kế / Còn Lại</span><span class="v mono">${fmtKl(r.slDuKien)} / ${fmtKl(r.slLuyKe)} / ${fmtKl(r.conLai)} kg</span></div>
+        <div class="kv"><span class="k">SL HĐ Dự Kiến / Lũy Kế / Còn Lại</span><span class="v mono">${fmtKl(r.slDuKien)} / ${fmtKl(r.slLuyKe)} / ${fmtKl(r.conLai)} tấn</span></div>
         <div class="kv"><span class="k">Số tiền</span><span class="v mono">${fmtMoney(r.soTien)} đ</span></div>
         ${veDienGiaiHoSo(r)}
         <h3 style="margin:16px 0 8px 0; font-size:14px">Danh sách phiếu cân (${r.chiTiet.length})</h3>
@@ -2259,7 +2261,7 @@ function viewDraftDetail(idKey){
           <div id="edit-pc-results" class="muted" style="font-size:13px;margin-top:8px"></div>
         </div>` : `<div class="hint-text" style="margin-top:16px">Hồ sơ đang ở trạng thái "${r.soTien>0?'Đang ĐNTT':'Chưa ĐNTT'}" - chỉ xem, không thể sửa/xóa phiếu cân. ${r.daXacNhan?'Bấm "Về Chờ ĐNTT" ở danh sách nếu cần sửa.':''}</div>`}
       </div>
-      <div class="modal-foot"><button class="btn ghost" onclick="closeModal()">Đóng</button></div>
+      <div class="modal-foot"><span id="phieu-pdf-slot"><button class="btn" ${hanhDong('inPhieuChiTietThanhToan', r.idKey)}>🖨️ In phiếu chi tiết thanh toán (PDF)</button></span><button class="btn ghost" onclick="closeModal()">Đóng</button></div>
     `);
     if (editable) {
       const inp = document.getElementById('edit-pc-search');
@@ -2270,6 +2272,16 @@ function viewDraftDetail(idKey){
       // "Tạo Mới", khỏi phải mò gõ đúng số phiếu cân mới thấy được.
       searchPhieuCanForEdit(r.idKey, r.chuRung);
     }
+  });
+}
+
+/** Tạo PDF "Phiếu chi tiết thanh toán" của hồ sơ; xong thì nút đổi thành link mở file. */
+function inPhieuChiTietThanhToan(idKey){
+  call('webInPhieuChiTietThanhToan', [idKey], 'Đang tạo phiếu PDF...').then(res => {
+    if (!(res && res.success)) { toast('❌ ' + (res && res.message || 'Không tạo được phiếu PDF.'), 'err'); return; }
+    const slot = document.getElementById('phieu-pdf-slot');
+    if (slot) slot.innerHTML = nutMoFile_(res.pdfUrl, '📄 Mở phiếu PDF', 'btn primary');
+    toast(res.message, 'ok');
   });
 }
 
@@ -2567,6 +2579,8 @@ function doTaoBoSungMisa(){
   if (!coQuyen('NGHIEP_VU')) { toast('❌ Tài khoản của bạn không có quyền tạo bổ sung MISA.', 'err'); return; }
   const f = document.getElementById('misa-from').value, t = document.getElementById('misa-to').value;
   const box = document.getElementById('misa-bosung-result');
+
+  if (!box) return; // đã rời tab trước khi dữ liệu về
   let tong = 0;
   box.innerHTML = '<div class="hint-text">⏳ Đang tạo bổ sung...</div>';
   function chayMotLan(){
@@ -2583,6 +2597,8 @@ function doTaoBoSungMisa(){
 }
 function renderMisaFilterOptions(){
   const card = document.getElementById('misa-filter-card');
+
+  if (!card) return; // đã rời tab trước khi dữ liệu về
   const rows = state.misaRows;
   if (!rows.length) { card.classList.add('hidden'); return; }
   card.classList.remove('hidden');
@@ -2598,6 +2614,8 @@ function renderMisaFilterOptions(){
 }
 function renderMisaResultTable(){
   const box = document.getElementById('misa-result');
+
+  if (!box) return; // đã rời tab trước khi dữ liệu về
   const f = state.misaFilters || {};
   const rows = state.misaRows.filter(r =>
     (!f.hoTenChuRung || r.hoTenChuRung === f.hoTenChuRung) &&
@@ -2673,6 +2691,8 @@ function loadChiTietTab(){
 }
 function renderChiTietFilterOptions(){
   const card = document.getElementById('chitiet-filter-card');
+
+  if (!card) return; // đã rời tab trước khi dữ liệu về
   const rows = state.chiTietRows;
   if (!rows.length) { card.classList.add('hidden'); return; }
   card.classList.remove('hidden');
@@ -2688,6 +2708,8 @@ function renderChiTietFilterOptions(){
 }
 function renderChiTietResultTable(){
   const box = document.getElementById('chitiet-result');
+
+  if (!box) return; // đã rời tab trước khi dữ liệu về
   const f = state.chiTietFilters || {};
   const rows = state.chiTietRows.filter(r =>
     (!f.hoTenChuRung || r.hoTenChuRung === f.hoTenChuRung) &&
@@ -2759,6 +2781,8 @@ function loadBaoCaoUncTab(){
 }
 function renderBaoCaoUncFilterOptions(){
   const card = document.getElementById('baocaounc-filter-card');
+
+  if (!card) return; // đã rời tab trước khi dữ liệu về
   const rows = state.uncRows;
   if (!rows.length) { card.classList.add('hidden'); return; }
   card.classList.remove('hidden');
@@ -2774,6 +2798,8 @@ function renderBaoCaoUncFilterOptions(){
 }
 function renderBaoCaoUncResultTable(){
   const box = document.getElementById('baocaounc-result');
+
+  if (!box) return; // đã rời tab trước khi dữ liệu về
   const f = state.uncFilters || {};
   const rows = state.uncRows.filter(r =>
     (!f.chuRung || r.chuRung === f.chuRung) &&
@@ -2804,6 +2830,8 @@ function doExportBaoCaoUnc(){
 function doDongBoChiTietLichSu(){
   if (!confirm('Quét TOÀN BỘ CT thật để bổ sung dữ liệu lịch sử còn thiếu vào ChiTietDNTT?\n\nVới hệ thống đã dùng lâu, sẽ tự động xử lý THEO LÔ (300 dòng/lượt) và tự gọi lại liên tiếp cho tới khi xong - không cần bấm nhiều lần, không lo timeout. Có thể mất vài phút nếu dữ liệu lớn - cứ để yên tab này cho tới khi thấy "HOÀN TẤT".\n\nBấm OK để tiếp tục.')) return;
   const box = document.getElementById('dongbolichsu-result');
+
+  if (!box) return; // đã rời tab trước khi dữ liệu về
   let tongDaLam = 0, soLot = 0;
   box.innerHTML = '<div class="empty"><div class="ic">⏳</div>Đang bắt đầu đồng bộ...</div>';
 
@@ -2835,6 +2863,8 @@ function doTaoLaiMisaTheoNgay(){
   if (!f || !t) { toast('Vui lòng chọn đủ Từ ngày/Đến ngày.', 'warn'); return; }
   if (!confirm(`Tạo lại MISA cho các hồ sơ thanh toán (Ngày CK) trong khoảng ${f} → ${t}?\n\nHệ thống tự bỏ qua dòng đã có sẵn (không trùng), xử lý theo lô và tự lặp tới khi xong.\n\nBấm OK để tiếp tục.`)) return;
   const box = document.getElementById('taolaimisa-result');
+
+  if (!box) return; // đã rời tab trước khi dữ liệu về
   let offset = 0, tongDaGhi = 0, soLot = 0;
   box.innerHTML = '<div class="empty"><div class="ic">⏳</div>Đang bắt đầu...</div>';
   function chayMotLot(){
@@ -2867,6 +2897,8 @@ function doDonDepMisa(chayThat){
   const [che, f, t] = _thamSoDonDepMisa();
   if (!f || !t) { toast('Vui lòng chọn đủ Từ ngày/Đến ngày.', 'warn'); return; }
   const box = document.getElementById('dondepmisa-result');
+
+  if (!box) return; // đã rời tab trước khi dữ liệu về
   if (chayThat) {
     const nhan = document.getElementById('dondepmisa-che').selectedOptions[0].textContent;
     if (!confirm(`Xóa các dòng MISA "${nhan}" có Ngày CK ${f} → ${t}?\n\nDòng bị xóa được sao lưu, khôi phục được ở Hệ Thống › Khôi Phục Dữ Liệu Đã Xóa.`)) return;
@@ -2899,6 +2931,8 @@ function doTaoLaiUncTheoNgay(){
   if (!f || !t || !hieuLuc) { toast('Vui lòng chọn đủ Từ ngày/Đến ngày/Ngày hiệu lực.', 'warn'); return; }
   if (!confirm(`Tạo lại UNC cho các hồ sơ ĐÃ CHỐT trong khoảng ${f} → ${t}?\n\nVới khoảng ngày rộng, có thể tạo ra NHIỀU file UNC (mỗi lô 1 file). Xử lý theo lô và tự lặp tới khi xong.\n\nBấm OK để tiếp tục.`)) return;
   const box = document.getElementById('taolaiuncht-result');
+
+  if (!box) return; // đã rời tab trước khi dữ liệu về
   let offset = 0, tongDaTao = 0, soLot = 0;
   const links = [];
   box.innerHTML = '<div class="empty"><div class="ic">⏳</div>Đang bắt đầu...</div>';
@@ -2942,6 +2976,8 @@ function loadReport(){
 /** Xây danh sách lựa chọn cho 4 bộ lọc từ dữ liệu vừa tải (mục #5). */
 function renderReportFilterOptions(){
   const card = document.getElementById('report-filter-card');
+
+  if (!card) return; // đã rời tab trước khi dữ liệu về
   const rows = state.reportRows;
   if (!rows.length) { card.classList.add('hidden'); return; }
   card.classList.remove('hidden');
@@ -3339,6 +3375,8 @@ function loadLedgerDetail(){
   if (!key) { toast('Vui lòng chọn đối tượng cần xem.', 'warn'); return; }
 
   const box = document.getElementById('ledger-result');
+
+  if (!box) return; // đã rời tab trước khi dữ liệu về
   box.innerHTML = '<div class="card"><div class="empty"><div class="ic">⏳</div>Đang tải...</div></div>';
   state.ledgerPage = 1;
   call('getDebtLedgerDetail', [type, key, state.debtTo], 'Đang tải sổ chi tiết...').then(res => {
@@ -3350,6 +3388,8 @@ function loadLedgerDetail(){
 
 function renderLedgerDetailTable(){
   const box = document.getElementById('ledger-result');
+
+  if (!box) return; // đã rời tab trước khi dữ liệu về
   const res = state.ledgerData;
   const rows = res.rows || [];
   const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
@@ -4098,6 +4138,8 @@ const NHAN_HANH_DONG = {
 };
 function doKhoaSoNam(chayThat){
   const box = document.getElementById('khoaso-result');
+
+  if (!box) return; // đã rời tab trước khi dữ liệu về
   const nam = (document.getElementById('khoaso-nam') || {}).value;
   if (!box || !nam) return;
   if (chayThat && !confirm(`Khóa sổ năm ${nam}?\nSổ ĐNTT của năm chuyển sang file DATA${nam} và xóa khỏi File Chính; phiếu cân đã trả chuyển sang sheet lưu trữ.`)) return;
@@ -4117,6 +4159,8 @@ function doKhoaSoNam(chayThat){
 }
 function loadSaoLuuXoa(){
   const box = document.getElementById('saoluu-result');
+
+  if (!box) return; // đã rời tab trước khi dữ liệu về
   box.innerHTML = '<div class="empty"><div class="ic">⏳</div>Đang tải...</div>';
   call('getDanhSachSaoLuuXoa', [], null).then(ds => {
     state.saoLuuXoa = ds || [];
@@ -4661,6 +4705,8 @@ function doSaveChatbotApiKey(){
  * ============================================================ */
 function doDoiSoatTenKhachHang(){
   const box = document.getElementById('doisoat-result');
+
+  if (!box) return; // đã rời tab trước khi dữ liệu về
   box.innerHTML = '<div class="empty"><div class="ic">⏳</div>Đang đối soát...</div>';
   call('getDoiSoatTenKhachHang', [], 'Đang đối soát tên khách hàng...').then(rows => {
     state.doiSoatRows = rows || [];
@@ -4669,6 +4715,8 @@ function doDoiSoatTenKhachHang(){
 }
 function renderDoiSoatResult(){
   const box = document.getElementById('doisoat-result');
+
+  if (!box) return; // đã rời tab trước khi dữ liệu về
   const rows = state.doiSoatRows || [];
   if (!rows.length) {
     box.innerHTML = '<div class="empty"><div class="ic">✅</div>Không có dòng nào lệch tên - dữ liệu đang khớp.</div>';
@@ -4718,6 +4766,8 @@ function doXuatDoiSoatExcel(){
  * ============================================================ */
 function doKiemTraBaoTri(){
   const box = document.getElementById('baotri-result');
+
+  if (!box) return; // đã rời tab trước khi dữ liệu về
   box.innerHTML = '<div class="empty"><div class="ic">⏳</div>Đang kiểm tra...</div>';
   call('getKiemTraDoiChieuBaoTri', [], 'Đang đối chiếu 4 sheet...').then(r => {
     if (!r || r.error) { box.innerHTML = `<div class="empty"><div class="ic">⚠️</div>${esc((r&&r.error)||'Không kiểm tra được.')}</div>`; return; }

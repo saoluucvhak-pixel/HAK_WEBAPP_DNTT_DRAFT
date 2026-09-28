@@ -1,6 +1,6 @@
 /**
  * ============================================================
- * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.27
+ * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.28
  * Lịch sử thay đổi: CHANGELOG.md · Kiến trúc: docs/ARCHITECTURE.md
  * ------------------------------------------------------------
  * *** QUAN TRỌNG - CẦN LÀM TRƯỚC KHI DÙNG BẢN NÀY (chỉ 1 LẦN DUY NHẤT
@@ -1417,6 +1417,7 @@ const API_ROUTES = (() => {
     // --- Danh sách ĐNTT / Nháp / Duyệt (Kế toán) ---
     getDraftListSummary: r(getDraftListSummary_, N),
     getDraftRecordDetail: r(getDraftRecordDetail_, N),
+    webInPhieuChiTietThanhToan: r(webInPhieuChiTietThanhToan_, N),
     updateDraft112Info: r(updateDraft112Info_, N),
     addPhieuCanToDraft: r(addPhieuCanToDraft_, N),
     removePhieuCanFromDraft: r(removePhieuCanFromDraft_, N),
@@ -3588,8 +3589,8 @@ function webKhoaDinhDangTextTatCa_() {
 //    (dd/mm/yyyy), KHÔNG đi theo vùng hệ thống.
 const VUNG_MAC_DINH = { HE_THONG: "US", XUAT: "VN" };
 const REGION_PRESETS = {
-  VN: { label: "Việt Nam (ngày dd/mm/yyyy, thứ tự nhập dd/mm/yyyy)", dateFmt: "dd/MM/yyyy", dateTimeFmt: "dd/MM/yyyy HH:mm:ss", dateOrder: "dmy" },
-  US: { label: "United States (ngày mm/dd/yyyy, thứ tự nhập mm/dd/yyyy)", dateFmt: "MM/dd/yyyy", dateTimeFmt: "MM/dd/yyyy HH:mm:ss", dateOrder: "mdy" }
+  VN: { label: "Việt Nam (ngày dd/mm/yyyy, thứ tự nhập dd/mm/yyyy)", dateFmt: "dd/MM/yyyy", dateTimeFmt: "dd/MM/yyyy HH:mm:ss", dateOrder: "dmy", nghin: ".", thapPhan: "," },
+  US: { label: "United States (ngày mm/dd/yyyy, thứ tự nhập mm/dd/yyyy)", dateFmt: "MM/dd/yyyy", dateTimeFmt: "MM/dd/yyyy HH:mm:ss", dateOrder: "mdy", nghin: ",", thapPhan: "." }
 };
 function _getRegion_() {
   const r = PropertiesService.getScriptProperties().getProperty('REGION_LOCALE');
@@ -3940,39 +3941,69 @@ function createFinalReportFromFilteredData_(filteredRows, dateRangeGoc) {
 // ============================================================
 // SHEET 1: TỐI ƯU GIAO DIỆN IN ẤN (giữ nguyên logic gốc)
 // ============================================================
-// Bảng Đề Xuất (sheet 1 Báo Cáo ĐNTT): bố cục cột Nội dung CK / Ghi chú (px, cỡ chữ)
-// và cách ước chiều cao dòng. Người dùng 28/09/2026: "cột ghi chú chữ bị dính, cột rộng
-// quá - cân chỉnh cột vừa phải, xuống dòng cân đối". Số px đo thực tế Arial cỡ 12.
+// Bảng Đề Xuất (sheet 1 Báo Cáo ĐNTT) - bố cục. Người dùng 28/09/2026: chữ không dính,
+// cột vừa phải, xuống dòng cân đối, Nội dung CK 2 dòng, 1 cỡ chữ cho cả bảng, cột tên
+// đủ rộng, cột "Lần" hẹp. Độ rộng chữ đo thực tế (Arial) theo từng loại ký tự.
+/** Tên đơn vị in đầu báo cáo / phiếu (1 nơi dùng chung). */
+const TEN_DON_VI_BAO_CAO = "HOÀNG ANH KHÔI ĐÀ NẴNG";
+
 const BANG_DE_XUAT = {
-  RONG: { STT: 30, NOI_DUNG: 250, NOI_DUNG_MAX: 400, GHI_CHU: 310 },
-  CO_CHU: 12,                                   // giữ chữ to, rõ như yêu cầu trước (v2026.7.2)
-  PX_MOI_KY_TU: { NOI_DUNG: 8.2, GHI_CHU: 7.25 }, // đo thực tế: dòng nhiều chữ số rộng nhất
-  PX_LE_O: 14,                                   // lề trong của ô + dư phòng
-  MUC_MOI_DONG: 2,                              // Ghi chú: tối đa 2 mục mỗi dòng
-  PX_MOI_DONG_CHU: 19, PX_LE_DONG: 8, CAO_TOI_THIEU: 26
+  CO_CHU: 11,                                                    // 1 cỡ chữ cho cả bảng (tiêu đề cột, dữ liệu, dòng tổng)
+  EM: { HOA: 0.72, THUONG: 0.505, SO: 0.556, HEP: 0.28, KHAC: 0.6 }, // bề rộng ký tự / cỡ chữ
+  DAM: 1.08,                                                     // chữ đậm (tiêu đề cột) rộng hơn
+  PX_LE_O: 14,                                                   // lề trong ô + dư phòng
+  RONG_MIN: 32,
+  RONG_MAX: { MAC_DINH: 260, NOI_DUNG: 420, GHI_CHU: 340 },
+  MUC_MOI_DONG: 2,                                               // Ghi chú: tối đa 2 mục mỗi dòng
+  HE_SO_DONG: 1.45, PX_LE_DONG: 8,                               // cao 1 dòng chữ = cỡ chữ (px) × hệ số
+  NHOM_CAO_TOI_DA: 30                                            // quá số nhóm chiều cao -> 1 chiều cao chung
 };
-/** Số ký tự tối đa trên 1 dòng của 1 cột rộng `rongPx`, chữ trung bình `pxKyTu`. */
-function _kyTuMoiDong_(rongPx, pxKyTu) {
-  return Math.max(1, Math.floor((rongPx - BANG_DE_XUAT.PX_LE_O) / pxKyTu));
+function _pxCoChu_() { return BANG_DE_XUAT.CO_CHU * 96 / 72; }
+/** Bề rộng (px) ước tính của 1 dòng chữ ở cỡ BANG_DE_XUAT.CO_CHU. */
+function _doRongChu_(chuoi, dam) {
+  const E = BANG_DE_XUAT.EM;
+  let em = 0;
+  for (const ch of String(chuoi || "")) {
+    em += /[0-9]/.test(ch) ? E.SO
+      : /[\s.,:;'|\/()\-·\u00A0]/.test(ch) ? E.HEP
+      : ch !== ch.toLowerCase() ? E.HOA
+      : ch !== ch.toUpperCase() ? E.THUONG : E.KHAC;
+  }
+  return em * _pxCoChu_() * (dam ? BANG_DE_XUAT.DAM : 1);
+}
+/** Bề rộng dòng dài nhất của 1 ô nhiều dòng. */
+function _rongNhieuDong_(o) {
+  return Math.max(0, ...String(o == null ? "" : o).split("\n").map(d => _doRongChu_(d.trim())));
+}
+/** Độ rộng cột vừa nội dung: dòng dài nhất (kể cả tiêu đề đậm) + lề, trong [RONG_MIN, toiDa]. */
+function _rongCotVua_(cacO, tieuDe, toiDa) {
+  const can = Math.max(_doRongChu_(tieuDe, true), ...cacO.map(_rongNhieuDong_)) + BANG_DE_XUAT.PX_LE_O;
+  return Math.round(Math.min(toiDa || BANG_DE_XUAT.RONG_MAX.MAC_DINH, Math.max(BANG_DE_XUAT.RONG_MIN, can)));
+}
+/** Số có phân cách nghìn như định dạng ô ("#,##0" / "#,##0.00") - để đo bề rộng. */
+function _soHienThi_(n, soLe, vung) {
+  const p = vung || REGION_PRESETS[VUNG_MAC_DINH.HE_THONG];
+  const [nguyen, le] = Number(n || 0).toFixed(soLe).split(".");
+  return nguyen.replace(/\B(?=(\d{3})+(?!\d))/g, p.nghin) + (le ? p.thapPhan + le : "");
 }
 /** Ghi chú "Tổng KL: a | Đã trả: b | Còn lại: c | Đề nghị đợt này: d | Phiếu: e" -> các
  * dòng cân đối: tối đa MUC_MOI_DONG mục mỗi dòng, cách nhau " · "; 2 mục không vừa cột
- * thì mỗi mục 1 dòng (không để dấu "·" lẻ cuối dòng). Trong 1 mục dùng khoảng trắng
- * KHÔNG NGẮT (trừ sau dấu phẩy của danh sách phiếu) - chữ chỉ xuống dòng giữa các mục;
- * trình xem nào bỏ qua xuống dòng thì các mục vẫn cách nhau, không dính chữ. */
+ * thì mỗi mục 1 dòng (không để dấu "·" lẻ). Trong 1 mục dùng khoảng trắng KHÔNG NGẮT
+ * (trừ sau dấu phẩy danh sách phiếu) - chỉ xuống dòng giữa các mục; trình xem nào bỏ
+ * qua xuống dòng thì các mục vẫn cách nhau, không dính chữ. */
 function _ghiChuBangDeXuat_(ghiChu) {
-  const toiDa = _kyTuMoiDong_(BANG_DE_XUAT.RONG.GHI_CHU, BANG_DE_XUAT.PX_MOI_KY_TU.GHI_CHU);
+  const toiDaPx = BANG_DE_XUAT.RONG_MAX.GHI_CHU - BANG_DE_XUAT.PX_LE_O;
   const muc = String(ghiChu || "").split("|").map(x => x.trim()).filter(Boolean)
     .map(x => x.replace(/(?<!,) /g, "\u00A0"));
   const dong = [];
   for (let i = 0; i < muc.length; i += BANG_DE_XUAT.MUC_MOI_DONG) {
     const nhom = muc.slice(i, i + BANG_DE_XUAT.MUC_MOI_DONG), ghep = nhom.join(" · ");
-    if (ghep.length <= toiDa) dong.push(ghep); else dong.push(...nhom);
+    if (_doRongChu_(ghep) <= toiDaPx) dong.push(ghep); else dong.push(...nhom);
   }
   return dong.join(" \n"); // khoảng trắng trước xuống dòng: trình xem không xuống dòng vẫn không dính chữ
 }
 /** Nội dung chuyển khoản -> LUÔN 2 dòng (người dùng yêu cầu 28/09/2026), ngắt ở khoảng
- * trắng làm 2 dòng dài gần bằng nhau nhất, KHÔNG ngắt ngay sau từ 1-2 ký tự ("HĐ", "số",
+ * trắng làm 2 dòng rộng gần bằng nhau nhất, KHÔNG ngắt ngay sau từ 1-2 ký tự ("HĐ", "số",
  * "gỗ" đi liền từ sau: "HĐ số 20260901002"). Chỉ đổi cách hiển thị trong file xuất - nội
  * dung CK gửi ngân hàng / UNC / MISA giữ nguyên 1 dòng. */
 function _noiDungHaiDong_(noiDung) {
@@ -3980,45 +4011,54 @@ function _noiDungHaiDong_(noiDung) {
   let tot = -1, lechTot = Infinity;
   for (let i = s.indexOf(" "); i > 0; i = s.indexOf(" ", i + 1)) {
     if (s.slice(s.lastIndexOf(" ", i - 1) + 1, i).length <= 2) continue;
-    const lech = Math.max(i, s.length - i - 1);
+    const lech = Math.max(_doRongChu_(s.slice(0, i)), _doRongChu_(s.slice(i + 1)));
     if (lech < lechTot) { lechTot = lech; tot = i; }
   }
   return tot < 0 ? s : s.slice(0, tot) + " \n" + s.slice(tot + 1);
 }
-/** Độ rộng cột Nội dung CK vừa để MỌI dòng đúng 2 dòng chữ, trong [RONG.NOI_DUNG, RONG.NOI_DUNG_MAX]. */
-function _rongNoiDung_(cacO) {
-  const dai = Math.max(0, ...cacO.map(o => Math.max(...String(o || "").split("\n").map(d => d.trim().length))));
-  const can = Math.ceil(dai * BANG_DE_XUAT.PX_MOI_KY_TU.NOI_DUNG) + BANG_DE_XUAT.PX_LE_O;
-  return Math.min(BANG_DE_XUAT.RONG.NOI_DUNG_MAX, Math.max(BANG_DE_XUAT.RONG.NOI_DUNG, can));
-}
-/** Ước số dòng hiển thị của 1 ô tự xuống dòng: ngắt theo TỪ (khoảng trắng thường; khoảng
- * trắng không ngắt giữ nguyên cụm), đúng cách Sheets/Excel xuống dòng. */
-function _uocSoDongO_(text, rongPx, pxKyTu) {
-  const toiDa = _kyTuMoiDong_(rongPx, pxKyTu);
+/** Ước số dòng hiển thị của 1 ô tự xuống dòng rộng `rongPx`: ngắt theo TỪ (khoảng trắng
+ * thường; khoảng trắng không ngắt giữ nguyên cụm), đúng cách Sheets/Excel xuống dòng. */
+function _uocSoDongO_(text, rongPx) {
+  const toiDa = rongPx - BANG_DE_XUAT.PX_LE_O, cach = _doRongChu_(" ");
   return String(text || "").split("\n").reduce((tong, doan) => {
     let soDong = 1, dai = 0;
     doan.trim().split(" ").forEach(tu => {
-      const can = dai ? dai + 1 + tu.length : tu.length;
-      if (can <= toiDa || !dai) dai = can; else { soDong++; dai = tu.length; }
+      const w = _doRongChu_(tu), can = dai ? dai + cach + w : w;
+      if (can <= toiDa || !dai) dai = can; else { soDong++; dai = w; }
       while (dai > toiDa) { soDong++; dai -= toiDa; } // 1 từ dài hơn cả dòng
     });
     return tong + soDong;
   }, 0);
 }
+/** Đặt chiều cao các dòng dữ liệu (từ dongDau) theo mảng caoPx với ÍT lệnh nhất: gom các
+ * dòng liền nhau cùng chiều cao (setRowHeights); quá NHOM_CAO_TOI_DA nhóm thì dùng 1 chiều
+ * cao chung (cao nhất). Trước đây đặt từng dòng một -> 2.000 hồ sơ mất hơn 4 phút. */
+function _datChieuCaoDong_(sh, dongDau, caoPx) {
+  const nhom = [];
+  caoPx.forEach((h, i) => { const cuoi = nhom[nhom.length - 1]; if (cuoi && cuoi.h === h) cuoi.n++; else nhom.push({ tu: i, n: 1, h }); });
+  if (nhom.length > BANG_DE_XUAT.NHOM_CAO_TOI_DA) { sh.setRowHeights(dongDau, caoPx.length, Math.max(...caoPx)); return; }
+  nhom.forEach(g => sh.setRowHeights(dongDau + g.tu, g.n, g.h));
+}
 /** Căn lề theo KIỂU dữ liệu (người dùng yêu cầu 28/09/2026): cột toàn số -> phải; tên,
  * chuỗi (kể cả Số TK/Số phiếu/Số HĐ dạng chữ, ngày dạng chữ) -> trái. Áp cho vùng dữ liệu
- * bắt đầu từ dòng `dongDau` (tiêu đề giữ căn giữa). */
+ * bắt đầu từ dòng `dongDau` (tiêu đề giữ căn giữa). Đặt theo CỘT (gom các cột liền nhau
+ * cùng kiểu) - không gửi ma trận căn lề từng ô (nặng khi hàng nghìn dòng). */
 function _canhLeTheoKieu_(sh, dongDau, rows) {
   if (!rows.length) return;
   const soCot = rows[0].length;
+  // Chuỗi Sheets tự đổi thành số khi ghi ("1", "14.83") cũng là số; chuỗi có dấu ' hoặc
+  // số 0 đầu (STK, CCCD, Số HĐ - đã giữ dạng chữ) vẫn là chữ.
+  const laSo = v => typeof v === "number" || (typeof v === "string" && /^-?(0|[1-9]\d*)(\.\d+)?$/.test(v.trim()));
   const canh = Array.from({ length: soCot }, (_, c) => {
     const coGiaTri = rows.map(r => r[c]).filter(v => v !== "" && v !== null && v !== undefined);
-    // Chuỗi Sheets tự đổi thành số khi ghi ("1", "14.83") cũng là số; chuỗi có dấu ' hoặc
-    // số 0 đầu (STK, CCCD, Số HĐ - đã giữ dạng chữ) vẫn là chữ.
-    const laSo = v => typeof v === "number" || (typeof v === "string" && /^-?(0|[1-9]\d*)(\.\d+)?$/.test(v.trim()));
     return coGiaTri.length && coGiaTri.every(laSo) ? "right" : "left";
   });
-  sh.getRange(dongDau, 1, rows.length, soCot).setHorizontalAlignments(rows.map(() => canh));
+  for (let c = 0; c < soCot;) {
+    let d = c;
+    while (d + 1 < soCot && canh[d + 1] === canh[c]) d++;
+    sh.getRange(dongDau, c + 1, rows.length, d - c + 1).setHorizontalAlignment(canh[c]);
+    c = d + 1;
+  }
 }
 function renderSheet1Full_(sheet, filteredRows, dateRange) {
   sheet.clear();
@@ -4032,7 +4072,7 @@ function renderSheet1Full_(sheet, filteredRows, dateRange) {
   // Google Sheets sẽ tự "đoán" lại theo locale riêng của file mới tạo,
   // có thể ra sai thứ tự ngày/tháng so với Vùng Định Dạng đã chọn.
   _lockTextCols_(sheet, [2, 6], filteredRows.length + 5); // SỬA (tối ưu tốc độ): dùng đúng số dòng thực tế thay vì mặc định 2000
-  sheet.getRange("A1").setValue("HOÀNG ANH KHÔI ĐÀ NẴNG").setFontSize(10).setFontWeight("bold");
+  sheet.getRange("A1").setValue(TEN_DON_VI_BAO_CAO).setFontSize(10).setFontWeight("bold");
   sheet.getRange("A2:K2").merge().setValue("BẢNG ĐỀ XUẤT THANH TOÁN CHUYỂN KHOẢN CÔNG NỢ")
         .setFontSize(15).setFontWeight("bold").setHorizontalAlignment("center");
   sheet.getRange("A3:K3").merge().setValue(dateRange).setFontStyle("italic").setHorizontalAlignment("center");
@@ -4050,15 +4090,28 @@ function renderSheet1Full_(sheet, filteredRows, dateRange) {
   if (body.length > 0) {
     sheet.getRange(5, 1, body.length, 11).setValues(_dongAnToan_(body)).setBorder(true, true, true, true, true, true).setVerticalAlignment("middle");
 
-    const R = BANG_DE_XUAT.RONG, PX = BANG_DE_XUAT.PX_MOI_KY_TU;
-    const rongNoiDung = _rongNoiDung_(body.map(r => r[9]));
-    sheet.setColumnWidth(1, R.STT);
-    // Nội dung CK + Ghi chú: cột vừa phải, tự xuống dòng (cả WrapStrategy lẫn setWrap
-    // để file tải về Excel/PDF cũng giữ), căn giữa theo chiều dọc như các cột khác.
-    sheet.setColumnWidth(10, rongNoiDung);
-    sheet.setColumnWidth(11, R.GHI_CHU);
-    sheet.getRange(5, 10, body.length, 2).setWrapStrategy(SpreadsheetApp.WrapStrategy.WRAP).setWrap(true)
-      .setFontSize(BANG_DE_XUAT.CO_CHU).setVerticalAlignment("middle");
+    const M = BANG_DE_XUAT.RONG_MAX;
+    // Dòng tổng cũng tính vào độ rộng cột số (số tổng dài hơn từng dòng).
+    const tongKl = body.reduce((t, r) => t + r[7], 0), tongTien = body.reduce((t, r) => t + r[8], 0);
+    const cot = c => body.map(r => r[c]);
+    const rong = [
+      _rongCotVua_(cot(0).map(String), headers[0]),
+      _rongCotVua_(cot(1), headers[1]),
+      _rongCotVua_(cot(2).map(String), headers[2]),
+      _rongCotVua_(cot(3), headers[3]),
+      _rongCotVua_(cot(4), headers[4]),
+      _rongCotVua_(cot(5).map(v => String(v).replace(/^'/, "")), headers[5]),
+      _rongCotVua_(cot(6), headers[6]),
+      _rongCotVua_(cot(7).concat(tongKl).map(v => _soHienThi_(v, 2)), headers[7]),
+      _rongCotVua_(cot(8).concat(tongTien).map(v => _soHienThi_(v, 0)), headers[8]),
+      _rongCotVua_(cot(9), headers[9], M.NOI_DUNG),
+      _rongCotVua_(cot(10), headers[10], M.GHI_CHU)
+    ];
+    rong.forEach((w, i) => sheet.setColumnWidth(i + 1, w));
+    // Nội dung CK + Ghi chú tự xuống dòng (cả WrapStrategy lẫn setWrap để file tải về
+    // Excel/PDF cũng giữ); cả bảng (tiêu đề cột -> dòng tổng) cùng 1 cỡ chữ.
+    sheet.getRange(5, 10, body.length, 2).setWrapStrategy(SpreadsheetApp.WrapStrategy.WRAP).setWrap(true);
+    sheet.getRange(4, 1, body.length + 2, 11).setFontSize(BANG_DE_XUAT.CO_CHU);
     _canhLeTheoKieu_(sheet, 5, body);
 
     sheet.getRange(5, 8, body.length, 1).setNumberFormat("#,##0.00");
@@ -4069,12 +4122,11 @@ function renderSheet1Full_(sheet, filteredRows, dateRange) {
     sheet.getRange(lastR, 8, 1, 2).setFormulaR1C1(`=SUM(R5C:R[-1]C)`).setFontWeight("bold");
     sheet.getRange(lastR, 1, 1, 11).setBackground("#FFF2CC").setBorder(true, true, true, true, true, true);
 
-    // Chiều cao dòng đặt theo số dòng chữ ước tính của ô cao nhất (tự co của Sheets bỏ
-    // sót ô tự xuống dòng khi tải về Excel/PDF -> chữ bị cắt).
-    body.forEach((row, i) => {
-      const soDong = Math.max(_uocSoDongO_(row[9], rongNoiDung, PX.NOI_DUNG), _uocSoDongO_(row[10], R.GHI_CHU, PX.GHI_CHU));
-      sheet.setRowHeight(5 + i, Math.max(BANG_DE_XUAT.CAO_TOI_THIEU, soDong * BANG_DE_XUAT.PX_MOI_DONG_CHU + BANG_DE_XUAT.PX_LE_DONG));
-    });
+    // Chiều cao dòng theo số dòng chữ của ô cao nhất (tự co của Sheets bỏ sót ô tự xuống
+    // dòng khi tải về Excel/PDF -> chữ bị cắt); đặt theo nhóm, không từng dòng.
+    const caoDong = Math.round(_pxCoChu_() * BANG_DE_XUAT.HE_SO_DONG);
+    _datChieuCaoDong_(sheet, 5, body.map(r =>
+      Math.max(_uocSoDongO_(r[9], rong[9]), _uocSoDongO_(r[10], rong[10]), 1) * caoDong + BANG_DE_XUAT.PX_LE_DONG));
   }
 }
 
@@ -4639,6 +4691,7 @@ function _ctDongCuaHoSo_(filteredRows) {
 }
 
 function _gomChiTietChuyenKhoan_(filteredRows) {
+  const hoSoTheoId = new Map(filteredRows.map(f => [f.idHeThong, f]));
   // SỬA (tối ưu tốc độ - theo yêu cầu "Xuất Báo Cáo Gỗ Keo chạy rất
   // chậm"): trước đây đọc TRỰC TIẾP KHÔNG CACHE toàn bộ CT thật mỗi lần
   // xuất - đây là nguyên nhân chính gây chậm khi CT thật đã tích lũy
@@ -4665,7 +4718,7 @@ function _gomChiTietChuyenKhoan_(filteredRows) {
     let parentId = String(ctRow[1]).trim();
     let pc = mapPC.get(utils.standardize(ctRow[11])) || new Array(30).fill("");
     let hd = mapHD.get(utils.standardize(ctRow[19])) || new Array(30).fill("");
-    let parentInfo = filteredRows.find(f => f.idHeThong === parentId);
+    let parentInfo = hoSoTheoId.get(parentId); // tra thẳng theo mã, không dò lại cả danh sách cho từng phiếu
     // SỬA LỖI (rà soát phát hiện): trước đây "Tên người thụ hưởng"/
     // "Ngân hàng"/"Số tài khoản" LUÔN lấy mặc định hợp đồng (hd[10]/
     // hd[16]/hd[15]) - nếu hồ sơ có sửa tay người nhận/STK/ngân hàng
@@ -4740,6 +4793,7 @@ function renderSheet2Detail_(sheet, filteredRows, dateRange) {
  * lẫn dữ liệu chưa được duyệt vào file thanh toán ngân hàng thật).
  */
 function renderSheet2DetailFromDraft_(sheet, filteredRows, dateRange) {
+  const hoSoTheoId = new Map(filteredRows.map(f => [f.idHeThong, f]));
   const idSet = new Set(filteredRows.map(r => r.idHeThong));
   const { shCT: shDraftCT } = getDraftSheets_();
   const ctData = shDraftCT.getDataRange().getValues();
@@ -4770,7 +4824,7 @@ function renderSheet2DetailFromDraft_(sheet, filteredRows, dateRange) {
     if (idSet.has(parentId)) {
       let pc = mapPC.get(utils.standardize(ctRow[11])) || new Array(30).fill("");
       let hd = mapHD.get(utils.standardize(ctRow[19])) || new Array(30).fill("");
-      let parentInfo = filteredRows.find(f => f.idHeThong === parentId);
+      let parentInfo = hoSoTheoId.get(parentId); // tra thẳng theo mã, không dò lại cả danh sách cho từng phiếu
       // SỬA LỖI (rà soát phát hiện - đồng bộ với _gomChiTietChuyenKhoan_()):
       // ưu tiên người nhận/ngân hàng/STK đã có thể SỬA TAY (parentInfo,
       // từ get112ViewData_()/rows) thay vì luôn lấy mặc định hợp đồng -
@@ -8474,6 +8528,76 @@ function getDraftRecordDetail_(idKey) {
     daXacNhan: String(row[COL_TRANG_THAI_DNTT] || "").trim() === "Đang ĐNTT",
     chiTiet: chiTiet
   };
+}
+
+/** Phiếu chi tiết thanh toán (PDF): chữ ký cuối phiếu, theo thứ tự trái -> phải. */
+const PHIEU_CT_TT = {
+  TIEU_DE: "PHIẾU CHI TIẾT THANH TOÁN",
+  CHU_KY: ["Người lập phiếu", "Kế toán trưởng", "Giám đốc"],
+  SO_LE_KL: 3
+};
+
+/** #Web: in "Phiếu chi tiết thanh toán" của 1 hồ sơ ĐNTT ra PDF, lưu vào thư mục
+ * Báo cáo, trả link. Số liệu lấy từ getDraftRecordDetail_ (cùng nguồn với modal). */
+function webInPhieuChiTietThanhToan_(idKey) {
+  try {
+    const r = getDraftRecordDetail_(idKey);
+    if (!r) return { success: false, message: "❌ Không tìm thấy hồ sơ " + String(idKey || "") + "." };
+    const tenFile = "PHIEU CHI TIET THANH TOAN " + r.idKey;
+    const pdf = Utilities.newBlob(_htmlPhieuChiTietThanhToan_(r, new Date()), "text/html", tenFile + ".html")
+      .getAs("application/pdf").setName(tenFile + ".pdf");
+    const pdfUrl = DriveApp.getFolderById(getReportFolderId_()).createFile(pdf).getUrl();
+    logAction_("IN_PHIEU_CT_TT", r.idKey, "In phiếu chi tiết thanh toán PDF - " + pdfUrl);
+    return { success: true, pdfUrl, message: "✅ Đã tạo phiếu chi tiết thanh toán PDF." };
+  } catch (e) {
+    return { success: false, message: "❌ Lỗi: " + _loiChoNguoiDung_(e) };
+  }
+}
+
+/** HTML của phiếu (file xuất: ngày giờ và số theo Vùng xuất; số căn phải, chữ căn trái;
+ * 1 font, cỡ chữ như Bảng đề xuất). */
+function _htmlPhieuChiTietThanhToan_(r, luc) {
+  const vung = _getExportRegionPreset_();
+  const so = (n, soLe) => _soHienThi_(n, soLe, vung);
+  const e = _escHtml_;
+  const dong = (nhan, giaTri, laSo) => `<tr><th>${e(nhan)}</th><td class="${laSo ? "so" : ""}">${giaTri}</td></tr>`;
+  const dienGiai = String(r.ghiChu || "").split("|").map(x => x.trim()).filter(Boolean);
+  const tongKl = r.chiTiet.reduce((t, d) => t + d.klTan, 0);
+  const tongTien = r.chiTiet.reduce((t, d) => t + d.thanhTien, 0);
+  const soLeKl = PHIEU_CT_TT.SO_LE_KL;
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
+    body{font-family:Arial,sans-serif;font-size:${BANG_DE_XUAT.CO_CHU}pt;color:#000;margin:24px;}
+    h1{font-size:${BANG_DE_XUAT.CO_CHU + 4}pt;text-align:center;margin:8px 0 2px;}
+    .phu{text-align:center;font-style:italic;margin-bottom:14px;}
+    table{width:100%;border-collapse:collapse;margin-bottom:12px;}
+    th,td{border:1px solid #444;padding:4px 6px;text-align:left;vertical-align:top;}
+    .tt th{width:34%;background:#f2f2f2;}
+    .pc th{background:#d9ead3;text-align:center;}
+    .so{text-align:right;white-space:nowrap;}
+    .tong td{font-weight:bold;}
+    .ky{border:none;margin-top:20px;} .ky td{border:none;text-align:center;font-weight:bold;height:90px;}
+  </style></head><body>
+    <div><b>${e(TEN_DON_VI_BAO_CAO)}</b></div>
+    <h1>${e(PHIEU_CT_TT.TIEU_DE)}</h1>
+    <div class="phu">Mã hồ sơ: ${e(r.idKey)} · In lúc: ${e(_ngayGioXuat_(luc))}</div>
+    <table class="tt">
+      ${dong("Họ tên Chủ rừng", e(r.chuRung))}
+      ${dong("Người nhận tiền", e(r.nguoiNhan))}
+      ${dong("Ngân hàng", e(r.nganHang))}
+      ${dong("Số tài khoản", e(r.stk))}
+      ${dong("Số hợp đồng", e(r.soHD))}
+      ${dong("SL HĐ Dự kiến / Lũy kế / Còn lại (tấn)", [r.slDuKien, r.slLuyKe, r.conLai].map(x => so(x, soLeKl)).join(" / "), true)}
+      ${dong("Số tiền đề nghị (đ)", so(r.soTien, 0), true)}
+      ${dong("Nội dung chuyển khoản", e(r.noiDungCK))}
+      ${dienGiai.length ? dong("Diễn giải", dienGiai.map(e).join("<br>")) : ""}
+    </table>
+    <table class="pc">
+      <tr><th>STT</th><th>Số phiếu cân</th><th>KL (Tấn)</th><th>Thành tiền (đ)</th></tr>
+      ${r.chiTiet.map((d, i) => `<tr><td class="so">${i + 1}</td><td>${e(d.soPhieuCan)}</td><td class="so">${so(d.klTan, soLeKl)}</td><td class="so">${so(d.thanhTien, 0)}</td></tr>`).join("")}
+      <tr class="tong"><td colspan="2">Tổng cộng (${r.chiTiet.length} phiếu)</td><td class="so">${so(tongKl, soLeKl)}</td><td class="so">${so(tongTien, 0)}</td></tr>
+    </table>
+    <table class="ky"><tr>${PHIEU_CT_TT.CHU_KY.map(k => `<td>${e(k)}<br><i style="font-weight:normal">(Ký, ghi rõ họ tên)</i></td>`).join("")}</tr></table>
+  </body></html>`;
 }
 
 /**
