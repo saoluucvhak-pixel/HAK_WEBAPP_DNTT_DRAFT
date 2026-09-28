@@ -84,13 +84,13 @@ Trạng thái: ✅ xong · 🟡 một phần · ⏳ chưa làm · ⚖️ cần n
 - ✅ 2026.9.19: Duyệt chọn ngày bằng lịch; máy chủ từ chối ngày không có thật (lỗi 26/09/2026 → 09/02/2028 khi Vùng lãnh thổ = US).
 - ✅ 2026.9.18: Tạo lại MISA chọn theo Ngày CK (trước theo Ngày ĐN - lệch với Báo Cáo MISA). ❓ Hỏi người dùng: Tạo lại UNC có cần đổi sang Ngày CK không (hiện theo Ngày ĐN).
 - ✅ Kiểm chứng: trigger không bị phân quyền chặn (test `triggers.test.mjs`).
-- ✅ Kiểm chứng: cờ “đang khóa sổ” trên file Phiếu Cân đặt/gỡ đúng (test `luuTruNam`). ⏳ Phía QL_NHAPKHO (dự án khác) cần đọc cờ theo quy ước trong Code.gs (khóa, DOCUMENT, hết hiệu lực sau 10 phút).
+- ✅ Kiểm chứng: cờ “đang khóa sổ” trên file Phiếu Cân đặt/gỡ đúng (test `luuTruNam`). ✅ Đã đọc mã QL_NHAPKHO (28/09/2026): đọc cờ đúng quy ước.
 - ✅ 2026.9.17: Báo Cáo MISA cảnh báo phiếu đã chốt chưa có dòng MISA + nút “Tạo bổ sung”. Mở Đóng TT vẫn xóa dòng MISA (người dùng chọn không giữ).
 - ✅ 2026.9.14: Tạo lại UNC thay dòng cũ trong ChiTietUNC; Báo Cáo UNC mỗi hồ sơ 1 dòng (mới nhất).
 - ✅ 2026.9.13: Xuất MISA theo ngày trở lại đúng mẫu nhập MISA 33 cột như bản 2026.8 (+ sheet tóm tắt).
 - ✅ 2026.9.7 → 2026.9.12 (cập nhật trực tiếp trên main): an toàn Mở Đóng TT, chặn trùng phiếu trong lượt Duyệt, số dạng chữ VN, cờ khóa sổ cho QL_NHAPKHO, giao diện tối / bàn phím, bỏ webhook — xem CHANGELOG.
 - ✅ 2026.9.6: Ngày đề nghị ở Danh sách ĐNTT, % tiến độ màn hình chờ, Hệ Thống › Hiệu Năng (đo thật), Duyệt bớt 1 lượt đọc Phiếu Cân + CT.
-- ⏳ Sau 1–2 tuần dùng: xem Hệ Thống › Hiệu Năng để quyết định tối ưu tiếp (trigger 7:30 đọc Phiếu Cân/CT 2 lần; Công nợ/Sổ chi tiết đọc toàn bộ).
+- ⏳ Sau 1–2 tuần dùng: xem Hệ Thống › Hiệu Năng để quyết định tối ưu tiếp (trigger đọc 2 lần đã sửa ở 2026.9.34; còn Công nợ/Sổ chi tiết đọc toàn bộ lịch sử).
 - ✅ 2026.9.5: Đăng nhập khi nhúng trong trang chủ (cửa sổ nhỏ, không rời trang chủ).
 - ⏳ Kiểm chứng trên Google thật: đăng nhập từ trang chủ nhúng (popup, tự đóng cửa sổ) sau khi dán lại mã Cổng.
 - ✅ 2026.9.4: Vai trò Kế toán tổng hợp (Kế toán + toàn bộ Hệ Thống, không Cài đặt).
