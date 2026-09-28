@@ -1,6 +1,6 @@
 /**
  * ============================================================
- * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.41
+ * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.42
  * Lịch sử thay đổi: CHANGELOG.md · Kiến trúc: docs/ARCHITECTURE.md
  * ------------------------------------------------------------
  * *** QUAN TRỌNG - CẦN LÀM TRƯỚC KHI DÙNG BẢN NÀY (chỉ 1 LẦN DUY NHẤT
@@ -1479,6 +1479,7 @@ const API_ROUTES = (() => {
     // --- Công nợ & phân tích (xem, xuất, tính lại số liệu báo cáo) ---
     getDebtByCustomer: r(getDebtByCustomer_, X),
     getDebtByContract: r(getDebtByContract_, X),
+    getCongNoTrangThai: r(getCongNoTrangThai_, X, KHONG_CHO),
     getDebtLedgerDetail: r(getDebtLedgerDetail_, X),
     getDoiChieuCongNoCccd: r(getDoiChieuCongNoCccd_, X),
     getPaymentAnalysis: r(getPaymentAnalysis_, X),
@@ -2506,7 +2507,9 @@ function webSetUncConfig_(values) {
 // LIỆU TÀI CHÍNH ĐÃ CHỐT" khi ghi log nhưng trước đây KHÔNG hiện ra ở
 // trang audit trail này - vẫn nằm trong sheet log nhưng vô hình với
 // người xem trang "Lịch Sử Sửa Đổi".
-const LICH_SU_SUA_DOI_ACTIONS = new Set(["MO_DONG_THANH_TOAN", "DOI_SOAT_DONG_BO_TEN", "VA_NGAN_HANG_112", "XOA_MO_COI_CHITIET_DNTT", "XOA_MO_COI_CHITIET_UNC", "XOA_MO_COI_CT_THAT", "XOA_MO_COI_SRC_THAT", "SUA_TEN_KH_PHIEU_CAN", "PHAN_QUYEN", "CAU_HINH_DANG_NHAP", "CANH_BAO_HEADER_PC", "XAC_NHAN_HEADER_PHIEU_CAN", "CHAN_TRA_HAI_LAN", "KHOI_PHUC_DONG_DA_XOA", "CAU_HINH_LUU_TRU_NAM", "KHOA_SO_NAM", "XOA_MISA", "XOA_UNC"]);
+const LICH_SU_SUA_DOI_ACTIONS = new Set(["MO_DONG_THANH_TOAN", "DOI_SOAT_DONG_BO_TEN", "VA_NGAN_HANG_112", "XOA_MO_COI_CHITIET_DNTT", "XOA_MO_COI_CHITIET_UNC", "XOA_MO_COI_CT_THAT", "XOA_MO_COI_SRC_THAT", "SUA_TEN_KH_PHIEU_CAN", "PHAN_QUYEN", "CAU_HINH_DANG_NHAP", "CANH_BAO_HEADER_PC", "XAC_NHAN_HEADER_PHIEU_CAN", "CHAN_TRA_HAI_LAN", "KHOI_PHUC_DONG_DA_XOA", "CAU_HINH_LUU_TRU_NAM", "KHOA_SO_NAM", "XOA_MISA", "XOA_UNC",
+  // Thao tác trên hồ sơ (người dùng yêu cầu 28/09/2026 - kèm "trước → sau" khi sửa):
+  "SUA_NHAP", "THEM_PHIEU_NHAP", "XOA_PHIEU_NHAP", "XOA_NHAP", "XAC_NHAN_DNTT", "HUY_XAC_NHAN_DNTT", "CHOT_THANH_TOAN"]);
 /**
  * SỬA (theo yêu cầu - "cho xem theo ngày, không phải cứ nối dài"): giờ
  * lọc theo khoảng ngày (fDate/tDate, dạng yyyy-MM-dd) thay vì luôn hiện
@@ -5400,7 +5403,8 @@ function runConfirmPayment_(selectedIds, payDateStr) {
     if (skippedNotConfirmed.length) msg += ` ⚠️ Chưa "Xác Nhận" ĐNTT (bỏ qua): ${skippedNotConfirmed.join(", ")}.`;
     if (skippedDaTra.length) msg += ` ⛔ KHÔNG chốt vì có phiếu cân ĐÃ ĐƯỢC THANH TOÁN ở hồ sơ khác hoặc bị TRÙNG trong lượt Duyệt (bỏ phiếu đó khỏi hồ sơ rồi Duyệt lại): ${skippedDaTra.join("; ")}.`;
 
-    logAction_("CHOT_THANH_TOAN", validIds.join(","), `Chốt ${validIds.length} hồ sơ từ File Nháp, ngày TT ${dateForSheetStr}.`);
+    const tongTienChot = the112ToCommit.reduce((t, r) => t + utils.parseNum(r[6]), 0);
+    logAction_("CHOT_THANH_TOAN", validIds.join(","), `Duyệt (Đóng Thanh Toán) ${validIds.length} hồ sơ, ${ctToCommit.length} phiếu cân, tổng ${tongTienChot.toLocaleString("vi-VN")} đ, ngày TT ${dateForSheetStr}.`);
     _invalidateCtSrc112Cache_(); // MỚI (rà soát bổ sung): CT/Src/112 thật vừa thay đổi - xóa cache để lần đọc tiếp theo (gợi ý, chẩn đoán) thấy dữ liệu mới ngay
     _invalidateCongNoCache_(); // MỚI (rà soát bổ sung): buộc Báo Cáo Công Nợ tính lại, tránh hiện snapshot cũ
     // MỚI (rà soát phát hiện - "báo cáo công nợ ok chưa"): làm mới NGAY
@@ -7802,13 +7806,33 @@ function _defaultCongNoRange_() {
  * nhầm snapshot cũ.
  */
 function _invalidateCongNoCache_() {
+  // Người dùng chọn 28/09/2026: KHÔNG xóa bản tổng hợp (lần xem sau phải tính lại ~1 phút)
+  // mà chỉ ghi lúc có thay đổi - màn Công Nợ vẫn mở nhanh bằng bản tổng hợp, kèm nhắc
+  // "có thay đổi sau lần tổng hợp - bấm Làm mới". Trigger 7:30/13:00 và nút Làm mới cập nhật.
   try {
-    const props = PropertiesService.getScriptProperties();
-    props.deleteProperty('CONGNO_CACHE_FDATE');
-    props.deleteProperty('CONGNO_CACHE_TDATE');
-    props.deleteProperty('HDTIENDO_CONGNO_FDATE');
-    props.deleteProperty('HDTIENDO_CONGNO_TDATE');
-  } catch (e) { /* không chặn luồng chính nếu xóa cache lỗi */ }
+    PropertiesService.getScriptProperties().setProperty(CONGNO_LUC.THAY_DOI, String(Date.now()));
+  } catch (e) { /* không chặn luồng chính */ }
+}
+/** Thời điểm (ms) tổng hợp Công nợ KH / theo HĐ và lúc có thay đổi sổ sau đó. */
+const CONGNO_LUC = { KH: "CONGNO_CACHE_LUC", HD: "HDTIENDO_CONGNO_LUC", THAY_DOI: "CONGNO_THAY_DOI_LUC" };
+/** Khoảng ngày mặc định (90 ngày gần nhất) - khoảng duy nhất có bản tổng hợp sẵn. */
+function _laKhoangCongNoMacDinh_(fDate, tDate) {
+  const m = _defaultCongNoRange_();
+  return fDate === _clampReportRange_(m.fDate, m.tDate) && tDate === m.tDate;
+}
+/** #Web: trạng thái bản tổng hợp Công nợ (loai "kh" | "hd") cho khoảng [fDate, tDate]:
+ * { tongHop: đang đọc bản tổng hợp?, capNhatLuc, coThayDoi, thayDoiLuc }. Chỉ đọc Script Properties. */
+function getCongNoTrangThai_(loai, fDate, tDate) {
+  const props = PropertiesService.getScriptProperties();
+  const f = _clampReportRange_(fDate, tDate);
+  const meta = loai === "hd" ? _hdTienDoCongNoMeta_() : _congNoCacheMeta_();
+  const luc = Number(props.getProperty(loai === "hd" ? CONGNO_LUC.HD : CONGNO_LUC.KH)) || 0;
+  const thayDoi = Number(props.getProperty(CONGNO_LUC.THAY_DOI)) || 0;
+  const gio = ms => ms ? Utilities.formatDate(new Date(ms), "GMT+7", "HH:mm dd/MM/yyyy") : "";
+  return {
+    tongHop: _laKhoangCongNoMacDinh_(f, tDate) && meta.fDate === f && meta.tDate === tDate,
+    capNhatLuc: gio(luc), coThayDoi: thayDoi > luc, thayDoiLuc: gio(thayDoi)
+  };
 }
 
 function _congNoCacheMeta_() {
@@ -7819,6 +7843,7 @@ function _setCongNoCacheMeta_(fDate, tDate) {
   const props = PropertiesService.getScriptProperties();
   props.setProperty('CONGNO_CACHE_FDATE', fDate);
   props.setProperty('CONGNO_CACHE_TDATE', tDate);
+  props.setProperty(CONGNO_LUC.KH, String(Date.now()));
 }
 
 /** MỚI (mục 7): meta RIÊNG cho khoảng ngày mà cột Công Nợ (ghép trong
@@ -7832,6 +7857,7 @@ function _setHdTienDoCongNoMeta_(fDate, tDate) {
   const props = PropertiesService.getScriptProperties();
   props.setProperty('HDTIENDO_CONGNO_FDATE', fDate);
   props.setProperty('HDTIENDO_CONGNO_TDATE', tDate);
+  props.setProperty(CONGNO_LUC.HD, String(Date.now()));
 }
 
 function getCongNoKhCacheSheet_() {
@@ -7908,12 +7934,15 @@ function _congNoTrangChu_() {
  * cache hiện tại (nhanh), ngược lại tính trực tiếp rồi ghi đè cache. */
 function getDebtByCustomer_(fDate, tDate) {
   fDate = _clampReportRange_(fDate, tDate);
+  // Chỉ khoảng mặc định có bản tổng hợp; khoảng khác tính trực tiếp và KHÔNG ghi đè bản
+  // tổng hợp (trước đây xem khoảng khác làm người sau xem mặc định phải tính lại).
+  const macDinh = _laKhoangCongNoMacDinh_(fDate, tDate);
   const meta = _congNoCacheMeta_();
-  if (meta.fDate === fDate && meta.tDate === tDate) {
+  if (macDinh && meta.fDate === fDate && meta.tDate === tDate) {
     try { return _readCongNoKhSheet_(); } catch (e) { /* rơi xuống tính trực tiếp */ }
   }
   const rows = _computeDebtByCustomerLive_(fDate, tDate);
-  try { refreshCongNoCache_(fDate, tDate, rows); } catch (e) { /* không chặn luồng chính nếu ghi cache lỗi */ }
+  if (macDinh) try { refreshCongNoCache_(fDate, tDate, rows); } catch (e) { /* không chặn luồng chính nếu ghi cache lỗi */ }
   return rows;
 }
 
@@ -7930,6 +7959,7 @@ function webRunCongNoRefreshNow_(fDate, tDate) {
   try {
     if (!fDate || !tDate) ({ fDate, tDate } = _defaultCongNoRange_()); // Trang chủ: khoảng mặc định
     const fClamped = _clampReportRange_(fDate, tDate);
+    if (!_laKhoangCongNoMacDinh_(fClamped, tDate)) return "✅ Khoảng ngày này luôn được tính trực tiếp khi xem (số liệu mới nhất) - đã tải lại.";
     const rows = _computeDebtByCustomerLive_(fClamped, tDate);
     refreshCongNoCache_(fClamped, tDate, rows);
     refreshHopDongTienDoCache_(fClamped, tDate);
@@ -7952,6 +7982,8 @@ function webRunCongNoRefreshNow_(fDate, tDate) {
  * khoảng ngày) - chỉ quét CT/112 đúng 1 lần trong mọi trường hợp. */
 function getDebtByContract_(fDate, tDate) {
   fDate = _clampReportRange_(fDate, tDate);
+  // Khoảng khác mặc định: tính trực tiếp, không ghi đè bản tổng hợp / Tiến độ HĐ (Tạo mới dùng).
+  if (!_laKhoangCongNoMacDinh_(fDate, tDate)) return _computeDebtByContractLive_(fDate, tDate);
   const meta = _hdTienDoCongNoMeta_();
   if (meta.fDate !== fDate || meta.tDate !== tDate) {
     try {
@@ -8978,6 +9010,17 @@ function _htmlPhieuChiTietThanhToan_(r, luc, tieuDe) {
  * này giờ đồng bộ các trường liên quan xuống MỌI dòng Draft CT của
  * cùng ID_KEY.
  */
+/** Tên hiển thị các trường hồ sơ Nháp (nhật ký "trước → sau"). */
+const TRUONG_HO_SO = { chuRung: "Chủ rừng", nguoiNhan: "Người nhận", nganHang: "Ngân hàng", stk: "STK", noiDungCK: "Nội dung CK", soHD: "Số HĐ", slDuKien: "SL HĐ dự kiến" };
+/** Các trường của 1 dòng 112 Nháp theo TRUONG_HO_SO (chuỗi, bỏ dấu ' đầu). */
+function _truongHoSo_(row) {
+  const chu = v => String(v == null ? "" : v).replace(/^'+/, "").trim();
+  return { chuRung: chu(row[2]), nguoiNhan: chu(row[3]), nganHang: chu(row[4]), stk: chu(row[5]), noiDungCK: chu(row[7]), soHD: chu(row[8]), slDuKien: chu(row[17]) };
+}
+/** Nhật ký "trước → sau": chỉ các trường thật sự đổi, vd `Người nhận: "A" → "B"; STK: "1" → "2"`. */
+function _moTaThayDoi_(truoc, sau, nhan) {
+  return Object.keys(nhan).filter(k => truoc[k] !== sau[k]).map(k => `${nhan[k]}: "${truoc[k]}" → "${sau[k]}"`).join("; ");
+}
 function updateDraft112Info_(idKey, updates) {
   let lock;
   try {
@@ -8998,6 +9041,7 @@ function updateDraft112Info_(idKey, updates) {
     if (!_isRecordEditable_(row)) {
       throw new Error(`Không thể sửa: hồ sơ "${id}" chưa/đã qua trạng thái "Chờ ĐNTT". Hãy bấm "Về Chờ ĐNTT" trước nếu đang ở "Đang ĐNTT".`);
     }
+    const truoc = _truongHoSo_(row);
     if (updates.chuRung !== undefined) row[2] = updates.chuRung;
     if (updates.nguoiNhan !== undefined) row[3] = updates.nguoiNhan;
     if (updates.nganHang !== undefined) row[4] = updates.nganHang;
@@ -9033,7 +9077,7 @@ function updateDraft112Info_(idKey, updates) {
     }
 
     SpreadsheetApp.flush();
-    logAction_("SUA_NHAP", id, "Cập nhật thông tin hồ sơ nháp: " + JSON.stringify(updates));
+    logAction_("SUA_NHAP", id, "Sửa hồ sơ Nháp: " + (_moTaThayDoi_(truoc, _truongHoSo_(row), TRUONG_HO_SO) || "không đổi giá trị nào"));
     return { success: true, message: `✅ Đã cập nhật hồ sơ "${id}" (đã đồng bộ xuống dòng chi tiết).` };
   } catch (e) {
     return { success: false, message: "❌ Lỗi: " + _loiChoNguoiDung_(e) };
@@ -9151,7 +9195,7 @@ function removePhieuCanFromDraft_(idCT) {
     }
 
     SpreadsheetApp.flush();
-    logAction_("XOA_PHIEU_NHAP", "-", `Xóa dòng chi tiết ${idct} khỏi Nháp` + (alsoRemoved112 ? ` (hồ sơ ${ownerId} hết phiếu cân, đã xóa luôn dòng tổng hợp)` : ""));
+    logAction_("XOA_PHIEU_NHAP", ownerId || "-", `Xóa phiếu cân ${String(removedRow[11] || "").replace(/'/g, "")} (dòng ${idct}, ${utils.parseNum(removedRow[12])} tấn, ${utils.parseNum(removedRow[16]).toLocaleString("vi-VN")} đ) khỏi hồ sơ Nháp` + (alsoRemoved112 ? ` - hồ sơ hết phiếu cân, đã xóa luôn dòng tổng hợp` : ""));
     const msg = alsoRemoved112
       ? `✅ Đã xóa phiếu cân cuối cùng - hồ sơ "${ownerId}" đã hết dữ liệu và được xóa luôn khỏi Nháp.`
       : `✅ Đã xóa dòng "${idct}" khỏi Nháp. Hãy chạy lại "Đề Nghị Thanh Toán" để tính lại số tiền.`;

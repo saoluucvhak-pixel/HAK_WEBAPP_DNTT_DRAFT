@@ -2,6 +2,27 @@
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/). Phiên bản theo `NĂM.ĐỢT.SỬA`; thay đổi làm đổi hành vi nghiệp vụ (⚖️) sẽ tăng số ĐỢT và ghi rõ đã được người dùng đồng ý.
 
+## [2026.9.42] — Công nợ mở bằng bản tổng hợp, rà bố cục trang dài, nhật ký trước → sau (người dùng đồng ý 28/09/2026)
+
+### Changed — 1. Báo cáo Công nợ nhanh hơn
+- Khoảng mặc định (90 ngày gần nhất) của **Công nợ theo Khách hàng / Hợp đồng** luôn mở bằng **bản tổng hợp sẵn** (trigger 7:30 / 13:00), kèm dòng “📋 Số liệu tổng hợp lúc …”. Muốn mới nhất: bấm **🔄 Làm mới (tính lại, chậm hơn)**.
+- ⚖️ Sau Duyệt / Mở Đóng TT **không xóa** bản tổng hợp nữa (trước: lần xem kế tiếp phải tính lại ~1,2 triệu ô) — chỉ ghi lúc có thay đổi; màn hình báo “⚠️ Sau đó đã có Duyệt / Mở Đóng TT lúc … - số liệu chưa gồm thay đổi này” và nút Làm mới nổi bật. Người dùng chọn: nhanh trước, muốn thì làm mới.
+- Xem **khoảng ngày khác** thì tính trực tiếp (luôn mới nhất) và **không ghi đè** bản tổng hợp mặc định (trước: 1 người xem khoảng khác làm người sau xem mặc định phải tính lại; Tiến độ HĐ dùng ở Tạo mới cũng bị đổi theo khoảng đó). `getCongNoTrangThai_`, `_laKhoangCongNoMacDinh_`, `CONGNO_LUC`.
+
+### Changed — 2. Rà bố cục
+- Trang dài **Hệ Thống, Cài đặt, Hướng Dẫn**: thanh **“Đi nhanh”** ở đầu trang (tự lấy từ tiêu đề các thẻ, kể cả thẻ tải sau) — bấm là cuộn tới đúng mục, không bị thanh tiêu đề che (`_ganMucLuc`).
+- Tab Công nợ đánh số liền **1–7** (trước 1, 2, 4…8 — thiếu số 3); Hướng Dẫn cập nhật theo.
+- Ô “Tổng công nợ còn lại” âm / dương hiện đúng màu (trước luôn xanh).
+
+### Added — 3. Nhật ký trước → sau
+- **Sửa hồ sơ Nháp**: ghi đúng các trường đổi, dạng `Người nhận: "A" → "B"; STK: "…" → "…"` (trước: ghi toàn bộ giá trị mới dạng JSON, không có giá trị cũ).
+- **Bỏ phiếu cân khỏi hồ sơ**: ghi mã hồ sơ, số phiếu, tấn, số tiền (trước: chỉ mã dòng, không có mã hồ sơ).
+- **Duyệt**: ghi số hồ sơ, số phiếu, **tổng tiền**, ngày TT.
+- **Hệ Thống › Lịch sử sửa đổi** hiện thêm: Sửa hồ sơ Nháp, Thêm / Bỏ phiếu cân, Xóa hồ sơ Nháp, Xác nhận ĐNTT, Về Chờ ĐNTT, Duyệt (Đóng TT).
+
+### Tests
+- 192 test (thêm: Công nợ đọc bản tổng hợp không đọc sổ, sau Duyệt vẫn nhanh + báo thay đổi, Làm mới tính lại, khoảng khác không ghi đè; nhật ký trước → sau, bỏ phiếu, tổng tiền Duyệt, Lịch sử sửa đổi — thất bại trên bản cũ). Kiểm tra trình duyệt: thanh Đi nhanh 3 trang, tab Công nợ, dòng trạng thái Công nợ, Lịch sử sửa đổi.
+
 ## [2026.9.41] — Trang chủ: ô số liệu dạng nút, bấm vào mở thẳng màn hình (người dùng yêu cầu 28/09/2026)
 
 ### Added

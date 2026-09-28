@@ -26,7 +26,7 @@ Trạng thái: ✅ xong · 🟡 một phần · ⏳ chưa làm · ⚖️ cần n
 | H-08 | `ALLOWALL` iframe | 🚫 Giữ nguyên | Người dùng quyết định 26/09/2026: web app đang nhúng vào trang chủ |
 | H-09 | PII trong localStorage | 🚫 Giữ nguyên | Người dùng quyết định 26/09/2026: giữ (máy dùng riêng, ưu tiên gợi ý nhanh) |
 | H-10 | PII gửi Gemini | 🚫 Giữ nguyên | Người dùng quyết định 26/09/2026: không sửa |
-| H-11 | Audit thiếu user thật & before/after | 🟡 2026.7.0 | Đã ghi email thật cho mọi thao tác; before/after mới có ở Đồng bộ tên, Sửa tên KH, Phân quyền |
+| H-11 | Audit thiếu user thật & before/after | ✅ 2026.9.42 | Email thật mọi thao tác; trước → sau ở Sửa hồ sơ Nháp, Đồng bộ tên, Sửa tên KH, Phân quyền; thao tác hồ sơ hiện ở Lịch sử sửa đổi |
 | H-12 | Formula injection | ✅ 2026.7.4 | `_oAnToan_`/`_dongAnToan_` ở mọi chỗ ghi dữ liệu |
 | H-13 | `showAddPaymentDialog` trỏ file không tồn tại | ✅ 2026.7.5 | Cách B: mở Web App màn Tạo Mới (`?trang=taoMoi`) |
 | H-14 | Test tự động | ✅ 2026.6.0 | 68 test (2026.7.4); mở rộng dần mỗi Phase |
@@ -59,6 +59,7 @@ Trạng thái: ✅ xong · 🟡 một phần · ⏳ chưa làm · ⚖️ cần n
 - ✅ Khóa sổ năm (quy trình người dùng): kiểm chứng công nợ đầu năm = phiếu chưa trả mang sang (test `khoaSoNam`); không cần bộ nhớ đệm 6 tháng.
 - ✅ 2026.9.16: Nhật ký thao tác giữ dạng chữ cho Mã hồ sơ / mã lỗi (không mất số 0 đầu).
 - ✅ 2026.9.15: Hệ Thống › Dọn Dẹp MISA (trùng / mồ côi / tất cả trong khoảng Ngày CK), xem trước + sao lưu. UNC không cần nút xóa riêng (xem CHANGELOG).
+- ✅ 2026.9.42: Công nợ mở bằng bản tổng hợp (Làm mới khi cần); thanh Đi nhanh cho trang dài; nhật ký trước → sau cho thao tác hồ sơ.
 - ✅ 2026.9.41: Trang chủ — ô số liệu dạng nút mở thẳng màn hình; tab “Đã có số tiền” ở Danh Sách ĐNTT.
 - ✅ 2026.9.40: Thiết kế lại giao diện — 1 font Inter, thang cỡ chữ 1 chỗ, Trang chủ dạng bước + nhóm số liệu.
 - ✅ 2026.9.39: Trang chủ — Quy trình thanh toán 5 bước lên đầu trang (chung nội dung với Hướng Dẫn).

@@ -328,6 +328,13 @@
     /* Trang chủ (thiết kế lại 28/09/2026): tiêu đề nhóm, quy trình dạng bước có đường nối */
     .muc-tieu-de{font-size:var(--fs-nho); font-weight:700; text-transform:uppercase; letter-spacing:.07em; color:var(--ink-soft); margin:26px 0 10px;}
     .muc-tieu-de:first-child{margin-top:0;}
+    /* Thanh "Đi nhanh" của trang dài */
+    .muc-luc{display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin:0 0 18px;}
+    .muc-luc-nhan{font-size:var(--fs-nho); font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-soft); margin-right:4px;}
+    .muc-luc a{font-size:var(--fs-nho); font-weight:600; text-decoration:none; color:var(--ink); background:var(--white); border:1px solid var(--line);
+      border-radius:20px; padding:5px 11px; white-space:nowrap;}
+    .muc-luc a:hover, .muc-luc a:focus-visible{border-color:var(--accent); color:var(--accent); outline:none;}
+    #content > .card{scroll-margin-top:110px;}
     .quy-trinh{list-style:none; margin:0; padding:0; display:grid; grid-template-columns:repeat(5, minmax(0, 1fr)); gap:14px;}
     .quy-trinh li{position:relative; padding-top:42px;}
     .quy-trinh li::before{content:attr(data-so); position:absolute; top:0; left:0; width:30px; height:30px; border-radius:50%;
@@ -347,6 +354,10 @@
       background:#fff7e0; color:#5b4300; border:1px solid #e7c35a; border-radius:10px; padding:10px 14px; box-shadow:0 6px 20px rgba(0,0,0,.15);
       font-size:13.5px; display:flex; gap:12px; align-items:center;}
     .bang-dong-bo.hidden{display:none;}
+    /* Công nợ: trạng thái bản tổng hợp */
+    .tt-tong-hop{display:flex; flex-wrap:wrap; gap:6px 12px; align-items:center; font-size:var(--fs-phu); color:var(--ink-soft);
+      padding:8px 12px; border-radius:8px; background:var(--paper-2); border:1px solid var(--line);}
+    .tt-tong-hop.cu{background:var(--timber-light); border-color:var(--timber); color:var(--ink);}
     .modal.rong .modal-body{max-height:78vh;}
     iframe.xem-phieu{width:100%; height:70vh; border:1px solid var(--line); border-radius:8px; background:#fff;}
     tr.dong-bam{cursor:pointer;}
@@ -422,6 +433,7 @@
     .subtab.active{background:var(--accent); border-color:var(--accent); color:#fff;}
     .debt-neg{color:var(--danger);}
     .debt-pos{color:var(--moss);}
+    .stat .value.debt-neg{color:var(--danger);} .stat .value.debt-pos{color:var(--moss);}
     tr.clickable{cursor:pointer;}
     tr.clickable:hover{background:var(--timber-light) !important;}
     .search-row input{flex:1;}
@@ -580,7 +592,7 @@
       <div class="nav-item" role="button" tabindex="0" data-page="settings"><span class="ic">⚙️</span> Cài đặt / Nháp</div>
     </nav>
     <div class="nguoi-dung-chip" id="nguoi-dung-chip"></div>
-    <div class="sidebar-footer">Hệ thống Quản Lý Thanh Toán · v2026.9.41<br><button type="button" class="theme-toggle" id="theme-toggle" aria-label="Đổi giao diện sáng / tối">🌓 Giao diện: Tự động</button></div>
+    <div class="sidebar-footer">Hệ thống Quản Lý Thanh Toán · v2026.9.42<br><button type="button" class="theme-toggle" id="theme-toggle" aria-label="Đổi giao diện sáng / tối">🌓 Giao diện: Tự động</button></div>
   </aside>
 
   <main class="main">
@@ -1305,6 +1317,7 @@ function goTo(page){
   document.getElementById('page-title').textContent = meta.title;
   document.getElementById('page-desc').textContent = meta.desc;
   document.getElementById('topbar-actions').innerHTML = '';
+  _boTheoDoiMucLuc(document.getElementById('content'));
   meta.render();
 }
 
@@ -3384,11 +3397,11 @@ function renderDebt(){
     <div class="subtabs">
       <div class="subtab" data-t="customer">1 · Công nợ theo Khách hàng</div>
       <div class="subtab" data-t="contract">2 · Công nợ theo Hợp đồng</div>
-      <div class="subtab" data-t="ledger">4 · Sổ chi tiết công nợ</div>
-      <div class="subtab" data-t="analysis">5 · Phân tích thanh toán</div>
-      <div class="subtab" data-t="phantich">6 · Phân tích Nhập/TT theo NG-ĐL</div>
-      <div class="subtab" data-t="ctcn">7 · Chi tiết Công Nợ theo Phiếu Cân</div>
-      <div class="subtab" data-t="tht">8 · Tình Hình Thanh Toán Gỗ Keo Hàng Ngày</div>
+      <div class="subtab" data-t="ledger">3 · Sổ chi tiết công nợ</div>
+      <div class="subtab" data-t="analysis">4 · Phân tích thanh toán</div>
+      <div class="subtab" data-t="phantich">5 · Phân tích Nhập/TT theo NG-ĐL</div>
+      <div class="subtab" data-t="ctcn">6 · Chi tiết Công Nợ theo Phiếu Cân</div>
+      <div class="subtab" data-t="tht">7 · Tình Hình Thanh Toán Gỗ Keo Hàng Ngày</div>
     </div>
     ${showRangeFilter ? `
     <div class="card">
@@ -3401,6 +3414,7 @@ function renderDebt(){
         </div>
       </div>
       <div class="hint-text" style="margin-top:6px">"Trong kỳ" giới hạn tối đa ~3 tháng để tải nhanh hơn; số dư/lũy kế vẫn tính đủ đến "Đến ngày" như bình thường.${['customer','contract'].includes(state.debtTab) ? ' Nếu vừa nhập thêm Phiếu Cân/thanh toán mà số liệu chưa cập nhật, bấm "Làm mới báo cáo" thay vì chờ tới giờ trigger 7:30/13:00.' : ''}</div>
+      ${['customer','contract'].includes(state.debtTab) ? '<div id="congno-trang-thai" style="margin-top:10px"></div>' : ''}
     </div>` : ''}
     ${state.debtTab === 'phantich' ? `
     <div class="card">
@@ -3462,11 +3476,26 @@ function loadDebtTab(){
 }
 
 /* ---------- Tab 1: Công nợ theo Khách hàng ---------- */
+/** Công nợ KH / theo HĐ: cho biết đang xem bản tổng hợp (lúc nào, có thay đổi sau đó chưa)
+ * hay số liệu tính trực tiếp. Bản tổng hợp mở nhanh; muốn mới nhất thì bấm Làm mới. */
+function _veTrangThaiCongNo(loai){
+  call('getCongNoTrangThai', [loai, state.debtFrom, state.debtTo], null).then(tt => {
+    const o = document.getElementById('congno-trang-thai');
+    if (!o || !tt) return;
+    o.className = 'tt-tong-hop' + (tt.tongHop && tt.coThayDoi ? ' cu' : '');
+    o.innerHTML = tt.tongHop
+      ? `<span>📋 Số liệu tổng hợp lúc <b>${esc(tt.capNhatLuc)}</b> (tự cập nhật 7:30 và 13:00 hằng ngày).</span>
+         ${tt.coThayDoi ? `<span>⚠️ Sau đó đã có Duyệt / Mở Đóng Thanh Toán (lúc ${esc(tt.thayDoiLuc)}) - số liệu chưa gồm thay đổi này.</span>` : ''}
+         <button class="btn sm${tt.coThayDoi ? ' primary' : ''}" onclick="doLamMoiCongNo()">🔄 Làm mới (tính lại, chậm hơn)</button>`
+      : '<span>⚡ Khoảng ngày khác mặc định (90 ngày gần nhất): số liệu được tính trực tiếp khi xem - luôn mới nhất.</span>';
+  });
+}
 function loadDebtByCustomer(){
   const body = document.getElementById('debt-body');
   body.innerHTML = '<div class="card"><div class="empty"><div class="ic">⏳</div>Đang tải...</div></div>';
   call('getDebtByCustomer', [state.debtFrom, state.debtTo], 'Đang tính công nợ theo khách hàng...').then(rows => {
     state.debtCustomerRows = rows;
+    _veTrangThaiCongNo('kh');
     if (!rows.length) { body.innerHTML = '<div class="card"><div class="empty"><div class="ic">📭</div>Không có phát sinh trong kỳ.</div></div>'; return; }
     renderDebtByCustomerTable();
   });
@@ -3536,6 +3565,7 @@ function loadDebtByContract(){
   body.innerHTML = '<div class="card"><div class="empty"><div class="ic">⏳</div>Đang tải...</div></div>';
   call('getDebtByContract', [state.debtFrom, state.debtTo], 'Đang tính công nợ theo hợp đồng...').then(rows => {
     state.debtContractRows = rows;
+    _veTrangThaiCongNo('hd');
     if (!rows.length) { body.innerHTML = '<div class="card"><div class="empty"><div class="ic">📭</div>Chưa có hợp đồng nào phát sinh.</div></div>'; return; }
     renderDebtByContractTable();
   });
@@ -4146,11 +4176,11 @@ function renderHuongDan(){
     <div style="margin-top:10px;font-size:13px;line-height:1.7">
       <b>1 · Công nợ theo Khách hàng</b> - tổng khối lượng nhập/đã trả/còn nợ theo từng khách hàng, trong 1 khoảng ngày.<br>
       <b>2 · Công nợ theo Hợp đồng</b> - tương tự nhưng theo từng hợp đồng (kể cả hợp đồng đã thanh lý).<br>
-      <b>4 · Sổ chi tiết công nợ</b> - bấm vào 1 khách hàng/hợp đồng ở tab 1/2 để xem từng phiếu cân/lần thanh toán cụ thể.<br>
-      <b>5 · Phân tích thanh toán</b> - tổng hợp theo Nguồn Gốc và Đại Lý trong khoảng ngày.<br>
-      <b>6 · Phân tích Nhập/TT theo NG-ĐL</b> - bảng theo NGÀY (dòng) × Nguồn Gốc/Đại Lý (cột), mặc định đầu tháng → hôm nay ("Từ ngày" bị khóa, tự tính theo "Đến ngày"). Có ô "Lọc lại" để xem thu hẹp trong khoảng đã tải. Xuất được cả Excel + PDF.<br>
-      <b>7 · Chi tiết Công Nợ theo Phiếu Cân</b> - liệt kê phiếu cân CHƯA thanh toán tính đến 1 ngày cụ thể, kèm "Chênh lệch ngày" (đã treo bao lâu). Mặc định xem hôm qua, chọn ngày khác tự tính lại ngay.<br>
-      <b>8 · Tình Hình Thanh Toán Gỗ Keo Hàng Ngày</b> - ngược lại tab 7: liệt kê phiếu cân ĐÃ thanh toán theo "Ngày thanh toán", mặc định xem hôm nay.
+      <b>3 · Sổ chi tiết công nợ</b> - bấm vào 1 khách hàng/hợp đồng ở tab 1/2 để xem từng phiếu cân/lần thanh toán cụ thể.<br>
+      <b>4 · Phân tích thanh toán</b> - tổng hợp theo Nguồn Gốc và Đại Lý trong khoảng ngày.<br>
+      <b>5 · Phân tích Nhập/TT theo NG-ĐL</b> - bảng theo NGÀY (dòng) × Nguồn Gốc/Đại Lý (cột), mặc định đầu tháng → hôm nay ("Từ ngày" bị khóa, tự tính theo "Đến ngày"). Có ô "Lọc lại" để xem thu hẹp trong khoảng đã tải. Xuất được cả Excel + PDF.<br>
+      <b>6 · Chi tiết Công Nợ theo Phiếu Cân</b> - liệt kê phiếu cân CHƯA thanh toán tính đến 1 ngày cụ thể, kèm "Chênh lệch ngày" (đã treo bao lâu). Mặc định xem hôm qua, chọn ngày khác tự tính lại ngay.<br>
+      <b>7 · Tình Hình Thanh Toán Gỗ Keo Hàng Ngày</b> - ngược lại tab 6: liệt kê phiếu cân ĐÃ thanh toán theo "Ngày thanh toán", mặc định xem hôm nay.
     </div>
   </details>
 
@@ -4195,8 +4225,50 @@ function renderHuongDan(){
     </div>
   </details>
   `;
+  _ganMucLuc(); // trang dài: thanh "Đi nhanh" tới từng mục
 }
 
+/** Trang dài (Hệ Thống, Cài đặt, Hướng Dẫn): thanh "Đi nhanh" ở đầu trang, lấy từ tiêu đề các
+ * thẻ - bấm là cuộn tới đúng mục (không phải cuộn tìm). Thêm thẻ mới thì tự có trong thanh. */
+function _ganMucLuc(){
+  const c = document.getElementById('content');
+  if (!c) return;
+  _veMucLuc(c);
+  // Có thẻ được điền sau khi tải dữ liệu (Người dùng, Cổng đăng nhập...) -> tự vẽ lại thanh.
+  _boTheoDoiMucLuc(c);
+  let hen;
+  c._theoDoiMucLuc = new MutationObserver(() => { clearTimeout(hen); hen = setTimeout(() => _veMucLuc(c), 200); });
+  c._theoDoiMucLuc.observe(c, { childList: true, subtree: true });
+}
+/** Rời trang (goTo): thôi theo dõi, trang khác không có thanh "Đi nhanh". */
+function _boTheoDoiMucLuc(c){
+  if (c._theoDoiMucLuc) { c._theoDoiMucLuc.disconnect(); c._theoDoiMucLuc = null; }
+  delete c.dataset.mucLuc;
+}
+function _veMucLuc(c){
+  const the = Array.from(c.children).filter(el => el.classList.contains('card') && el.querySelector(':scope > h3, :scope > summary'));
+  const ten = el => el.querySelector(':scope > h3, :scope > summary').textContent.replace(/^[^\p{L}\p{N}]+/u, '').split(' (')[0].trim();
+  const khoa = the.map(ten).join('|');
+  if (c.dataset.mucLuc === khoa) return; // không đổi gì - không vẽ lại
+  c.dataset.mucLuc = khoa;
+  const cu = c.querySelector(':scope > .muc-luc');
+  if (cu) cu.remove();
+  if (the.length < 4) return;
+  the.forEach((el, i) => { if (!el.id) el.id = 'muc-' + i; });
+  const nav = document.createElement('nav');
+  nav.className = 'muc-luc';
+  nav.setAttribute('aria-label', 'Đi nhanh tới mục');
+  nav.innerHTML = '<span class="muc-luc-nhan">Đi nhanh:</span>' + the.map(el => `<a href="#${esc(el.id)}" data-muc="${esc(el.id)}">${esc(ten(el))}</a>`).join('');
+  nav.addEventListener('click', e => {
+    const a = e.target.closest('a[data-muc]');
+    if (!a) return;
+    e.preventDefault();
+    const dich = document.getElementById(a.dataset.muc);
+    if (dich.tagName === 'DETAILS') dich.open = true;
+    dich.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+  c.prepend(nav);
+}
 function renderHeThong(){
   document.getElementById('topbar-actions').innerHTML = '';
   const c = document.getElementById('content');
@@ -4260,7 +4332,7 @@ function renderHeThong(){
     </div>
     <div class="card">
       <h3>📜 Lịch Sử Sửa Đổi</h3>
-      <p class="muted" style="font-size:13px">Theo dõi việc Mở Đóng Thanh Toán, Đồng Bộ Tên Khách Hàng và Cập Nhật Ngân Hàng - kèm người thực hiện (Gmail). Xem theo khoảng ngày, không hiện dồn tất cả.</p>
+      <p class="muted" style="font-size:13px">Theo dõi mọi thay đổi dữ liệu - sửa / thêm / bỏ phiếu cân / xóa hồ sơ Nháp (kèm giá trị trước → sau), Xác nhận, Duyệt, Mở Đóng Thanh Toán, Đồng Bộ Tên, Cập Nhật Ngân Hàng, dọn dẹp - kèm người thực hiện (Gmail). Xem theo khoảng ngày, không hiện dồn tất cả.</p>
       <div class="grid cols-3">
         <div class="field"><label>Từ ngày</label><input type="date" id="lichsu-from" value="${isoDaysAgoVN(7)}"></div>
         <div class="field"><label>Đến ngày</label><input type="date" id="lichsu-to" value="${todayISOVN()}"></div>
@@ -4326,6 +4398,7 @@ function renderHeThong(){
       <div id="dondepunc-result" style="margin-top:10px"></div>
     </div>
   `;
+  _ganMucLuc(); // trang dài: thanh "Đi nhanh" tới từng mục
   loadLichSuSuaDoi();
   call('getUncConfigForWeb', [], null).then(cfg => {
     if (!cfg) return;
@@ -4406,7 +4479,13 @@ const NHAN_HANH_DONG = {
   XOA_NHAP: '🗑️ Xóa hồ sơ Nháp',
   TAO_LAI_UNC: '🔁 Tạo lại UNC (thay bản cũ)',
   XOA_MISA: '🧹 Dọn MISA',
-  XOA_UNC: '🧹 Dọn UNC'
+  XOA_UNC: '🧹 Dọn UNC',
+  SUA_NHAP: '✏️ Sửa hồ sơ Nháp',
+  THEM_PHIEU_NHAP: '➕ Thêm phiếu cân',
+  XOA_PHIEU_NHAP: '➖ Bỏ phiếu cân',
+  XAC_NHAN_DNTT: '✅ Xác nhận ĐNTT',
+  HUY_XAC_NHAN_DNTT: '↩️ Về Chờ ĐNTT',
+  CHOT_THANH_TOAN: '📨 Duyệt (Đóng TT)'
 };
 function doKhoaSoNam(chayThat){
   const box = document.getElementById('khoaso-result');
@@ -4634,6 +4713,7 @@ function renderSettings(){
         <h3>Tiện ích khác</h3>
         <button class="btn" onclick="doGenerateThongSo()">📋 Tạo/Cập Nhật Sheet Thông Số</button>
       </div>`;
+      _ganMucLuc(); // trang dài: thanh "Đi nhanh" tới từng mục
       loadNguoiDung();
       loadCauHinhDangNhap();
       loadChatbotSettings();

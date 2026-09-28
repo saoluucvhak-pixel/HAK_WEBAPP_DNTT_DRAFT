@@ -1,4 +1,4 @@
-# ARCHITECTURE — HAK Quản Lý Thanh Toán (v2026.9.41)
+# ARCHITECTURE — HAK Quản Lý Thanh Toán (v2026.9.42)
 
 > Tài liệu sống: cập nhật mỗi khi đổi module, lớp, luồng dữ liệu hoặc schema.
 > Phân tích chi tiết hiện trạng: `docs/PROJECT_ANALYSIS.md`. Kiến trúc đích: `docs/REFACTOR_PLAN.md` §3–§4.
@@ -167,6 +167,9 @@ Chỉ khi khoảng ngày **chạm năm đã đăng ký**; báo cáo năm đang m
 - **QUY ĐỊNH CĂN LỀ** (người dùng chốt 28/09/2026, toàn web app): cột toàn **số** căn **phải**; **tên, chuỗi** căn **trái**; tiêu đề căn giữa. File xuất: `_canhLeTheoKieu_(sheet, dòngĐầu, rows)` theo kiểu giá trị (số, hoặc chuỗi Sheets tự đổi thành số → phải; chuỗi có dấu ' / số 0 đầu như Số TK, CCCD, Số HĐ → trái) — gọi ở mọi hàm xuất. Web: `_canhLeBangWeb_` tự chạy cho mọi bảng mới vẽ, thêm class `num` cho cột toàn số (`_LA_SO_WEB_`: có dấu phân cách hoặc 1–3 chữ số; dãy số dài không phân cách là mã → trái), chỉ thêm không gỡ.
 - **FONT & CỠ CHỮ**: web 1 font `--font-chu` cho chữ và số (số `tabular-nums`). File xuất Bảng Đề Xuất cỡ `BANG_DE_XUAT.CO_CHU` (11), độ rộng cột đo theo chữ (`_rongCotVua_`), chiều cao dòng đặt theo nhóm (`_datChieuCaoDong_`, tối đa `NHOM_CAO_TOI_DA` lệnh) — **không gọi API Sheets theo từng dòng** trong hàm xuất.
 - **ĐỌC THEO KHÓA**: chức năng chỉ cần vài chục/trăm dòng (xuất báo cáo hồ sơ đã chọn, MISA theo Ngày CK) **không đọc cả sheet**: `_docDongTheoKhoa_(sh, cộtKhóa, rộng, khớp)` đọc 1 cột khóa rồi các đoạn dòng khớp (`DOC_THEO_KHOA`). Dùng qua `_ctDongCuaHoSo_`, `_ctTheoNgayCK_`, `_pcTheoSoPhieu_`. Quét cả sổ chỉ dành cho công nợ/phân tích/bảo trì (cần mọi dòng).
+- **CÔNG NỢ TỔNG HỢP**: chỉ khoảng mặc định (`_defaultCongNoRange_`, 90 ngày) có bản tổng hợp (CongNoKhachHang_DRAFT, HopDongTienDo_DRAFT); khoảng khác tính trực tiếp, không ghi đè. Ghi sổ đã chốt → `_invalidateCongNoCache_` chỉ ghi `CONGNO_THAY_DOI_LUC` (màn hình báo “có thay đổi”, người dùng bấm Làm mới).
+- **NHẬT KÝ TRƯỚC → SAU**: sửa dữ liệu hồ sơ ghi `_moTaThayDoi_(trước, sau, nhãn)`; hành động muốn hiện ở Lịch sử sửa đổi thêm vào `LICH_SU_SUA_DOI_ACTIONS` + nhãn `NHAN_HANH_DONG` (trình duyệt).
+- **TRANG DÀI**: gọi `_ganMucLuc()` sau khi vẽ trang để có thanh “Đi nhanh”.
 - **CHỜ ĐỒNG BỘ**: trigger chạy qua `_chayTriggerCoDo_` (bật cờ `HN_TRIGGER_DANG_CHAY_<tên>`). `api()` thấy cờ còn hiệu lực (`_dongBoDangChay_`) thì trả `AUTH_CFG.LOI_DONG_BO` + JSON; `call()` ở trình duyệt chờ (`_choDongBo`, hỏi `getTrangThaiDongBo` mỗi `CHO_DONG_BO_MS`) rồi gọi lại. Route mới rất nhẹ / phục vụ việc chờ: `r(fn, quyen, KHONG_CHO)`. Trigger mới phải chạy qua `_chayTriggerCoDo_` và có tên trong `TEN_DONG_BO`.
 - **GIAO DIỆN (thiết kế 28/09/2026)**: 1 font `--font-chu` (Inter); cỡ chữ chỉ dùng thang `--fs-nho/phu/than/the/trang/so` trong `:root` — màn hình mới không đặt cỡ chữ rời. Tiêu đề màu `--ink`; `--accent` cho nút và số liệu.
 - **KHÔNG GHI LẠI KHI KHÔNG ĐỔI**: bản sao / snapshot trong File Nháp ghi qua `_ghiLaiMirror_` — so dấu vân tay nội dung + kích thước, giống thì không ghi (File Nháp bận ghi thì mọi thao tác đọc web phải chờ).
