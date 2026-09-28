@@ -326,6 +326,13 @@
     .modal-head .x{cursor:pointer; font-size:18px; color:var(--ink-soft); background:none; border:none;}
     .modal-body{padding:20px; max-height:65vh; overflow:auto;}
     .modal.rong{max-width:880px;}
+    /* #3 (2026.9.49): hộp xác nhận trong trang - nằm TRÊN cả hộp thoại đang mở. */
+    #hop-xac-nhan{z-index:950;}
+    #hop-xac-nhan .modal{max-width:480px;}
+    #hop-xac-nhan .noi-dung{white-space:pre-line; font-size:14px; line-height:1.6;}
+    #hop-xac-nhan .modal-head.nguy-hiem{background:var(--danger-light);}
+    #hop-xac-nhan .modal-head.nguy-hiem h3{color:var(--danger);}
+    #hop-xac-nhan input{width:100%; margin-top:10px;}
     /* Trang chủ (thiết kế lại 28/09/2026): tiêu đề nhóm, quy trình dạng bước có đường nối */
     .muc-tieu-de{font-size:var(--fs-nho); font-weight:700; text-transform:uppercase; letter-spacing:.07em; color:var(--ink-soft); margin:26px 0 10px;}
     .muc-tieu-de:first-child{margin-top:0;}
@@ -619,6 +626,11 @@
   <div id="toast-wrap" role="status" aria-live="polite"></div>
   <div id="bang-dong-bo" class="bang-dong-bo hidden" role="status" aria-live="polite"></div>
   <div class="modal-bg" id="modal-bg"><div class="modal" id="modal" role="dialog" aria-modal="true" tabindex="-1"></div></div>
+  <div class="modal-bg" id="hop-xac-nhan"><div class="modal" role="alertdialog" aria-modal="true" aria-labelledby="xn-tieu-de" aria-describedby="xn-noi-dung" tabindex="-1">
+    <div class="modal-head" id="xn-dau"><h3 id="xn-tieu-de"></h3></div>
+    <div class="modal-body"><div class="noi-dung" id="xn-noi-dung"></div><div id="xn-nhap"></div></div>
+    <div class="modal-foot"><button class="btn" id="xn-huy">Hủy</button><button class="btn primary" id="xn-ok">Đồng ý</button></div>
+  </div></div>
 
   <!-- MỚI (theo yêu cầu): widget chatbot AI nổi -->
   <div id="chatbotNut" title="Hỏi Trợ Lý AI" role="button" tabindex="0" aria-label="Mở Trợ Lý AI" aria-controls="chatbotHop">🤖</div>
@@ -1167,6 +1179,51 @@ function openModal(html, tuyChon){
   const oDau = modal.querySelector('input:not([disabled]), select, textarea, .modal-foot .btn');
   (oDau || modal).focus();
 }
+/* ---------- #3 Hộp xác nhận trong trang (nâng cấp 28/09/2026) ----------
+ * Thay confirm() / prompt() của trình duyệt (hộp xám không đọc được hết nội dung dài, trang
+ * nhúng có thể chặn, dễ bấm Enter nhầm). tc: { tieuDe, nutOk, nguyHiem (nút đỏ, Enter không
+ * đồng ý), maGo (phải gõ đúng chuỗi này mới bấm được - thao tác nguy hiểm), oNhap (giá trị mặc
+ * định -> hộp nhập chữ, trả về chuỗi) }. Trả Promise: true/false, hoặc chuỗi/null khi oNhap. */
+function xacNhan(noiDung, tc){
+  tc = tc || {};
+  return new Promise(xong => {
+    const hop = document.getElementById('hop-xac-nhan');
+    const truoc = document.activeElement;
+    const ok = document.getElementById('xn-ok'), huy = document.getElementById('xn-huy');
+    const coNhap = tc.oNhap !== undefined;
+    document.getElementById('xn-dau').classList.toggle('nguy-hiem', !!tc.nguyHiem);
+    document.getElementById('xn-tieu-de').textContent = tc.tieuDe || (tc.nguyHiem ? '⚠️ Xác nhận thao tác quan trọng' : 'Xác nhận');
+    document.getElementById('xn-noi-dung').textContent = noiDung;
+    const vungNhap = document.getElementById('xn-nhap');
+    vungNhap.innerHTML = coNhap ? '<input type="text" id="xn-o">'
+      : tc.maGo ? `<div class="hint-text" style="margin-top:12px">Gõ <b>${esc(tc.maGo)}</b> để xác nhận:</div><input type="text" id="xn-o" autocomplete="off" aria-label="Gõ ${esc(tc.maGo)} để xác nhận">` : '';
+    const o = document.getElementById('xn-o');
+    if (o && coNhap) o.value = tc.oNhap || '';
+    ok.textContent = tc.nutOk || (coNhap ? 'Lưu' : 'Đồng ý');
+    ok.className = 'btn ' + (tc.nguyHiem ? 'danger' : 'primary');
+    const chuanMa = s => _khongDau(String(s || '')).replace(/\s+/g, ' ').trim().toUpperCase();
+    const hopLe = () => !tc.maGo || (o && chuanMa(o.value) === chuanMa(tc.maGo));
+    ok.disabled = !hopLe();
+    if (o) o.oninput = () => { ok.disabled = !hopLe(); };
+    const dong = kq => {
+      hop.classList.remove('show');
+      ok.onclick = huy.onclick = hop.onclick = hop.onkeydown = null;
+      if (truoc && document.body.contains(truoc)) truoc.focus();
+      xong(kq);
+    };
+    ok.onclick = () => { if (hopLe()) dong(coNhap ? o.value : true); };
+    huy.onclick = () => dong(coNhap ? null : false);
+    hop.onclick = e => { if (e.target === hop) dong(coNhap ? null : false); };
+    hop.onkeydown = e => {
+      if (e.key === 'Escape') { e.stopPropagation(); dong(coNhap ? null : false); }
+      else if (e.key === 'Enter' && e.target === o && !ok.disabled && (coNhap || !tc.nguyHiem || tc.maGo)) { e.preventDefault(); ok.click(); }
+    };
+    hop.classList.add('show');
+    (o || (tc.nguyHiem ? huy : ok)).focus(); // thao tác nguy hiểm: con trỏ đứng ở "Hủy"
+  });
+}
+function nhapChu(noiDung, macDinh, tc){ return xacNhan(noiDung, Object.assign({ oNhap: macDinh || '' }, tc || {})); }
+
 function closeModal(){
   document.getElementById('modal-bg').classList.remove('show');
   if (_truocKhiMoModal_ && document.body.contains(_truocKhiMoModal_)) _truocKhiMoModal_.focus();
@@ -1277,8 +1334,11 @@ _xuLyDomMoi_();
 /** U-05 (rà soát 28/09/2026): hộp thoại đang mở giữ phím Tab bên trong (trước đây Tab đi ra
  * trang phía sau - người dùng bàn phím / trình đọc màn hình bị lạc khỏi hộp thoại). */
 function _giuTabTrongModal_(e){
-  if (e.key !== 'Tab' || !document.getElementById('modal-bg').classList.contains('show')) return false;
-  const modal = document.getElementById('modal');
+  if (e.key !== 'Tab') return false;
+  const hopXn = document.getElementById('hop-xac-nhan');
+  const moXn = hopXn.classList.contains('show');
+  if (!moXn && !document.getElementById('modal-bg').classList.contains('show')) return false;
+  const modal = moXn ? hopXn.querySelector('.modal') : document.getElementById('modal');
   const ds = Array.from(modal.querySelectorAll('a[href], button:not([disabled]), input:not([disabled]):not([type=hidden]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'))
     .filter(el => el.offsetParent !== null || el === document.activeElement);
   if (!ds.length) { e.preventDefault(); modal.focus(); return true; }
@@ -1291,6 +1351,7 @@ function _giuTabTrongModal_(e){
 document.addEventListener('keydown', e => {
   if (_giuTabTrongModal_(e)) return;
   if (e.key === 'Escape') {
+    if (document.getElementById('hop-xac-nhan').classList.contains('show')) return; // hộp xác nhận tự xử lý Esc
     if (document.getElementById('modal-bg').classList.contains('show')) { closeModal(); return; }
     const hop = document.getElementById('chatbotHop');
     if (hop && hop.classList.contains('mo')) { hop.classList.remove('mo'); document.getElementById('chatbotNut').focus(); }
@@ -1987,10 +2048,10 @@ function suaTenPcTaoMoi(i){
  * cảnh báo "khác tên" - dùng chung cho cả Bước 2 "Tạo Mới" (không
  * truyền idKeyForEdit) và modal "Sửa hồ sơ" (có truyền idKeyForEdit/
  * chuRungForEdit) để biết tải lại đúng danh sách nào sau khi sửa. */
-function suaTenKhachHangPC(soPhieuCan, tenHienTai, idKeyForEdit, chuRungForEdit){
+async function suaTenKhachHangPC(soPhieuCan, tenHienTai, idKeyForEdit, chuRungForEdit){
   // Mục đích sửa tên là đưa phiếu cân về ĐÚNG Chủ rừng -> điền sẵn tên Chủ rừng đang chọn.
   const chuRung = idKeyForEdit ? chuRungForEdit : state.createData.hoTenChuRung;
-  const tenMoi = prompt(`Sửa tên khách hàng cho phiếu cân "${soPhieuCan}"\nTên hiện tại: "${tenHienTai || ''}"\nTên mới:`, chuRung || tenHienTai || '');
+  const tenMoi = (await nhapChu(`Sửa tên khách hàng cho phiếu cân "${soPhieuCan}"\nTên hiện tại: "${tenHienTai || ''}"\nTên mới:`, chuRung || tenHienTai || '', { tieuDe: 'Sửa tên khách hàng phiếu cân' }));
   if (tenMoi === null) return; // bấm Hủy
   const clean = tenMoi.trim();
   if (!clean) { toast('Vui lòng nhập tên khách hàng.', 'warn'); return; }
@@ -2144,7 +2205,7 @@ function renderCreateStep3(body){
 
 /** MỚI (mục AF): cảnh báo nếu có phiếu cân với tên Khách hàng KHÁC Chủ
  * rừng đang chọn (không chặn, chỉ hỏi xác nhận trước khi lưu). */
-function submitCreate(){
+async function submitCreate(){
   const d = state.createData;
   const genericNames = new Set(['KH','KL','KHACHLE','KHÁCHLẺ']); // khớp TEN_KHACH_CHUNG (Code.gs) - standardizeClient giữ dấu
   const nameStd = standardizeClient(d.hoTenChuRung);
@@ -2154,7 +2215,7 @@ function submitCreate(){
   });
   if (mismatched.length > 0) {
     const danhSach = mismatched.map(p => `${p.soPhieuCan} (KH: ${p.khachHang})`).join(', ');
-    const ok = confirm(`⚠️ Có ${mismatched.length} phiếu cân với tên Khách hàng KHÁC Chủ rừng "${d.hoTenChuRung}" đã chọn:\n${danhSach}\n\nBạn có chắc muốn tiếp tục lưu không?`);
+    const ok = (await xacNhan(`⚠️ Có ${mismatched.length} phiếu cân với tên Khách hàng KHÁC Chủ rừng "${d.hoTenChuRung}" đã chọn:\n${danhSach}\n\nBạn có chắc muốn tiếp tục lưu không?`, { tieuDe: '⚠️ Tên khách hàng khác Chủ rừng', nutOk: 'Vẫn lưu' }));
     if (!ok) return;
   }
   doSubmitCreate();
@@ -2373,12 +2434,12 @@ function draftRowActionsHtml(r){
   return xem; // cho_tinh (Chưa tính tiền) - chỉ Xem
 }
 
-function doHuyXacNhan(idKey){
-  if (!confirm(`Chuyển hồ sơ "${idKey}" về trạng thái "Chờ xác nhận" để có thể Sửa/Xóa?`)) return;
-  call('runHuyXacNhanDNTT', [idKey], 'Đang chuyển trạng thái...').then(res => {
+async function doHuyXacNhan(idKey){
+  if (!(await xacNhan(`Chuyển hồ sơ "${idKey}" về trạng thái "Chờ xác nhận" để có thể Sửa/Xóa?`))) return;
+  call('runHuyXacNhanDNTT', [idKey], 'Đang chuyển trạng thái...').then(async res => {
     // Hồ sơ đã có UNC: máy chủ hỏi xác nhận riêng (UNC có thể đã nộp ngân hàng).
     if (res && res.canXacNhanUnc) {
-      if (!confirm(res.message)) return;
+      if (!(await xacNhan(res.message, { nguyHiem: true, tieuDe: '⚠️ Hồ sơ đã có UNC', nutOk: 'Vẫn chuyển về Chờ xác nhận' }))) return;
       return call('runHuyXacNhanDNTT', [idKey, true], 'Đang chuyển trạng thái...').then(r2 => handleResult(r2, loadDraftList));
     }
     handleResult(res, loadDraftList);
@@ -2454,9 +2515,9 @@ function getDraftActionButtonsHtml(){
 function doXacNhanDNTT(){
   const ids = Array.from(state.draftSelected);
   if (!ids.length) { toast('Vui lòng chọn ít nhất 1 hồ sơ.', 'warn'); return; }
-  call('runXacNhanDNTT', [ids], 'Đang Xác Nhận...').then(res => {
+  call('runXacNhanDNTT', [ids], 'Đang Xác Nhận...').then(async res => {
     if (res && res.needConfirm) {
-      if (confirm(res.message)) {
+      if ((await xacNhan(res.message, { tieuDe: '⚠️ Tên khách hàng khác Chủ rừng', nutOk: 'Vẫn Xác nhận' }))) {
         call('runXacNhanDNTT', [ids, true], 'Đang Xác Nhận...').then(res2 => handleResult(res2, () => loadDraftList()));
       }
       return;
@@ -2615,8 +2676,8 @@ function veDienGiaiHoSo(r){
   return `<div class="dien-giai" style="margin-top:12px"><div class="tieu-de">Diễn giải</div>${dong.join('')}</div>`;
 }
 
-function removePhieuCan(idCT, idKey){
-  if (!confirm('Xóa phiếu cân "'+idCT+'" khỏi hồ sơ này?')) return;
+async function removePhieuCan(idCT, idKey){
+  if (!(await xacNhan('Xóa phiếu cân "'+idCT+'" khỏi hồ sơ này?', { nguyHiem: true, nutOk: 'Xóa phiếu cân' }))) return;
   call('removePhieuCanFromDraft', [idCT], 'Đang xóa...').then(res => {
     if (!handleResult(res)) return;
     loadDraftList();
@@ -2715,8 +2776,8 @@ function saveDraftEdit(idKey){
   });
 }
 
-function confirmDeleteDraft(idKey){
-  if (!confirm('Xóa TOÀN BỘ hồ sơ "'+idKey+'" khỏi File Nháp?\nCác số phiếu cân liên quan sẽ được giải phóng ngay.')) return;
+async function confirmDeleteDraft(idKey){
+  if (!(await xacNhan('Xóa TOÀN BỘ hồ sơ "'+idKey+'" khỏi File Nháp?\nCác số phiếu cân liên quan sẽ được giải phóng ngay.', { nguyHiem: true, tieuDe: 'Xóa hồ sơ khỏi Nháp', nutOk: 'Xóa hồ sơ' }))) return;
   call('runDeleteDraftRecord', [idKey], 'Đang xóa...').then(res => handleResult(res, loadDraftList));
 }
 
@@ -2762,11 +2823,11 @@ function hienNgayThanhToan(){
     : '<span style="color:var(--danger)">Ngày chưa đúng - gõ ngày/tháng/năm, vd 26/09/2026.</span>';
 }
 
-function submitConfirmPayment(){
+async function submitConfirmPayment(){
   const dateStr = document.getElementById('pay-date').value;
   if (!dateStr) { toast('Ngày thanh toán chưa đúng - gõ ngày/tháng/năm, vd 26/09/2026.', 'warn'); return; }
   const vn = _isoSangVN(dateStr);
-  if (dateStr > todayISOVN() && !confirm(`Ngày thanh toán ${vn} là ngày SAU hôm nay. Vẫn Đóng Thanh Toán với ngày này?`)) return;
+  if (dateStr > todayISOVN() && !(await xacNhan(`Ngày thanh toán ${vn} là ngày SAU hôm nay. Vẫn Đóng Thanh Toán với ngày này?`, { tieuDe: '⚠️ Ngày thanh toán ở tương lai', nutOk: 'Vẫn Đóng Thanh Toán' }))) return;
   const ids = Array.from(state.draftSelected);
   call('webConfirmPayment', [ids, dateStr], 'Đang chốt thanh toán...').then(res => {
     closeModal();
@@ -3155,8 +3216,8 @@ function doExportBaoCaoUnc(){
     _hienKetQuaXuat_(res, () => `Đã xuất ${res.count} dòng.`);
   });
 }
-function doDongBoChiTietLichSu(){
-  if (!confirm('Quét TOÀN BỘ CT thật để bổ sung dữ liệu lịch sử còn thiếu vào ChiTietDNTT?\n\nVới hệ thống đã dùng lâu, sẽ tự động xử lý THEO LÔ (300 dòng/lượt) và tự gọi lại liên tiếp cho tới khi xong - không cần bấm nhiều lần, không lo timeout. Có thể mất vài phút nếu dữ liệu lớn - cứ để yên tab này cho tới khi thấy "HOÀN TẤT".\n\nBấm OK để tiếp tục.')) return;
+async function doDongBoChiTietLichSu(){
+  if (!(await xacNhan('Quét TOÀN BỘ CT thật để bổ sung dữ liệu lịch sử còn thiếu vào ChiTietDNTT?\n\nVới hệ thống đã dùng lâu, sẽ tự động xử lý THEO LÔ (300 dòng/lượt) và tự gọi lại liên tiếp cho tới khi xong - không cần bấm nhiều lần, không lo timeout. Có thể mất vài phút nếu dữ liệu lớn - cứ để yên tab này cho tới khi thấy "HOÀN TẤT".'))) return;
   const box = document.getElementById('dongbolichsu-result');
 
   if (!box) return; // đã rời tab trước khi dữ liệu về
@@ -3186,10 +3247,10 @@ function doDongBoChiTietLichSu(){
   chayMotLot();
 }
 
-function doTaoLaiMisaTheoNgay(){
+async function doTaoLaiMisaTheoNgay(){
   const f = document.getElementById('taolaimisa-from').value, t = document.getElementById('taolaimisa-to').value;
   if (!f || !t) { toast('Vui lòng chọn đủ Từ ngày/Đến ngày.', 'warn'); return; }
-  if (!confirm(`Tạo lại MISA cho các hồ sơ thanh toán (Ngày CK) trong khoảng ${f} → ${t}?\n\nHệ thống tự bỏ qua dòng đã có sẵn (không trùng), xử lý theo lô và tự lặp tới khi xong.\n\nBấm OK để tiếp tục.`)) return;
+  if (!(await xacNhan(`Tạo lại MISA cho các hồ sơ thanh toán (Ngày CK) trong khoảng ${f} → ${t}?\n\nHệ thống tự bỏ qua dòng đã có sẵn (không trùng), xử lý theo lô và tự lặp tới khi xong.`))) return;
   const box = document.getElementById('taolaimisa-result');
 
   if (!box) return; // đã rời tab trước khi dữ liệu về
@@ -3226,7 +3287,7 @@ const DON_DEP_WEB = {
 /** Đổi điều kiện sau khi xem trước -> bỏ kết quả cũ (nút Xóa chỉ đi với đúng điều kiện đã xem). */
 function _xoaKetQuaDonDep(loai){ const box = document.getElementById('dondep' + loai + '-result'); if (box) box.innerHTML = ''; }
 /** chayThat = false: xem trước (không đổi dữ liệu); true: xóa sau khi xác nhận. */
-function doDonDep(loai, chayThat){
+async function doDonDep(loai, chayThat){
   const cf = DON_DEP_WEB[loai];
   const [che, f, t] = ['che', 'from', 'to'].map(k => document.getElementById('dondep' + loai + '-' + k).value);
   if (!f || !t) { toast('Vui lòng chọn đủ Từ ngày/Đến ngày.', 'warn'); return; }
@@ -3234,7 +3295,7 @@ function doDonDep(loai, chayThat){
   if (!box) return; // đã rời tab trước khi dữ liệu về
   if (chayThat) {
     const nhan = document.getElementById('dondep' + loai + '-che').selectedOptions[0].textContent;
-    if (!confirm(`Xóa các dòng ${cf.ten} "${nhan}" có ${cf.ngay} ${f} → ${t}?\n\nDòng bị xóa được sao lưu, khôi phục được ở Hệ Thống › Khôi Phục Dữ Liệu Đã Xóa.`)) return;
+    if (!(await xacNhan(`Xóa các dòng ${cf.ten} "${nhan}" có ${cf.ngay} ${f} → ${t}?\n\nDòng bị xóa được sao lưu, khôi phục được ở Hệ Thống › Khôi Phục Dữ Liệu Đã Xóa.`, { nguyHiem: true, nutOk: 'Xóa' }))) return;
   }
   box.innerHTML = `<div class="empty"><div class="ic">⏳</div>${chayThat ? 'Đang xóa...' : 'Đang quét...'}</div>`;
   call(cf.fn, [che, f, t, !!chayThat], null).then(res => {
@@ -3257,13 +3318,13 @@ function doDonDep(loai, chayThat){
   });
 }
 
-function doTaoLaiUncTheoNgay(){
+async function doTaoLaiUncTheoNgay(){
   const f = document.getElementById('taolaiuncht-from').value, t = document.getElementById('taolaiuncht-to').value;
   const hieuLuc = document.getElementById('taolaiuncht-hieuluc').value;
   const tkTrichNo = document.getElementById('taolaiuncht-tktrichno').value.trim();
   const tkThuPhi = document.getElementById('taolaiuncht-tkthuphi').value.trim();
   if (!f || !t || !hieuLuc) { toast('Vui lòng chọn đủ Từ ngày/Đến ngày/Ngày hiệu lực.', 'warn'); return; }
-  if (!confirm(`Tạo lại UNC cho các hồ sơ ĐÃ CHỐT có Ngày CK trong khoảng ${f} → ${t}?\n\nVới khoảng ngày rộng, có thể tạo ra NHIỀU file UNC (mỗi lô 1 file). Xử lý theo lô và tự lặp tới khi xong.\n\nBấm OK để tiếp tục.`)) return;
+  if (!(await xacNhan(`Tạo lại UNC cho các hồ sơ ĐÃ CHỐT có Ngày CK trong khoảng ${f} → ${t}?\n\nVới khoảng ngày rộng, có thể tạo ra NHIỀU file UNC (mỗi lô 1 file). Xử lý theo lô và tự lặp tới khi xong.`))) return;
   const box = document.getElementById('taolaiuncht-result');
 
   if (!box) return; // đã rời tab trước khi dữ liệu về
@@ -4499,12 +4560,12 @@ function pickModongChuRung(r){
   document.getElementById('modong-lantt').value = r.lanTT;
   document.getElementById('modong-churung-suggest').classList.add('hidden');
 }
-function doMoDongThanhToanHoSo(){
+async function doMoDongThanhToanHoSo(){
   const chuRung = document.getElementById('modong-churung').value.trim();
   const ngay = document.getElementById('modong-ngaydongtt').value;
   const lanTT = document.getElementById('modong-lantt').value.trim();
   if (!chuRung || !ngay || !lanTT) { toast('Vui lòng nhập đủ Chủ rừng, Ngày Đóng TT và Lần Thanh Toán.', 'warn'); return; }
-  if (!confirm(`XÁC NHẬN: Mở Đóng Thanh Toán cho CẢ HỒ SƠ của "${chuRung}" (Ngày Đóng TT ${ngay}, Lần TT ${lanTT})?\n\nHành động này sẽ XÓA TOÀN BỘ hồ sơ (DNTT_GK_DN + tất cả CT con + 112) khỏi bản chính và tạo lại y hệt trong File Nháp. KHÔNG thể hoàn tác tự động.\n\nBấm OK để tiếp tục.`)) return;
+  if (!(await xacNhan(`XÁC NHẬN: Mở Đóng Thanh Toán cho CẢ HỒ SƠ của "${chuRung}" (Ngày Đóng TT ${ngay}, Lần TT ${lanTT})?\n\nHành động này sẽ XÓA TOÀN BỘ hồ sơ (DNTT_GK_DN + tất cả CT con + 112) khỏi bản chính và tạo lại y hệt trong File Nháp. KHÔNG thể hoàn tác tự động.`, { nguyHiem: true, tieuDe: '⚠️ Mở Đóng Thanh Toán', maGo: 'MO DONG', nutOk: 'Mở Đóng Thanh Toán' }))) return;
   call('webMoDongThanhToanTheoHoSo', [chuRung, ngay, lanTT], 'Đang mở Đóng Thanh Toán cả hồ sơ...').then(res => {
     handleResult(res, () => {
       document.getElementById('modong-churung').value = '';
@@ -4551,13 +4612,13 @@ const NHAN_HANH_DONG = {
   CHOT_THANH_TOAN: '📨 Duyệt (Đóng TT)',
   CAU_HINH_HE_THONG: '⚙️ Đổi cấu hình'
 };
-function doKhoaSoNam(chayThat){
+async function doKhoaSoNam(chayThat){
   const box = document.getElementById('khoaso-result');
 
   if (!box) return; // đã rời tab trước khi dữ liệu về
   const nam = (document.getElementById('khoaso-nam') || {}).value;
   if (!box || !nam) return;
-  if (chayThat && !confirm(`Khóa sổ năm ${nam}?\nSổ ĐNTT của năm chuyển sang file DATA${nam} và xóa khỏi File Chính; phiếu cân đã trả chuyển sang sheet lưu trữ.`)) return;
+  if (chayThat && !(await xacNhan(`Khóa sổ năm ${nam}?\nSổ ĐNTT của năm chuyển sang file DATA${nam} và xóa khỏi File Chính; phiếu cân đã trả chuyển sang sheet lưu trữ.`, { nguyHiem: true, tieuDe: '⚠️ Khóa sổ năm', maGo: String(nam), nutOk: 'Khóa sổ' }))) return;
   call('webKhoaSoNam', [nam, chayThat], chayThat ? `Đang khóa sổ năm ${nam}...` : 'Đang kiểm tra...').then(res => {
     if (!res || !res.success) { handleResult(res); return; }
     if (chayThat) toast(res.message, res.conLai ? 'warn' : null);
@@ -4595,11 +4656,11 @@ function loadSaoLuuXoa(){
     </tbody></table></div>`;
   });
 }
-function doKhoiPhucSaoLuu(i){
+async function doKhoiPhucSaoLuu(i){
   const g = state.saoLuuXoa[i];
   if (!g) return;
   const moTa = g.theoSheet.map(x => `${x.sheet}: ${x.soDong} dòng`).join(', ');
-  if (!confirm(`Khôi phục lần "${NHAN_HANH_DONG[g.hanhDong] || g.hanhDong}" lúc ${g.thoiGian}?\n${moTa}\n\nCác dòng sẽ được ghi lại vào cuối sheet gốc.`)) return;
+  if (!(await xacNhan(`Khôi phục lần "${NHAN_HANH_DONG[g.hanhDong] || g.hanhDong}" lúc ${g.thoiGian}?\n${moTa}\n\nCác dòng sẽ được ghi lại vào cuối sheet gốc.`))) return;
   call('webKhoiPhucSaoLuuXoa', [g.ma], 'Đang khôi phục...').then(res => handleResult(res, loadSaoLuuXoa));
 }
 /** Tên dễ hiểu cho các chức năng hay gặp trong bảng Hiệu Năng (còn lại hiện tên kỹ thuật). */
@@ -4896,8 +4957,8 @@ function luuCongDangNhap(){
     if (state.nguoiDung) state.nguoiDung.congDangNhapUrl = url;
   }));
 }
-function taoLaiSsoSecret(){
-  if (!confirm('Tạo mã bí mật mới? Cổng đăng nhập hiện tại sẽ NGỪNG hoạt động cho tới khi bạn dán lại mã nguồn mới vào dự án Cổng đăng nhập và Deploy lại.')) return;
+async function taoLaiSsoSecret(){
+  if (!(await xacNhan('Tạo mã bí mật mới? Cổng đăng nhập hiện tại sẽ NGỪNG hoạt động cho tới khi bạn dán lại mã nguồn mới vào dự án Cổng đăng nhập và Deploy lại.', { nguyHiem: true, maGo: 'MA MOI', nutOk: 'Tạo mã mới' }))) return;
   call('webTaoLaiSsoSecret', [], 'Đang tạo mã mới...').then(res => handleResult(res, () => loadCauHinhDangNhap()));
 }
 
@@ -4927,9 +4988,9 @@ function doDangKyLuuTruNam(){
   if (!nam || !link) { toast('Nhập năm và URL/ID file DATA.', 'warn'); return; }
   call('webSetLuuTruNam', [nam, link], 'Đang kiểm tra file...').then(res => handleResult(res, loadLuuTruNam));
 }
-function doBoLuuTruNam(i){
+async function doBoLuuTruNam(i){
   const x = state.luuTruNam[i];
-  if (!x || !confirm(`Bỏ file lưu trữ năm ${x.nam}? Báo cáo sẽ không đọc dữ liệu năm này nữa.`)) return;
+  if (!x || !(await xacNhan(`Bỏ file lưu trữ năm ${x.nam}? Báo cáo sẽ không đọc dữ liệu năm này nữa.`, { nguyHiem: true, nutOk: 'Bỏ file' }))) return;
   call('webSetLuuTruNam', [x.nam, ''], 'Đang lưu...').then(res => handleResult(res, loadLuuTruNam));
 }
 function doConnectMainSs(){
@@ -5176,7 +5237,7 @@ function renderDoiSoatResult(){
 function toggleAllDoiSoat(checked){
   document.querySelectorAll('.doisoat-chk').forEach(el => el.checked = checked);
 }
-function doDongBoTenKhachHang(){
+async function doDongBoTenKhachHang(){
   const rows = state.doiSoatRows || [];
   const selected = [];
   document.querySelectorAll('.doisoat-chk:checked').forEach(el => {
@@ -5184,7 +5245,7 @@ function doDongBoTenKhachHang(){
     if (r) selected.push({ soPhieuCan: r.soPhieuCan, chuRungCT: r.chuRungCT });
   });
   if (!selected.length) { toast('Vui lòng chọn ít nhất 1 dòng.', 'warn'); return; }
-  if (!confirm(`Đồng bộ tên khách hàng cho ${selected.length} dòng đã chọn? Sẽ cập nhật trực tiếp vào Phiếu Cân (file gốc PhieuCan_DN) theo đúng tên ở CT.`)) return;
+  if (!(await xacNhan(`Đồng bộ tên khách hàng cho ${selected.length} dòng đã chọn? Sẽ cập nhật trực tiếp vào Phiếu Cân (file gốc PhieuCan_DN) theo đúng tên ở CT.`, { nutOk: 'Đồng bộ' }))) return;
   call('webDongBoTenKhachHang', [selected], 'Đang đồng bộ...').then(res => {
     handleResult(res, () => doDoiSoatTenKhachHang()); // đối soát lại để cập nhật danh sách
   });
@@ -5246,7 +5307,7 @@ function doKiemTraBaoTri(){
       </div>`;
   });
 }
-function doXoaMoCoiBaoTri(sid, dataKey, fnName, riskLevel){
+async function doXoaMoCoiBaoTri(sid, dataKey, fnName, riskLevel){
   const data = state.baoTriData[dataKey];
   const items = [];
   document.querySelectorAll('.' + sid + '-chk:checked').forEach(el => {
@@ -5257,7 +5318,7 @@ function doXoaMoCoiBaoTri(sid, dataKey, fnName, riskLevel){
   const canhBao = riskLevel === 'danger'
     ? `⚠️ CẢNH BÁO RỦI RO CAO: đây là dữ liệu TÀI CHÍNH ĐÃ CHỐT (CT/DNTT_GK_DN thật) - xóa KHÔNG THỂ hoàn tác tự động.\n\nChỉ xóa nếu bạn CHẮC CHẮN đây là dữ liệu rác/lỗi, không phải hồ sơ thật đang thiếu liên kết.\n\n`
     : '';
-  if (!confirm(`${canhBao}Xóa ${items.length} dòng đã chọn?`)) return;
+  if (!(await xacNhan(`${canhBao}Xóa ${items.length} dòng đã chọn?`, { nguyHiem: true, tieuDe: '⚠️ Xóa dòng mồ côi', maGo: riskLevel === 'danger' ? 'XOA' : undefined, nutOk: 'Xóa' }))) return;
   call(fnName, [items], 'Đang xóa...').then(res => {
     handleResult(res, () => doKiemTraBaoTri()); // kiểm tra lại để cập nhật danh sách
   });
@@ -5343,7 +5404,7 @@ function loadSharedUsers(key){
     `).join('');
   }).catch(() => { listEl.innerHTML = '<span class="muted" style="font-size:12px">Không tải được danh sách.</span>'; });
 }
-function doShareLink(key){
+async function doShareLink(key){
   const box = document.getElementById('share-box-' + key);
   const label = box ? box.dataset.label : '';
   const emailEl = document.getElementById('share-email-' + key);
@@ -5352,7 +5413,7 @@ function doShareLink(key){
   const role = roleEl ? roleEl.value : 'view';
   if (!email) { toast('Vui lòng nhập email người nhận.', 'warn'); return; }
   const quyenText = role === 'edit' ? 'CHỈNH SỬA' : 'chỉ xem';
-  if (!confirm(`Chia sẻ "${label}" cho ${email} với quyền ${quyenText}?\n\nNgười này sẽ truy cập được TRỰC TIẾP Google Sheet này (kể cả không qua Web App).`)) return;
+  if (!(await xacNhan(`Chia sẻ "${label}" cho ${email} với quyền ${quyenText}?\n\nNgười này sẽ truy cập được TRỰC TIẾP Google Sheet này (kể cả không qua Web App).`))) return;
   call('webShareConfigLink', [key || null, email, role], 'Đang chia sẻ...').then(res => {
     handleResult(res, () => { if (emailEl) emailEl.value = ''; loadSharedUsers(key); });
   });
@@ -5360,10 +5421,10 @@ function doShareLink(key){
 /** Thu hồi quyền truy cập trực tiếp Google Sheet/Drive của 1 email -
  * KHÔNG ảnh hưởng gì tới quyền dùng Web App của người đó (2 việc tách
  * biệt), chỉ chặn họ mở thẳng file Google Sheet/Drive. */
-function doRevokeLink(key, email){
+async function doRevokeLink(key, email){
   const box = document.getElementById('share-box-' + key);
   const label = box ? box.dataset.label : '';
-  if (!confirm(`Thu hồi quyền truy cập trực tiếp "${label}" của ${email}?\n\nNgười này sẽ không mở được Google Sheet/Drive này nữa (trừ khi file được chia sẻ công khai theo cách khác).`)) return;
+  if (!(await xacNhan(`Thu hồi quyền truy cập trực tiếp "${label}" của ${email}?\n\nNgười này sẽ không mở được Google Sheet/Drive này nữa (trừ khi file được chia sẻ công khai theo cách khác).`, { nguyHiem: true, nutOk: 'Thu hồi' }))) return;
   call('webRevokeConfigLinkAccess', [key || null, email], 'Đang thu hồi...').then(res => {
     handleResult(res, () => loadSharedUsers(key));
   });
@@ -5414,16 +5475,16 @@ function doLamMoiCongNo(){
   const f = fromEl ? fromEl.value : state.debtFrom, t = toEl ? toEl.value : state.debtTo;
   call('webRunCongNoRefreshNow', [f, t], 'Đang làm mới Công Nợ...').then(res => handleResult(res, () => loadDebtTab()));
 }
-function doResetPhanTich(){
-  if (!confirm('Xóa sạch toàn bộ dữ liệu Phân Tích Nhập/TT hiện có (kể cả dữ liệu đúng) để nạp lại từ đầu? Dữ liệu sẽ tự tính lại dần, không mất số liệu gốc (Phiếu Cân/CT thật vẫn còn nguyên).')) return;
+async function doResetPhanTich(){
+  if (!(await xacNhan('Xóa sạch toàn bộ dữ liệu Phân Tích Nhập/TT hiện có (kể cả dữ liệu đúng) để nạp lại từ đầu? Dữ liệu sẽ tự tính lại dần, không mất số liệu gốc (Phiếu Cân/CT thật vẫn còn nguyên).', { nguyHiem: true, maGo: 'XOA', nutOk: 'Xóa sạch' }))) return;
   call('webResetPhanTichNhapTTSheet', [], 'Đang xóa sạch và chuẩn bị nạp lại...').then(res => handleResult(res));
 }
-function doResetChiTietCongNo(){
-  if (!confirm('Xóa sạch toàn bộ dữ liệu Chi Tiết Công Nợ theo Phiếu Cân hiện có để nạp lại từ đầu? Không mất số liệu gốc (Phiếu Cân vẫn còn nguyên).')) return;
+async function doResetChiTietCongNo(){
+  if (!(await xacNhan('Xóa sạch toàn bộ dữ liệu Chi Tiết Công Nợ theo Phiếu Cân hiện có để nạp lại từ đầu? Không mất số liệu gốc (Phiếu Cân vẫn còn nguyên).', { nguyHiem: true, maGo: 'XOA', nutOk: 'Xóa sạch' }))) return;
   call('webResetChiTietCongNoSheet', [], 'Đang xóa sạch và chuẩn bị nạp lại...').then(res => handleResult(res));
 }
-function doKhoaDinhDangText(){
-  if (!confirm('Khóa định dạng cho các cột CCCD/STK/Số HĐ/Số Phiếu Cân (TEXT) và Timestamp/Ngày (dd/MM/yyyy) trên cả Draft và bản chính? Việc này chỉ ngăn lỗi xảy ra THÊM từ bây giờ, KHÔNG tự phục hồi dữ liệu cũ đã bị sai (nếu có).')) return;
+async function doKhoaDinhDangText(){
+  if (!(await xacNhan('Khóa định dạng cho các cột CCCD/STK/Số HĐ/Số Phiếu Cân (TEXT) và Timestamp/Ngày (dd/MM/yyyy) trên cả Draft và bản chính? Việc này chỉ ngăn lỗi xảy ra THÊM từ bây giờ, KHÔNG tự phục hồi dữ liệu cũ đã bị sai (nếu có).'))) return;
   call('webKhoaDinhDangTextTatCa', [], 'Đang khóa định dạng...').then(res => handleResult(res, () => loadFormatLockStatus()));
 }
 function doGenerateThongSo(){

@@ -59,3 +59,13 @@ test('#10 statuses read "Chưa tính tiền / Chờ xác nhận / Chờ duyệt"
   assert.match(INDEX, /cho_dntt: '<span class="badge wait dot">Chờ xác nhận<\/span>'/);
   assert.match(INDEX, /🔄 Tính lại số tiền/);
 });
+
+// ---------- #3 Hộp xác nhận trong trang ----------
+test('#3 no browser confirm()/prompt() left; dangerous actions ask to type a code', () => {
+  const js = INDEX.slice(INDEX.indexOf('<script>', INDEX.indexOf('</style>')));
+  assert.doesNotMatch(js.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, ''), /(?<![\w.])(confirm|prompt)\(/, 'native dialogs gone');
+  assert.ok((js.match(/await xacNhan\(/g) || []).length >= 24);
+  [/maGo: 'MO DONG'/, /maGo: String\(nam\)/, /maGo: 'MA MOI'/, /maGo: riskLevel === 'danger' \? 'XOA'/].forEach(re => assert.match(js, re));
+  assert.match(INDEX, /<div class="modal-bg" id="hop-xac-nhan"><div class="modal" role="alertdialog"/);
+  assert.match(js, /\(o \|\| \(tc\.nguyHiem \? huy : ok\)\)\.focus\(\);/, 'dangerous: focus starts on Cancel');
+});
