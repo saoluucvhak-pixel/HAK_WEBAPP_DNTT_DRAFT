@@ -70,7 +70,9 @@ export class MockRange {
   setFontWeight() { return this; }
   setBackground() { return this; }
   setFontColor() { return this; }
-  setHorizontalAlignment() { return this; }
+  // Căn lề ngang lưu theo từng ô (sheet.alignments) để test kiểm tra được.
+  setHorizontalAlignment(v) { const m = (this.sheet.alignments ||= new Map()); this._eachCell((r, c) => m.set(r + ',' + c, v)); return this; }
+  setHorizontalAlignments(mt) { const m = (this.sheet.alignments ||= new Map()); this._eachCell((r, c, i, j) => m.set(r + ',' + c, mt[i][j])); return this; }
   setWrap() { return this; }
   setFontSize() { return this; }
   setFontStyle() { return this; }

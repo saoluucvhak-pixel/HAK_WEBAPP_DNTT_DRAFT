@@ -2,6 +2,16 @@
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/). Phiên bản theo `NĂM.ĐỢT.SỬA`; thay đổi làm đổi hành vi nghiệp vụ (⚖️) sẽ tăng số ĐỢT và ghi rõ đã được người dùng đồng ý.
 
+## [2026.9.26] — Báo Cáo ĐNTT: Nội dung CK luôn 2 dòng, căn lề theo kiểu dữ liệu (người dùng yêu cầu 28/09/2026)
+
+### Changed
+- Bảng Đề Xuất: **Nội dung chuyển khoản luôn 2 dòng**, ngắt ở chỗ 2 dòng dài gần bằng nhau, không ngắt ngay sau từ 1–2 ký tự (“HĐ số 20260901002” đi liền). Cột tự rộng vừa đủ để mọi dòng đúng 2 dòng (250–400px). Chỉ đổi cách hiển thị trong file — nội dung CK gửi ngân hàng / UNC / MISA giữ nguyên.
+- **Căn lề theo kiểu dữ liệu** ở cả Bảng Đề Xuất và Bảng Kê Chi Tiết (bản chờ duyệt và chính thức): cột toàn số (STT, Lần, KL, Đơn giá, Số tiền…) căn **phải**; tên, chuỗi (kể cả Số TK/Số phiếu/Số HĐ dạng chữ, ngày dạng chữ) căn **trái**; tiêu đề căn giữa. Lần TT ghi dạng số.
+- Thông số độ rộng chữ đo lại theo dòng nhiều chữ số (Nội dung 8,2px, Ghi chú 7,25px/ký tự, Ghi chú 310px).
+
+### Tests
+- 132 test (thêm: Nội dung CK đúng 2 dòng cân đối, căn lề Bảng Đề Xuất và Bảng Kê Chi Tiết — thất bại trên 2026.9.25). Mock lưu căn lề từng ô.
+
 ## [2026.9.25] — Bảng Đề Xuất: cột Ghi chú vừa phải, xuống dòng cân đối (người dùng báo 28/09/2026)
 
 ### Fixed

@@ -1,6 +1,6 @@
 /**
  * ============================================================
- * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.25
+ * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.26
  * Lịch sử thay đổi: CHANGELOG.md · Kiến trúc: docs/ARCHITECTURE.md
  * ------------------------------------------------------------
  * *** QUAN TRỌNG - CẦN LÀM TRƯỚC KHI DÙNG BẢN NÀY (chỉ 1 LẦN DUY NHẤT
@@ -3939,16 +3939,16 @@ function createFinalReportFromFilteredData_(filteredRows, dateRangeGoc) {
 // và cách ước chiều cao dòng. Người dùng 28/09/2026: "cột ghi chú chữ bị dính, cột rộng
 // quá - cân chỉnh cột vừa phải, xuống dòng cân đối". Số px đo thực tế Arial cỡ 12.
 const BANG_DE_XUAT = {
-  RONG: { STT: 30, NOI_DUNG: 270, GHI_CHU: 300 },
+  RONG: { STT: 30, NOI_DUNG: 250, NOI_DUNG_MAX: 400, GHI_CHU: 310 },
   CO_CHU: 12,                                   // giữ chữ to, rõ như yêu cầu trước (v2026.7.2)
-  PX_MOI_KY_TU: { NOI_DUNG: 7.9, GHI_CHU: 7.3 }, // bề rộng trung bình 1 ký tự (chữ / chữ + số)
-  PX_LE_O: 10,                                  // lề trong của ô
+  PX_MOI_KY_TU: { NOI_DUNG: 8.2, GHI_CHU: 7.25 }, // đo thực tế: dòng nhiều chữ số rộng nhất
+  PX_LE_O: 14,                                   // lề trong của ô + dư phòng
   MUC_MOI_DONG: 2,                              // Ghi chú: tối đa 2 mục mỗi dòng
   PX_MOI_DONG_CHU: 19, PX_LE_DONG: 8, CAO_TOI_THIEU: 26
 };
-/** Số ký tự tối đa trên 1 dòng của cột `cot` (khóa của BANG_DE_XUAT.RONG). */
-function _kyTuMoiDong_(cot) {
-  return Math.max(1, Math.floor((BANG_DE_XUAT.RONG[cot] - BANG_DE_XUAT.PX_LE_O) / BANG_DE_XUAT.PX_MOI_KY_TU[cot]));
+/** Số ký tự tối đa trên 1 dòng của 1 cột rộng `rongPx`, chữ trung bình `pxKyTu`. */
+function _kyTuMoiDong_(rongPx, pxKyTu) {
+  return Math.max(1, Math.floor((rongPx - BANG_DE_XUAT.PX_LE_O) / pxKyTu));
 }
 /** Ghi chú "Tổng KL: a | Đã trả: b | Còn lại: c | Đề nghị đợt này: d | Phiếu: e" -> các
  * dòng cân đối: tối đa MUC_MOI_DONG mục mỗi dòng, cách nhau " · "; 2 mục không vừa cột
@@ -3956,7 +3956,7 @@ function _kyTuMoiDong_(cot) {
  * KHÔNG NGẮT (trừ sau dấu phẩy của danh sách phiếu) - chữ chỉ xuống dòng giữa các mục;
  * trình xem nào bỏ qua xuống dòng thì các mục vẫn cách nhau, không dính chữ. */
 function _ghiChuBangDeXuat_(ghiChu) {
-  const toiDa = _kyTuMoiDong_("GHI_CHU");
+  const toiDa = _kyTuMoiDong_(BANG_DE_XUAT.RONG.GHI_CHU, BANG_DE_XUAT.PX_MOI_KY_TU.GHI_CHU);
   const muc = String(ghiChu || "").split("|").map(x => x.trim()).filter(Boolean)
     .map(x => x.replace(/(?<!,) /g, "\u00A0"));
   const dong = [];
@@ -3966,10 +3966,30 @@ function _ghiChuBangDeXuat_(ghiChu) {
   }
   return dong.join(" \n"); // khoảng trắng trước xuống dòng: trình xem không xuống dòng vẫn không dính chữ
 }
-/** Ước số dòng hiển thị của 1 ô tự xuống dòng ở cột `cot`: ngắt theo TỪ (khoảng trắng
- * thường; khoảng trắng không ngắt giữ nguyên cụm), đúng cách Sheets/Excel xuống dòng. */
-function _uocSoDongO_(text, cot) {
-  const toiDa = _kyTuMoiDong_(cot);
+/** Nội dung chuyển khoản -> LUÔN 2 dòng (người dùng yêu cầu 28/09/2026), ngắt ở khoảng
+ * trắng làm 2 dòng dài gần bằng nhau nhất, KHÔNG ngắt ngay sau từ 1-2 ký tự ("HĐ", "số",
+ * "gỗ" đi liền từ sau: "HĐ số 20260901002"). Chỉ đổi cách hiển thị trong file xuất - nội
+ * dung CK gửi ngân hàng / UNC / MISA giữ nguyên 1 dòng. */
+function _noiDungHaiDong_(noiDung) {
+  const s = String(noiDung || "").trim().replace(/\s+/g, " ");
+  let tot = -1, lechTot = Infinity;
+  for (let i = s.indexOf(" "); i > 0; i = s.indexOf(" ", i + 1)) {
+    if (s.slice(s.lastIndexOf(" ", i - 1) + 1, i).length <= 2) continue;
+    const lech = Math.max(i, s.length - i - 1);
+    if (lech < lechTot) { lechTot = lech; tot = i; }
+  }
+  return tot < 0 ? s : s.slice(0, tot) + " \n" + s.slice(tot + 1);
+}
+/** Độ rộng cột Nội dung CK vừa để MỌI dòng đúng 2 dòng chữ, trong [RONG.NOI_DUNG, RONG.NOI_DUNG_MAX]. */
+function _rongNoiDung_(cacO) {
+  const dai = Math.max(0, ...cacO.map(o => Math.max(...String(o || "").split("\n").map(d => d.trim().length))));
+  const can = Math.ceil(dai * BANG_DE_XUAT.PX_MOI_KY_TU.NOI_DUNG) + BANG_DE_XUAT.PX_LE_O;
+  return Math.min(BANG_DE_XUAT.RONG.NOI_DUNG_MAX, Math.max(BANG_DE_XUAT.RONG.NOI_DUNG, can));
+}
+/** Ước số dòng hiển thị của 1 ô tự xuống dòng: ngắt theo TỪ (khoảng trắng thường; khoảng
+ * trắng không ngắt giữ nguyên cụm), đúng cách Sheets/Excel xuống dòng. */
+function _uocSoDongO_(text, rongPx, pxKyTu) {
+  const toiDa = _kyTuMoiDong_(rongPx, pxKyTu);
   return String(text || "").split("\n").reduce((tong, doan) => {
     let soDong = 1, dai = 0;
     doan.trim().split(" ").forEach(tu => {
@@ -3979,6 +3999,21 @@ function _uocSoDongO_(text, cot) {
     });
     return tong + soDong;
   }, 0);
+}
+/** Căn lề theo KIỂU dữ liệu (người dùng yêu cầu 28/09/2026): cột toàn số -> phải; tên,
+ * chuỗi (kể cả Số TK/Số phiếu/Số HĐ dạng chữ, ngày dạng chữ) -> trái. Áp cho vùng dữ liệu
+ * bắt đầu từ dòng `dongDau` (tiêu đề giữ căn giữa). */
+function _canhLeTheoKieu_(sh, dongDau, rows) {
+  if (!rows.length) return;
+  const soCot = rows[0].length;
+  const canh = Array.from({ length: soCot }, (_, c) => {
+    const coGiaTri = rows.map(r => r[c]).filter(v => v !== "" && v !== null && v !== undefined);
+    // Chuỗi Sheets tự đổi thành số khi ghi ("1", "14.83") cũng là số; chuỗi có dấu ' hoặc
+    // số 0 đầu (STK, CCCD, Số HĐ - đã giữ dạng chữ) vẫn là chữ.
+    const laSo = v => typeof v === "number" || (typeof v === "string" && /^-?(0|[1-9]\d*)(\.\d+)?$/.test(v.trim()));
+    return coGiaTri.length && coGiaTri.every(laSo) ? "right" : "left";
+  });
+  sh.getRange(dongDau, 1, rows.length, soCot).setHorizontalAlignments(rows.map(() => canh));
 }
 function renderSheet1Full_(sheet, filteredRows, dateRange) {
   sheet.clear();
@@ -4001,22 +4036,25 @@ function renderSheet1Full_(sheet, filteredRows, dateRange) {
   sheet.getRange(4, 1, 1, 11).setValues([headers]).setBackground("#d9ead3").setFontWeight("bold").setBorder(true, true, true, true, true, true).setHorizontalAlignment("center");
 
   const body = filteredRows.map((r, i) => [
-    i + 1, _formatNgayXuat_(r.ngayISO || r.ngayDN), r.soLan, r.chuRung, r.nguoiNhan, _chu_(r.stk), r.nganHang,
+    // Lần TT là SỐ (căn phải như các cột số); giá trị không phải số thì giữ nguyên chữ.
+    i + 1, _formatNgayXuat_(r.ngayISO || r.ngayDN), /^\d+$/.test(String(r.soLan).trim()) ? Number(r.soLan) : r.soLan, r.chuRung, r.nguoiNhan, _chu_(r.stk), r.nganHang,
     // v2026.7.2: diễn giải "Tổng KL: .. | Đã trả: .. | ..." xuống dòng từng phần cho dễ đọc.
-    utils.parseNum(r.klTan), utils.parseNum(r.soTien), r.noiDungCK, _ghiChuBangDeXuat_(r.ghiChu)
+    utils.parseNum(r.klTan), utils.parseNum(r.soTien), _noiDungHaiDong_(r.noiDungCK), _ghiChuBangDeXuat_(r.ghiChu)
   ]);
 
   if (body.length > 0) {
     sheet.getRange(5, 1, body.length, 11).setValues(_dongAnToan_(body)).setBorder(true, true, true, true, true, true).setVerticalAlignment("middle");
 
-    const R = BANG_DE_XUAT.RONG;
+    const R = BANG_DE_XUAT.RONG, PX = BANG_DE_XUAT.PX_MOI_KY_TU;
+    const rongNoiDung = _rongNoiDung_(body.map(r => r[9]));
     sheet.setColumnWidth(1, R.STT);
     // Nội dung CK + Ghi chú: cột vừa phải, tự xuống dòng (cả WrapStrategy lẫn setWrap
     // để file tải về Excel/PDF cũng giữ), căn giữa theo chiều dọc như các cột khác.
-    sheet.setColumnWidth(10, R.NOI_DUNG);
+    sheet.setColumnWidth(10, rongNoiDung);
     sheet.setColumnWidth(11, R.GHI_CHU);
     sheet.getRange(5, 10, body.length, 2).setWrapStrategy(SpreadsheetApp.WrapStrategy.WRAP).setWrap(true)
-      .setFontSize(BANG_DE_XUAT.CO_CHU).setVerticalAlignment("middle").setHorizontalAlignment("left");
+      .setFontSize(BANG_DE_XUAT.CO_CHU).setVerticalAlignment("middle");
+    _canhLeTheoKieu_(sheet, 5, body);
 
     sheet.getRange(5, 8, body.length, 1).setNumberFormat("#,##0.00");
     sheet.getRange(5, 9, body.length, 1).setNumberFormat("#,##0");
@@ -4029,7 +4067,7 @@ function renderSheet1Full_(sheet, filteredRows, dateRange) {
     // Chiều cao dòng đặt theo số dòng chữ ước tính của ô cao nhất (tự co của Sheets bỏ
     // sót ô tự xuống dòng khi tải về Excel/PDF -> chữ bị cắt).
     body.forEach((row, i) => {
-      const soDong = Math.max(_uocSoDongO_(row[9], "NOI_DUNG"), _uocSoDongO_(row[10], "GHI_CHU"));
+      const soDong = Math.max(_uocSoDongO_(row[9], rongNoiDung, PX.NOI_DUNG), _uocSoDongO_(row[10], R.GHI_CHU, PX.GHI_CHU));
       sheet.setRowHeight(5 + i, Math.max(BANG_DE_XUAT.CAO_TOI_THIEU, soDong * BANG_DE_XUAT.PX_MOI_DONG_CHU + BANG_DE_XUAT.PX_LE_DONG));
     });
   }
@@ -4670,6 +4708,7 @@ function renderSheet2Detail_(sheet, filteredRows, dateRange) {
     let finalRows = tempRows.map((item, index) => { item.data[0] = index + 1; return item.data; });
     const lastR = 5 + finalRows.length - 1;
     sheet.getRange(5, 1, finalRows.length, headers.length).setValues(_dongAnToan_(finalRows)).setBorder(true, true, true, true, true, true).setVerticalAlignment("middle");
+    _canhLeTheoKieu_(sheet, 5, finalRows);
 
     sheet.getRange(5, 15, finalRows.length, 2).setNumberFormat("HH:mm");
     sheet.getRange(5, 17, finalRows.length, 3).setNumberFormat("#,##0");
@@ -4754,6 +4793,7 @@ function renderSheet2DetailFromDraft_(sheet, filteredRows, dateRange) {
     let finalRows = tempRows.map((row, index) => { const out = row.slice(); out[0] = index + 1; return out; });
     const lastR = 5 + finalRows.length - 1;
     sheet.getRange(5, 1, finalRows.length, headers.length).setValues(_dongAnToan_(finalRows)).setBorder(true, true, true, true, true, true).setVerticalAlignment("middle");
+    _canhLeTheoKieu_(sheet, 5, finalRows);
 
     sheet.getRange(5, 15, finalRows.length, 2).setNumberFormat("HH:mm");
     sheet.getRange(5, 17, finalRows.length, 3).setNumberFormat("#,##0");

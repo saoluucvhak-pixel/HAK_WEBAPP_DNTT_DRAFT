@@ -27,7 +27,37 @@ test('the note column breaks into balanced lines and never glues words together'
 
 test('the note column has a moderate width and every row is tall enough for its text', () => {
   const sh = ve();
-  assert.ok(sh.colWidths[11] >= 260 && sh.colWidths[11] <= 300, 'note column: moderate width (was up to ~700px in the user file)');
-  assert.ok(sh.colWidths[10] <= 280, 'transfer text column');
+  assert.ok(sh.colWidths[11] >= 260 && sh.colWidths[11] <= 320, 'note column: moderate width (was up to ~700px in the user file)');
+  assert.ok(sh.colWidths[10] <= 300, 'transfer text column: just wide enough for two lines');
   assert.ok(sh.rowHeights[5] >= 3 * 19, 'three lines of note fit without being cut');
+});
+
+test('the transfer text is always exactly two balanced lines', () => {
+  const sh = ve();
+  const o = sh.rows(11)[4][9];
+  const dong = o.split('\n').map(d => d.trim());
+  assert.deepEqual(dong, ['Thanh toán tiền mua gỗ keo', 'HĐ số 20260901002 ngày 01.09.2026'], 'balanced, "HĐ số" kept with the number');
+  assert.ok(sh.colWidths[10] >= Math.ceil(Math.max(...dong.map(d => d.length)) * 8.2), 'column wide enough that each half stays on one line');
+});
+
+test('names and text are left-aligned, numbers right-aligned (header stays centred)', () => {
+  const sh = ve();
+  const canh = c => sh.alignments.get('5,' + c);
+  assert.deepEqual([1, 3, 8, 9].map(canh), ['right', 'right', 'right', 'right'], 'STT, Lần, KL, Số tiền');
+  assert.deepEqual([2, 4, 5, 6, 7, 10, 11].map(canh), Array(7).fill('left'), 'date text, names, account (text), bank, transfer text, note');
+  assert.equal(sh.alignments.get('4,1'), 'center', 'header');
+});
+
+test('the detail sheet follows the same alignment rule', () => {
+  const w = buildWorld();
+  const { run, env } = loadCode(w.options);
+  assert.match(run('runConfirmPayment_')(['A1'], '2026-09-05'), /^✅/);
+  w.main.getSheetByName('DNTT_GK_DN_112').data.slice(1).forEach(r => { r[16] = new Date('2026-09-01T05:00:00Z'); });
+  const kq = run('createFinalReportFromFilteredData_')(run('get112ViewData_')('2026-09-01', '2026-09-30'), '2026-09-01 - 2026-09-30');
+  const sh2 = env.SpreadsheetApp.openById(/\/d\/([^/]+)/.exec(kq.url)[1]).getSheets()[1];
+  const hang = sh2.rows(26)[4];
+  hang.forEach((v, i) => {
+    if (v === '' || v === null) return;
+    assert.equal(sh2.alignments.get('5,' + (i + 1)), typeof v === 'number' ? 'right' : 'left', `column ${i + 1} (${JSON.stringify(v)})`);
+  });
 });
