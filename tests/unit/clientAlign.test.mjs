@@ -60,3 +60,15 @@ test('design: one type scale declared once, no serif font left, headings in text
   assert.match(INDEX, /\.badge\{[\s\S]*?white-space:nowrap;/, 'status labels never wrap');
   assert.match(INDEX, /<ol class="quy-trinh">/, 'home page process as numbered steps');
 });
+
+test('home page figures are buttons that open the matching screen (only if allowed)', () => {
+  const trangChu = /function renderDashboard\(\)\{[\s\S]*?\n\}/.exec(INDEX)[0];
+  [["draft', 'all"], ["draft', 'san_sang"], ["draft', 'cho_tinh"], ["debt', 'phantich"], ["report', 'gokeo"], ["debt', 'customer', 'card"]]
+    .forEach(([a]) => assert.ok(trangChu.includes(`_oSoMo('${a}')`), a));
+  const oSo = /function _oSoMo\(trang, tab, lopThem\)\{[\s\S]*?\n\}/.exec(INDEX)[0];
+  assert.match(oSo, /coQuyen\(PAGES\[trang\]\.quyen\)/, 'no button look when the page is not allowed');
+  assert.match(oSo, /stat-nut/);
+  assert.match(INDEX, /const BAM_DUOC_BANG_PHIM = '[^']*\.stat-nut'/, 'keyboard: Enter / Space');
+  assert.match(INDEX, /if \(state\.xemNgayBaoCao\) \{ state\.xemNgayBaoCao = false; loadReport\(\); \}/, 'payment report opens already showing this month');
+  assert.match(INDEX, /<div class="subtab" data-f="san_sang">/);
+});

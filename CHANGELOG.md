@@ -2,6 +2,24 @@
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/). Phiên bản theo `NĂM.ĐỢT.SỬA`; thay đổi làm đổi hành vi nghiệp vụ (⚖️) sẽ tăng số ĐỢT và ghi rõ đã được người dùng đồng ý.
 
+## [2026.9.41] — Trang chủ: ô số liệu dạng nút, bấm vào mở thẳng màn hình (người dùng yêu cầu 28/09/2026)
+
+### Added
+- Các ô số liệu Trang chủ là **nút bấm** (mũi tên →, đổi viền khi rê chuột, bấm bằng Enter / Space), mở thẳng màn hình tương ứng:
+  | Ô | Mở |
+  |---|---|
+  | Hồ sơ đang ở Nháp | Danh Sách ĐNTT › Tất cả |
+  | Sẵn sàng chốt, Tổng tiền sẵn sàng | Danh Sách ĐNTT › **Đã có số tiền (2 + 3)** (tab mới: Chờ + Đang ĐNTT) |
+  | Chờ Đề Nghị TT | Danh Sách ĐNTT › 1 · Chưa ĐNTT |
+  | KL / Tiền mua tháng này | Công Nợ › 6 · Phân tích Nhập/TT theo NG-ĐL (tháng này) |
+  | KL / Tiền thanh toán tháng này | Báo Cáo Thanh Toán Gỗ Keo — **tự tải luôn tháng này** |
+  | Tổng nợ tiền gỗ keo | Công Nợ › 1 · Công nợ theo Khách hàng |
+- Tài khoản không có quyền vào trang nào thì ô tương ứng không hiện dạng nút. Nút “Cập nhật ngay” trong ô vẫn chỉ cập nhật, không chuyển trang.
+- Danh Sách ĐNTT có thêm tab **Đã có số tiền (2 + 3)** (cũng có tổng tiền, lọc tên như các tab khác).
+
+### Tests
+- 186 test (thêm: ô số liệu → đúng trang/tab, chỉ khi có quyền, bàn phím, báo cáo tự tải; tab “Đã có số tiền”). Kiểm tra trình duyệt: bấm từng ô, Enter, tài khoản Chỉ xem.
+
 ## [2026.9.40] — Thiết kế lại giao diện: 1 font, thang cỡ chữ cân đối, Trang chủ chuyên nghiệp (người dùng yêu cầu 28/09/2026)
 
 ### Changed

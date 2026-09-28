@@ -59,6 +59,7 @@ Trạng thái: ✅ xong · 🟡 một phần · ⏳ chưa làm · ⚖️ cần n
 - ✅ Khóa sổ năm (quy trình người dùng): kiểm chứng công nợ đầu năm = phiếu chưa trả mang sang (test `khoaSoNam`); không cần bộ nhớ đệm 6 tháng.
 - ✅ 2026.9.16: Nhật ký thao tác giữ dạng chữ cho Mã hồ sơ / mã lỗi (không mất số 0 đầu).
 - ✅ 2026.9.15: Hệ Thống › Dọn Dẹp MISA (trùng / mồ côi / tất cả trong khoảng Ngày CK), xem trước + sao lưu. UNC không cần nút xóa riêng (xem CHANGELOG).
+- ✅ 2026.9.41: Trang chủ — ô số liệu dạng nút mở thẳng màn hình; tab “Đã có số tiền” ở Danh Sách ĐNTT.
 - ✅ 2026.9.40: Thiết kế lại giao diện — 1 font Inter, thang cỡ chữ 1 chỗ, Trang chủ dạng bước + nhóm số liệu.
 - ✅ 2026.9.39: Trang chủ — Quy trình thanh toán 5 bước lên đầu trang (chung nội dung với Hướng Dẫn).
 - ✅ 2026.9.38: Danh Sách ĐNTT — tổng tiền đang đề nghị, tổng theo khách hàng, lọc tên khách hàng.

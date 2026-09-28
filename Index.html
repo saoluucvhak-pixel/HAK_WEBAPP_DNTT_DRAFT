@@ -172,6 +172,12 @@
     .stat .value{font-family:var(--font-chu); font-variant-numeric:tabular-nums; font-size:var(--fs-so); font-weight:700; letter-spacing:-0.02em; line-height:1.15; color:var(--accent); margin-top:8px;}
     .stat .value.timber{color:var(--timber);}
     .stat .hint{font-size:var(--fs-nho); color:var(--ink-soft); margin-top:4px;}
+    /* Ô số liệu dạng nút (Trang chủ): bấm mở thẳng màn hình tương ứng */
+    .stat-nut{position:relative; cursor:pointer; transition:border-color .15s ease, box-shadow .15s ease, transform .15s ease;}
+    .stat-nut::after{content:'→'; position:absolute; top:16px; right:18px; font-size:var(--fs-the); font-weight:600; color:var(--ink-soft); opacity:.55; transition:opacity .15s ease, transform .15s ease, color .15s ease;}
+    .stat-nut:hover, .stat-nut:focus-visible{border-color:var(--accent); box-shadow:0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent), var(--shadow); transform:translateY(-1px); outline:none;}
+    .stat-nut:hover::after, .stat-nut:focus-visible::after{opacity:1; color:var(--accent); transform:translateX(3px);}
+    .stat-nut:active{transform:translateY(0);}
 
     label{display:block; font-size:var(--fs-nho); font-weight:600; color:var(--ink-soft); margin-bottom:5px;}
     /* Ô ngày kiểu VN (quy định 28/09/2026): ô gõ dd/mm/yyyy + ô lịch thu còn nút 📅 */
@@ -574,7 +580,7 @@
       <div class="nav-item" role="button" tabindex="0" data-page="settings"><span class="ic">⚙️</span> Cài đặt / Nháp</div>
     </nav>
     <div class="nguoi-dung-chip" id="nguoi-dung-chip"></div>
-    <div class="sidebar-footer">Hệ thống Quản Lý Thanh Toán · v2026.9.40<br><button type="button" class="theme-toggle" id="theme-toggle" aria-label="Đổi giao diện sáng / tối">🌓 Giao diện: Tự động</button></div>
+    <div class="sidebar-footer">Hệ thống Quản Lý Thanh Toán · v2026.9.41<br><button type="button" class="theme-toggle" id="theme-toggle" aria-label="Đổi giao diện sáng / tối">🌓 Giao diện: Tự động</button></div>
   </aside>
 
   <main class="main">
@@ -660,7 +666,7 @@ function hanhDong(ten, ...thamSo){ return hanhDongKhi('click', ten, ...thamSo); 
 const HANH_DONG = {
   goToLedgerFor, openLedgerFor, pickChuRung, pickModongChuRung,
   viewDraftDetail, editDraftRecord, confirmDeleteDraft, doHuyXacNhan, saveDraftEdit,
-  removePhieuCan, searchPhieuCanForEdit, inPhieuChiTietThanhToan, inPhieuHoanThanh, xemPhieuHoanThanh, doDonDep,
+  removePhieuCan, searchPhieuCanForEdit, inPhieuChiTietThanhToan, inPhieuHoanThanh, xemPhieuHoanThanh, doDonDep, moTrang,
   toggleShareBox, doSwapLink, doShareLink, doRevokeLink
 };
 ['click', 'mousedown'].forEach(loai => document.addEventListener(loai, e => {
@@ -1138,7 +1144,7 @@ document.getElementById('modal-bg').addEventListener('click', e => { if(e.target
  * Menu, tab con và dòng bấm được là <div>/<tr> nên tự gắn role="button" +
  * tabindex cho mọi phần tử mới vẽ, và cho Enter/Space bấm như chuột.
  * Esc đóng hộp thoại / Trợ lý AI. */
-const BAM_DUOC_BANG_PHIM = '.subtab, tr.clickable, .suggest-item';
+const BAM_DUOC_BANG_PHIM = '.subtab, tr.clickable, .suggest-item, .stat-nut';
 function _ganBamDuoc_(goc){
   goc.querySelectorAll(BAM_DUOC_BANG_PHIM).forEach(el => {
     if (el.hasAttribute('tabindex')) return;
@@ -1352,6 +1358,20 @@ const QUY_TRINH_TT = [
   { ten: 'Duyệt (Đóng Thanh Toán)', viec: '<b>Duyệt (Đóng Thanh Toán)</b> - nhập ngày thanh toán thực tế → ghi vào sổ sách CHÍNH THỨC, khóa Phiếu Cân vĩnh viễn', oDau: 'Tab "3 · Đang ĐNTT" → "📨 Duyệt"', sau: 'Chuyển sang "Báo Cáo Thanh Toán"' }
 ];
 
+/** Ô số liệu Trang chủ bấm được: mở thẳng màn hình tương ứng (trang + tab con). */
+function moTrang(trang, tab){
+  if (trang === 'draft') { state.draftStatusFilter = tab || 'all'; state.draftTuKhoa = ''; }
+  if (trang === 'debt') state.debtTab = tab;
+  if (trang === 'report') { state.reportTab = tab; state.xemNgayBaoCao = true; } // mở là xem luôn (tháng này)
+  goTo(trang);
+}
+/** Thuộc tính cho 1 ô số liệu: dạng nút mở `trang`/`tab` nếu tài khoản có quyền vào trang đó. */
+function _oSoMo(trang, tab, lopThem){
+  const lop = 'stat' + (lopThem ? ' ' + lopThem : '');
+  return coQuyen(PAGES[trang].quyen)
+    ? `class="${lop} stat-nut" title="Bấm để mở ${esc(PAGES[trang].title)}" ${hanhDong('moTrang', trang, tab)}`
+    : `class="${lop}"`;
+}
 function renderDashboard(){
   const c = document.getElementById('content');
   c.innerHTML = `<div id="dash-setup-warning"></div>
@@ -1365,22 +1385,22 @@ function renderDashboard(){
   </div>
   <div class="muc-tieu-de">Hồ sơ đang xử lý</div>
   <div class="grid cols-4 o-so" id="dash-stats">
-    <div class="stat"><div class="label">Hồ sơ đang ở Nháp</div><div class="value" id="s-draft">–</div><div class="hint">Chưa chốt thanh toán</div></div>
-    <div class="stat"><div class="label">Sẵn sàng chốt</div><div class="value" id="s-ready">–</div><div class="hint">Đã có Số tiền</div></div>
-    <div class="stat"><div class="label">Chờ Đề Nghị TT</div><div class="value" id="s-pending">–</div><div class="hint">Chưa tính số tiền</div></div>
-    <div class="stat"><div class="label">Tổng tiền sẵn sàng</div><div class="value timber" id="s-total">–</div><div class="hint">VNĐ</div></div>
+    <div ${_oSoMo('draft', 'all')}><div class="label">Hồ sơ đang ở Nháp</div><div class="value" id="s-draft">–</div><div class="hint">Chưa chốt thanh toán</div></div>
+    <div ${_oSoMo('draft', 'san_sang')}><div class="label">Sẵn sàng chốt</div><div class="value" id="s-ready">–</div><div class="hint">Đã có Số tiền</div></div>
+    <div ${_oSoMo('draft', 'cho_tinh')}><div class="label">Chờ Đề Nghị TT</div><div class="value" id="s-pending">–</div><div class="hint">Chưa tính số tiền</div></div>
+    <div ${_oSoMo('draft', 'san_sang')}><div class="label">Tổng tiền sẵn sàng</div><div class="value timber" id="s-total">–</div><div class="hint">VNĐ</div></div>
   </div>
   <div class="muc-tieu-de">Mua &amp; thanh toán tháng này</div>
   <div class="grid cols-4 o-so" id="dash-stats-thang">
-    <div class="stat"><div class="label">KL Mua Tháng Này</div><div class="value" id="s-kl-mua">–</div><div class="hint">kg (theo ngày cân)</div></div>
-    <div class="stat"><div class="label">Tiền Mua Tháng Này</div><div class="value" id="s-tien-mua">–</div><div class="hint">VNĐ (theo ngày cân)</div></div>
-    <div class="stat"><div class="label">KL Thanh Toán Tháng Này</div><div class="value timber" id="s-kl-tt">–</div><div class="hint">tấn (theo ngày CK/TT)</div></div>
-    <div class="stat"><div class="label">Tiền Thanh Toán Tháng Này</div><div class="value timber" id="s-tien-tt">–</div><div class="hint">VNĐ (theo ngày CK/TT)</div></div>
+    <div ${_oSoMo('debt', 'phantich')}><div class="label">KL Mua Tháng Này</div><div class="value" id="s-kl-mua">–</div><div class="hint">kg (theo ngày cân)</div></div>
+    <div ${_oSoMo('debt', 'phantich')}><div class="label">Tiền Mua Tháng Này</div><div class="value" id="s-tien-mua">–</div><div class="hint">VNĐ (theo ngày cân)</div></div>
+    <div ${_oSoMo('report', 'gokeo')}><div class="label">KL Thanh Toán Tháng Này</div><div class="value timber" id="s-kl-tt">–</div><div class="hint">tấn (theo ngày CK/TT)</div></div>
+    <div ${_oSoMo('report', 'gokeo')}><div class="label">Tiền Thanh Toán Tháng Này</div><div class="value timber" id="s-tien-tt">–</div><div class="hint">VNĐ (theo ngày CK/TT)</div></div>
   </div>
   <div class="hint-text" id="s-thang-cap-nhat" style="margin-top:8px"></div>
   <div class="muc-tieu-de">Công nợ khách hàng gỗ keo</div>
   <div class="grid cols-2">
-    <div class="card">
+    <div ${_oSoMo('debt', 'customer', 'card')}>
       <h3>Tổng nợ tiền gỗ keo</h3>
       <div class="value" id="s-tong-no" style="font-variant-numeric:tabular-nums; font-size:var(--fs-so); font-weight:700; letter-spacing:-0.02em; color:var(--danger)">–</div>
       <div class="muted" style="font-size:12px; margin-top:4px">VNĐ - cộng dồn công nợ còn lại của TẤT CẢ khách hàng (khoảng 90 ngày gần nhất), chỉ tính khách hàng còn nợ</div>
@@ -2122,6 +2142,7 @@ function renderDraft(){
       <div class="subtab" data-f="cho_tinh">1 · Chưa ĐNTT <span class="dem"></span></div>
       <div class="subtab" data-f="cho_dntt">2 · Chờ ĐNTT <span class="dem"></span></div>
       <div class="subtab" data-f="dang_dntt">3 · Đang ĐNTT (chờ duyệt) <span class="dem"></span></div>
+      <div class="subtab" data-f="san_sang">Đã có số tiền (2 + 3) <span class="dem"></span></div>
     </div>
     <div class="hint-text" style="margin-bottom:10px">Quy trình: (1) Chưa ĐNTT → bấm "Đề Nghị Thanh Toán" để tính tiền → (2) Chờ ĐNTT → chọn hồ sơ, bấm "Xác Nhận" → (3) Đang ĐNTT → in Báo Cáo ĐNTT, rồi bấm "Duyệt" để Đóng Thanh Toán (copy sang sheet chính).</div>
     <div class="card" id="draft-filter-card">
@@ -2156,16 +2177,20 @@ function _khopTenDraft(r){
   const k = _khongDau(state.draftTuKhoa);
   return !k || _khongDau(r.chuRung).includes(k) || _khongDau(r.nguoiNhan).includes(k);
 }
+/** Hồ sơ thuộc tab `f`: all = tất cả; san_sang = đã có số tiền (Chờ + Đang ĐNTT); còn lại theo trạng thái. */
+function _thuocTabDraft(r, f){
+  return f === 'all' || (f === 'san_sang' ? !!r.sanSangChot : r.trangThaiKey === f);
+}
 /** Hồ sơ đang hiện trong bảng: đúng tab trạng thái và khớp bộ lọc tên. */
 function _draftDangHien(r){
-  return (state.draftStatusFilter === 'all' || r.trangThaiKey === state.draftStatusFilter) && _khopTenDraft(r);
+  return _thuocTabDraft(r, state.draftStatusFilter) && _khopTenDraft(r);
 }
 function boLocDraft(){
   state.draftTuKhoa = '';
   const o = document.getElementById('draft-tu-khoa'); if (o) o.value = '';
   renderDraftTable();
 }
-const DRAFT_TEN_TAB = { all: 'Tất cả', cho_tinh: 'Chưa ĐNTT (chưa tính tiền)', cho_dntt: 'Chờ ĐNTT', dang_dntt: 'Đang ĐNTT - đã đề nghị, chưa chuyển tiền' };
+const DRAFT_TEN_TAB = { all: 'Tất cả', cho_tinh: 'Chưa ĐNTT (chưa tính tiền)', cho_dntt: 'Chờ ĐNTT', dang_dntt: 'Đang ĐNTT - đã đề nghị, chưa chuyển tiền', san_sang: 'Đã có số tiền - sẵn sàng chốt (Chờ + Đang ĐNTT)' };
 /** Dòng tổng phía trên bảng + tổng theo từng khách hàng (hồ sơ đang hiện). */
 function _veTongDraft(list){
   const box = document.getElementById('draft-tong');
@@ -2224,7 +2249,7 @@ function renderDraftTable(){
   // Số hồ sơ mỗi tab (theo bộ lọc tên) + gợi ý tên khách hàng cho ô lọc.
   document.querySelectorAll('#content > .subtabs .subtab').forEach(el => {
     const dem = el.querySelector('.dem');
-    if (dem) dem.textContent = `(${fullList.filter(r => (el.dataset.f === 'all' || r.trangThaiKey === el.dataset.f) && _khopTenDraft(r)).length})`;
+    if (dem) dem.textContent = `(${fullList.filter(r => _thuocTabDraft(r, el.dataset.f) && _khopTenDraft(r)).length})`;
   });
   const goiY = document.getElementById('draft-ds-khach');
   if (goiY) goiY.innerHTML = Array.from(new Set(fullList.map(r => r.chuRung).filter(Boolean))).sort((a, b) => a.localeCompare(b)).map(t => `<option value="${esc(t)}">`).join('');
@@ -2731,6 +2756,7 @@ function renderGoKeoTab(){
       <button class="btn ghost" onclick="toggleAllReportBtn()">☑️ Chọn/Bỏ chọn tất cả (đang lọc)</button>
       <button class="btn accent" onclick="exportReport()">📥 Xuất Báo Cáo (đã chọn)</button>
     </div>`;
+  if (state.xemNgayBaoCao) { state.xemNgayBaoCao = false; loadReport(); } // mở từ Trang chủ: xem luôn tháng này
 }
 
 /** MỚI (theo yêu cầu - tách riêng khỏi Báo Cáo Thanh Toán Gỗ Keo): tab
