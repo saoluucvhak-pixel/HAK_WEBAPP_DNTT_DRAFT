@@ -307,6 +307,11 @@
     .modal-head h3{margin:0; font-size:16px;}
     .modal-head .x{cursor:pointer; font-size:18px; color:var(--ink-soft); background:none; border:none;}
     .modal-body{padding:20px; max-height:65vh; overflow:auto;}
+    .modal.rong{max-width:880px;}
+    .modal.rong .modal-body{max-height:78vh;}
+    iframe.xem-phieu{width:100%; height:70vh; border:1px solid var(--line); border-radius:8px; background:#fff;}
+    tr.dong-bam{cursor:pointer;}
+    tr.dong-bam:hover td{background:var(--paper-2);}
     .modal-foot{padding:14px 20px; border-top:1px solid var(--line); display:flex; justify-content:flex-end; gap:8px;}
 
     .kv{display:flex; justify-content:space-between; padding:7px 0; border-bottom:1px dashed var(--line); font-size:13px;}
@@ -534,7 +539,7 @@
       <div class="nav-item" role="button" tabindex="0" data-page="settings"><span class="ic">⚙️</span> Cài đặt / Nháp</div>
     </nav>
     <div class="nguoi-dung-chip" id="nguoi-dung-chip"></div>
-    <div class="sidebar-footer">Hệ thống Quản Lý Thanh Toán · v2026.9.34<br><button type="button" class="theme-toggle" id="theme-toggle" aria-label="Đổi giao diện sáng / tối">🌓 Giao diện: Tự động</button></div>
+    <div class="sidebar-footer">Hệ thống Quản Lý Thanh Toán · v2026.9.35<br><button type="button" class="theme-toggle" id="theme-toggle" aria-label="Đổi giao diện sáng / tối">🌓 Giao diện: Tự động</button></div>
   </aside>
 
   <main class="main">
@@ -619,12 +624,15 @@ function hanhDong(ten, ...thamSo){ return hanhDongKhi('click', ten, ...thamSo); 
 const HANH_DONG = {
   goToLedgerFor, openLedgerFor, pickChuRung, pickModongChuRung,
   viewDraftDetail, editDraftRecord, confirmDeleteDraft, doHuyXacNhan, saveDraftEdit,
-  removePhieuCan, searchPhieuCanForEdit, inPhieuChiTietThanhToan, inPhieuHoanThanh, doDonDep,
+  removePhieuCan, searchPhieuCanForEdit, inPhieuChiTietThanhToan, inPhieuHoanThanh, xemPhieuHoanThanh, doDonDep,
   toggleShareBox, doSwapLink, doShareLink, doRevokeLink
 };
 ['click', 'mousedown'].forEach(loai => document.addEventListener(loai, e => {
   const el = e.target.closest('[data-hd]');
   if (!el || el.dataset.hdSuKien !== loai) return;
+  // Hành động gắn cho cả dòng (tr): bấm vào ô tích / nút / link bên trong thì không chạy.
+  const dieuKhien = e.target.closest('input, button, a, select, textarea, label');
+  if (dieuKhien && dieuKhien !== el && el.contains(dieuKhien)) return;
   const fn = HANH_DONG[el.dataset.hd];
   if (!fn) { console.error('Hành động chưa đăng ký:', el.dataset.hd); return; }
   fn(...JSON.parse(el.dataset.ts));
@@ -1022,9 +1030,11 @@ function _hienKetQuaXuat_(res, moTa){
 }
 
 let _truocKhiMoModal_ = null; // phần tử đang được chọn trước khi mở modal - trả lại focus khi đóng
-function openModal(html){
+/** tuyChon.rong: cửa sổ rộng (xem trước phiếu in). */
+function openModal(html, tuyChon){
   const modal = document.getElementById('modal');
   if (!document.getElementById('modal-bg').classList.contains('show')) _truocKhiMoModal_ = document.activeElement;
+  modal.classList.toggle('rong', !!(tuyChon && tuyChon.rong));
   modal.innerHTML = html;
   const tieuDe = modal.querySelector('.modal-head h3');
   if (tieuDe) { tieuDe.id = 'modal-tieu-de'; modal.setAttribute('aria-labelledby', 'modal-tieu-de'); }
@@ -2313,25 +2323,29 @@ function viewDraftDetail(idKey){
   });
 }
 
-/** Báo Cáo Thanh Toán: PDF "Phiếu chi tiết hoàn thành thanh toán" (có Ngày CK) của 1 hồ sơ đã chốt. */
-function inPhieuHoanThanh(idHeThong, ngayISO){
-  call('webInPhieuHoanThanhThanhToan', [idHeThong, ngayISO], 'Đang tạo phiếu PDF...').then(res => {
-    if (!(res && res.success)) { toast('❌ ' + (res && res.message || 'Không tạo được phiếu PDF.'), 'err'); return; }
-    openModal(`<div class="modal-head"><h3>Phiếu hoàn thành thanh toán</h3><button class="x" onclick="closeModal()" aria-label="Đóng">&times;</button></div>
-      <div class="modal-body"><p>${esc(res.message)} Hồ sơ ${esc(idHeThong)}.</p>${nutMoFile_(res.pdfUrl, '📄 Mở phiếu PDF', 'btn primary')}</div>
-      <div class="modal-foot"><button class="btn ghost" onclick="closeModal()">Đóng</button></div>`);
-  });
-}
-
-/** Tạo PDF "Phiếu chi tiết thanh toán" của hồ sơ; xong thì nút đổi thành link mở file. */
-function inPhieuChiTietThanhToan(idKey){
-  call('webInPhieuChiTietThanhToan', [idKey], 'Đang tạo phiếu PDF...').then(res => {
+/** Tạo phiếu PDF (fn máy chủ + tham số); xong thì nút In trong ô #phieu-pdf-slot đổi thành link mở file. */
+function _inPhieuPdf(fn, thamSo){
+  call(fn, thamSo, 'Đang tạo phiếu PDF...').then(res => {
     if (!(res && res.success)) { toast('❌ ' + (res && res.message || 'Không tạo được phiếu PDF.'), 'err'); return; }
     const slot = document.getElementById('phieu-pdf-slot');
     if (slot) slot.innerHTML = nutMoFile_(res.pdfUrl, '📄 Mở phiếu PDF', 'btn primary');
     toast(res.message, 'ok');
   });
 }
+/** Báo Cáo Thanh Toán - bấm vào dòng hồ sơ: xem trước "Phiếu chi tiết hoàn thành thanh toán"
+ * (đúng nội dung sẽ in, có Ngày CK), rồi mới In PDF. */
+function xemPhieuHoanThanh(idHeThong, ngayISO){
+  call('getPhieuHoanThanh', [idHeThong, ngayISO], 'Đang tải phiếu...').then(res => {
+    if (!(res && res.success)) { toast('❌ ' + (res && res.message || 'Không tải được phiếu.'), 'err'); return; }
+    openModal(`<div class="modal-head"><h3>Phiếu hoàn thành thanh toán · ${esc(res.chuRung)}</h3><button class="x" onclick="closeModal()" aria-label="Đóng">&times;</button></div>
+      <div class="modal-body"><iframe class="xem-phieu" sandbox title="Xem trước phiếu hoàn thành thanh toán ${esc(res.idKey)}" srcdoc="${esc(res.html)}"></iframe></div>
+      <div class="modal-foot"><span id="phieu-pdf-slot"><button class="btn primary" ${hanhDong('inPhieuHoanThanh', res.idKey, ngayISO)}>🖨️ In phiếu (PDF)</button></span><button class="btn ghost" onclick="closeModal()">Đóng</button></div>`, { rong: true });
+  });
+}
+/** Báo Cáo Thanh Toán: PDF "Phiếu chi tiết hoàn thành thanh toán" (có Ngày CK) của 1 hồ sơ đã chốt. */
+function inPhieuHoanThanh(idHeThong, ngayISO){ _inPhieuPdf('webInPhieuHoanThanhThanhToan', [idHeThong, ngayISO]); }
+/** Danh Sách ĐNTT › Chi tiết hồ sơ: PDF "Phiếu chi tiết thanh toán" (hồ sơ Nháp). */
+function inPhieuChiTietThanhToan(idKey){ _inPhieuPdf('webInPhieuChiTietThanhToan', [idKey]); }
 
 /** Diễn giải hồ sơ: Nội dung CK + các phần của Ghi chú ("Tổng KL: .. | Đã trả: .. | ...") mỗi phần 1 dòng. */
 function veDienGiaiHoSo(r){
@@ -3088,13 +3102,13 @@ function renderReportTable(){
       <th>Ngày ĐN</th><th>Lần</th><th>Chủ rừng</th><th>Người nhận</th><th>Số HĐ</th><th>Ngân hàng / STK</th>
       <th class="num">KL (Tấn)</th><th class="num">Số tiền</th><th>Phiếu</th>
     </tr></thead><tbody>
-    ${pageRows.map(r => `<tr>
+    ${pageRows.map(r => `<tr class="dong-bam" title="Bấm để xem phiếu chi tiết hoàn thành thanh toán" ${hanhDong('xemPhieuHoanThanh', r.idHeThong, r.ngayISO)}>
       <td><input type="checkbox" class="rp-chk-row" data-id="${esc(r.idHeThong)}" ${state.reportSelected.has(r.idHeThong)?'checked':''} onchange="toggleReportRow(this.dataset.id, this.checked)"></td>
       <td>${esc(r.ngayDN)}</td><td>${esc(r.soLan)}</td><td>${esc(r.chuRung)}</td><td>${esc(r.nguoiNhan)}</td>
       <td class="mono">${esc(r.soHD)}</td>
       <td>${esc(r.nganHang)}<br><span class="muted mono" style="font-size:11.5px">${esc(r.stk)}</span></td>
       <td class="num">${fmtKl(r.klTan)}</td><td class="num">${fmtMoney(r.soTien)}</td>
-      <td><button class="btn sm" title="In phiếu chi tiết hoàn thành thanh toán (PDF)" ${hanhDong('inPhieuHoanThanh', r.idHeThong, r.ngayISO)}>🖨️ In</button></td>
+      <td><button class="btn sm" title="Xem phiếu chi tiết hoàn thành thanh toán, rồi in" ${hanhDong('xemPhieuHoanThanh', r.idHeThong, r.ngayISO)}>👁️ Xem</button></td>
     </tr>`).join('')}
     </tbody>
     <tfoot><tr style="font-weight:700"><td colspan="8" style="text-align:right;padding:10px">TỔNG CỘNG (${rows.length} dòng đang lọc)</td><td class="num" style="padding:10px">${fmtMoney(total)}</td><td></td></tr></tfoot>

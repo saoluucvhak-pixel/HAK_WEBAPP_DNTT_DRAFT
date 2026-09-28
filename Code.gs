@@ -1,6 +1,6 @@
 /**
  * ============================================================
- * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.34
+ * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.35
  * Lịch sử thay đổi: CHANGELOG.md · Kiến trúc: docs/ARCHITECTURE.md
  * ------------------------------------------------------------
  * *** QUAN TRỌNG - CẦN LÀM TRƯỚC KHI DÙNG BẢN NÀY (chỉ 1 LẦN DUY NHẤT
@@ -1450,6 +1450,7 @@ const API_ROUTES = (() => {
     getDraftRecordDetail: r(getDraftRecordDetail_, N),
     webInPhieuChiTietThanhToan: r(webInPhieuChiTietThanhToan_, N),
     webInPhieuHoanThanhThanhToan: r(webInPhieuHoanThanhThanhToan_, X),
+    getPhieuHoanThanh: r(getPhieuHoanThanh_, X),
     updateDraft112Info: r(updateDraft112Info_, N),
     addPhieuCanToDraft: r(addPhieuCanToDraft_, N),
     removePhieuCanFromDraft: r(removePhieuCanFromDraft_, N),
@@ -8823,19 +8824,41 @@ function webInPhieuChiTietThanhToan_(idKey) {
  * thuộc năm đã khóa sổ. Chỉ đọc dòng của hồ sơ này. */
 function webInPhieuHoanThanhThanhToan_(idKey, ngayISO) {
   try {
-    const id = String(idKey || "").trim();
-    const khop = v => String(v || "").trim() === id;
-    const nam = String(ngayISO || "").trim();
-    const row = _docDongTheoKhoa_(getMainSs_().getSheetByName(CFG.DNTT_112), 0, 23, khop)
-      .concat(nam ? _docLuuTruTrongKhoang_(CFG.DNTT_112, 23, nam, nam).filter(r => khop(r[0])) : [])[0];
-    if (!id || !row) return { success: false, message: "❌ Không tìm thấy hồ sơ đã chốt " + id + "." };
-    const ct = _ctDongCuaHoSo_([{ idHeThong: id, ngayISO: nam }]);
-    const r = _chiTietHoSo_(row, ct);
-    r.ngayCK = Array.from(new Set(ct.map(c => _ngayXuat_(c[20])).filter(Boolean))).join(", ");
+    const r = _hoSoHoanThanh_(idKey, ngayISO);
+    if (!r) return { success: false, message: "❌ Không tìm thấy hồ sơ đã chốt " + String(idKey || "") + "." };
     return _luuPhieuPdf_(r, PHIEU_CT_TT.HOAN_THANH);
   } catch (e) {
     return { success: false, message: "❌ Lỗi: " + _loiChoNguoiDung_(e) };
   }
+}
+
+/** #Web (Báo Cáo Thanh Toán, bấm vào dòng hồ sơ): xem trước phiếu hoàn thành thanh toán -
+ * trả đúng HTML của phiếu PDF (cùng hàm dựng) để xem trước khi in. */
+function getPhieuHoanThanh_(idKey, ngayISO) {
+  try {
+    const r = _hoSoHoanThanh_(idKey, ngayISO);
+    if (!r) return { success: false, message: "❌ Không tìm thấy hồ sơ đã chốt " + String(idKey || "") + "." };
+    return { success: true, idKey: r.idKey, chuRung: r.chuRung, ngayCK: r.ngayCK,
+      html: _htmlPhieuChiTietThanhToan_(r, new Date(), PHIEU_CT_TT.HOAN_THANH.TIEU_DE) };
+  } catch (e) {
+    return { success: false, message: "❌ Lỗi: " + _loiChoNguoiDung_(e) };
+  }
+}
+
+/** Hồ sơ ĐÃ CHỐT (sổ 112 + CT, có Ngày CK) cho phiếu hoàn thành thanh toán; null nếu không có.
+ * ngayISO (Ngày ĐN trên màn hình) để tìm cả hồ sơ thuộc năm đã khóa sổ. Chỉ đọc dòng của hồ sơ này. */
+function _hoSoHoanThanh_(idKey, ngayISO) {
+  const id = String(idKey || "").trim();
+  if (!id) return null;
+  const khop = v => String(v || "").trim() === id;
+  const nam = String(ngayISO || "").trim();
+  const row = _docDongTheoKhoa_(getMainSs_().getSheetByName(CFG.DNTT_112), 0, 23, khop)
+    .concat(nam ? _docLuuTruTrongKhoang_(CFG.DNTT_112, 23, nam, nam).filter(r => khop(r[0])) : [])[0];
+  if (!row) return null;
+  const ct = _ctDongCuaHoSo_([{ idHeThong: id, ngayISO: nam }]);
+  const r = _chiTietHoSo_(row, ct);
+  r.ngayCK = Array.from(new Set(ct.map(c => _ngayXuat_(c[20])).filter(Boolean))).join(", ");
+  return r;
 }
 
 /** HTML của phiếu (file xuất: ngày giờ và số theo Vùng xuất; số căn phải, chữ căn trái;

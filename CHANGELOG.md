@@ -2,6 +2,18 @@
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/). Phiên bản theo `NĂM.ĐỢT.SỬA`; thay đổi làm đổi hành vi nghiệp vụ (⚖️) sẽ tăng số ĐỢT và ghi rõ đã được người dùng đồng ý.
 
+## [2026.9.35] — Báo Cáo Thanh Toán: bấm vào dòng khách hàng để xem phiếu hoàn thành trước khi in (người dùng yêu cầu 28/09/2026)
+
+### Added
+- Báo Cáo Thanh Toán (tab Gỗ Keo): **bấm vào dòng hồ sơ** (hoặc nút **👁️ Xem** cuối dòng) mở cửa sổ xem trước **Phiếu chi tiết hoàn thành thanh toán** — đúng nội dung sẽ in (cùng hàm dựng phiếu PDF: Ngày CK, chủ rừng, người nhận, NH/STK, HĐ, SL, số tiền, nội dung CK, ghi chú, phiếu cân, ô ký). Nút **🖨️ In phiếu (PDF)** ngay trong cửa sổ; in xong đổi thành “📄 Mở phiếu PDF”. Xem trước không tạo file. `getPhieuHoanThanh_` (quyền như xem báo cáo), dùng chung `_hoSoHoanThanh_` với lệnh in.
+- Bấm ô tích chọn / nút trong dòng không mở cửa sổ (quy tắc chung: hành động gắn cho cả dòng không chạy khi bấm vào ô nhập, nút, link bên trong). Phiếu hiển thị trong khung cách ly (`iframe sandbox`), cửa sổ rộng (`openModal(html, { rong: true })`).
+
+### Changed
+- Nút In phiếu PDF ở Nháp và ở Báo Cáo dùng chung `_inPhieuPdf` (trình duyệt).
+
+### Tests
+- 171 test (thêm: xem trước = phiếu in, không tạo file, quyền; dòng mở xem trước, ô tích không mở, khung cách ly).
+
 ## [2026.9.34] — Kiểm tra hiệu năng lần 2: Duyệt, MISA, trigger bớt đọc lại sổ (người dùng yêu cầu 28/09/2026)
 
 ### Changed (tối ưu, kết quả không đổi)

@@ -111,3 +111,18 @@ test('(b) the detailed report view is capped for the browser, but the Excel expo
   assert.equal(xuat.count, 2500, 'no row dropped from the Excel file');
   assert.doesNotMatch(xuat.message, /giới hạn/);
 });
+
+test('(c) clicking a record shows the completed-payment slip first - the same content that is printed', () => {
+  const { run, env } = daChot();
+  const xem = run('getPhieuHoanThanh_')('A1', '');
+  assert.ok(xem.success, xem.message);
+  assert.equal(xem.idKey, 'A1');
+  assert.equal(xem.ngayCK, '15/01/2026');
+  assert.match(xem.html, /PHIẾU CHI TIẾT HOÀN THÀNH THANH TOÁN/);
+  assert.equal(env.driveFiles.length, 0, 'viewing creates no file');
+  run('webInPhieuHoanThanhThanhToan_')('A1', '');
+  const boGio = h => h.replace(/In lúc: [^<]*/, '');
+  assert.equal(boGio(xem.html), boGio(env.driveFiles[0].nguon), 'preview = printed slip');
+  assert.equal(run('getPhieuHoanThanh_')('KHONG_CO', '').success, false);
+  assert.equal(run('API_ROUTES.getPhieuHoanThanh.quyen'), run('API_ROUTES.getReportList.quyen'));
+});

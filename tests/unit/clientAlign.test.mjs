@@ -31,3 +31,13 @@ test('record detail modal: contract volumes in tonnes and a PDF print button', (
   assert.match(m, /hanhDong\('inPhieuChiTietThanhToan', r\.idKey\)/);
   assert.match(INDEX, /searchPhieuCanForEdit, inPhieuChiTietThanhToan,/, 'action registered');
 });
+
+test('payment report: clicking a row opens the slip preview; its checkbox and buttons do not', () => {
+  assert.match(INDEX, /<tr class="dong-bam" title="Bấm để xem phiếu chi tiết hoàn thành thanh toán" \$\{hanhDong\('xemPhieuHoanThanh', r\.idHeThong, r\.ngayISO\)\}>/);
+  assert.match(INDEX, /const dieuKhien = e\.target\.closest\('input, button, a, select, textarea, label'\);\s*if \(dieuKhien && dieuKhien !== el && el\.contains\(dieuKhien\)\) return;/);
+  const xem = /function xemPhieuHoanThanh\(idHeThong, ngayISO\)\{[\s\S]*?\n\}/.exec(INDEX)[0];
+  assert.match(xem, /<iframe class="xem-phieu" sandbox /, 'slip shown in a sandboxed frame (no script)');
+  assert.match(xem, /srcdoc="\$\{esc\(res\.html\)\}"/);
+  assert.match(xem, /hanhDong\('inPhieuHoanThanh', res\.idKey, ngayISO\)/, 'print from the preview');
+  assert.match(INDEX, /inPhieuHoanThanh, xemPhieuHoanThanh, doDonDep,/);
+});

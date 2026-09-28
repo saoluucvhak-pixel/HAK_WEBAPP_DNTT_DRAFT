@@ -1,4 +1,4 @@
-# ARCHITECTURE — HAK Quản Lý Thanh Toán (v2026.9.34)
+# ARCHITECTURE — HAK Quản Lý Thanh Toán (v2026.9.35)
 
 > Tài liệu sống: cập nhật mỗi khi đổi module, lớp, luồng dữ liệu hoặc schema.
 > Phân tích chi tiết hiện trạng: `docs/PROJECT_ANALYSIS.md`. Kiến trúc đích: `docs/REFACTOR_PLAN.md` §3–§4.
@@ -171,7 +171,7 @@ Chỉ khi khoảng ngày **chạm năm đã đăng ký**; báo cáo năm đang m
 - **DỌN DẸP** (MISA, UNC): `_donDep_(cấu hình, chayThat)` — xem trước, rồi trong khóa hệ thống quét lại, sao lưu (`_saoLuuVaXoaDong_`), xóa; mỗi sổ chỉ viết hàm chọn dòng (`_boChonMisaDonDep_`, `_boChonUncDonDep_`).
 - **KHOẢNG NGÀY BÁO CÁO** (⚖️ người dùng 28/09/2026): Báo Cáo Thanh Toán (Gỗ Keo, Chi Tiết, MISA, UNC) tối đa `KHOANG_BAO_CAO.SO_THANG` tháng. Trình duyệt: ô ngày `data-khoang-bao-cao`, `_khoangBaoCaoHopLe` ở mọi nút; máy chủ: route bọc `_theoKhoangBaoCao_`. Chức năng báo cáo MỚI có khoảng ngày trên trang này phải dùng cả hai. Khoảng 1 tháng bất kỳ (không theo tháng lịch); báo cáo Công Nợ không áp dụng (người dùng xác nhận).
 - **NGUỒN BÁO CÁO THANH TOÁN**: danh sách = sổ 112 (lọc Ngày ĐN); Bảng Kê Chi Tiết CK và tab Chi Tiết = ChiTietDNTT (Y), tab Chi Tiết và MISA lọc **Ngày CK**. `_dongBangKeChiTiet_` chỉ ghép lại từ CT + Phiếu Cân + HĐ (`_gomChiTietChuyenKhoan_`) cho hồ sơ ChiTietDNTT thiếu phiếu.
-- **Phiếu PDF**: `_luuPhieuPdf_(hồSơ, PHIEU_CT_TT.DE_NGHI | HOAN_THANH)` — Nháp: `webInPhieuChiTietThanhToan_` (từ `getDraftRecordDetail_`); đã chốt: `webInPhieuHoanThanhThanhToan_` (sổ 112 + CT, có Ngày CK). Cả hai qua `_chiTietHoSo_`; dựng HTML → `Utilities.newBlob(html).getAs("application/pdf")` → thư mục Báo cáo. Số/ngày theo Vùng xuất (`_soHienThi_(n, soLe, preset)`, `_ngayGioXuat_`).
+- **Phiếu PDF**: `_luuPhieuPdf_(hồSơ, PHIEU_CT_TT.DE_NGHI | HOAN_THANH)` — Nháp: `webInPhieuChiTietThanhToan_` (từ `getDraftRecordDetail_`); đã chốt: `webInPhieuHoanThanhThanhToan_` / xem trước `getPhieuHoanThanh_` (cùng `_hoSoHoanThanh_` + cùng HTML - xem trước luôn giống bản in). Cả hai qua `_chiTietHoSo_`; dựng HTML → `Utilities.newBlob(html).getAs("application/pdf")` → thư mục Báo cáo. Số/ngày theo Vùng xuất (`_soHienThi_(n, soLe, preset)`, `_ngayGioXuat_`).
 - **SL dự kiến hợp đồng** (`_slDuKienHopDong_`): tổng `KhoiLuongDuKien` các lô rừng sheet HD_RUNG (file Hợp Đồng, theo ID_HD, cột tra theo tiêu đề — `_klDuKienTheoIdHD_`), không có lô rừng thì cột Z “SL_Dự kiến” HD_NCC. Áp dụng khi dựng bản sao HD_NCC và báo cáo công nợ theo hợp đồng. Ngày thanh toán lúc Duyệt gửi `yyyy-mm-dd`; `_parseNgayTheoVung_` từ chối ngày không có thật.
 - Theo ngày cân / lũy kế đến ngày D (Phân tích, Công nợ KH, Sổ chi tiết KH, Công nợ phiếu cân tại D): `(f hoặc D, "")` — năm khóa sổ **từ** năm đó trở đi; năm khóa sổ trước đó chỉ mang sang phiếu chưa trả (lũy kế tính từ đầu năm của “Từ ngày”, công nợ không đổi).
 - Tiến độ hợp đồng / Công nợ theo HĐ / Sổ chi tiết HĐ: mọi năm `("", "")` (hợp đồng kéo dài nhiều năm).
