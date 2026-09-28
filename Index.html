@@ -3159,6 +3159,7 @@ function _docNgaySaoKe_(v){
   return m ? `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}` : '';
 }
 function doiChieuSaoKe(){
+  if (!coQuyen('NGHIEP_VU')) { toast('Chức năng dành cho Kế toán.', 'warn'); return; }
   const sk = state.saoKe; if (!sk) return;
   const cot = k => +document.getElementById('saoke-' + k).value;
   const chiLayAm = document.getElementById('saoke-am').checked;
