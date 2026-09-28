@@ -61,3 +61,24 @@ test('the detail sheet follows the same alignment rule', () => {
     assert.equal(sh2.alignments.get('5,' + (i + 1)), typeof v === 'number' ? 'right' : 'left', `column ${i + 1} (${JSON.stringify(v)})`);
   });
 });
+
+test('every export file follows the alignment rule (numbers right, text left)', () => {
+  const w = buildWorld();
+  const { run, env } = loadCode(w.options);
+  assert.equal(run('webCreateUNCFromDraft_')(['A1'], '2026-09-05').success, true);
+  assert.match(run('runConfirmPayment_')(['A1'], '2026-09-05'), /^✅/);
+  const homNay = new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 10);
+  const mo = kq => { assert.equal(kq.success, true, kq.message); return env.SpreadsheetApp.openById(/\/d\/([^/]+)/.exec(kq.url)[1]); };
+  const kiem = (sh, dongDau, ten) => {
+    const hang = sh.rows()[dongDau - 1];
+    hang.forEach((v, i) => {
+      if (v === '' || v === null || v === undefined) return;
+      const laSo = typeof v === 'number' || (typeof v === 'string' && /^-?(0|[1-9]\d*)(\.\d+)?$/.test(v));
+      assert.equal(sh.alignments.get(dongDau + ',' + (i + 1)), laSo ? 'right' : 'left', `${ten} column ${i + 1} (${JSON.stringify(v)})`);
+    });
+  };
+  kiem(mo(run('exportLichSuUNCExcel_')(homNay, homNay)).getSheets()[0], 2, 'UNC report');
+  kiem(mo(run('exportChiTietDNTTDaChotExcel_')('2026-09-01', '2026-09-30')).getSheets()[0], 2, 'detail report');
+  const misa = mo(run('exportMisaTheoNgayExcel_')('2026-09-01', '2026-09-30')).getSheets();
+  kiem(misa[0], 2, 'MISA'); kiem(misa[1], 2, 'MISA summary');
+});

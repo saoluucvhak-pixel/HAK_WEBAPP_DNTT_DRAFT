@@ -532,7 +532,7 @@
       <div class="nav-item" role="button" tabindex="0" data-page="settings"><span class="ic">⚙️</span> Cài đặt / Nháp</div>
     </nav>
     <div class="nguoi-dung-chip" id="nguoi-dung-chip"></div>
-    <div class="sidebar-footer">Hệ thống Quản Lý Thanh Toán · v2026.9.26<br><button type="button" class="theme-toggle" id="theme-toggle" aria-label="Đổi giao diện sáng / tối">🌓 Giao diện: Tự động</button></div>
+    <div class="sidebar-footer">Hệ thống Quản Lý Thanh Toán · v2026.9.27<br><button type="button" class="theme-toggle" id="theme-toggle" aria-label="Đổi giao diện sáng / tối">🌓 Giao diện: Tự động</button></div>
   </aside>
 
   <main class="main">
@@ -1058,6 +1058,36 @@ function _ganONgayVN_(goc){
 _ganONgayVN_(document);
 new MutationObserver(() => _ganONgayVN_(document.body)).observe(document.body, { childList: true, subtree: true });
 
+/* ---------- Căn lề bảng theo kiểu dữ liệu (quy định người dùng 28/09/2026) ----------
+ * Toàn web app: cột toàn SỐ căn phải; tên, chuỗi căn trái. "Số" = có dấu phân cách
+ * nghìn/thập phân (25.952.000, 14,83, 1,326.13 - kèm đ/kg/tấn/%) hoặc số ngắn 1-3 chữ số
+ * (STT, Lần). Dãy chữ số dài không phân cách là MÃ (Số TK, CCCD, Số phiếu, Số HĐ) -> trái;
+ * ngày dd/mm/yyyy -> trái. Chạy tự động cho mọi bảng mới vẽ (không sửa từng bảng). */
+const _LA_SO_WEB_ = /^[-+]?(\d{1,3}([.,]\d{3})+([.,]\d+)?|\d{1,3}([.,]\d+)?|\d+[.,]\d{1,3})\s*(đ|kg|tấn|tan|%)?$/i;
+function _canhLeBangWeb_(goc){
+  goc.querySelectorAll('table').forEach(bang => {
+    const bodies = Array.from(bang.tBodies).filter(tb => !tb.hasAttribute('data-canh'));
+    if (!bodies.length) return;
+    const dong = bodies.flatMap(tb => Array.from(tb.rows));
+    const soCot = Math.max(0, ...dong.map(r => r.cells.length));
+    const chuan = dong.filter(r => r.cells.length === soCot); // bỏ dòng gộp ô (thông báo trống, nhóm)
+    for (let c = 0; c < soCot; c++) {
+      // Ô trống / "-" / "—" không tính; ô có nút, ô nhập thì bỏ qua cả cột.
+      const o = chuan.map(r => r.cells[c]).filter(td => td && !/^[-–—]?$/.test(td.textContent.trim()));
+      if (!o.length || o.some(td => td.querySelector('input,select,button,textarea'))) continue;
+      if (!o.every(td => _LA_SO_WEB_.test(td.textContent.trim()))) continue; // chỉ THÊM căn phải, không gỡ class sẵn có
+      chuan.forEach(r => r.cells[c] && r.cells[c].classList.add('num'));
+      const tieuDe = bang.tHead && bang.tHead.rows[bang.tHead.rows.length - 1];
+      if (tieuDe && tieuDe.cells.length === soCot && tieuDe.cells[c]) tieuDe.cells[c].classList.add('num');
+    }
+    bodies.forEach(tb => tb.setAttribute('data-canh', '1'));
+  });
+}
+['content', 'modal'].forEach(id => {
+  const goc = document.getElementById(id);
+  new MutationObserver(() => _canhLeBangWeb_(goc)).observe(goc, { childList: true, subtree: true });
+  _canhLeBangWeb_(goc);
+});
 ['content', 'modal'].forEach(id => {
   const goc = document.getElementById(id);
   new MutationObserver(() => _ganBamDuoc_(goc)).observe(goc, { childList: true, subtree: true });

@@ -2,6 +2,16 @@
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/). Phiên bản theo `NĂM.ĐỢT.SỬA`; thay đổi làm đổi hành vi nghiệp vụ (⚖️) sẽ tăng số ĐỢT và ghi rõ đã được người dùng đồng ý.
 
+## [2026.9.27] — Quy tắc căn lề toàn web app (người dùng yêu cầu 28/09/2026)
+
+### Changed
+- **File xuất**: số căn phải, tên/chuỗi căn trái ở mọi file — MISA (+ Tóm tắt), Báo Cáo UNC, Báo Cáo Chi Tiết, File UNC, Tình hình thanh toán, Báo cáo tổng hợp NG/ĐL (cả dòng tổng), Chi tiết công nợ theo phiếu cân, Đối soát tên KH (Báo Cáo ĐNTT đã có từ 2026.9.26). Dùng chung `_canhLeTheoKieu_`.
+- **Bảng trên web**: tự nhận cột toàn số (số có phân cách nghìn/thập phân, kèm đ/kg/tấn/%, hoặc 1–3 chữ số như STT/Lần) → căn phải cả ô lẫn tiêu đề; dãy chữ số dài không phân cách (Số TK, CCCD, Số phiếu, Số HĐ), ngày, tên → căn trái. Tự chạy cho mọi bảng, chỉ thêm căn phải, không gỡ định dạng sẵn có; bỏ qua ô trống/“—” và cột có nút/ô nhập.
+- Quy định ghi vào `docs/ARCHITECTURE.md`.
+
+### Tests
+- 135 test (thêm nhận diện số/mã trên web; căn lề file Báo Cáo UNC, Báo Cáo Chi Tiết, MISA + Tóm tắt — thất bại trên 2026.9.26). Kiểm tra trình duyệt: Danh sách ĐNTT, Báo Cáo Chi Tiết, Báo Cáo MISA.
+
 ## [2026.9.26] — Báo Cáo ĐNTT: Nội dung CK luôn 2 dòng, căn lề theo kiểu dữ liệu (người dùng yêu cầu 28/09/2026)
 
 ### Changed

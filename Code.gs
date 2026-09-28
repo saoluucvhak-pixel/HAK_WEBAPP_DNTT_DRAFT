@@ -1,6 +1,6 @@
 /**
  * ============================================================
- * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.26
+ * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.27
  * Lịch sử thay đổi: CHANGELOG.md · Kiến trúc: docs/ARCHITECTURE.md
  * ------------------------------------------------------------
  * *** QUAN TRỌNG - CẦN LÀM TRƯỚC KHI DÙNG BẢN NÀY (chỉ 1 LẦN DUY NHẤT
@@ -3130,6 +3130,7 @@ function exportMisaTheoNgayExcel_(fDate, tDate) {
     sheet.setName("XuatMISA");
     _lockTextCols_(sheet, MISA_COT_CHU.map(i => i + 1), kq.dong.length + 5);
     sheet.getRange(1, 1, 1, MISA_SO_COT).setValues(_dongAnToan_([kq.tieuDe])).setFontWeight("bold").setBackground("#d9d2e9");
+    _canhLeTheoKieu_(sheet, 2, kq.dong);
     sheet.getRange(2, 1, kq.dong.length, MISA_SO_COT).setValues(_dongAnToan_(kq.dong, MISA_COT_CHU));
     sheet.setFrozenRows(1);
 
@@ -3140,6 +3141,7 @@ function exportMisaTheoNgayExcel_(fDate, tDate) {
     tomTat.getRange(1, 1, 1, headers.length).setValues([headers]).setFontWeight("bold").setBackground("#d9d2e9");
     const body = kq.dong.map(_tomTatDongMisa_).map(r => [r.ngayHachToan, _chu_(r.soPhieuCan), r.hoTenChuRung, r.tenThuHuong, _chu_(r.soTK), r.nganHang, r.thanhTien, r.noiDung, _chu_(r.soHD)]);
     tomTat.getRange(2, 1, body.length, headers.length).setValues(_dongAnToan_(body));
+    _canhLeTheoKieu_(tomTat, 2, body);
     tomTat.getRange(2, 7, body.length, 1).setNumberFormat("#,##0");
     tomTat.setFrozenRows(1);
 
@@ -3224,6 +3226,7 @@ function exportLichSuUNCExcel_(fDate, tDate) {
     sheet.getRange(1, 1, 1, headers.length).setValues([headers]).setFontWeight("bold").setBackground("#d9d2e9");
     const body = rows.map(r => [r.ngayHieuLuc, r.tenNguoiNhan, _chu_(r.soTK), r.nganHang, r.soTien, r.noiDung, r.nguoiTao, r.thoiGianTao, r.linkFile, r.chuRung, _chu_(r.soHD)]);
     sheet.getRange(2, 1, body.length, headers.length).setValues(_dongAnToan_(body));
+    _canhLeTheoKieu_(sheet, 2, body);
     sheet.getRange(2, 5, body.length, 1).setNumberFormat("#,##0");
     sheet.setFrozenRows(1);
 
@@ -3312,6 +3315,7 @@ function exportChiTietDNTTDaChotExcel_(fDate, tDate) {
       r.klKg, r.klTan, r.donGia, r.thanhTien, r.nguonGoc, r.nganHang, _chu_(r.soTaiKhoan), _ngayGioXuat_(r.ngayGhi)
     ]);
     sheet.getRange(2, 1, body.length, headers.length).setValues(_dongAnToan_(body));
+    _canhLeTheoKieu_(sheet, 2, body);
     sheet.getRange(2, 9, body.length, 1).setNumberFormat("#,##0");
     sheet.getRange(2, 10, body.length, 1).setNumberFormat("#,##0.000");
     sheet.getRange(2, 11, body.length, 2).setNumberFormat("#,##0");
@@ -3423,6 +3427,7 @@ function runCreateUNCOnly_(filteredRows, toDate, tkTrichNoOverride, tkThuPhiOver
 
     if (rows.length > 0) {
       sheet.getRange(4, 1, rows.length, 16).setValues(_dongAnToan_(rows));
+      _canhLeTheoKieu_(sheet, 4, rows);
     }
 
     logAction_("TAO_UNC", filteredRows.map(r => r.idHeThong).join(","), `Tạo file UNC ngày ${toDate}, ${rows.length} dòng - ${newSS.getUrl()}`);
@@ -6410,6 +6415,7 @@ function exportTinhHinhThanhToanExcel_(fDate, tDate, filters) {
     if (rows.length) {
       const body = rows.map(r => [r.soPhieuCan, _formatNgayXuat_(r.ngayThanhToan), _formatNgayXuat_(r.ngayNhap1), r.gioCan1, r.gioCan2, r.canLan1, r.canLan2, r.matHang, r.khachHang, r.klKg, r.klTan, r.donGia, r.thanhTien, r.dl, r.ng]);
       sheet.getRange(2, 1, body.length, headers.length).setValues(_dongAnToan_(body));
+      _canhLeTheoKieu_(sheet, 2, body);
     }
     sheet.setFrozenRows(1);
     sheet.autoResizeColumns(1, headers.length);
@@ -6479,11 +6485,13 @@ function _renderPhanTichSheet_(sheet, report, fDate, tDate) {
     // 1 lệnh ghi cho cả bảng (trước đây 1 lệnh/ngày).
     const lines = pivot.rows.map(r => [r.ngay, ...r.values, r.tongKl, r.tongGiaTri]);
     sheet.getRange(row, 1, lines.length, headerRow.length).setValues(_dongAnToan_(lines));
+    _canhLeTheoKieu_(sheet, row, lines);
     row += lines.length;
     const grandKl = pivot.rows.reduce((s, r) => s + r.tongKl, 0);
     const grandGiaTri = pivot.rows.reduce((s, r) => s + r.tongGiaTri, 0);
     const totalLine = ["TỔNG CỘNG", ...pivot.tenList.map((_, i) => pivot.rows.reduce((s, r) => s + (r.values[i] || 0), 0)), grandKl, grandGiaTri];
     sheet.getRange(row, 1, 1, totalLine.length).setValues([totalLine]).setFontWeight("bold").setBackground("#f3f0e8");
+    _canhLeTheoKieu_(sheet, row, [totalLine]);
     row += 2;
   };
 
@@ -6546,6 +6554,7 @@ function exportChiTietCongNoPhieuCanExcel_(ngayStr, filters) {
     if (rows.length) {
       const body = rows.map(r => [r.soPhieuCan, _formatNgayXuat_(r.ngayNhap1), r.gioCan1, r.gioCan2, r.canLan1, r.canLan2, r.matHang, r.khachHang, r.klKg, r.klTan, r.donGia, r.thanhTien, r.dl, r.ng, r.chenhLechNgay]);
       sheet.getRange(2, 1, body.length, headers.length).setValues(_dongAnToan_(body));
+      _canhLeTheoKieu_(sheet, 2, body);
     }
     sheet.setFrozenRows(1);
     sheet.autoResizeColumns(1, headers.length);
@@ -8839,6 +8848,7 @@ function exportDoiSoatTenKhachHangExcel_(rowsCoSan) {
     if (rows.length) {
       const body = rows.map(r => [r.soPhieuCan, r.soHD, r.chuRungCT, r.khachHangPC]);
       sheet.getRange(2, 1, body.length, headers.length).setValues(_dongAnToan_(body));
+      _canhLeTheoKieu_(sheet, 2, body);
     }
     sheet.setFrozenRows(1);
     sheet.autoResizeColumns(1, headers.length);
