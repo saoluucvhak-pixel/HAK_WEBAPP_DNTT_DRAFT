@@ -2273,6 +2273,7 @@ function renderDraft(){
       </div>
       <div id="draft-tong" style="margin-top:10px"></div>
     </div>
+    <div id="duyet-do-dang"></div>
     <div class="card" id="draft-table-wrap"><div class="empty"><div class="ic">⏳</div>Đang tải...</div></div>
     <div class="sticky-actionbar hidden" id="draft-actionbar">
       <span id="draft-selected-info" style="font-size:13px"></span>
@@ -2333,7 +2334,22 @@ function _veTongDraft(list){
       </tbody></table></details>` : ''}`;
 }
 
+/** #6: lượt Duyệt bị dừng giữa chừng (giới hạn 6 phút / mất kết nối) -> cảnh báo + nút hoàn tất nốt. */
+function kiemTraDuyetDoDang(){
+  call('getDuyetDoDang', [], null).then(j => {
+    const box = document.getElementById('duyet-do-dang');
+    if (!box) return;
+    box.innerHTML = j ? `<div class="card" style="border-color:var(--danger);background:var(--danger-light)">
+      <b>⚠️ Lượt Duyệt lúc ${esc(j.luc)}${j.nguoi ? ' (' + esc(j.nguoi) + ')' : ''} bị dừng giữa chừng</b> - ${j.ids.length} hồ sơ, ngày thanh toán ${esc(j.ngay)}.
+      Một phần có thể đã ghi vào sổ. Bấm <b>Hoàn tất</b> để hệ thống làm nốt các bước còn lại (tự bỏ qua phần đã ghi, không ghi trùng).
+      <div style="margin-top:8px"><button class="btn danger" onclick="hoanTatDuyetDoDang()">🔁 Hoàn tất lượt Duyệt</button></div></div>` : '';
+  }, () => {});
+}
+function hoanTatDuyetDoDang(){
+  call('webHoanTatDuyetDoDang', [], 'Đang hoàn tất lượt Duyệt...').then(res => handleResult(res, () => loadDraftList()));
+}
 function loadDraftList(){
+  kiemTraDuyetDoDang();
   call('getDraftListSummary', [], 'Đang tải Danh Sách ĐNTT...').then(list => {
     state.draftList = list;
     state.draftSelected.clear();
@@ -4620,7 +4636,7 @@ const NHAN_HANH_DONG = {
   SUA_NHAP: '✏️ Sửa hồ sơ Nháp',
   THEM_PHIEU_NHAP: '➕ Thêm phiếu cân',
   // Chỉ hiện ở Lịch sử 1 hồ sơ (#4) - không thuộc Lịch sử sửa đổi.
-  TAO_MOI_DNTT_NHAP: '🆕 Tạo mới hồ sơ', TAO_UNC: '🏦 Tạo file UNC', XUAT_BAO_CAO_DNTT_NHAP: '🖨️ In Báo Cáo ĐNTT',
+  TAO_MOI_DNTT_NHAP: '🆕 Tạo mới hồ sơ', HOAN_TAT_DUYET_DO_DANG: '🔁 Hoàn tất lượt Duyệt dở', TAO_UNC: '🏦 Tạo file UNC', XUAT_BAO_CAO_DNTT_NHAP: '🖨️ In Báo Cáo ĐNTT',
   LOI_MO_DONG_THANH_TOAN: '⚠️ Lỗi Mở Đóng TT', LOI_DON_DEP_KHI_MO_DONG: '⚠️ Lỗi dọn khi Mở Đóng TT', LOI_MO_KHOA_PHIEU_CAN: '⚠️ Lỗi mở khóa phiếu cân',
   LOI_DON_DEP_KHI_XOA_NHAP: '⚠️ Lỗi dọn khi xóa hồ sơ', LOI_CHOT_THANH_TOAN: '⚠️ Lỗi Duyệt', LOI_CHITIET_DNTT_LUC_CHOT: '⚠️ Lỗi ghi chi tiết lúc Duyệt',
   XOA_PHIEU_NHAP: '➖ Bỏ phiếu cân',

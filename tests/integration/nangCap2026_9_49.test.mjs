@@ -85,3 +85,31 @@ test('#4 a record history lists every action on that record (also multi-record a
   assert.ok(!run('getLichSuHoSo_')('B2').some(x => x.hanhDong === 'SUA_NHAP'), 'only its own edits');
   assert.match(INDEX, /taiLichSuHoSo\(this\.dataset\.id\)/);
 });
+
+// ---------- #6 Duyệt bị dừng giữa chừng ----------
+test('#6 an approval stopped half-way is detected and can be completed, without duplicates', () => {
+  const { run, w, env } = theGioi();
+  const ngay = new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 10);
+  // Giả lập Google dừng lượt Duyệt ngay sau khi ghi sổ CT (trước khi khóa phiếu cân / dọn Nháp).
+  run(`() => { globalThis.__khoaGoc = _khoaPhieuCanDaTra_; _khoaPhieuCanDaTra_ = () => { throw new Error('Exceeded maximum execution time'); }; }`)();
+  assert.doesNotMatch(run('runConfirmPayment_')(['A1'], ngay), /^✅/);
+  run(`() => { _khoaPhieuCanDaTra_ = globalThis.__khoaGoc; }`)();
+  assert.equal(run('getDuyetDoDang_')(), null, 'not reported while it could still be running');
+  const props = env.PropertiesService.getScriptProperties();
+  const j = JSON.parse(props.getProperty('DUYET_DO_DANG'));
+  j.luc -= 8 * 60e3; props.setProperty('DUYET_DO_DANG', JSON.stringify(j));
+  const dd = run('api')('', 'getDuyetDoDang', []);
+  assert.deepEqual(Array.from(dd.ids), ['A1']);
+  const kq = run('api')('', 'webHoanTatDuyetDoDang', []);
+  assert.equal(kq.success, true, kq.message);
+  assert.equal(w.main.getSheetByName('DNTT_GK_DN_CT').rows(22).slice(1).filter(r => r[1] === 'A1').length, 2, 'no duplicate ledger rows');
+  assert.ok(w.pc.getSheetByName('PhieuCan_DN').rows(28).slice(1).filter(r => ['PC001', 'PC002'].includes(r[22])).every(r => r[27] === 'Y'), 'tickets now locked');
+  assert.equal(props.getProperty('DUYET_DO_DANG'), null, 'journal cleared');
+  assert.equal(run('getDuyetDoDang_')(), null);
+});
+
+test('#6 a normal approval leaves no journal', () => {
+  const { run, env } = theGioi();
+  assert.match(run('runConfirmPayment_')(['A1'], new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 10)), /^✅/);
+  assert.equal(env.PropertiesService.getScriptProperties().getProperty('DUYET_DO_DANG'), null);
+});

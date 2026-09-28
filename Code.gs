@@ -1609,6 +1609,8 @@ const API_ROUTES = (() => {
     getUncConfigForWeb: r(getUncConfigForWeb_, N, CHI_DOC),
     webCreateUNCFromDraft: r(webCreateUNCFromDraft_, N),
     webConfirmPayment: r(webConfirmPayment_, N),
+    getDuyetDoDang: r(getDuyetDoDang_, N, CHI_DOC),
+    webHoanTatDuyetDoDang: r(webHoanTatDuyetDoDang_, N),
 
     // --- Hệ thống: đối soát, bảo trì, sửa dữ liệu đã chốt (Quản trị + Kế toán tổng hợp) ---
     getDoiSoatTenKhachHang: r(getDoiSoatTenKhachHang_, H),
@@ -5357,6 +5359,34 @@ function buildBankLookupFromHDSTK_(useFull) {
 // rồi XÓA phần vừa chốt khỏi Nháp. Chỉ chốt được hồ sơ đã đủ điều kiện
 // (đã có Số tiền > 0 trong Draft 112, tức đã chạy xong "Tổng Hợp 112").
 // ============================================================
+// ------------------------------------------------------------
+// #6 NHẬT KÝ BƯỚC CHO DUYỆT (nâng cấp 28/09/2026): Duyệt ghi nhiều sổ (CT, 112, Src, Phiếu Cân,
+// ChiTietDNTT, MISA, dọn Nháp); các bước đều chạy lại được (bỏ qua phần đã ghi) nhưng trước
+// đây không ai biết một lượt đã bị dừng giữa chừng. Lượt dở còn dấu vết -> báo + nút hoàn tất.
+// ------------------------------------------------------------
+const DUYET_DO_DANG_PROP = "DUYET_DO_DANG";
+const DUYET_DO_DANG_CHO_MS = 7 * 60 * 1000; // quá giới hạn 6 phút + 1 phút dư -> chắc chắn đã dừng
+function _ghiDuyetDoDang_(ids, payDateStr) {
+  PropertiesService.getScriptProperties().setProperty(DUYET_DO_DANG_PROP,
+    JSON.stringify({ ids, ngay: String(payDateStr || ""), luc: Date.now(), nguoi: _emailNguoiThucHien_() || "" }));
+}
+/** #Web: lượt Duyệt bị dừng giữa chừng (null nếu không có hoặc có thể còn đang chạy). */
+function getDuyetDoDang_() {
+  const raw = PropertiesService.getScriptProperties().getProperty(DUYET_DO_DANG_PROP);
+  if (!raw) return null;
+  let j;
+  try { j = JSON.parse(raw); } catch (e) { return null; }
+  if (!j || !Array.isArray(j.ids) || Date.now() - Number(j.luc) < DUYET_DO_DANG_CHO_MS) return null;
+  return { ids: j.ids, ngay: j.ngay, nguoi: j.nguoi, luc: Utilities.formatDate(new Date(Number(j.luc)), "GMT+7", "dd/MM/yyyy HH:mm") };
+}
+/** #Web: hoàn tất lượt Duyệt dở - chạy lại ĐÚNG các hồ sơ + ngày TT đó (tự bỏ qua phần đã ghi). */
+function webHoanTatDuyetDoDang_() {
+  const j = getDuyetDoDang_();
+  if (!j) return { success: false, message: "Không có lượt Duyệt nào bị dừng giữa chừng." };
+  logAction_("HOAN_TAT_DUYET_DO_DANG", j.ids.join(","), `Hoàn tất lượt Duyệt bị dừng lúc ${j.luc} (${j.ids.length} hồ sơ, ngày TT ${j.ngay}).`);
+  return webConfirmPayment_(j.ids, j.ngay);
+}
+
 function runConfirmPayment_(selectedIds, payDateStr) {
   let lock;
   try {
@@ -5510,6 +5540,10 @@ function runConfirmPayment_(selectedIds, payDateStr) {
       }
     });
 
+    // #6 (nâng cấp 28/09/2026): ghi nhật ký bước TRƯỚC khi đụng tới sổ - lượt bị Google dừng giữa
+    // chừng (giới hạn 6 phút, mất kết nối) để lại dấu vết, Danh Sách ĐNTT báo và cho hoàn tất nốt.
+    if (validIds.length) _ghiDuyetDoDang_(validIds, payDateStr);
+
     // 4. GHI VÀO DỮ LIỆU THẬT (APPEND) - bỏ qua hồ sơ đã có sẵn (xem trên)
     const ctCanGhi = ctToCommit.filter(row => !ctDaChot.has(String(row[1] || "").trim()));
     if (ctCanGhi.length > 0) {
@@ -5633,6 +5667,7 @@ function runConfirmPayment_(selectedIds, payDateStr) {
       });
       if (ngayBiAnhHuong.size) _refreshPhanTichNhapTTChoDanhSachNgayNoLock_(Array.from(ngayBiAnhHuong), { pc: pcTruocKhoa, ct: ctThatLucDau.concat(ctCanGhi) }); // dùng bản KHÔNG khóa - hàm này đang chạy TRONG lượt đã giữ sysLock rồi, tránh khóa lồng nhau
     } catch (e) { /* không chặn luồng chính nếu làm mới báo cáo công nợ lỗi */ }
+    PropertiesService.getScriptProperties().deleteProperty(DUYET_DO_DANG_PROP); // đã xong trọn lượt
     return msg;
   } catch (e) {
     logAction_("LOI_CHOT_THANH_TOAN", Array.isArray(selectedIds) ? selectedIds.join(",") : "-", e.toString());
