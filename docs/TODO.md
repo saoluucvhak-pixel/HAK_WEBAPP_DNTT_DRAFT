@@ -59,6 +59,7 @@ Trạng thái: ✅ xong · 🟡 một phần · ⏳ chưa làm · ⚖️ cần n
 - ✅ Khóa sổ năm (quy trình người dùng): kiểm chứng công nợ đầu năm = phiếu chưa trả mang sang (test `khoaSoNam`); không cần bộ nhớ đệm 6 tháng.
 - ✅ 2026.9.16: Nhật ký thao tác giữ dạng chữ cho Mã hồ sơ / mã lỗi (không mất số 0 đầu).
 - ✅ 2026.9.15: Hệ Thống › Dọn Dẹp MISA (trùng / mồ côi / tất cả trong khoảng Ngày CK), xem trước + sao lưu. UNC không cần nút xóa riêng (xem CHANGELOG).
+- ✅ 2026.9.21: Ô ngày Duyệt gõ dd/mm/yyyy cố định + nút lịch (trình duyệt tiếng Anh hiện tháng/ngày).
 - ✅ 2026.9.20: Tiêu chuẩn vùng US (Google Sheet) / VN (xuất MISA); Vùng xuất mặc định VN. ⏳ Người dùng kiểm tra Update_NganHang_DN có dòng cũ dạng mm/dd/yyyy không (nếu Vùng xuất từng để trống).
 - ✅ 2026.9.19: Duyệt chọn ngày bằng lịch; máy chủ từ chối ngày không có thật (lỗi 26/09/2026 → 09/02/2028 khi Vùng lãnh thổ = US).
 - ✅ 2026.9.18: Tạo lại MISA chọn theo Ngày CK (trước theo Ngày ĐN - lệch với Báo Cáo MISA). ❓ Hỏi người dùng: Tạo lại UNC có cần đổi sang Ngày CK không (hiện theo Ngày ĐN).

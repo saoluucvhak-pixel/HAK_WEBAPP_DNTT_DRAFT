@@ -2,6 +2,18 @@
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/). Phiên bản theo `NĂM.ĐỢT.SỬA`; thay đổi làm đổi hành vi nghiệp vụ (⚖️) sẽ tăng số ĐỢT và ghi rõ đã được người dùng đồng ý.
 
+## [2026.9.21] — Duyệt: chọn ngày thanh toán không phụ thuộc ngôn ngữ trình duyệt (người dùng báo 28/09/2026)
+
+### Fixed
+- “Chọn ngày không được để duyệt”: ô lịch của trình duyệt (2026.9.19) hiện theo **ngôn ngữ trình duyệt** — Chrome tiếng Anh là **tháng/ngày/năm**, gõ “26” vào ô đầu (tháng) thì không nhận. Nay:
+  - Ô gõ **luôn ngày/tháng/năm** kiểu VN (26/09/2026, 26-9-2026, 26.09.2026 hoặc 26092026), không theo vùng hay trình duyệt;
+  - Nút lịch 📅 bên cạnh, đồng bộ 2 chiều với ô gõ;
+  - Dòng “Ngày CK sẽ ghi: Thứ Bảy, 26/09/2026”; ngày không có thật → báo đỏ, không gửi; ngày sau hôm nay phải xác nhận.
+  - Máy chủ vẫn nhận `yyyy-mm-dd` (không mơ hồ) như 2026.9.19.
+
+### Tests
+- 120 test (thêm test đọc ngày ô Duyệt: các cách gõ VN đúng; 09/26/2026, 31/02, năm 2 chữ số… bị từ chối). Kiểm tra giao diện với trình duyệt en-US và vi-VN.
+
 ## [2026.9.20] — Tiêu chuẩn vùng: Google Sheet US, xuất MISA VN (người dùng chốt 28/09/2026)
 
 ### Changed

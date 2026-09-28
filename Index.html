@@ -526,7 +526,7 @@
       <div class="nav-item" role="button" tabindex="0" data-page="settings"><span class="ic">⚙️</span> Cài đặt / Nháp</div>
     </nav>
     <div class="nguoi-dung-chip" id="nguoi-dung-chip"></div>
-    <div class="sidebar-footer">Hệ thống Quản Lý Thanh Toán · v2026.9.20<br><button type="button" class="theme-toggle" id="theme-toggle" aria-label="Đổi giao diện sáng / tối">🌓 Giao diện: Tự động</button></div>
+    <div class="sidebar-footer">Hệ thống Quản Lý Thanh Toán · v2026.9.21<br><button type="button" class="theme-toggle" id="theme-toggle" aria-label="Đổi giao diện sáng / tối">🌓 Giao diện: Tự động</button></div>
   </aside>
 
   <main class="main">
@@ -2312,37 +2312,62 @@ function confirmDeleteDraft(idKey){
 function openConfirmPaymentModal(){
   const ids = Array.from(state.draftSelected);
   if (!ids.length) return;
-  // SỬA LỖI (28/09/2026): ô chữ "dd/mm/yyyy" hiểu theo Vùng lãnh thổ - gõ 26/09
-  // khi vùng là US thành tháng 26 (ghi 09/02/2028). Giờ chọn bằng lịch, gửi
-  // yyyy-mm-dd (không mơ hồ) và hiện lại ngày sẽ ghi dạng dd/mm/yyyy để soát.
+  // SỬA LỖI (28/09/2026): ô chữ cũ hiểu theo Vùng lãnh thổ (US) - gõ 26/09 thành
+  // tháng 26 (ghi 09/02/2028). Ô lịch trình duyệt lại hiện theo NGÔN NGỮ TRÌNH
+  // DUYỆT (Chrome tiếng Anh: tháng/ngày/năm - gõ 26 vào ô tháng không được).
+  // Giờ: ô gõ LUÔN ngày/tháng/năm (kiểu VN, không theo vùng hay trình duyệt) +
+  // nút lịch đồng bộ 2 chiều; gửi máy chủ yyyy-mm-dd (không mơ hồ).
+  const homNay = todayISOVN();
   openModal(`
     <div class="modal-head"><h3>Đóng Thanh Toán (${ids.length} hồ sơ)</h3><button class="x" onclick="closeModal()" aria-label="Đóng">&times;</button></div>
     <div class="modal-body">
       <p style="font-size:13px">Dữ liệu sẽ được ghi vào sheet chính thức, khóa Phiếu Cân vĩnh viễn, và xóa khỏi File Nháp.</p>
-      <div class="field"><label>Ngày thanh toán (Ngày CK)</label><input type="date" id="pay-date" value="${todayISOVN()}" oninput="hienNgayThanhToan()"></div>
+      <div class="field"><label for="pay-date">Ngày thanh toán (Ngày CK) - gõ ngày/tháng/năm hoặc chọn trên lịch</label>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input type="text" id="pay-date" inputmode="numeric" autocomplete="off" placeholder="dd/mm/yyyy" value="${_isoSangVN(homNay)}" oninput="dongBoNgayThanhToan(false)" style="flex:1">
+          <input type="date" id="pay-date-lich" value="${homNay}" onchange="dongBoNgayThanhToan(true)" aria-label="Chọn ngày trên lịch" title="Chọn trên lịch" style="width:auto">
+        </div>
+      </div>
       <div class="hint-text" id="pay-date-text"></div>
     </div>
     <div class="modal-foot"><button class="btn ghost" onclick="closeModal()">Hủy</button>
       <button class="btn accent" onclick="submitConfirmPayment()">✅ Xác nhận Đóng Thanh Toán</button></div>
   `);
-  hienNgayThanhToan();
+  dongBoNgayThanhToan(false);
 }
 /** "yyyy-mm-dd" -> "dd/mm/yyyy" (rỗng nếu không hợp lệ). */
 function _isoSangVN(iso){
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || '');
   return m ? `${m[3]}/${m[2]}/${m[1]}` : '';
 }
-function hienNgayThanhToan(){
-  const iso = document.getElementById('pay-date').value;
+/** Ngày gõ kiểu VN (26/09/2026, 26-9-2026, 26.09.2026, 26092026) -> "yyyy-mm-dd";
+ * rỗng nếu không phải ngày có thật. */
+function _vnSangIso(chu){
+  const s = String(chu || '').trim();
+  const m = /^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4})$/.exec(s) || /^(\d{2})(\d{2})(\d{4})$/.exec(s);
+  if (!m) return '';
+  const d = +m[1], mo = +m[2], y = +m[3];
+  const dt = new Date(Date.UTC(y, mo - 1, d));
+  if (y < 2000 || y > 2100 || dt.getUTCMonth() !== mo - 1 || dt.getUTCDate() !== d) return '';
+  return dt.toISOString().slice(0, 10);
+}
+/** Đồng bộ ô gõ <-> ô lịch và hiện lại ngày sẽ ghi. tuLich = true: vừa chọn trên lịch. */
+function dongBoNgayThanhToan(tuLich){
+  const oChu = document.getElementById('pay-date'), oLich = document.getElementById('pay-date-lich');
   const el = document.getElementById('pay-date-text');
-  const vn = _isoSangVN(iso);
-  el.innerHTML = vn ? `Ngày CK sẽ ghi: <b>${vn}</b>${iso > todayISOVN() ? ' <span style="color:var(--danger)">(sau hôm nay)</span>' : ''}` : '<span style="color:var(--danger)">Chưa chọn ngày.</span>';
+  if (tuLich && oLich.value) oChu.value = _isoSangVN(oLich.value);
+  const iso = _vnSangIso(oChu.value);
+  if (iso) oLich.value = iso;
+  const THU = ['Chủ Nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
+  el.innerHTML = iso
+    ? `Ngày CK sẽ ghi: <b>${THU[new Date(iso + 'T12:00:00Z').getUTCDay()]}, ${_isoSangVN(iso)}</b>${iso > todayISOVN() ? ' <span style="color:var(--danger)">(sau hôm nay)</span>' : ''}`
+    : '<span style="color:var(--danger)">Ngày chưa đúng - gõ ngày/tháng/năm, vd 26/09/2026.</span>';
 }
 
 function submitConfirmPayment(){
-  const dateStr = document.getElementById('pay-date').value.trim();
+  const dateStr = _vnSangIso(document.getElementById('pay-date').value);
+  if (!dateStr) { toast('Ngày thanh toán chưa đúng - gõ ngày/tháng/năm, vd 26/09/2026.', 'warn'); return; }
   const vn = _isoSangVN(dateStr);
-  if (!vn) { toast('Vui lòng chọn ngày thanh toán.', 'warn'); return; }
   if (dateStr > todayISOVN() && !confirm(`Ngày thanh toán ${vn} là ngày SAU hôm nay. Vẫn Đóng Thanh Toán với ngày này?`)) return;
   const ids = Array.from(state.draftSelected);
   call('webConfirmPayment', [ids, dateStr], 'Đang chốt thanh toán...').then(res => {
