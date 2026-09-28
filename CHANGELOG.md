@@ -2,6 +2,16 @@
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/). Phiên bản theo `NĂM.ĐỢT.SỬA`; thay đổi làm đổi hành vi nghiệp vụ (⚖️) sẽ tăng số ĐỢT và ghi rõ đã được người dùng đồng ý.
 
+## [2026.9.22] — Quy định định dạng ngày giờ: web VN, Google Sheet theo Vùng Lãnh Thổ, xuất theo Vùng xuất (người dùng chốt 28/09/2026)
+
+### Changed
+- **Mọi ô ngày trong web app (32 ô: báo cáo, Hệ Thống, Mở Đóng TT, Duyệt…) hiện/nhập dd/mm/yyyy** bất kể ngôn ngữ trình duyệt: gắn tự động ô gõ dd/mm/yyyy (26/09/2026, 26-9-2026, 26092026) + nút lịch 📅 đồng bộ 2 chiều; gõ sai báo đỏ và ô lịch rỗng. Code cũ đọc/gán `.value` (yyyy-mm-dd) không phải sửa. Ô Duyệt dùng chung thành phần này (bỏ phần code riêng của 2026.9.21).
+- Web luôn hiện ngày kiểu VN kể cả với dữ liệu ghi dạng chữ theo Vùng xuất (Báo Cáo Chi Tiết, Báo Cáo MISA, Dọn dẹp MISA); file xuất vẫn theo Vùng xuất.
+- Quy định ghi vào `docs/ARCHITECTURE.md`.
+
+### Tests
+- 121 test (thêm: Vùng xuất US → sheet MISA / file xuất theo US, web vẫn dd/mm/yyyy). Kiểm tra giao diện trình duyệt en-US: Báo Cáo MISA, Hệ Thống (12 ô ngày), Duyệt.
+
 ## [2026.9.21] — Duyệt: chọn ngày thanh toán không phụ thuộc ngôn ngữ trình duyệt (người dùng báo 28/09/2026)
 
 ### Fixed

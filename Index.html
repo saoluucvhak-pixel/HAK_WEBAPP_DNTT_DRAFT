@@ -161,6 +161,12 @@
     .stat .hint{font-size:11.5px; color:var(--ink-soft); margin-top:4px;}
 
     label{display:block; font-size:12px; font-weight:600; color:var(--ink-soft); margin-bottom:5px;}
+    /* Ô ngày kiểu VN (quy định 28/09/2026): ô gõ dd/mm/yyyy + ô lịch thu còn nút 📅 */
+    .ngay-vn{display:flex; gap:6px; align-items:stretch; min-width:0;}
+    .ngay-vn .o-ngay-vn{flex:1; min-width:0;}
+    .ngay-vn .o-ngay-vn.sai{border-color:var(--danger); background:var(--danger-light);}
+    .ngay-vn input[type=date]{width:44px; flex:none; padding-left:8px; padding-right:8px; color:transparent; cursor:pointer;}
+    .ngay-vn input[type=date]::-webkit-datetime-edit{display:none;}
     input[type=text], input[type=date], input[type=number], select, textarea{
       width:100%;
       border:1px solid var(--line);
@@ -526,7 +532,7 @@
       <div class="nav-item" role="button" tabindex="0" data-page="settings"><span class="ic">⚙️</span> Cài đặt / Nháp</div>
     </nav>
     <div class="nguoi-dung-chip" id="nguoi-dung-chip"></div>
-    <div class="sidebar-footer">Hệ thống Quản Lý Thanh Toán · v2026.9.21<br><button type="button" class="theme-toggle" id="theme-toggle" aria-label="Đổi giao diện sáng / tối">🌓 Giao diện: Tự động</button></div>
+    <div class="sidebar-footer">Hệ thống Quản Lý Thanh Toán · v2026.9.22<br><button type="button" class="theme-toggle" id="theme-toggle" aria-label="Đổi giao diện sáng / tối">🌓 Giao diện: Tự động</button></div>
   </aside>
 
   <main class="main">
@@ -1005,6 +1011,53 @@ function _ganBamDuoc_(goc){
     el.setAttribute('role', 'button');
   });
 }
+/* ---------- Ô ngày kiểu VN (quy định người dùng 28/09/2026) ----------
+ * Web app LUÔN hiển thị / nhập ngày dd/mm/yyyy. Ô <input type="date"> của trình
+ * duyệt hiện theo ngôn ngữ trình duyệt (Chrome tiếng Anh: tháng/ngày/năm) nên
+ * mọi ô ngày được gắn thêm 1 ô gõ dd/mm/yyyy phía trước, ô lịch thu lại còn nút
+ * 📅. .value của ô lịch (yyyy-mm-dd) vẫn là giá trị duy nhất code đọc/ghi - gán
+ * .value bằng code cũng tự hiện lại ở ô gõ. Gõ sai -> ô lịch rỗng, ô gõ báo đỏ. */
+const _MO_TA_VALUE_ = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
+function _ganONgayVN_(goc){
+  goc.querySelectorAll('input[type=date]:not([data-ngay-vn])').forEach(lich => {
+    lich.setAttribute('data-ngay-vn', '1');
+    const hop = document.createElement('div');
+    hop.className = 'ngay-vn';
+    hop.style.cssText = lich.style.cssText; // độ rộng/bố cục đặt cho ô ngày chuyển sang cả cụm
+    lich.removeAttribute('style');
+    const chu = document.createElement('input');
+    chu.type = 'text'; chu.inputMode = 'numeric'; chu.autocomplete = 'off';
+    chu.placeholder = 'dd/mm/yyyy'; chu.className = 'o-ngay-vn';
+    if (lich.id) chu.id = lich.id + '-vn';
+    chu.setAttribute('aria-label', (lich.getAttribute('aria-label') || 'Ngày') + ' (ngày/tháng/năm)');
+    lich.title = 'Chọn trên lịch';
+    lich.parentNode.insertBefore(hop, lich);
+    hop.appendChild(chu); hop.appendChild(lich);
+    const hienChu = () => { chu.value = _isoSangVN(_MO_TA_VALUE_.get.call(lich)); chu.classList.remove('sai'); };
+    Object.defineProperty(lich, 'value', {
+      configurable: true,
+      get(){ return _MO_TA_VALUE_.get.call(this); },
+      set(v){ _MO_TA_VALUE_.set.call(this, v); hienChu(); }
+    });
+    let tuOGo = false; // sự kiện do chính ô gõ phát ra -> không ghi đè chữ đang gõ
+    chu.addEventListener('input', () => {
+      const trong = !chu.value.trim(), iso = _vnSangIso(chu.value);
+      chu.classList.toggle('sai', !trong && !iso);
+      _MO_TA_VALUE_.set.call(lich, iso);
+      tuOGo = true;
+      try {
+        lich.dispatchEvent(new Event('input', { bubbles: true }));
+        lich.dispatchEvent(new Event('change', { bubbles: true }));
+      } finally { tuOGo = false; }
+    });
+    lich.addEventListener('input', () => { if (!tuOGo) hienChu(); });
+    lich.addEventListener('change', () => { if (!tuOGo) hienChu(); });
+    hienChu();
+  });
+}
+_ganONgayVN_(document);
+new MutationObserver(() => _ganONgayVN_(document.body)).observe(document.body, { childList: true, subtree: true });
+
 ['content', 'modal'].forEach(id => {
   const goc = document.getElementById(id);
   new MutationObserver(() => _ganBamDuoc_(goc)).observe(goc, { childList: true, subtree: true });
@@ -2313,27 +2366,19 @@ function openConfirmPaymentModal(){
   const ids = Array.from(state.draftSelected);
   if (!ids.length) return;
   // SỬA LỖI (28/09/2026): ô chữ cũ hiểu theo Vùng lãnh thổ (US) - gõ 26/09 thành
-  // tháng 26 (ghi 09/02/2028). Ô lịch trình duyệt lại hiện theo NGÔN NGỮ TRÌNH
-  // DUYỆT (Chrome tiếng Anh: tháng/ngày/năm - gõ 26 vào ô tháng không được).
-  // Giờ: ô gõ LUÔN ngày/tháng/năm (kiểu VN, không theo vùng hay trình duyệt) +
-  // nút lịch đồng bộ 2 chiều; gửi máy chủ yyyy-mm-dd (không mơ hồ).
-  const homNay = todayISOVN();
+  // tháng 26 (ghi 09/02/2028). Giờ dùng ô ngày kiểu VN chung (_ganONgayVN_: gõ
+  // dd/mm/yyyy + nút lịch), gửi máy chủ yyyy-mm-dd (không mơ hồ).
   openModal(`
     <div class="modal-head"><h3>Đóng Thanh Toán (${ids.length} hồ sơ)</h3><button class="x" onclick="closeModal()" aria-label="Đóng">&times;</button></div>
     <div class="modal-body">
       <p style="font-size:13px">Dữ liệu sẽ được ghi vào sheet chính thức, khóa Phiếu Cân vĩnh viễn, và xóa khỏi File Nháp.</p>
-      <div class="field"><label for="pay-date">Ngày thanh toán (Ngày CK) - gõ ngày/tháng/năm hoặc chọn trên lịch</label>
-        <div style="display:flex;gap:8px;align-items:center">
-          <input type="text" id="pay-date" inputmode="numeric" autocomplete="off" placeholder="dd/mm/yyyy" value="${_isoSangVN(homNay)}" oninput="dongBoNgayThanhToan(false)" style="flex:1">
-          <input type="date" id="pay-date-lich" value="${homNay}" onchange="dongBoNgayThanhToan(true)" aria-label="Chọn ngày trên lịch" title="Chọn trên lịch" style="width:auto">
-        </div>
-      </div>
+      <div class="field"><label>Ngày thanh toán (Ngày CK)</label><input type="date" id="pay-date" value="${todayISOVN()}" aria-label="Ngày thanh toán" oninput="hienNgayThanhToan()"></div>
       <div class="hint-text" id="pay-date-text"></div>
     </div>
     <div class="modal-foot"><button class="btn ghost" onclick="closeModal()">Hủy</button>
       <button class="btn accent" onclick="submitConfirmPayment()">✅ Xác nhận Đóng Thanh Toán</button></div>
   `);
-  dongBoNgayThanhToan(false);
+  hienNgayThanhToan();
 }
 /** "yyyy-mm-dd" -> "dd/mm/yyyy" (rỗng nếu không hợp lệ). */
 function _isoSangVN(iso){
@@ -2351,21 +2396,16 @@ function _vnSangIso(chu){
   if (y < 2000 || y > 2100 || dt.getUTCMonth() !== mo - 1 || dt.getUTCDate() !== d) return '';
   return dt.toISOString().slice(0, 10);
 }
-/** Đồng bộ ô gõ <-> ô lịch và hiện lại ngày sẽ ghi. tuLich = true: vừa chọn trên lịch. */
-function dongBoNgayThanhToan(tuLich){
-  const oChu = document.getElementById('pay-date'), oLich = document.getElementById('pay-date-lich');
-  const el = document.getElementById('pay-date-text');
-  if (tuLich && oLich.value) oChu.value = _isoSangVN(oLich.value);
-  const iso = _vnSangIso(oChu.value);
-  if (iso) oLich.value = iso;
+function hienNgayThanhToan(){
+  const iso = document.getElementById('pay-date').value;
   const THU = ['Chủ Nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
-  el.innerHTML = iso
+  document.getElementById('pay-date-text').innerHTML = iso
     ? `Ngày CK sẽ ghi: <b>${THU[new Date(iso + 'T12:00:00Z').getUTCDay()]}, ${_isoSangVN(iso)}</b>${iso > todayISOVN() ? ' <span style="color:var(--danger)">(sau hôm nay)</span>' : ''}`
     : '<span style="color:var(--danger)">Ngày chưa đúng - gõ ngày/tháng/năm, vd 26/09/2026.</span>';
 }
 
 function submitConfirmPayment(){
-  const dateStr = _vnSangIso(document.getElementById('pay-date').value);
+  const dateStr = document.getElementById('pay-date').value;
   if (!dateStr) { toast('Ngày thanh toán chưa đúng - gõ ngày/tháng/năm, vd 26/09/2026.', 'warn'); return; }
   const vn = _isoSangVN(dateStr);
   if (dateStr > todayISOVN() && !confirm(`Ngày thanh toán ${vn} là ngày SAU hôm nay. Vẫn Đóng Thanh Toán với ngày này?`)) return;

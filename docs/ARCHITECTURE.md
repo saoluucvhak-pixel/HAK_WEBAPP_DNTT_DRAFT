@@ -1,4 +1,4 @@
-# ARCHITECTURE — HAK Quản Lý Thanh Toán (v2026.9.21)
+# ARCHITECTURE — HAK Quản Lý Thanh Toán (v2026.9.22)
 
 > Tài liệu sống: cập nhật mỗi khi đổi module, lớp, luồng dữ liệu hoặc schema.
 > Phân tích chi tiết hiện trạng: `docs/PROJECT_ANALYSIS.md`. Kiến trúc đích: `docs/REFACTOR_PLAN.md` §3–§4.
@@ -158,7 +158,11 @@ Chỉ khi khoảng ngày **chạm năm đã đăng ký**; báo cáo năm đang m
 | `_pcGopLuuTru_(f, t)` | PhieuCan_DN + dòng ở `PhieuCan_DN_<năm>` có Số phiếu **trả trong** năm khóa sổ ∈ [năm f, năm t] |
 
 - Theo khoảng ngày thanh toán (112 / Báo cáo Thanh toán, UNC, Chi tiết, MISA, Tình hình TT): `(f, t)`. Xuất Báo cáo Thanh toán (`_gomChiTietChuyenKhoan_`) lấy khoảng theo Ngày TT của các hồ sơ được chọn. Mọi chức năng MISA chọn theo **Ngày CK** của sổ CT (`_ctTheoNgayCK_`), hồ sơ lấy theo mã (`_hoSoDaChotTheoMa_`) — không theo Ngày ĐN của sổ 112.
-- **Vùng định dạng** (tiêu chuẩn người dùng chốt 28/09/2026, `VUNG_MAC_DINH`): *Vùng lãnh thổ* = **US** (theo file Google Sheet; khóa định dạng cột ngày, đọc ngày gõ tay) — `REGION_LOCALE`; *Vùng xuất* = **VN** (file Excel xuất, Update_NganHang_DN/MISA, ChiTietDNTT cột ngày dạng chữ) — `EXPORT_REGION_LOCALE`, chưa chọn thì VN, không đi theo vùng lãnh thổ. Ngày lưu trong sheet luôn là Date thật; ngày dạng chữ luôn ở cột đã khóa TEXT. Ngày thanh toán lúc Duyệt: ô gõ luôn dd/mm/yyyy (`_vnSangIso`, không theo vùng/ngôn ngữ trình duyệt) + ô lịch đồng bộ, gửi `yyyy-mm-dd`, `_parseNgayTheoVung_` từ chối ngày không có thật.
+- **QUY ĐỊNH ĐỊNH DẠNG NGÀY GIỜ** (người dùng chốt 28/09/2026 — không đổi khi chưa được đồng ý):
+  1. **Web app**: luôn hiển thị và nhập ngày **dd/mm/yyyy**, giờ Việt Nam (GMT+7). Mọi `<input type="date">` được `_ganONgayVN_` gắn ô gõ dd/mm/yyyy + nút lịch (ô lịch trình duyệt hiện theo ngôn ngữ trình duyệt); `.value` ô lịch (`yyyy-mm-dd`) vẫn là giá trị code đọc/ghi. Ngày dạng chữ đọc từ sheet đổi sang dd/mm/yyyy trước khi lên web (`_ngayChuSangWeb_`).
+  2. **Ghi dữ liệu Google Sheet**: theo **Vùng Lãnh Thổ** (`REGION_LOCALE`, hiện **US** = locale file en_US) — ngày lưu là Date thật, cột ngày khóa định dạng theo vùng này.
+  3. **Xuất Excel / in báo cáo** (gồm Update_NganHang_DN/MISA, cột ngày chữ của ChiTietDNTT): theo **Vùng xuất** (`EXPORT_REGION_LOCALE`, hiện **VN**), cột ngày dạng chữ luôn khóa TEXT.
+  Mặc định khi Cài đặt để trống: `VUNG_MAC_DINH` (US / VN). Ngày thanh toán lúc Duyệt gửi `yyyy-mm-dd`; `_parseNgayTheoVung_` từ chối ngày không có thật.
 - Theo ngày cân / lũy kế đến ngày D (Phân tích, Công nợ KH, Sổ chi tiết KH, Công nợ phiếu cân tại D): `(f hoặc D, "")` — năm khóa sổ **từ** năm đó trở đi; năm khóa sổ trước đó chỉ mang sang phiếu chưa trả (lũy kế tính từ đầu năm của “Từ ngày”, công nợ không đổi).
 - Tiến độ hợp đồng / Công nợ theo HĐ / Sổ chi tiết HĐ: mọi năm `("", "")` (hợp đồng kéo dài nhiều năm).
 

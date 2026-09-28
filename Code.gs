@@ -1,6 +1,6 @@
 /**
  * ============================================================
- * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.21
+ * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.22
  * Lịch sử thay đổi: CHANGELOG.md · Kiến trúc: docs/ARCHITECTURE.md
  * ------------------------------------------------------------
  * *** QUAN TRỌNG - CẦN LÀM TRƯỚC KHI DÙNG BẢN NÀY (chỉ 1 LẦN DUY NHẤT
@@ -2857,6 +2857,13 @@ function _parseNgayXuatVeIso_(str) {
   if (fmt.startsWith("mm")) { month = m[1]; day = m[2]; } else { day = m[1]; month = m[2]; }
   return `${m[3]}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
 }
+/** Ngày dạng CHỮ đã ghi theo Vùng xuất (ChiTietDNTT, Update_NganHang_DN) -> dd/MM/yyyy
+ * để hiện trên web app (quy định 28/09/2026: web luôn kiểu VN, dù Vùng xuất là gì).
+ * Không đọc được thì giữ nguyên chuỗi. */
+function _ngayChuSangWeb_(s) {
+  const iso = _parseNgayXuatVeIso_(s);
+  return iso ? iso.slice(8, 10) + "/" + iso.slice(5, 7) + "/" + iso.slice(0, 4) : String(s || "");
+}
 
 /**
  * MỚI (theo yêu cầu - "báo cáo MISA phải lọc, không phải lấy nguyên cả
@@ -2952,7 +2959,7 @@ function webDonDepMisa_(che, fDate, tDate, chayThat) {
       const dong = [];
       (lr > 1 ? shNH.getRange(2, 1, lr - 1, MISA_SO_COT).getValues() : []).forEach(r => {
         const lyDo = lyDoCua(r);
-        if (lyDo) dong.push(Object.assign(_tomTatDongMisa_(r), { lyDo }));
+        if (lyDo) dong.push(Object.assign(_tomTatDongMisa_(r), { ngayHachToan: _ngayChuSangWeb_(r[2]), lyDo }));
       });
       return { success: true, xemTruoc: true, soDong: dong.length, dong: dong.slice(0, MISA_DON_DEP_XEM_TOI_DA),
         message: dong.length ? `Sẽ xóa ${dong.length} dòng MISA (có sao lưu).` : "Không có dòng nào cần xóa." };
@@ -3057,7 +3064,8 @@ function getMisaDataTheoNgay_(fDate, tDate) {
     } catch (e) {
       thieu = { loi: _loiChoNguoiDung_(e) };
     }
-    return { items: kq.dong.map(_tomTatDongMisa_), total: kq.total, truncated: kq.truncated, thieu };
+    const items = kq.dong.map(r => Object.assign(_tomTatDongMisa_(r), { ngayHachToan: _ngayChuSangWeb_(r[2]) }));
+    return { items, total: kq.total, truncated: kq.truncated, thieu };
   } catch (e) {
     return { items: [], total: 0, truncated: false, error: "❌ Lỗi: " + _loiChoNguoiDung_(e) };
   }
@@ -3198,7 +3206,7 @@ function exportLichSuUNCExcel_(fDate, tDate) {
  * trình duyệt khi vẽ bảng. Giờ giới hạn 2000 dòng/lần xem, báo rõ khi
  * đạt giới hạn để người dùng thu hẹp khoảng ngày.
  */
-function getChiTietDNTTDaChot_(fDate, tDate) {
+function _docChiTietDNTTDaChot_(fDate, tDate) {
   const sh = getMainSs_().getSheetByName(CHITIET_DNTT_SHEET);
   const hienTai = sh && sh.getLastRow() >= 2 ? sh.getRange(2, 1, sh.getLastRow() - 1, CHITIET_DNTT_HEADERS.length).getValues() : [];
   const data = _docLuuTruTrongKhoang_(CHITIET_DNTT_SHEET, CHITIET_DNTT_HEADERS.length, fDate, tDate).concat(hienTai);
@@ -3228,12 +3236,18 @@ function getChiTietDNTTDaChot_(fDate, tDate) {
   });
   return { items: results.reverse(), total: tongKhopLoc, truncated: tongKhopLoc > GIOI_HAN };
 }
+/** #Web: như _docChiTietDNTTDaChot_ nhưng ngày hiển thị kiểu VN (file xuất giữ Vùng xuất). */
+function getChiTietDNTTDaChot_(fDate, tDate) {
+  const kq = _docChiTietDNTTDaChot_(fDate, tDate);
+  kq.items.forEach(x => { x.ngayCK = _ngayChuSangWeb_(x.ngayCK); x.ngayNhap = _ngayChuSangWeb_(x.ngayNhap); });
+  return kq;
+}
 
 /** Xuất Excel "Báo Cáo Thanh Toán Chi Tiết" - nhanh vì đọc thẳng từ
  * ChiTietDNTT đã tính sẵn, không phải join lại từ đầu. */
 function exportChiTietDNTTDaChotExcel_(fDate, tDate) {
   try {
-    const ketQua = getChiTietDNTTDaChot_(fDate, tDate);
+    const ketQua = _docChiTietDNTTDaChot_(fDate, tDate);
     const rows = ketQua.items;
     if (!rows.length) return { success: false, message: "⚠️ Không có dữ liệu nào trong khoảng ngày đã chọn." };
 
