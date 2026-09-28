@@ -43,8 +43,10 @@ test('the transfer text is always exactly two balanced lines', () => {
 test('names and text are left-aligned, numbers right-aligned (header stays centred)', () => {
   const sh = ve();
   const canh = c => sh.alignments.get('5,' + c);
-  assert.deepEqual([1, 3, 8, 9].map(canh), ['right', 'right', 'right', 'right'], 'STT, Lần, KL, Số tiền');
-  assert.deepEqual([2, 4, 5, 6, 7, 10, 11].map(canh), Array(7).fill('left'), 'date text, names, account (text), bank, transfer text, note');
+  assert.deepEqual([1, 2, 3, 8, 9].map(canh), Array(5).fill('right'), 'STT, Ngày đề nghị (ngày thật từ 2026.9.47), Lần, KL, Số tiền');
+  assert.deepEqual([4, 5, 6, 7, 10, 11].map(canh), Array(6).fill('left'), 'names, account (text), bank, transfer text, note');
+  assert.ok(sh.rows(11)[4][1] instanceof Date, 'Ngày đề nghị is a real date');
+  assert.equal(sh.getRange(5, 2).getNumberFormat(), 'dd/MM/yyyy', 'formatted by the export region');
   assert.equal(sh.alignments.get('4,1'), 'center', 'header');
 });
 
@@ -58,7 +60,7 @@ test('the detail sheet follows the same alignment rule', () => {
   const hang = sh2.rows(26)[4];
   hang.forEach((v, i) => {
     if (v === '' || v === null) return;
-    assert.equal(sh2.alignments.get('5,' + (i + 1)), typeof v === 'number' ? 'right' : 'left', `column ${i + 1} (${JSON.stringify(v)})`);
+    assert.equal(sh2.alignments.get('5,' + (i + 1)), typeof v === 'number' || v instanceof Date ? 'right' : 'left', `column ${i + 1} (${JSON.stringify(v)})`);
   });
 });
 
@@ -73,7 +75,7 @@ test('every export file follows the alignment rule (numbers right, text left)', 
     const hang = sh.rows()[dongDau - 1];
     hang.forEach((v, i) => {
       if (v === '' || v === null || v === undefined) return;
-      const laSo = typeof v === 'number' || (typeof v === 'string' && /^-?(0|[1-9]\d*)(\.\d+)?$/.test(v));
+      const laSo = typeof v === 'number' || v instanceof Date || (typeof v === 'string' && /^-?(0|[1-9]\d*)(\.\d+)?$/.test(v));
       assert.equal(sh.alignments.get(dongDau + ',' + (i + 1)), laSo ? 'right' : 'left', `${ten} column ${i + 1} (${JSON.stringify(v)})`);
     });
   };

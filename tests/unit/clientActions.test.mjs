@@ -19,7 +19,7 @@ test('every action used in markup is registered in HANH_DONG', () => {
     ...[...INDEX.matchAll(/\$\{hanhDongKhi\('[a-z]+', '([A-Za-z0-9_]+)'/g)].map(m => m[1])
   ]);
   used.forEach(n => assert.ok(registered.has(n), `${n} is used but not registered`));
-  registered.forEach(n => assert.match(INDEX, new RegExp(`^function ${n}\\(`, 'm'), `${n} must be a top-level function`));
+  registered.forEach(n => assert.match(INDEX, new RegExp(`^(async )?function ${n}\\(`, 'm'), `${n} must be a top-level function`));
 });
 
 test('values with quotes and markup reach the handler unchanged', () => {

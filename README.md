@@ -39,3 +39,4 @@ node --test "tests/**/*.test.mjs"
 - `docs/PROJECT_ANALYSIS.md` — phân tích toàn bộ dự án
 - `docs/REFACTOR_PLAN.md` — kế hoạch nâng cấp Commercial Edition
 - `docs/TODO.md`, `docs/ROADMAP.md` — tiến độ
+- `docs/RA_SOAT_2026-09-28.md` — rà soát toàn bộ mã nguồn (lỗi, kiến trúc, UI/UX, bảo mật, hiệu năng, chấm điểm, lộ trình)

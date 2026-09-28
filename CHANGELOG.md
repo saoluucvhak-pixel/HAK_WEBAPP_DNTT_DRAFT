@@ -2,6 +2,119 @@
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/). Phiên bản theo `NĂM.ĐỢT.SỬA`; thay đổi làm đổi hành vi nghiệp vụ (⚖️) sẽ tăng số ĐỢT và ghi rõ đã được người dùng đồng ý.
 
+## [2026.9.49] — Nâng cấp theo báo cáo rà soát (người dùng đồng ý 28/09/2026: "bỏ mục 2, còn lại bạn làm đi")
+
+### Changed
+- ⚖️ **#1 Tự tính tiền**: Lưu hồ sơ mới, Thêm / Bỏ phiếu cân, Mở Đóng TT tự tính lại Số tiền + lũy kế ngay - không còn bước bấm "Đề Nghị Thanh Toán (tính lại)" (gốc lỗi lệch tiền B-01). Hồ sơ mới vào thẳng "Chờ xác nhận". Nút đổi tên "🔄 Tính lại số tiền" (chỉ cần khi có cảnh báo).
+- ⚖️ **#10 Tên trạng thái**: Chưa ĐNTT / Chờ ĐNTT / Đang ĐNTT → **Chưa tính tiền / Chờ xác nhận / Chờ duyệt** (chỉ chữ hiển thị; giá trị trong sheet giữ nguyên).
+- **#3** 26 hộp `confirm()` / `prompt()` của trình duyệt → hộp xác nhận trong trang; thao tác nguy hiểm nút đỏ, con trỏ ở Hủy; Mở Đóng TT (gõ `MO DONG`), Khóa sổ (gõ năm), Xóa mồ côi sổ đã chốt / Xóa sạch Phân tích - Công nợ (gõ `XOA`), Tạo mã bí mật (gõ `MA MOI`).
+- **#11** Hệ Thống tách 2 tab: 🔎 Tra cứu & kiểm tra / ⚠️ Can thiệp dữ liệu.
+- **#12** Nút Lưu Tạo Mới ghi đúng việc: "Lưu hồ sơ (vào Danh Sách ĐNTT, tự tính tiền)".
+
+### Added
+- **#4** Mục "📜 Lịch sử hồ sơ" trong chi tiết hồ sơ: ai tạo, sửa gì (trước → sau), xác nhận, duyệt - lúc nào.
+- **#5** Kiểm tra toàn vẹn dữ liệu hằng đêm 2:00 (bật ở Cài đặt): Bảo Trì + MISA thiếu dòng 30 ngày + phiếu cân đã trả chưa khóa; kết quả ở Trang chủ (quyền Hệ Thống) và Hệ Thống; **email Quản trị** khi có vấn đề mới. ⚠️ Lần triển khai đầu Google sẽ hỏi cấp quyền gửi email.
+- **#6** Lượt Duyệt bị dừng giữa chừng (giới hạn 6 phút, mất kết nối) được phát hiện: Danh Sách ĐNTT báo đỏ + nút "Hoàn tất lượt Duyệt" (làm nốt, không ghi trùng).
+- **#7** Trang chủ: **tuổi nợ** phiếu cân chưa thanh toán (0-30 / 31-60 / 61-90 / trên 90 ngày) + **biểu đồ xu hướng 30 ngày** mua / thanh toán (rê chuột xem số, có bảng số liệu).
+- **#8** **Tìm nhanh** (ô trên thanh bên, phím `/` hoặc Ctrl+K): mã hồ sơ, số phiếu cân, STK, Số HĐ, tên không dấu - Nháp + sổ đang mở.
+- **#9** Tạo Mới **tự lưu nháp** (còn khi tải lại trang; xóa khi đóng tab / Lưu / Bỏ / Đăng xuất) và hỏi tiếp tục hồ sơ dở.
+- **#13** **Đối chiếu sao kê ngân hàng** (Báo Cáo Thanh Toán › 🏦 Đối chiếu sao kê): tải .xlsx/.xls/.csv, khớp UNC theo số tiền + STK/tên + ngày ±3 → Khớp / Cần kiểm tra / UNC chưa thấy trên sao kê / Khoản chi không có UNC; tải CSV.
+- **#14** **VietQR** trên phiếu chi tiết thanh toán (PDF) - quét kiểm tra STK / số tiền; dùng dịch vụ ảnh img.vietqr.io (tắt: Script Property `PHIEU_VIETQR` = `0`).
+- **#15** CI GitHub Actions: mỗi lần đẩy code kiểm cú pháp Code.gs + chạy toàn bộ test.
+
+### Fixed
+- Nhận diện ngân hàng "Sài Gòn - Hà Nội (SHB)" không bị nhầm SCB (dấu gạch giữa tên).
+- **#16** Dời 15 chú thích mồ côi về đúng hàm chúng mô tả.
+
+### Tests
+- 260 test (thêm `nangCap2026_9_49.test.mjs` 19 test). Kiểm tra Chromium: hộp xác nhận, Hệ Thống 2 tab, cảnh báo Duyệt dở, tìm nhanh, Tạo Mới khôi phục sau tải lại trang, đối chiếu sao kê CSV, biểu đồ sáng / tối.
+
+## [2026.9.48] — Rà tự động ngày + số 0 đầu trên MỌI file xuất Excel (28/09/2026)
+
+Người dùng hỏi "định dạng cột ngày khi kết xuất Excel chưa, khóa số 0 đầu của chuỗi khi kết xuất Excel đã rà chưa".
+
+### Fixed
+- File **Đối soát tên**, **Tình hình thanh toán**, **Công nợ phiếu cân**: Số phiếu cân / Số HĐ ghi thêm dấu giữ chữ (trước đây chỉ dựa vào khóa cột "@") - cùng 2 lớp bảo vệ như các file khác.
+
+### Tests
+- `xuatExcelRaSoat.test.mjs` (vùng VN và US): chạy đủ 10 hàm xuất trên dữ liệu có số 0 đầu (STK 0071000123456, Số HĐ 00123, CCCD 048…/012…, phiếu 00450) rồi kiểm theo tiêu đề cột: 30 cột mã (Số TK, CCCD, Số HĐ, Số phiếu cân, TK trích nợ / thu phí) khóa "@" và còn số 0 đầu; 14 cột ngày của báo cáo là ngày thật đúng định dạng Vùng xuất; mẫu nhập file UNC ngân hàng và XuatMISA giữ chữ (mã + ngày). Test thất bại trên 2026.9.47. Hàm xuất mới / cột mới có tiêu đề mã hay ngày sẽ tự được kiểm.
+
+## [2026.9.47] — MISA 1 kiểu, Excel ngày thật theo Vùng xuất, dòng Báo cáo ĐNTT không giãn, tăng tốc, giao diện (28/09/2026)
+
+### Changed
+- ⚖️ **B-10 (người dùng chọn "1 hình thức như Duyệt")**: Tạo lại MISA / Tạo bổ sung MISA ghi dòng Update_NganHang_DN **giống hệt** lúc Duyệt - cột K Họ tên chủ rừng trên hồ sơ ĐNTT (trước đây tên trong HD_NCC), Nội dung CK "Thanh toán phiếu cân X" (trước đây Nội dung CK của hồ sơ). 1 hàm dùng chung `_dongMisa_`.
+- ⚖️ **Báo cáo xuất Excel ghi NGÀY THẬT theo Vùng xuất** (người dùng yêu cầu): Báo cáo ĐNTT (Bảng Đề Xuất + Bảng Kê), Báo cáo UNC, Chi tiết, MISA tóm tắt, Tình hình thanh toán, Công nợ phiếu cân, Phân tích tổng hợp - lọc / sắp xếp / tính theo ngày được trong Excel; file tạo ra có locale + giờ Việt Nam theo Vùng xuất. Ngày căn phải như số. **Giữ dạng chữ** ở 2 mẫu nhập liệu: file UNC nộp ngân hàng và sheet XuatMISA (phần mềm nhận file đọc chữ).
+
+### Fixed
+- 🟠 **Báo cáo ĐNTT xuất Excel dòng giãn rất lớn** (người dùng báo): quá 30 nhóm chiều cao là cả bảng bị đặt bằng dòng cao nhất - 1 hồ sơ ghi chú dài làm mọi dòng cao theo. Nay mỗi dòng theo nội dung của nó (vài lệnh đặt chiều cao).
+- **P-04** Trợ lý AI: mỗi câu hỏi quét lại Phiếu Cân 90 ngày + tính lại công nợ (20-60 giây). Nay Đại lý / Nguồn gốc lấy từ bảng Phân tích đã tổng hợp; phần công nợ giữ 10 phút, tự tính lại ngay sau Duyệt / Mở Đóng TT; hồ sơ Nháp vẫn đọc mới mỗi câu.
+- **P-05** Mở Cài đặt: 13 lời gọi máy chủ song song → 1 lời gọi (`getCaiDatTongHop`); phần nào lỗi tự gọi riêng để hiện lỗi như cũ.
+- **P-06** Trình duyệt: 5 bộ theo dõi DOM quét cả trang mỗi thay đổi → 1 bộ, xử lý 1 lần mỗi khung hình.
+- **P-07** Bảng MISA / Chi tiết (tới 2.000 dòng) phân trang 100 dòng; tổng tiền vẫn trên mọi dòng.
+- **P-08** Ô lọc tên Danh Sách ĐNTT chờ ngừng gõ 150 ms mới vẽ lại.
+- **P-10** "Đề Nghị Thanh Toán (tính lại)" chỉ đọc dòng sổ CT của các hợp đồng đang có hồ sơ Nháp (trước đây cả sổ, mọi cột) - kết quả y hệt (có test so khớp), đọc ít hơn hàng chục lần khi sổ lớn.
+- **U-03** Danh Sách ĐNTT: cột Xem / Sửa / Xóa luôn thấy ở mép phải khi bảng cuộn ngang.
+- **U-04** Thông báo không che nút Trợ lý AI.
+- **U-05** Hộp thoại giữ phím Tab bên trong.
+- **U-06** Bỏ bộ chọn CSS `:has()` (Firefox cũ bỏ cả quy tắc cuộn ngang).
+- **U-07** Trợ lý AI khi đang đồng bộ: chờ xong rồi tự hỏi lại (trước đây hiện chuỗi lỗi kỹ thuật).
+- **U-08** Mốc làm mới dữ liệu hợp đồng trong trình duyệt (7:30 / 13:00) theo giờ Việt Nam, không theo giờ máy.
+
+### Tests
+- 240 test (thêm `raSoat2026_9_47.test.mjs`, `xuatExcel2026_9_47.test.mjs`, `troLyAi.test.mjs`, MISA "Tạo lại giống hệt Duyệt"). Test phía máy chủ mới đều thất bại trên 2026.9.46. Cập nhật test cũ theo quy định ngày thật (quyDinhNgay, ngayThanhToan, misa, bangDeXuat, baoCaoTuChiTietDNTT). Kiểm tra Chromium: cột thao tác dính phải, phân trang MISA, Cài đặt 1 lời gọi, Tab trong hộp thoại, Trợ lý AI chờ đồng bộ.
+
+## [2026.9.46] — Nhóm 1 báo cáo rà soát + màn chỉ xem không phải chờ đồng bộ (28/09/2026)
+
+### Changed
+- ⚖️ **P-02 (người dùng đồng ý 28/09/2026): màn chỉ xem chạy luôn khi đang đồng bộ.** Trước đây cứ 10 phút (7:30–19:00) mọi thao tác, kể cả chỉ xem, phải chờ trigger chạy xong. Nay Báo Cáo Thanh Toán (danh sách, Chi tiết, MISA, Lịch sử UNC), Danh Sách ĐNTT / chi tiết hồ sơ, phiếu hoàn thành, Lịch sử sửa đổi, Khôi phục, Hiệu năng, tìm hồ sơ đã chốt và các màn đọc Cài đặt **không chờ**. Thao tác ghi (Tạo, Sửa, Xác nhận, UNC, Duyệt…) và màn đọc số liệu do trigger dựng (Trang chủ, Công nợ, Phân tích, dữ liệu Tạo mới) vẫn chờ như cũ.
+
+### Fixed
+- 🟡 **B-11** Mã hồ sơ mới có thể trùng mã hồ sơ đã chốt của năm đã khóa sổ (Tạo mới) hoặc bất kỳ hồ sơ nào (Mở Đóng TT không kiểm tra gì) → ChiTietDNTT / UNC / MISA của 2 hồ sơ lẫn nhau. Nay kiểm tra Nháp + sổ đang mở + sổ các năm đã khóa (`_maHoSoMoi_`).
+- 🟡 **B-12** Mở Đóng TT: dọn ChiTietDNTT / ChiTietUNC / MISA hoặc mở khóa Phiếu Cân bị lỗi vẫn báo "✅ … 0 dòng". Nay báo ⚠️ rõ bảng nào lỗi, ghi nhật ký `LOI_DON_DEP_KHI_MO_DONG` / `LOI_MO_KHOA_PHIEU_CAN`, hướng dẫn chạy Bảo Trì.
+- 🟡 **B-13** 17 chỗ nuốt lỗi đọc sổ trong Công nợ KH / HĐ, sổ chi tiết công nợ, Phân tích, Tình hình thanh toán, Tiến độ HĐ, phiếu cân khả dụng: đọc lỗi thì báo cáo tính như chưa thanh toán gì (công nợ phóng to, phiếu đã trả hiện "chưa trả") mà không báo. Nay dừng và báo "Không đọc được … thử lại sau". Trang chủ hiện cảnh báo phần thiếu thay vì số 0; Trợ lý AI được báo phần nào không đọc được (không coi là 0).
+- 🟡 **B-14** Về "Chờ ĐNTT" khi hồ sơ **đã có UNC**: nay hỏi xác nhận riêng (hiện STK, số tiền, ngày của UNC cũ, nhắc hủy lệnh ở ngân hàng nếu đã nộp) và ghi vào nhật ký. Tạo UNC lần 2 mà STK khác UNC cũ → cảnh báo ⛔ riêng.
+- 🟢 **B-15** Báo Cáo Chi Tiết vượt 2.000 dòng hiện 2.000 dòng **cũ nhất** của khoảng ngày; nay hiện các dòng Ngày CK **mới nhất**.
+- 🟢 **B-16** Ghi chú sổ 112 ("Tổng KL | Đã trả | …") định dạng số kiểu Mỹ 1,234.00; nay theo Vùng xuất (mặc định VN 1.234,00) như phiếu / báo cáo.
+
+### Tests
+- 222 test (thêm `raSoat2026_9_46.test.mjs` 9 test, `chiDoc.test.mjs` 3 test: mọi màn CHI_DOC chạy trong lúc đồng bộ và **không ghi ô nào**, đọc được hồ sơ vừa chốt; thao tác ghi vẫn chờ). 10 test bắt lỗi thất bại trên bản 2026.9.45. `choDongBo.test.mjs`: ví dụ "phải chờ" đổi sang Trang chủ (Danh Sách ĐNTT nay không chờ).
+
+### Chờ người dùng quyết định
+- **B-10** 2 đường ghi MISA lấy cột K "Họ tên chủ rừng" và Nội dung CK khác nhau (xem báo cáo) - cần kế toán chốt.
+
+## [2026.9.45] — Đối chiếu Số tài khoản với hợp đồng khi Lưu / Sửa hồ sơ (người dùng đồng ý 28/09/2026)
+
+### Changed
+- ⚖️ **Lưu hồ sơ mới** và **Sửa hồ sơ** (khi đổi Số tài khoản hoặc Số hợp đồng) chỉ nhận Số tài khoản **có trong HD_STK của đúng hợp đồng đó** (mọi tình trạng hợp đồng). Trước đây máy chủ tin STK trình duyệt gửi lên → gõ tay ở Sửa hồ sơ hoặc gọi thẳng API tạo được hồ sơ chuyển tiền vào tài khoản bất kỳ (S-03 báo cáo rà soát). Báo lỗi rõ: "Số tài khoản X không có trong danh sách tài khoản (HD_STK) của hợp đồng Y - thêm tài khoản này vào hợp đồng ở app Hợp Đồng rồi làm lại."
+- So sánh bỏ dấu `'` và số 0 đầu (ô HD_STK dạng số); tài khoản vừa thêm ở app Hợp Đồng được nhận ngay (đọc lại HD_STK bỏ qua bộ nhớ đệm trước khi báo lỗi).
+- Hồ sơ cũ có STK chưa khai báo: sửa các ô khác (người nhận, ngân hàng, ghi chú…) vẫn được; chỉ kiểm tra khi đổi STK / Số HĐ.
+
+### Không đổi (người dùng quyết định 28/09/2026)
+- Không làm: tách quyền Lập / Duyệt (S-02), mã xác nhận đăng nhập từ trang nhúng (S-01).
+- Giữ như cũ: quyền "Cập nhật ngay" của tài khoản Chỉ xem (P-03); các đánh đổi đã chốt H-01, H-08, H-09, H-10.
+
+### Tests
+- 210 test (thêm `stkTheoHopDong.test.mjs`: Lưu / Sửa với STK không khai báo hoặc của hợp đồng khác bị chặn và không ghi gì; STK khai báo được nhận; bỏ qua số 0 đầu; sửa ô khác của hồ sơ cũ vẫn được; STK vừa thêm được nhận dù bộ nhớ đệm cũ). Các test chặn thất bại trên bản 2026.9.44. Dữ liệu mẫu HD_STK khai báo STK cho HD01 / 00123.
+
+## [2026.9.44] — Rà soát toàn bộ mã nguồn: chặn chuyển sai tiền, báo cáo đọc lại từ sổ, bộ nhớ đệm tiếng Việt, nhật ký cấu hình (28/09/2026)
+
+Báo cáo rà soát đầy đủ (13 phần, chấm điểm, lộ trình): `docs/RA_SOAT_2026-09-28.md`. Bản này chỉ sửa lỗi - quy trình bình thường không đổi; các đề xuất đổi nghiệp vụ / phân quyền để người dùng quyết định (xem báo cáo).
+
+### Fixed
+- 🔴 **Chuyển sai tiền sau khi Thêm / Bỏ phiếu cân**: hồ sơ vẫn "Chờ ĐNTT" với **Số tiền cũ** (không tự tính lại) nên Xác nhận → Tạo UNC → Duyệt được với số tiền lệch tổng phiếu cân (vd bỏ 1 phiếu 1.000.000 đ vẫn chuyển 2.000.000 đ, phiếu cân bị khóa "đã trả"). Nay **Xác nhận, In Báo Cáo ĐNTT, Tạo UNC, Duyệt** đều từ chối hồ sơ có Số tiền khác tổng Thành tiền phiếu cân (sai số 1 đ) và nhắc bấm "Đề Nghị Thanh Toán (tính lại)"; Danh Sách ĐNTT hiện nhãn **⚠️ Cần tính lại** (`_hoSoLechTien_`, `canTinhLai`).
+- 🟠 **Xuất Báo Cáo Thanh Toán in số liệu do trình duyệt gửi lên** (số tiền, STK, người nhận) vào Bảng Đề Xuất chính thức - tài khoản Chỉ xem sửa được. Nay trình duyệt chỉ gửi mã hồ sơ, máy chủ đọc lại từ sổ 112 đã chốt (`webExportReport_`); hồ sơ vừa bị Mở Đóng TT (không còn trong sổ) được báo rõ thay vì xuất lặng lẽ thiếu.
+- 🟠 **Bộ nhớ đệm dữ liệu tham chiếu âm thầm không hoạt động với tên tiếng Việt**: chia mảnh theo số ký tự (90.000) trong khi giới hạn 100KB tính theo byte UTF-8 (chữ có dấu 2-3 byte) → mảnh quá cỡ, lưu lỗi, mọi lần đều đọc lại file. Nay chia theo byte (`_chiaManhTheoByte_`).
+- 🟠 **Cài đặt › Đổi link** ghi được Script Property **bất kỳ** theo tên trình duyệt gửi (kể cả `SSO_SECRET`). Nay chỉ nhận đúng các link khai báo, loại Sheet/Thư mục lấy theo khai báo.
+- 🟡 **Nhật ký cấu hình**: đổi Số TK / Ngân hàng công ty (MISA), cấu hình UNC, File Chính, link file, Vùng lãnh thổ, Vùng xuất, API key Gemini (không ghi giá trị key) nay ghi "trước → sau" (`CAU_HINH_HE_THONG`), hiện ở Hệ Thống › Lịch sử sửa đổi.
+- 🟡 **Tạo Mới bước 2**: đổi Số HĐ / Người nhận / STK nhiều lần làm **nhân bản trình xử lý** → mỗi lần đổi gọi máy chủ N lần. Nay gán 1 trình xử lý duy nhất.
+- 🟡 **Màn hình chờ**: 2 thao tác chạy cùng lúc thì thao tác xong trước ẩn màn hình chờ khi thao tác kia còn chạy. Nay đếm số thao tác đang chờ.
+- 🟡 **Báo Cáo ĐNTT (chờ duyệt) › Bảng Kê**: khóa TEXT theo số hồ sơ thay vì số phiếu cân - ngày dạng chữ ở các dòng sau có thể bị đọc lộn ngày/tháng (lỗi đã sửa ở bản đã chốt, bản chờ duyệt còn sót).
+- Hướng Dẫn: Danh Sách ĐNTT có 5 tab (ghi 4), Công nợ 7 mục (ghi 8); 2 link chưa thoát ký tự.
+
+### Tests
+- 205 test (thêm `raSoat2026_9_44.test.mjs`: chặn lệch tiền ở 4 bước, tính lại xong thì Duyệt đúng số, quy trình khớp tiền không đổi, xuất báo cáo không tin trình duyệt, chia mảnh theo byte + bộ nhớ đệm dùng được với tiếng Việt, đổi link chỉ theo khai báo, nhật ký cấu hình, không nhân bản trình xử lý, màn hình chờ đếm lượt, **mã trình duyệt không lỗi cú pháp** - trước đây không test nào bắt). Các test mới thất bại trên bản 2026.9.43. Kiểm tra trình duyệt (Chromium): nhãn "Cần tính lại" ở Danh Sách ĐNTT, không lỗi JS.
+- `nhatKySua.test.mjs`: test "bỏ phiếu cân rồi Duyệt" trước đây Duyệt **không tính lại** (chính là lỗi trên) - nay tính lại trước khi Xác nhận.
+
 ## [2026.9.43] — Tạo lại UNC theo Ngày CK (người dùng đồng ý 28/09/2026)
 
 ### Changed

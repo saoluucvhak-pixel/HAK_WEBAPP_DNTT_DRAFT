@@ -31,6 +31,7 @@ test('removing a ticket logs the record, ticket, weight and amount; approval log
   const [xoa] = nhatKy('XOA_PHIEU_NHAP');
   assert.equal(xoa[3], 'A1');
   assert.match(xoa[4], /Xóa phiếu cân PC00\d \(dòng A1-CT\d, 1 tấn, 1\.000\.000 đ\)/);
+  run('runCreate112')(); // bỏ phiếu cân -> phải tính lại Số tiền trước khi Xác nhận / Duyệt
   run('runXacNhanDNTT_')(['A1']);
   assert.match(run('runConfirmPayment_')(['A1'], homNay()), /^✅/);
   assert.match(nhatKy('CHOT_THANH_TOAN')[0][4], /Duyệt \(Đóng Thanh Toán\) 1 hồ sơ, 1 phiếu cân, tổng [\d.]+ đ, ngày TT/);

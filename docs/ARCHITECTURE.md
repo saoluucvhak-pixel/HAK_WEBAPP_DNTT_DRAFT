@@ -1,4 +1,4 @@
-# ARCHITECTURE — HAK Quản Lý Thanh Toán (v2026.9.43)
+# ARCHITECTURE — HAK Quản Lý Thanh Toán (v2026.9.49)
 
 > Tài liệu sống: cập nhật mỗi khi đổi module, lớp, luồng dữ liệu hoặc schema.
 > Phân tích chi tiết hiện trạng: `docs/PROJECT_ANALYSIS.md`. Kiến trúc đích: `docs/REFACTOR_PLAN.md` §3–§4.
@@ -75,6 +75,10 @@ Dọn dẹp MISA (`webDonDepMisa_(che, f, t, chayThat)`, Hệ Thống): `_boChon
 7. Dọn Nháp: ghi đè trước, xóa đuôi sau.
 
 Chặn trả 2 lần: trước bước 3, đọc thẳng CT thật (`_phieuCanDaTraThat_`); hồ sơ có phiếu cân đã chốt ở hồ sơ khác bị bỏ qua cả hồ sơ (`CHAN_TRA_HAI_LAN`). Tạo mới / Thêm phiếu cũng kiểm tra (`_chanPhieuCanDaTra_`). **Cache “phiếu cân chưa TT” chỉ để gợi ý, không dùng một mình để quyết định phiếu còn trả được.**
+
+Số tiền phải khớp phiếu cân (2026.9.44): Xác nhận, In Báo Cáo ĐNTT, Tạo UNC và Duyệt bỏ qua hồ sơ có Số tiền (cột G sổ 112 Nháp) khác tổng Thành tiền các dòng CT Nháp quá `LECH_TIEN_CHO_PHEP` (1 đ) — `_hoSoLechTien_`; Danh Sách ĐNTT gắn cờ `canTinhLai`. Thêm / Bỏ phiếu cân không tự tính lại nên luôn phải qua "Đề Nghị Thanh Toán (tính lại)".
+
+STK theo hợp đồng (2026.9.45): Lưu hồ sơ mới (`createNewPaymentRequest_`) và Sửa hồ sơ khi đổi STK hoặc Số HĐ (`updateDraft112Info_`) gọi `_kiemTraStkTheoHopDong_` — STK phải có trong HD_STK (bản đầy đủ `_hdStkFullData_`, mọi tình trạng HĐ) của đúng Số HĐ; so sánh bỏ dấu `'` / số 0 đầu (`_khoaStk_`); không thấy thì đọc lại HD_STK bỏ qua bộ nhớ đệm 1 lần rồi mới báo lỗi.
 
 Lỗi ở bất kỳ bước nào → log `LOI_CHOT_THANH_TOAN`, người dùng bấm Duyệt lại cùng hồ sơ để hoàn tất (không trùng dữ liệu).
 
@@ -173,6 +177,7 @@ Chỉ khi khoảng ngày **chạm năm đã đăng ký**; báo cáo năm đang m
 - **CHỜ ĐỒNG BỘ**: trigger chạy qua `_chayTriggerCoDo_` (bật cờ `HN_TRIGGER_DANG_CHAY_<tên>`). `api()` thấy cờ còn hiệu lực (`_dongBoDangChay_`) thì trả `AUTH_CFG.LOI_DONG_BO` + JSON; `call()` ở trình duyệt chờ (`_choDongBo`, hỏi `getTrangThaiDongBo` mỗi `CHO_DONG_BO_MS`) rồi gọi lại. Route mới rất nhẹ / phục vụ việc chờ: `r(fn, quyen, KHONG_CHO)`. Trigger mới phải chạy qua `_chayTriggerCoDo_` và có tên trong `TEN_DONG_BO`.
 - **GIAO DIỆN (thiết kế 28/09/2026)**: 1 font `--font-chu` (Inter); cỡ chữ chỉ dùng thang `--fs-nho/phu/than/the/trang/so` trong `:root` — màn hình mới không đặt cỡ chữ rời. Tiêu đề màu `--ink`; `--accent` cho nút và số liệu.
 - **KHÔNG GHI LẠI KHI KHÔNG ĐỔI**: bản sao / snapshot trong File Nháp ghi qua `_ghiLaiMirror_` — so dấu vân tay nội dung + kích thước, giống thì không ghi (File Nháp bận ghi thì mọi thao tác đọc web phải chờ).
+- **Chia mảnh theo byte** (2026.9.44): `_chiaManhTheoByte_` cắt dữ liệu cache ≤ 90KB UTF-8/mảnh (giới hạn CacheService tính theo byte; chữ có dấu 2–3 byte).
 - **ĐỌC 1 LẦN TRONG 1 LƯỢT**: `_getCachedRefData_` / `_ctThatDocThang_` nhớ dữ liệu trong lượt chạy (`_DA_DOC_TRONG_LUOT_`, trả bản sao từng dòng). Quy tắc bắt buộc: **mọi chỗ ghi sổ phải gọi hàm xóa bộ nhớ đệm tương ứng ngay sau khi ghi** (`_invalidatePcCache_`, `_invalidateCtSrc112Cache_`, `_invalidateChunkedCache_`) — hàm đó xóa luôn bản nhớ trong lượt.
 - **DỌN DẸP** (MISA, UNC): `_donDep_(cấu hình, chayThat)` — xem trước, rồi trong khóa hệ thống quét lại, sao lưu (`_saoLuuVaXoaDong_`), xóa; mỗi sổ chỉ viết hàm chọn dòng (`_boChonMisaDonDep_`, `_boChonUncDonDep_`).
 - **KHOẢNG NGÀY BÁO CÁO** (⚖️ người dùng 28/09/2026): Báo Cáo Thanh Toán (Gỗ Keo, Chi Tiết, MISA, UNC) tối đa `KHOANG_BAO_CAO.SO_THANG` tháng. Trình duyệt: ô ngày `data-khoang-bao-cao`, `_khoangBaoCaoHopLe` ở mọi nút; máy chủ: route bọc `_theoKhoangBaoCao_`. Chức năng báo cáo MỚI có khoảng ngày trên trang này phải dùng cả hai. Khoảng 1 tháng bất kỳ (không theo tháng lịch); báo cáo Công Nợ không áp dụng (người dùng xác nhận).
@@ -223,3 +228,38 @@ File test dùng đuôi `.mjs` để công cụ đồng bộ Apps Script không c
 - **Model Gemini**: không viết tên model trong code nghiệp vụ; danh sách mặc định `GEMINI_MODELS_MAC_DINH_`, cấu hình `GEMINI_MODELS` (Script Property, sửa ở Cài đặt), model chạy được gần nhất `GEMINI_MODEL`.
 - Chỉ số cột: ưu tiên hằng (`PC_COL`, `COL_TRANG_THAI_DNTT`, `HDNCC_COL`…). **Phiếu Cân bắt buộc dùng `PC_COL`** (test chặn `pc[số]`): hệ thống chỉ đọc các cột có trong `PC_COL` (`PC_COT_CAN_DOC`, `_docCacCot_`), cột khác để trống.
 - Chú thích chỉ giải thích **vì sao**; lịch sử thay đổi ghi ở `CHANGELOG.md`.
+
+## Đồng bộ và thao tác chỉ đọc (2026.9.46)
+
+`API_ROUTES` có 3 loại: thường (chờ khi trigger đồng bộ đang chạy — `[DONG_BO]`), `KHONG_CHO` (tiện ích phục vụ việc chờ) và `CHI_DOC` (P-02): chỉ đọc sổ đã chốt, hồ sơ Nháp, nhật ký hoặc cấu hình — những thứ trigger không ghi — nên chạy luôn. Thao tác ghi và các màn đọc số liệu do trigger dựng (Trang chủ, Công nợ, Phân tích, dữ liệu Tạo mới) vẫn chờ. `tests/integration/chiDoc.test.mjs` gọi mọi route `CHI_DOC` trong lúc đồng bộ và kiểm tra không ghi ô nào; thêm route `CHI_DOC` mới mà có ghi thì test đỏ.
+
+Mã hồ sơ mới (`_maHoSoMoi_`, 2026.9.46): 8 ký tự hex, không trùng Nháp (Src, 112), sổ đang mở (Src, 112) và `DNTT_GK_DN` của các năm đã khóa sổ — dùng cho Tạo mới và Mở Đóng TT.
+
+Lỗi đọc sổ trong báo cáo (2026.9.46): công nợ / phân tích / tiến độ HĐ / phiếu cân khả dụng ném `_loiDocDuLieu_` thay vì nuốt lỗi (trước đây tính như chưa thanh toán gì). Trang chủ và Trợ lý AI vẫn hiện phần đọc được, phần lỗi ghi vào `canhBao` / báo AI "không đọc được".
+
+## File xuất Excel (2026.9.47)
+
+- `_taoFileBaoCao_` đặt múi giờ `Asia/Ho_Chi_Minh` và locale theo Vùng xuất (`LOCALE_THEO_VUNG`: VN → vi_VN, US → en_US).
+- Báo cáo: cột ngày / ngày giờ ghi **Date thật** qua `_cotNgayThatChoXuat_(sh, dongDau, body, cotNgay, cotNgayGio)` (định dạng `dateFmt` / `dateTimeFmt` của Vùng xuất, không khóa TEXT). Áp cho Báo cáo ĐNTT (Bảng Đề Xuất + Bảng Kê, cả bản chốt và bản Nháp), Báo cáo UNC, Chi tiết, MISA (sheet TomTat), Tình hình thanh toán, Công nợ phiếu cân, Phân tích tổng hợp. Chuỗi ngày kiểu VN của dữ liệu web đọc bằng `_docNgayVN_`.
+- Mẫu nhập liệu giữ ngày dạng chữ: file UNC nộp ngân hàng (`runCreateUNCOnly_`) và sheet XuatMISA / Update_NganHang_DN.
+- Dòng MISA: 1 hàm `_dongMisa_` cho Duyệt và Tạo lại / Tạo bổ sung (B-10).
+- Chiều cao dòng Bảng Đề Xuất (`_datChieuCaoDong_`): 1 lệnh đặt nền (chiều cao phổ biến) + tối đa `NHOM_CAO_TOI_DA` lệnh cho các dòng cao hơn; không còn đặt mọi dòng bằng dòng cao nhất.
+
+## Hiệu năng (2026.9.47)
+
+- `runCreate112` đọc sổ CT bằng `_docDongTheoKhoa_` theo Số HĐ đang có trong Nháp (CT + 112) thay vì cả sổ.
+- Trợ lý AI: `_soLieuNangChoChatbot_` giữ phần công nợ / tổng hợp 10 phút, khóa gắn `CONGNO_LUC.THAY_DOI`; Đại lý / Nguồn gốc lấy từ `PhanTichNhapTT_DRAFT`.
+- Cài đặt: `getCaiDatTongHop_` (CHI_DOC) trả 13 phần trong 1 lời gọi; trình duyệt `_caiDat_(tên, hàm)` dùng mỗi phần 1 lần, phần lỗi gọi riêng.
+- Trình duyệt: 1 `MutationObserver` gom theo khung hình (`_xuLyDomMoi_`); bảng MISA / Chi tiết phân trang `BANG_LON_MOI_TRANG` = 100; lọc tên Danh Sách ĐNTT chờ 150 ms.
+
+## Nâng cấp 2026.9.49
+
+- **Tự tính tiền**: `_tinhLai112Nhap_()` (không khóa) là phần tính của `runCreate112`; Tạo mới, Thêm / Bỏ phiếu cân, Mở Đóng TT gọi `_tuTinhLaiSauThayDoi_()` trong khóa của thao tác. Lỗi tính lại không hỏng thao tác chính; chặn lệch tiền (`_hoSoLechTien_`) vẫn giữ ở Xác nhận / In / UNC / Duyệt.
+- **Trạng thái hiển thị**: Chưa tính tiền / Chờ xác nhận / Chờ duyệt. Giá trị lưu cột X Draft 112 vẫn là `"Đang ĐNTT"` (so sánh trong code dùng giá trị này).
+- **Hộp xác nhận** `xacNhan(noiDung, {tieuDe, nutOk, nguyHiem, maGo, oNhap})` / `nhapChu()` thay `confirm()` / `prompt()` (#hop-xac-nhan, z-index trên modal).
+- **Nhật ký bước Duyệt**: Script Property `DUYET_DO_DANG` ghi trước khi ghi sổ, xóa khi xong; `getDuyetDoDang_` báo lượt dở (> 7 phút), `webHoanTatDuyetDoDang_` chạy lại đúng hồ sơ + ngày (runConfirmPayment_ bỏ qua phần đã ghi).
+- **Kiểm tra đêm**: trigger `kiemTraToanVenHangDem_` 2:00 (`setupKiemTraDemTrigger_`), kết quả `KIEM_TRA_DEM_KET_QUA`, email Quản trị (`MailApp`, chỉ khi kết quả đổi - `KIEM_TRA_DEM_DA_GUI`). Cần cấp thêm quyền gửi email khi triển khai.
+- **Lịch sử hồ sơ** `getLichSuHoSo_`, **tìm nhanh** `timKiemNhanh_`, **đối chiếu sao kê** `doiChieuSaoKe_` (chỉ đọc ChiTietUNC), **VietQR** `_urlVietQr_` / `_anhVietQr_` (img.vietqr.io, tắt bằng `PHIEU_VIETQR=0`), **Trang chủ** `xuHuong30Ngay` + `tuoiNo` (chỉ đọc số đã tổng hợp).
+- **Trình duyệt**: Hệ Thống 2 tab (Tra cứu / Can thiệp), Tạo Mới lưu nháp `sessionStorage` (`hak_tao_moi_nhap_v1`), biểu đồ SVG dùng `--series-1/2` (đã kiểm định mù màu sáng/tối).
+- **CI**: `.github/workflows/test.yml` - `node --check` Code.gs + `node --test`.
+

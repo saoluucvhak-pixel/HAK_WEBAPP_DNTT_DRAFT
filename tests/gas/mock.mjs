@@ -368,6 +368,7 @@ export function createGasEnvironment({ activeSpreadsheet, spreadsheets = [], pro
     },
     ContentService: { createTextOutput: s => ({ text: s, setMimeType() { return this; } }), MimeType: { JSON: 'JSON' } },
     UrlFetchApp: { fetch: () => { throw new Error('Mock: network disabled'); } },
+    MailApp: { daGui: [], sendEmail(to, subject, body) { this.daGui.push({ to, subject, body }); } },
     Logger: { log: () => {} },
     console: { log: () => {}, warn: () => {}, error: () => {}, info: () => {} },
     _registry: registry,

@@ -74,7 +74,10 @@ export function buildWorld() {
 
   const hd = new MockSpreadsheet(IDS.HD, 'Hợp Đồng');
   hd.addSheet('HD_NCC', [header('n', 31)]);
-  hd.addSheet('HD_STK', [header('k', 9)]);
+  // Tài khoản khai báo theo hợp đồng (HD_STK: C tên, D CCCD, E người UQ, F STK, G ngân hàng, I Số HĐ) -
+  // Lưu / Sửa hồ sơ chỉ nhận STK có ở đây (2026.9.45).
+  const stkRow = (soHD, stk) => { const r = blank(9); r[2] = 'Chu rung'; r[5] = stk; r[6] = 'BIDV'; r[8] = soHD; return r; };
+  hd.addSheet('HD_STK', [header('k', 9), stkRow('HD01', "'0123"), stkRow('HD01', "'0123456789"), stkRow('00123', "'0099887766")]);
   hd.addSheet('DM_NG', [header('g', 3)]);
 
   const updateNh = new MockSpreadsheet(IDS.UPDATE_NH, 'Update NH');

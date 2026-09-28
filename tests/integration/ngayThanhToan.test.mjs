@@ -65,5 +65,5 @@ test('rule: the web app always shows dd/mm/yyyy; sheets and exports follow the s
   assert.ok(ct.length && ct.every(x => x.ngayCK === '05/09/2026'), 'web shows VN');
   const xuat = run('exportChiTietDNTTDaChotExcel_')('2026-09-01', '2026-09-30');
   const file = env.SpreadsheetApp.openById(/\/d\/([^/]+)/.exec(xuat.url)[1]);
-  assert.ok(file.getSheets()[0].rows().some(r => r.includes('09/05/2026')), 'export follows the export setting');
+  assert.equal(file.getSheets()[0].getRange(2, 2).getNumberFormat(), 'MM/dd/yyyy', 'export follows the export setting (real date, US format)');
 });

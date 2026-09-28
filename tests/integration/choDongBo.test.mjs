@@ -12,7 +12,7 @@ const datTrigger = (env, ten, truocMs) => env.PropertiesService.getScriptPropert
 test('while a sync trigger runs, web operations are held back with the running sync described', () => {
   const { run, env } = ctx();
   datTrigger(env, 'refreshAllDraftCaches10Min_', 90e3);
-  const kq = goi(run, 'getDraftListSummary');
+  const kq = goi(run, 'getDashboardStats'); // Trang chủ đọc số liệu do trigger dựng -> vẫn chờ
   assert.equal(kq.ok, false);
   assert.ok(kq.loi.startsWith('[DONG_BO] '), kq.loi);
   const ds = JSON.parse(kq.loi.slice('[DONG_BO] '.length));
