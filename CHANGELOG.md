@@ -12,7 +12,7 @@
   - Chức năng rất nhẹ / phục vụ việc chờ vẫn chạy ngay (`getTrangThaiDongBo`, `getAppSetupStatus`, `ghiQuaGioTrinhDuyet` — cờ `khongChoDongBo` trong `API_ROUTES`).
 
 ### Tests
-- 180 test (thêm: thao tác bị hoãn khi đang đồng bộ, chức năng chờ vẫn chạy, cờ cũ quá 6 phút không giữ, cờ chỉ bật trong lúc trigger chạy, trình duyệt cùng tiền tố với máy chủ). Kiểm tra trình duyệt: thông báo hiện, thao tác tự chạy lại khi đồng bộ xong.
+- 181 test (thêm: Tạo ĐNTT chạy bình thường, đang đồng bộ thì chờ rồi tạo đúng 1 lần; thao tác bị hoãn khi đang đồng bộ, chức năng chờ vẫn chạy, cờ cũ quá 6 phút không giữ, cờ chỉ bật trong lúc trigger chạy, trình duyệt cùng tiền tố với máy chủ). Kiểm tra trình duyệt: thông báo hiện, thao tác tự chạy lại khi đồng bộ xong.
 
 ## [2026.9.36] — Danh Sách ĐNTT có lần chạy 361 giây: giảm ghi đè File Nháp (người dùng báo 28/09/2026)
 

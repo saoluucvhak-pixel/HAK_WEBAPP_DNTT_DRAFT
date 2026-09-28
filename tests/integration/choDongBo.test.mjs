@@ -54,3 +54,22 @@ test('browser: same prefix as the server, waits and re-runs, can cancel', () => 
   assert.match(INDEX, /<div id="bang-dong-bo" class="bang-dong-bo hidden" role="status"/);
   assert.match(INDEX, /function huyChoDongBo\(\)/);
 });
+
+test('creating a payment request (Tạo ĐNTT) runs normally; during a sync it waits, then runs', () => {
+  const { run, env } = ctx();
+  run('refreshPhieuCanUnpaidCache_')();
+  assert.equal(goi(run, 'getBulkReferenceData').ok, true, 'step 1 data');
+  assert.equal(goi(run, 'getAvailablePhieuCanForChuRung', ['Tran Thi B']).ok, true, 'step 2 tickets');
+  const payload = { hoTenChuRung: 'Tran Thi B', cccdChuRung: '012345678901', nguoiDeNghi: 'X', nguoiNhanTien: 'Tran Thi B',
+    soTKNhanTien: '0123', nganHang: 'BIDV', soHopDong: 'HD01', ngayDeNghi: '2026-09-26', danhSachPhieuCan: ['PC999'] };
+
+  datTrigger(env, 'refreshAllDraftCaches10Min_', 20e3);
+  const cho = goi(run, 'createNewPaymentRequest', [payload]);
+  assert.ok(!cho.ok && cho.loi.startsWith('[DONG_BO] '), 'held while syncing - nothing written yet');
+  env.PropertiesService.getScriptProperties().deleteProperty('HN_TRIGGER_DANG_CHAY_refreshAllDraftCaches10Min_');
+
+  const tao = goi(run, 'createNewPaymentRequest', [payload]); // trình duyệt tự gọi lại khi đồng bộ xong
+  assert.equal(tao.ok, true, tao.loi);
+  assert.equal(tao.kq.success, true, tao.kq.message);
+  assert.equal(Array.from(run('getDraftListSummary_')()).filter(h => h.danhSachPhieuCan.includes('PC999')).length, 1, 'created exactly once');
+});
