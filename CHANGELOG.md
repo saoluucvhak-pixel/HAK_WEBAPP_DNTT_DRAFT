@@ -2,6 +2,16 @@
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/). Phiên bản theo `NĂM.ĐỢT.SỬA`; thay đổi làm đổi hành vi nghiệp vụ (⚖️) sẽ tăng số ĐỢT và ghi rõ đã được người dùng đồng ý.
 
+## [2026.9.36] — Danh Sách ĐNTT có lần chạy 361 giây: giảm ghi đè File Nháp (người dùng báo 28/09/2026)
+
+### Fixed
+- **Danh Sách ĐNTT** (`getDraftListSummary`) ghi nhận 1 lần quá giờ 361 giây (28/09/2026 15:33) dù hàm chỉ đọc 2 sheet Nháp (~17 nghìn ô, dưới 1 giây khi thử). Google Sheets xử lý lần lượt các thao tác trên cùng 1 file: khi 1 tác vụ khác đang ghi nhiều vào **File Nháp**, thao tác đọc phải chờ. Nguồn ghi lặp lại lớn nhất: **Làm mới 10 phút** (và trigger 7:30/13:00) ghi đè toàn bộ các bản sao trong File Nháp (Phiếu cân chưa TT, HD_NCC, HD_STK, Tiến độ HĐ, Công nợ KH — ~300 nghìn ô mỗi lần) **dù dữ liệu không đổi**.
+- Nay `_ghiLaiMirror_` chỉ ghi khi dữ liệu thật sự đổi: so **dấu vân tay** nội dung (`_dauVanTay_`, lưu `MIRROR_DAU_<tên sheet>`) và kích thước sheet; giống hệt thì bỏ qua. Bản sao bị sửa tay (mất dòng, đổi cột) vẫn được ghi lại ở lần làm mới kế tiếp. Phần lớn các lượt làm mới 10 phút giờ không ghi gì vào File Nháp.
+- Lần quá giờ 15:33 trùng thời điểm các lần Xuất Báo Cáo chậm của bản cũ (247–325 giây, đã sửa ở 2026.9.28–9.29).
+
+### Tests
+- 175 test (thêm: làm mới khi không đổi không ghi ô nào; phiếu mới được ghi; bản sao mất dòng được dựng lại; dấu vân tay — thất bại trên bản cũ).
+
 ## [2026.9.35] — Báo Cáo Thanh Toán: bấm vào dòng khách hàng để xem phiếu hoàn thành trước khi in (người dùng yêu cầu 28/09/2026)
 
 ### Added

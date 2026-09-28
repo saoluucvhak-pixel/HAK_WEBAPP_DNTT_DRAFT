@@ -1,6 +1,6 @@
 /**
  * ============================================================
- * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.35
+ * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.36
  * Lịch sử thay đổi: CHANGELOG.md · Kiến trúc: docs/ARCHITECTURE.md
  * ------------------------------------------------------------
  * *** QUAN TRỌNG - CẦN LÀM TRƯỚC KHI DÙNG BẢN NÀY (chỉ 1 LẦN DUY NHẤT
@@ -658,6 +658,13 @@ function _ghiLaiMirror_(sh, header, rows, cotText) {
     if (oldRows) sh.getRange(1, 1, oldRows, Math.max(1, oldCols)).clearContent();
     return;
   }
+  // Dữ liệu y hệt lần ghi trước và sheet còn nguyên kích thước -> KHÔNG ghi lại. Làm mới 10
+  // phút/lần trước đây ghi đè ~300 nghìn ô vào File Nháp dù không đổi gì; trong lúc đó mọi
+  // thao tác đọc File Nháp (Danh sách ĐNTT...) phải chờ.
+  const khoaDau = MIRROR_DAU_VAN_TAY + sh.getName();
+  const dauMoi = _dauVanTay_(JSON.stringify([header, rows]));
+  const props = PropertiesService.getScriptProperties();
+  if (props.getProperty(khoaDau) === dauMoi && oldRows === rows.length + 1 && oldCols === width) return;
   if (cotText && cotText.length) _lockTextCols_(sh, cotText, rows.length + 5);
   sh.getRange(1, 1, 1, width).setValues([header]).setFontWeight("bold").setBackground("#d9d2e9");
   if (rows.length) sh.getRange(2, 1, rows.length, width).setValues(_dongAnToan_(rows));
@@ -665,6 +672,19 @@ function _ghiLaiMirror_(sh, header, rows, cotText) {
   if (duDong > 0) sh.getRange(rows.length + 2, 1, duDong, Math.max(width, oldCols)).clearContent();
   if (oldCols > width) sh.getRange(1, width + 1, rows.length + 1, oldCols - width).clearContent();
   sh.setFrozenRows(1);
+  props.setProperty(khoaDau, dauMoi);
+}
+const MIRROR_DAU_VAN_TAY = "MIRROR_DAU_";
+/** Dấu vân tay (FNV-1a 2 vòng, 16 ký tự hex) của 1 chuỗi - so nhanh "dữ liệu có đổi không",
+ * không gọi dịch vụ Google. */
+function _dauVanTay_(chuoi) {
+  let a = 0x811c9dc5, b = 0x01000193 ^ chuoi.length;
+  for (let i = 0; i < chuoi.length; i++) {
+    const c = chuoi.charCodeAt(i);
+    a = Math.imul(a ^ c, 0x01000193) >>> 0;
+    b = Math.imul(b ^ c, 0x5bd1e995) >>> 0;
+  }
+  return a.toString(16).padStart(8, "0") + b.toString(16).padStart(8, "0");
 }
 
 /** Giá trị dạng chữ để GHI vào sheet: bỏ các dấu ' có sẵn ở đầu rồi thêm
