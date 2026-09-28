@@ -6,11 +6,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Quản Lý Thanh Toán HAK</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,500;8..60,600;8..60,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     :root{
       /* Một font chữ cho toàn web app (chữ và số); số dùng chữ số đều cột (tabular-nums). */
       --font-chu:'Inter',sans-serif;
+      /* Thang cỡ chữ (1 chỗ cho toàn web app): phụ / thân / tiêu đề thẻ / tiêu đề trang / số liệu lớn. */
+      --fs-nho:12px;
+      --fs-phu:13px;
+      --fs-than:14px;
+      --fs-the:15px;
+      --fs-trang:22px;
+      --fs-so:28px;
       --paper:#f3f4f6;
       --paper-2:#f3f4f6;
       --ink:#1f2937;
@@ -36,13 +43,16 @@
     html,body{margin:0;padding:0;height:100%;}
     body{
       font-family:var(--font-chu);
+      font-size:var(--fs-than);
+      line-height:1.5;
+      -webkit-font-smoothing:antialiased;
       background:var(--paper);
       color:var(--ink);
       display:flex;
       min-height:100vh;
     }
     ::selection{background:var(--moss-light);}
-    h1,h2,h3,.serif{font-family:'Source Serif 4',serif;}
+    h1,h2,h3,h4,.serif{font-family:var(--font-chu); letter-spacing:-0.01em;}
     .mono{font-family:var(--font-chu);font-variant-numeric:tabular-nums;}
     a{color:inherit;}
     button{font-family:inherit;}
@@ -70,10 +80,10 @@
       width:34px;height:34px;border-radius:8px;
       background:linear-gradient(155deg,var(--timber),#b45309);
       display:flex;align-items:center;justify-content:center;
-      font-family:'Source Serif 4',serif;font-weight:700;color:#fff;font-size:16px;
+      font-weight:700;color:#fff;font-size:16px;
       flex:0 0 auto;
     }
-    .brand .name{font-family:'Source Serif 4',serif;font-size:15.5px;font-weight:600;line-height:1.25;}
+    .brand .name{font-size:var(--fs-the);font-weight:700;line-height:1.25;color:#fff;letter-spacing:-0.01em;}
     .brand .sub{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:#8b98ab;margin-top:1px;}
 
     nav{display:flex;flex-direction:column;gap:2px;flex:1;}
@@ -82,7 +92,7 @@
       padding:10px 12px;
       border-radius:8px;
       cursor:pointer;
-      font-size:13.5px;
+      font-size:var(--fs-than);
       font-weight:500;
       color:#cbd5e1;
       transition:background .15s ease, color .15s ease;
@@ -122,8 +132,8 @@
       background:var(--paper);
       position:sticky; top:0; z-index:5;
     }
-    .topbar h1{font-size:21px; margin:0; font-weight:600; color:var(--accent);}
-    .topbar .desc{font-size:12.5px; color:var(--ink-soft); margin-top:2px;}
+    .topbar h1{font-size:var(--fs-trang); margin:0; font-weight:700; color:var(--ink);}
+    .topbar .desc{font-size:var(--fs-phu); color:var(--ink-soft); margin-top:3px;}
     .topbar .actions{display:flex; gap:8px;}
 
     .content{padding:26px 34px 60px 34px; flex:1;}
@@ -137,7 +147,7 @@
       padding:20px;
       margin-bottom:18px;
     }
-    .card h3{margin:0 0 14px 0; font-size:15px; font-weight:600; color:var(--accent);}
+    .card h3{margin:0 0 14px 0; font-size:var(--fs-the); font-weight:600; color:var(--ink);}
     .grid{display:grid; gap:16px;}
     .grid.cols-2{grid-template-columns:1fr 1fr;}
     .grid.cols-3{grid-template-columns:repeat(3,1fr);}
@@ -158,12 +168,12 @@
       background:var(--white); border:1px solid var(--line); border-radius:var(--radius);
       padding:18px; box-shadow:var(--shadow);
     }
-    .stat .label{font-size:11.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-soft); font-weight:600;}
-    .stat .value{font-family:var(--font-chu); font-variant-numeric:tabular-nums; font-size:26px; font-weight:600; color:var(--accent); margin-top:6px;}
+    .stat .label{font-size:var(--fs-nho); text-transform:uppercase; letter-spacing:.05em; color:var(--ink-soft); font-weight:600;}
+    .stat .value{font-family:var(--font-chu); font-variant-numeric:tabular-nums; font-size:var(--fs-so); font-weight:700; letter-spacing:-0.02em; line-height:1.15; color:var(--accent); margin-top:8px;}
     .stat .value.timber{color:var(--timber);}
-    .stat .hint{font-size:11.5px; color:var(--ink-soft); margin-top:4px;}
+    .stat .hint{font-size:var(--fs-nho); color:var(--ink-soft); margin-top:4px;}
 
-    label{display:block; font-size:12px; font-weight:600; color:var(--ink-soft); margin-bottom:5px;}
+    label{display:block; font-size:var(--fs-nho); font-weight:600; color:var(--ink-soft); margin-bottom:5px;}
     /* Ô ngày kiểu VN (quy định 28/09/2026): ô gõ dd/mm/yyyy + ô lịch thu còn nút 📅 */
     .ngay-vn{display:flex; gap:6px; align-items:stretch; min-width:0;}
     .ngay-vn .o-ngay-vn{flex:1; min-width:0;}
@@ -175,7 +185,7 @@
       border:1px solid var(--line);
       border-radius:7px;
       padding:9px 11px;
-      font-size:13.5px;
+      font-size:var(--fs-than);
       font-family:inherit;
       color:var(--ink);
       background:var(--paper);
@@ -185,7 +195,7 @@
       outline:none; border-color:var(--moss); box-shadow:0 0 0 3px var(--moss-light); background:var(--white);
     }
     .field{margin-bottom:14px;}
-    .hint-text{font-size:11.5px; color:var(--ink-soft); margin-top:4px;}
+    .hint-text{font-size:var(--fs-nho); color:var(--ink-soft); margin-top:4px; line-height:1.5;}
 
     .btn{
       display:inline-flex; align-items:center; gap:7px;
@@ -194,7 +204,7 @@
       color:var(--ink);
       padding:9px 15px;
       border-radius:8px;
-      font-size:13px;
+      font-size:var(--fs-phu);
       font-weight:600;
       cursor:pointer;
       transition:transform .04s ease, background .15s ease, border-color .15s ease;
@@ -209,13 +219,13 @@
     .btn.danger:hover{background:var(--danger-light);}
     .btn.ghost{background:transparent; border-color:transparent;}
     .btn.ghost:hover{background:var(--paper-2);}
-    .btn.sm{padding:5px 10px; font-size:12px;}
+    .btn.sm{padding:5px 10px; font-size:var(--fs-nho);}
     a.btn{text-decoration:none;}
     .btn:disabled{opacity:.45; cursor:not-allowed;}
 
-    table{width:100%; border-collapse:collapse; font-size:13px;}
+    table{width:100%; border-collapse:collapse; font-size:var(--fs-phu);}
     thead th{
-      text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.04em;
+      text-align:left; font-size:11.5px; text-transform:uppercase; letter-spacing:.04em;
       color:var(--ink-soft); font-weight:700; padding:9px 10px; border-bottom:1px solid var(--line);
       white-space:nowrap;
     }
@@ -226,7 +236,7 @@
 
     .badge{
       display:inline-flex; align-items:center; gap:5px;
-      font-size:11px; font-weight:700; padding:3px 9px; border-radius:20px;
+      font-size:11.5px; font-weight:700; padding:3px 9px; border-radius:20px; white-space:nowrap;
     }
     .badge.ready{background:var(--moss-light); color:var(--moss);}
     .badge.pending{background:var(--timber-light); color:var(--timber);}
@@ -237,7 +247,7 @@
       text-align:center; padding:50px 20px; color:var(--ink-soft);
     }
     .empty .ic{font-size:34px; margin-bottom:10px;}
-    .empty h4{margin:0 0 5px 0; color:var(--ink); font-family:'Source Serif 4',serif; font-size:17px;}
+    .empty h4{margin:0 0 5px 0; color:var(--ink); font-size:var(--fs-the); font-weight:600;}
 
     .chip{
       display:inline-flex; align-items:center; gap:6px;
@@ -305,10 +315,27 @@
       display:flex; align-items:center; justify-content:space-between;
       padding:16px 20px; border-bottom:1px solid var(--line);
     }
-    .modal-head h3{margin:0; font-size:16px;}
+    .modal-head h3{margin:0; font-size:16px; font-weight:600; color:var(--ink);}
     .modal-head .x{cursor:pointer; font-size:18px; color:var(--ink-soft); background:none; border:none;}
     .modal-body{padding:20px; max-height:65vh; overflow:auto;}
     .modal.rong{max-width:880px;}
+    /* Trang chủ (thiết kế lại 28/09/2026): tiêu đề nhóm, quy trình dạng bước có đường nối */
+    .muc-tieu-de{font-size:var(--fs-nho); font-weight:700; text-transform:uppercase; letter-spacing:.07em; color:var(--ink-soft); margin:26px 0 10px;}
+    .muc-tieu-de:first-child{margin-top:0;}
+    .quy-trinh{list-style:none; margin:0; padding:0; display:grid; grid-template-columns:repeat(5, minmax(0, 1fr)); gap:14px;}
+    .quy-trinh li{position:relative; padding-top:42px;}
+    .quy-trinh li::before{content:attr(data-so); position:absolute; top:0; left:0; width:30px; height:30px; border-radius:50%;
+      background:var(--accent); color:#fff; font-weight:700; font-size:var(--fs-phu); display:flex; align-items:center; justify-content:center;
+      box-shadow:0 0 0 4px var(--white);}
+    .quy-trinh li:not(:last-child)::after{content:''; position:absolute; top:14px; left:38px; right:-6px; height:2px; background:var(--line);}
+    .quy-trinh .ten{font-size:var(--fs-than); font-weight:600; color:var(--ink); line-height:1.35;}
+    .quy-trinh .o-dau{font-size:var(--fs-nho); color:var(--ink-soft); margin-top:4px; line-height:1.45;}
+    .quy-trinh .sau{margin-top:8px; font-size:var(--fs-nho); color:var(--ink-soft);}
+    @media (max-width:900px){
+      .quy-trinh{grid-template-columns:1fr; gap:4px;}
+      .quy-trinh li{padding:0 0 14px 44px; min-height:44px;}
+      .quy-trinh li:not(:last-child)::after{top:34px; left:14px; right:auto; bottom:0; width:2px; height:auto;}
+    }
     /* Đang đồng bộ (trigger chạy): thao tác chờ xong rồi tự chạy */
     .bang-dong-bo{position:fixed; top:12px; left:50%; transform:translateX(-50%); z-index:1000; max-width:min(720px, calc(100vw - 24px));
       background:#fff7e0; color:#5b4300; border:1px solid #e7c35a; border-radius:10px; padding:10px 14px; box-shadow:0 6px 20px rgba(0,0,0,.15);
@@ -320,7 +347,7 @@
     tr.dong-bam:hover td{background:var(--paper-2);}
     .modal-foot{padding:14px 20px; border-top:1px solid var(--line); display:flex; justify-content:flex-end; gap:8px;}
 
-    .kv{display:flex; justify-content:space-between; padding:7px 0; border-bottom:1px dashed var(--line); font-size:13px;}
+    .kv{display:flex; justify-content:space-between; padding:7px 0; border-bottom:1px dashed var(--line); font-size:var(--fs-phu);}
     .kv:last-child{border-bottom:none;}
     .kv .k{color:var(--ink-soft);}
     .kv .v{font-weight:600;}
@@ -402,9 +429,9 @@
        cho CẢ #content (bảng danh sách, wizard) LẪN #modal (chi tiết,
        sửa, Duyệt) vì các modal này chỉ mở ra từ đúng trang này, KHÔNG
        đụng tới font cỡ nhỏ mặc định ở Báo Cáo/Công Nợ/Cài Đặt... */
-    body.dntt-lg #content table, body.dntt-lg #modal table{font-size:15.5px;}
-    body.dntt-lg #content thead th, body.dntt-lg #modal thead th{font-size:13px;}
-    body.dntt-lg #content tbody td, body.dntt-lg #modal tbody td{padding:13px 12px;}
+    body.dntt-lg #content table, body.dntt-lg #modal table{font-size:15px;}
+    body.dntt-lg #content thead th, body.dntt-lg #modal thead th{font-size:12px;}
+    body.dntt-lg #content tbody td, body.dntt-lg #modal tbody td{padding:12px 10px;}
     body.dntt-lg #content label, body.dntt-lg #modal label{font-size:14px;}
     body.dntt-lg #content input[type=text], body.dntt-lg #content input[type=date],
     body.dntt-lg #content input[type=number], body.dntt-lg #content select, body.dntt-lg #content textarea,
@@ -412,8 +439,8 @@
     body.dntt-lg #modal input[type=number], body.dntt-lg #modal select, body.dntt-lg #modal textarea{
       font-size:15.5px; padding:11px 13px;
     }
-    body.dntt-lg #content .btn, body.dntt-lg #modal .btn{font-size:14.5px; padding:10px 16px;}
-    body.dntt-lg #content .btn.sm, body.dntt-lg #modal .btn.sm{font-size:13.5px;}
+    body.dntt-lg #content .btn, body.dntt-lg #modal .btn{font-size:14px; padding:9px 15px;}
+    body.dntt-lg #content .btn.sm, body.dntt-lg #modal .btn.sm{font-size:13px; padding:5px 9px;}
     body.dntt-lg #content .kv, body.dntt-lg #modal .kv{font-size:15.5px; padding:9px 0;}
     body.dntt-lg #content .hint-text, body.dntt-lg #modal .hint-text{font-size:13.5px;}
     body.dntt-lg #content h3, body.dntt-lg #modal h3{font-size:18px;}
@@ -423,7 +450,7 @@
     /* Diễn giải phiếu cân / hồ sơ ĐNTT (v2026.7.2) - chữ to, rõ, dạng bảng */
     .dien-giai-wrap{margin-top:14px;}
     .dien-giai{border:1px solid var(--line); border-left:4px solid var(--accent); border-radius:var(--radius); background:var(--white); padding:12px 14px; color:var(--ink);}
-    .dien-giai .tieu-de{font-family:'Source Serif 4',serif; font-weight:700; font-size:16px; margin-bottom:8px;}
+    .dien-giai .tieu-de{font-weight:700; font-size:16px; margin-bottom:8px;}
     .dien-giai table{font-size:15px;}
     .dien-giai td, .dien-giai th{padding:7px 10px;}
     .dien-giai td.mono{font-size:15px;}
@@ -502,7 +529,9 @@
       .modal-body{max-height:none;}
       #toast-wrap{left:12px; right:12px;}
       .toast{max-width:none;}
-      .stat .value{font-size:21px;}
+      .stat .value{font-size:22px;}
+      .grid.cols-4.o-so{grid-template-columns:1fr 1fr; gap:10px;}
+      .grid.cols-4.o-so .stat{padding:14px;}
     }
 
     /* Bản in (Ctrl+P): chỉ phần nội dung, nền trắng, không nút bấm. */
@@ -545,7 +574,7 @@
       <div class="nav-item" role="button" tabindex="0" data-page="settings"><span class="ic">⚙️</span> Cài đặt / Nháp</div>
     </nav>
     <div class="nguoi-dung-chip" id="nguoi-dung-chip"></div>
-    <div class="sidebar-footer">Hệ thống Quản Lý Thanh Toán · v2026.9.39<br><button type="button" class="theme-toggle" id="theme-toggle" aria-label="Đổi giao diện sáng / tối">🌓 Giao diện: Tự động</button></div>
+    <div class="sidebar-footer">Hệ thống Quản Lý Thanh Toán · v2026.9.40<br><button type="button" class="theme-toggle" id="theme-toggle" aria-label="Đổi giao diện sáng / tối">🌓 Giao diện: Tự động</button></div>
   </aside>
 
   <main class="main">
@@ -1327,46 +1356,49 @@ function renderDashboard(){
   const c = document.getElementById('content');
   c.innerHTML = `<div id="dash-setup-warning"></div>
   <div class="card" id="dash-quy-trinh">
-    <h3>📋 Quy trình thanh toán (5 bước)</h3>
-    <div class="grid cols-5">
-      ${QUY_TRINH_TT.map((b, i) => `<div><b>${i + 1}. ${esc(b.ten)}</b>
-        <div class="muted" style="font-size:12.5px;margin-top:4px">${esc(b.oDau)}</div>
-        <div style="margin-top:6px;font-size:12.5px">→ ${b.sau}</div></div>`).join('')}
-    </div>
-    <div class="hint-text" style="margin-top:8px">Chi tiết từng bước: mục <a href="#" onclick="goTo('huongdan');return false">📖 Hướng Dẫn Sử Dụng</a>.</div>
+    <h3>Quy trình thanh toán</h3>
+    <ol class="quy-trinh">
+      ${QUY_TRINH_TT.map((b, i) => `<li data-so="${i + 1}"><div class="ten">${esc(b.ten)}</div>
+        <div class="o-dau">${esc(b.oDau)}</div><div class="sau">${b.sau}</div></li>`).join('')}
+    </ol>
+    <div class="hint-text" style="margin-top:14px">Chi tiết từng bước: mục <a href="#" onclick="goTo('huongdan');return false">Hướng Dẫn Sử Dụng</a>.</div>
   </div>
-  <div class="grid cols-4" id="dash-stats" style="margin-top:14px">
+  <div class="muc-tieu-de">Hồ sơ đang xử lý</div>
+  <div class="grid cols-4 o-so" id="dash-stats">
     <div class="stat"><div class="label">Hồ sơ đang ở Nháp</div><div class="value" id="s-draft">–</div><div class="hint">Chưa chốt thanh toán</div></div>
     <div class="stat"><div class="label">Sẵn sàng chốt</div><div class="value" id="s-ready">–</div><div class="hint">Đã có Số tiền</div></div>
     <div class="stat"><div class="label">Chờ Đề Nghị TT</div><div class="value" id="s-pending">–</div><div class="hint">Chưa tính số tiền</div></div>
     <div class="stat"><div class="label">Tổng tiền sẵn sàng</div><div class="value timber" id="s-total">–</div><div class="hint">VNĐ</div></div>
   </div>
-  <div class="grid cols-4" id="dash-stats-thang" style="margin-top:14px">
+  <div class="muc-tieu-de">Mua &amp; thanh toán tháng này</div>
+  <div class="grid cols-4 o-so" id="dash-stats-thang">
     <div class="stat"><div class="label">KL Mua Tháng Này</div><div class="value" id="s-kl-mua">–</div><div class="hint">kg (theo ngày cân)</div></div>
     <div class="stat"><div class="label">Tiền Mua Tháng Này</div><div class="value" id="s-tien-mua">–</div><div class="hint">VNĐ (theo ngày cân)</div></div>
     <div class="stat"><div class="label">KL Thanh Toán Tháng Này</div><div class="value timber" id="s-kl-tt">–</div><div class="hint">tấn (theo ngày CK/TT)</div></div>
     <div class="stat"><div class="label">Tiền Thanh Toán Tháng Này</div><div class="value timber" id="s-tien-tt">–</div><div class="hint">VNĐ (theo ngày CK/TT)</div></div>
   </div>
-  <div class="hint-text" id="s-thang-cap-nhat" style="margin-top:6px"></div>
-  <div class="grid cols-2" style="margin-top:14px">
+  <div class="hint-text" id="s-thang-cap-nhat" style="margin-top:8px"></div>
+  <div class="muc-tieu-de">Công nợ khách hàng gỗ keo</div>
+  <div class="grid cols-2">
     <div class="card">
-      <h3>Tổng Nợ Tiền Gỗ Keo</h3>
-      <div class="value" id="s-tong-no" style="font-variant-numeric:tabular-nums; font-size:26px; font-weight:600; color:var(--danger)">–</div>
+      <h3>Tổng nợ tiền gỗ keo</h3>
+      <div class="value" id="s-tong-no" style="font-variant-numeric:tabular-nums; font-size:var(--fs-so); font-weight:700; letter-spacing:-0.02em; color:var(--danger)">–</div>
       <div class="muted" style="font-size:12px; margin-top:4px">VNĐ - cộng dồn công nợ còn lại của TẤT CẢ khách hàng (khoảng 90 ngày gần nhất), chỉ tính khách hàng còn nợ</div>
       <div class="hint-text" id="s-congno-cap-nhat" style="margin-top:6px"></div>
     </div>
     <div class="card">
-      <h3>Top 5 Khách Hàng Nợ Nhiều Nhất</h3>
+      <h3>Top 5 khách hàng nợ nhiều nhất</h3>
       <div id="dash-top5-no"><div class="empty"><div class="ic">⏳</div>Đang tải...</div></div>
     </div>
   </div>
-  <div class="grid cols-2" style="margin-top:14px">
+  <div class="muc-tieu-de">Mua tháng này theo nguồn gốc &amp; đại lý</div>
+  <div class="grid cols-2">
     <div class="card">
-      <h3>Mua Tháng Này theo Nguồn Gốc</h3>
+      <h3>Theo nguồn gốc</h3>
       <div id="dash-theo-ng"><div class="empty"><div class="ic">⏳</div>Đang tải...</div></div>
     </div>
     <div class="card">
-      <h3>Mua Tháng Này theo Đại Lý</h3>
+      <h3>Theo đại lý</h3>
       <div id="dash-theo-dl"><div class="empty"><div class="ic">⏳</div>Đang tải...</div></div>
     </div>
   </div>

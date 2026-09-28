@@ -2,6 +2,19 @@
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/). Phiên bản theo `NĂM.ĐỢT.SỬA`; thay đổi làm đổi hành vi nghiệp vụ (⚖️) sẽ tăng số ĐỢT và ghi rõ đã được người dùng đồng ý.
 
+## [2026.9.40] — Thiết kế lại giao diện: 1 font, thang cỡ chữ cân đối, Trang chủ chuyên nghiệp (người dùng yêu cầu 28/09/2026)
+
+### Changed
+- **Một font duy nhất (Inter)** cho toàn web app — bỏ font có chân (Source Serif) ở tiêu đề trang, tiêu đề thẻ, logo, ô trống, diễn giải; bỏ tải font đó (trang nhẹ hơn).
+- **Thang cỡ chữ khai báo 1 chỗ** (`--fs-nho` 12 · `--fs-phu` 13 · `--fs-than` 14 · `--fs-the` 15 · `--fs-trang` 22 · `--fs-so` 28px) thay cho ~12 cỡ rời rạc: chữ thân 14px (dòng 1,5), nhãn / gợi ý 12px, tiêu đề thẻ 15px, tiêu đề trang 22px, số liệu lớn 28px. Menu, ô nhập, nút, bảng, nhãn trạng thái dùng theo thang.
+- **Tiêu đề màu chữ đậm** (trước: xanh như nút bấm) — màu xanh dành cho nút và số liệu, dễ phân biệt thứ bấm được.
+- **Trang chủ**: Quy trình thanh toán thành **5 bước đánh số có đường nối** (trên điện thoại xếp dọc); số liệu chia nhóm có tiêu đề nhỏ: *Hồ sơ đang xử lý*, *Mua & thanh toán tháng này*, *Công nợ khách hàng gỗ keo*, *Mua tháng này theo nguồn gốc & đại lý*; tiêu đề thẻ viết thường gọn. Trên điện thoại các ô số liệu xếp 2 cột.
+- **Danh Sách ĐNTT**: nhãn trạng thái không bị gãy dòng (“Đang / ĐNTT”); chế độ chữ to cân lại theo thang mới (bảng 15px, tiêu đề cột 12px, nút 14px) — bảng không còn tràn khỏi khung.
+- Giao diện tối, bản in giữ nguyên hoạt động (đã kiểm tra).
+
+### Tests
+- 184 test (thêm: thang cỡ chữ, không còn font có chân, tiêu đề màu chữ, nhãn trạng thái không gãy dòng, quy trình dạng bước). Kiểm tra trình duyệt: Trang chủ (sáng, tối, điện thoại), Danh Sách ĐNTT — toàn trang chỉ dùng 1 font.
+
 ## [2026.9.39] — Trang chủ: Quy trình thanh toán lên đầu trang (người dùng yêu cầu 28/09/2026)
 
 ### Changed

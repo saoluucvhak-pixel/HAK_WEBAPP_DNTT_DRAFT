@@ -1,4 +1,4 @@
-# ARCHITECTURE — HAK Quản Lý Thanh Toán (v2026.9.39)
+# ARCHITECTURE — HAK Quản Lý Thanh Toán (v2026.9.40)
 
 > Tài liệu sống: cập nhật mỗi khi đổi module, lớp, luồng dữ liệu hoặc schema.
 > Phân tích chi tiết hiện trạng: `docs/PROJECT_ANALYSIS.md`. Kiến trúc đích: `docs/REFACTOR_PLAN.md` §3–§4.
@@ -168,6 +168,7 @@ Chỉ khi khoảng ngày **chạm năm đã đăng ký**; báo cáo năm đang m
 - **FONT & CỠ CHỮ**: web 1 font `--font-chu` cho chữ và số (số `tabular-nums`). File xuất Bảng Đề Xuất cỡ `BANG_DE_XUAT.CO_CHU` (11), độ rộng cột đo theo chữ (`_rongCotVua_`), chiều cao dòng đặt theo nhóm (`_datChieuCaoDong_`, tối đa `NHOM_CAO_TOI_DA` lệnh) — **không gọi API Sheets theo từng dòng** trong hàm xuất.
 - **ĐỌC THEO KHÓA**: chức năng chỉ cần vài chục/trăm dòng (xuất báo cáo hồ sơ đã chọn, MISA theo Ngày CK) **không đọc cả sheet**: `_docDongTheoKhoa_(sh, cộtKhóa, rộng, khớp)` đọc 1 cột khóa rồi các đoạn dòng khớp (`DOC_THEO_KHOA`). Dùng qua `_ctDongCuaHoSo_`, `_ctTheoNgayCK_`, `_pcTheoSoPhieu_`. Quét cả sổ chỉ dành cho công nợ/phân tích/bảo trì (cần mọi dòng).
 - **CHỜ ĐỒNG BỘ**: trigger chạy qua `_chayTriggerCoDo_` (bật cờ `HN_TRIGGER_DANG_CHAY_<tên>`). `api()` thấy cờ còn hiệu lực (`_dongBoDangChay_`) thì trả `AUTH_CFG.LOI_DONG_BO` + JSON; `call()` ở trình duyệt chờ (`_choDongBo`, hỏi `getTrangThaiDongBo` mỗi `CHO_DONG_BO_MS`) rồi gọi lại. Route mới rất nhẹ / phục vụ việc chờ: `r(fn, quyen, KHONG_CHO)`. Trigger mới phải chạy qua `_chayTriggerCoDo_` và có tên trong `TEN_DONG_BO`.
+- **GIAO DIỆN (thiết kế 28/09/2026)**: 1 font `--font-chu` (Inter); cỡ chữ chỉ dùng thang `--fs-nho/phu/than/the/trang/so` trong `:root` — màn hình mới không đặt cỡ chữ rời. Tiêu đề màu `--ink`; `--accent` cho nút và số liệu.
 - **KHÔNG GHI LẠI KHI KHÔNG ĐỔI**: bản sao / snapshot trong File Nháp ghi qua `_ghiLaiMirror_` — so dấu vân tay nội dung + kích thước, giống thì không ghi (File Nháp bận ghi thì mọi thao tác đọc web phải chờ).
 - **ĐỌC 1 LẦN TRONG 1 LƯỢT**: `_getCachedRefData_` / `_ctThatDocThang_` nhớ dữ liệu trong lượt chạy (`_DA_DOC_TRONG_LUOT_`, trả bản sao từng dòng). Quy tắc bắt buộc: **mọi chỗ ghi sổ phải gọi hàm xóa bộ nhớ đệm tương ứng ngay sau khi ghi** (`_invalidatePcCache_`, `_invalidateCtSrc112Cache_`, `_invalidateChunkedCache_`) — hàm đó xóa luôn bản nhớ trong lượt.
 - **DỌN DẸP** (MISA, UNC): `_donDep_(cấu hình, chayThat)` — xem trước, rồi trong khóa hệ thống quét lại, sao lưu (`_saoLuuVaXoaDong_`), xóa; mỗi sổ chỉ viết hàm chọn dòng (`_boChonMisaDonDep_`, `_boChonUncDonDep_`).
