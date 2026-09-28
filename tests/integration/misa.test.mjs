@@ -35,7 +35,11 @@ test('the MISA export is the 33-column MISA import layout, filtered by payment d
   const r = rows[1];
   assert.deepEqual([r[4], r[5], r[9], r[12], r[32], r[22], r[23], r[24]], ['PC001', '0011001234567', '048000000111', '0123456789', '0012/HĐ', 33111, 1121, 1e6]);
   assert.equal(tomTat.getName(), 'TomTat');
-  assert.deepEqual(tomTat.rows(9)[1].slice(0, 2), ['05/09/2026', 'PC001']);
+  const [ngay, so] = tomTat.rows(9)[1];
+  assert.ok(ngay instanceof Date && ngay.toISOString().slice(0, 10) === '2026-09-05', 'summary: real date');
+  assert.equal(tomTat.getRange(2, 1).getNumberFormat(), 'dd/MM/yyyy');
+  assert.equal(so, 'PC001');
+  assert.equal(r[2], '05/09/2026', 'the MISA import sheet keeps the text date MISA expects');
   // Màn hình Báo Cáo MISA vẫn ra đúng dòng như file xuất.
   assert.deepEqual(Array.from(run('getMisaDataTheoNgay_')('2026-09-01', '2026-09-30').items, x => x.soPhieuCan), ['PC001']);
 });
@@ -169,4 +173,29 @@ test('"Tạo lại UNC" picks records by payment date (Ngày CK) like "Tạo l�
   assert.equal(kq.xong, true);
   assert.ok(kq.count > 0 && kq.url, 'a UNC file is created for the record paid that day');
   assert.deepEqual(lichSu().filter(id => id === 'A1'), ['A1'], 'one history row for the record');
+});
+
+// B-10 (người dùng chọn 28/09/2026 "1 hình thức như Duyệt"): Tạo bổ sung / Tạo lại ghi dòng MISA
+// GIỐNG HỆT dòng Duyệt đã ghi - trước đây cột K lấy tên trong HD_NCC, Nội dung CK lấy của hồ sơ.
+test('a MISA row re-created later is identical, all 33 columns, to the one written at approval', () => {
+  const w = buildWorld();
+  // Dòng N mẫu của ChiTietDNTT không đủ cột (thực tế do In Báo Cáo ĐNTT ghi đủ) - bỏ để Duyệt tự tính bù.
+  const ctdntt = w.main.getSheetByName('ChiTietDNTT'); ctdntt.data = [ctdntt.data[0]];
+  const { run } = loadCode(w.options);
+  assert.match(run('runConfirmPayment_')(['A1'], '2026-09-26'), /^✅/);
+  w.main.getSheetByName('DNTT_GK_DN_112').data.slice(1).forEach(r => { r[16] = D('2026-09-20'); });
+  const nh = w.updateNh.getSheetByName('Update_NganHang_DN');
+  // Tên chủ rừng trong hợp đồng khác tên trên hồ sơ + hồ sơ có Nội dung CK riêng -> trước đây lệch.
+  const hd = w.hd.getSheetByName('HD_NCC');
+  hd.data.slice(1).forEach(r => { if (String(r[2]).replace(/'/g, '') === 'HD01') r[4] = 'NGUYEN VAN A (TEN HOP DONG)'; });
+  w.main.getSheetByName('DNTT_GK_DN_112').data.slice(1).forEach(r => { r[7] = 'Noi dung rieng cua ho so'; });
+  run('_invalidateChunkedCache_')('hdncc_full_data_v1');
+  const goc = nh.rows(33).slice(1).map(r => r.map(String));
+  nh.data = [nh.data[0]];
+  assert.equal(run('webTaoBoSungMisa_')('2026-09-26', '2026-09-26').success, true);
+  const moi = nh.rows(33).slice(1).map(r => r.map(String));
+  const theoSo = rows => Object.fromEntries(rows.map(r => [r[4], r]));
+  assert.deepEqual(theoSo(moi), theoSo(goc));
+  assert.ok(goc.every(r => /^Thanh toán phiếu cân PC00\d$/.test(r[8]) && r[10] === 'Nguyen Van A'), JSON.stringify(goc[0]));
+  assert.ok(goc.every(r => r[12].replace(/^'/, '') === '0123456789' && r[32].replace(/^'/, '') === 'HD01'), 'full row, not blanks');
 });

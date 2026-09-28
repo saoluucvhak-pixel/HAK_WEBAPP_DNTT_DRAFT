@@ -18,7 +18,7 @@ function world(xuat) {
 }
 
 test('ChiTietDNTT ledger stores real dates formatted by the system region; web VN; exports by the export region', () => {
-  for (const [xuat, mongDoi] of [['VN', '05/09/2026'], ['US', '09/05/2026']]) {
+  for (const [xuat, mongDoi, fmt, locale] of [['VN', '05/09/2026', 'dd/MM/yyyy', 'vi_VN'], ['US', '09/05/2026', 'MM/dd/yyyy', 'en_US']]) {
     const { run, w, mo } = world(xuat);
     assert.match(run('runConfirmPayment_')(['A1'], '2026-09-05'), /^✅/);
     const sh = w.main.getSheetByName('ChiTietDNTT');
@@ -28,14 +28,20 @@ test('ChiTietDNTT ledger stores real dates formatted by the system region; web V
     assert.equal(sh.getRange(dong, 4).getNumberFormat(), 'MM/dd/yyyy', 'ledger column follows the system region (US)');
     const web = run('getChiTietDNTTDaChot_')('2026-09-01', '2026-09-30').items.filter(x => x.idHeThong === 'A1');
     assert.ok(web.length && web.every(x => x.ngayCK === '05/09/2026'), 'web: dd/mm/yyyy');
-    const file = mo(run('exportChiTietDNTTDaChotExcel_')('2026-09-01', '2026-09-30')).getSheets()[0].rows();
-    assert.equal(file[1][1], mongDoi, `export follows the export region (${xuat})`);
-    assert.equal(w.updateNh.getSheetByName('Update_NganHang_DN').rows(33)[1][2], mongDoi, `MISA follows the export region (${xuat})`);
+    // 2026.9.47: báo cáo xuất ghi NGÀY THẬT, định dạng + locale file theo Vùng xuất.
+    const ssXuat = mo(run('exportChiTietDNTTDaChotExcel_')('2026-09-01', '2026-09-30'));
+    const file = ssXuat.getSheets()[0];
+    assert.ok(file.rows()[1][1] instanceof Date && iso(file.rows()[1][1]) === '2026-09-05', `export: real date (${xuat})`);
+    assert.equal(file.getRange(2, 2).getNumberFormat(), fmt, `export follows the export region (${xuat})`);
+    assert.ok(file.rows()[1][15] instanceof Date, 'Ngày ghi: real date-time');
+    assert.equal(file.getRange(2, 16).getNumberFormat(), fmt + ' HH:mm:ss');
+    assert.equal(ssXuat.locale, locale);
+    assert.equal(w.updateNh.getSheetByName('Update_NganHang_DN').rows(33)[1][2], mongDoi, `MISA import sheet keeps text by the export region (${xuat})`);
   }
 });
 
 test('ChiTietUNC ledger stores the value date as a real date; web VN; the UNC report by the export region', () => {
-  for (const [xuat, mongDoi] of [['VN', '05/09/2026'], ['US', '09/05/2026']]) {
+  for (const [xuat, fmt] of [['VN', 'dd/MM/yyyy'], ['US', 'MM/dd/yyyy']]) {
     const { run, w, mo } = world(xuat);
     assert.equal(run('webCreateUNCFromDraft_')(['A1'], '2026-09-05').success, true);
     const sh = w.main.getSheetByName('ChiTietUNC');
@@ -43,8 +49,10 @@ test('ChiTietUNC ledger stores the value date as a real date; web VN; the UNC re
     assert.ok(r[12] instanceof Date && iso(r[12]) === '2026-09-05', 'ledger: real date (a text "05/09/2026" in a US sheet would become 9 May)');
     assert.equal(sh.getRange(2, 13).getNumberFormat(), 'MM/dd/yyyy');
     assert.equal(run('getLichSuUNC_')(homNayVN(), homNayVN())[0].ngayHieuLuc, '05/09/2026', 'web: dd/mm/yyyy');
-    const file = mo(run('exportLichSuUNCExcel_')(homNayVN(), homNayVN())).getSheets()[0].rows();
-    assert.equal(file[1][0], mongDoi, `UNC report follows the export region (${xuat})`);
+    const file = mo(run('exportLichSuUNCExcel_')(homNayVN(), homNayVN())).getSheets()[0];
+    assert.ok(file.rows()[1][0] instanceof Date && iso(file.rows()[1][0]) === '2026-09-05', 'UNC report: real date');
+    assert.equal(file.getRange(2, 1).getNumberFormat(), fmt, `UNC report follows the export region (${xuat})`);
+    assert.ok(file.rows()[1][7] instanceof Date, 'Thời gian tạo: real date-time');
   }
 });
 

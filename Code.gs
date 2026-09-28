@@ -118,7 +118,50 @@ const LINKS = {
 function _taoFileBaoCao_(ten, thuMuc) {
   const ss = SpreadsheetApp.create(ten);
   DriveApp.getFileById(ss.getId()).moveTo(thuMuc || DriveApp.getFolderById(getReportFolderId_()));
+  // 2026.9.47: file xuất mang locale của Vùng xuất (phân cách số, ngày) và giờ Việt Nam -
+  // ngày / giờ ghi dạng Date thật hiện đúng khi mở bằng Google Sheets hoặc tải về Excel.
+  ss.setSpreadsheetTimeZone("Asia/Ho_Chi_Minh");
+  ss.setSpreadsheetLocale(LOCALE_THEO_VUNG[_getExportRegion_()] || LOCALE_THEO_VUNG.VN);
   return ss;
+}
+/** Vùng xuất -> locale của file báo cáo tạo ra. */
+const LOCALE_THEO_VUNG = { VN: "vi_VN", US: "en_US" };
+
+/** 2026.9.47 (người dùng yêu cầu 28/09/2026): cột ngày của MỌI báo cáo xuất Excel là NGÀY
+ * THẬT (lọc / sắp xếp / tính được trong Excel), định dạng theo Vùng xuất - không còn ghi chuỗi.
+ * Đổi các ô của cột `cotNgay` / `cotNgayGio` (số cột 1-based trong `body`) sang Date (ô không
+ * đọc được ngày giữ nguyên) và đặt định dạng cột từ dòng `dongDau`. Gọi TRƯỚC khi ghi `body`
+ * (không khóa TEXT các cột này). Mẫu nhập liệu (file UNC nộp ngân hàng, sheet XuatMISA nhập
+ * MISA) giữ ngày dạng chữ như cũ - phần mềm nhận file có thể không đọc ô ngày. */
+function _cotNgayThatChoXuat_(sh, dongDau, body, cotNgay, cotNgayGio) {
+  const vung = _getExportRegionPreset_();
+  const soDong = Math.max(body.length, 1);
+  const doi = (cots, docNgay, fmt) => (cots || []).forEach(c => {
+    body.forEach(r => { const d = docNgay(r[c - 1]); if (d) r[c - 1] = d; });
+    sh.getRange(dongDau, c, soDong, 1).setNumberFormat(fmt);
+  });
+  doi(cotNgay, _docNgaySo_, vung.dateFmt);
+  doi(cotNgayGio, _docNgayGioXuat_, vung.dateTimeFmt);
+  return body;
+}
+/** Ngày từ dữ liệu web (Date, "yyyy-MM-dd" hoặc "dd/MM/yyyy" KIỂU VIỆT của utils.formatDate) -> Date; "" nếu không đọc được. */
+function _docNgayVN_(v) {
+  if (v instanceof Date) return isNaN(v.getTime()) ? "" : v;
+  const s = String(v || "").trim();
+  let m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (m) return _ngayVNTruaThat_(+m[1], +m[2], +m[3]);
+  m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  return m ? _ngayVNTruaThat_(+m[3], +m[2], +m[1]) : "";
+}
+/** Ngày giờ (Date, hoặc chuỗi "ngày giờ" theo Vùng xuất / dd/MM/yyyy HH:mm:ss) -> Date; "" nếu không đọc được. */
+function _docNgayGioXuat_(v) {
+  if (v instanceof Date) return isNaN(v.getTime()) ? "" : v;
+  const m = String(v || "").trim().match(/^(\d{1,2}\/\d{1,2}\/\d{4})[ T](\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+  if (!m) return _docNgaySo_(v);
+  const iso = _parseNgayXuatVeIso_(m[1]);
+  if (!iso) return "";
+  // Giờ Việt Nam (UTC+7) -> mốc UTC.
+  return new Date(Date.UTC(+iso.slice(0, 4), +iso.slice(5, 7) - 1, +iso.slice(8, 10), +m[2] - 7, +m[3], +(m[4] || 0)));
 }
 
 function _sheetUrl_(id) { return id ? `https://docs.google.com/spreadsheets/d/${id}/edit` : ""; }
@@ -3419,7 +3462,8 @@ function exportMisaTheoNgayExcel_(fDate, tDate) {
     _lockTextCols_(tomTat, [2, 5, 9], kq.dong.length + 5); // Số phiếu cân, Số TK, Số HĐ
     const headers = ["Ngày hạch toán", "Số phiếu cân", "Họ tên chủ rừng", "Tên người thụ hưởng", "Số TK", "Ngân hàng", "Thành tiền", "Nội dung", "Số hợp đồng"];
     tomTat.getRange(1, 1, 1, headers.length).setValues([headers]).setFontWeight("bold").setBackground("#d9d2e9");
-    const body = kq.dong.map(_tomTatDongMisa_).map(r => [r.ngayHachToan, _chu_(r.soPhieuCan), r.hoTenChuRung, r.tenThuHuong, _chu_(r.soTK), r.nganHang, r.thanhTien, r.noiDung, _chu_(r.soHD)]);
+    // Bảng tóm tắt là báo cáo -> Ngày hạch toán là ngày thật (sheet XuatMISA là mẫu nhập MISA, giữ chữ).
+    const body = _cotNgayThatChoXuat_(tomTat, 2, kq.dong.map(_tomTatDongMisa_).map(r => [r.ngayHachToan, _chu_(r.soPhieuCan), r.hoTenChuRung, r.tenThuHuong, _chu_(r.soTK), r.nganHang, r.thanhTien, r.noiDung, _chu_(r.soHD)]), [1]);
     tomTat.getRange(2, 1, body.length, headers.length).setValues(_dongAnToan_(body));
     _canhLeTheoKieu_(tomTat, 2, body);
     tomTat.getRange(2, 7, body.length, 1).setNumberFormat("#,##0");
@@ -3434,7 +3478,7 @@ function exportMisaTheoNgayExcel_(fDate, tDate) {
   }
 }
 
-/** choXuat = true: ngày theo Vùng xuất (file Báo Cáo UNC); mặc định kiểu VN cho web. */
+/** choXuat = true: ngày giữ giá trị gốc (file Báo Cáo UNC ghi ngày thật); mặc định chuỗi kiểu VN cho web. */
 function getLichSuUNC_(fDate, tDate, choXuat) {
   const CHUNK = 1000;
   const GIOI_HAN_KET_QUA = 1000;
@@ -3459,8 +3503,8 @@ function getLichSuUNC_(fDate, tDate, choXuat) {
       idHeThong: String(r[0] || ""), soTT: r[1], phuongThuc: String(r[2] || ""),
       tenNguoiNhan: String(r[4] || ""), soTK: String(r[5] || "").replace(/'/g, ""),
       nganHang: String(r[6] || ""), soTien: utils.parseNum(r[7]), noiDung: String(r[9] || ""),
-      ngayHieuLuc: choXuat ? _ngayXuat_(r[12]) : _ngayWeb_(r[12]), nguoiTao: String(r[13] || ""),
-      thoiGianTao: choXuat ? _ngayGioXuat_(d) : Utilities.formatDate(d, "GMT+7", "dd/MM/yyyy HH:mm:ss"),
+      ngayHieuLuc: choXuat ? r[12] : _ngayWeb_(r[12]), nguoiTao: String(r[13] || ""), // xuất: giá trị gốc - file tự định dạng
+      thoiGianTao: choXuat ? d : Utilities.formatDate(d, "GMT+7", "dd/MM/yyyy HH:mm:ss"),
       linkFile: String(r[15] || ""),
       chuRung: String(r[16] || ""), soHD: String(r[17] || "").replace(/'/g, "")
     });
@@ -3500,11 +3544,10 @@ function exportLichSuUNCExcel_(fDate, tDate) {
 
     const sheet = ss.getSheets()[0];
     sheet.setName("BaoCaoUNC");
-    // SỬA LỖI: trước khóa cột 3,4,11 - Ngày hiệu lực (cột 1) và Thời gian tạo (cột 8) không được khóa.
-    _lockTextCols_(sheet, [1, 3, 8, 11], rows.length + 5); // Ngày hiệu lực, Số TK, Thời gian tạo, Số HĐ
+    _lockTextCols_(sheet, [3, 11], rows.length + 5); // Số TK, Số HĐ (Ngày hiệu lực, Thời gian tạo: ngày thật - 2026.9.47)
     const headers = ["Ngày hiệu lực", "Tên người nhận", "Số TK", "Ngân hàng", "Số tiền", "Nội dung", "Người tạo", "Thời gian tạo", "Link file gốc", "Chủ rừng", "Số hợp đồng"];
     sheet.getRange(1, 1, 1, headers.length).setValues([headers]).setFontWeight("bold").setBackground("#d9d2e9");
-    const body = rows.map(r => [r.ngayHieuLuc, r.tenNguoiNhan, _chu_(r.soTK), r.nganHang, r.soTien, r.noiDung, r.nguoiTao, r.thoiGianTao, r.linkFile, r.chuRung, _chu_(r.soHD)]);
+    const body = _cotNgayThatChoXuat_(sheet, 2, rows.map(r => [r.ngayHieuLuc, r.tenNguoiNhan, _chu_(r.soTK), r.nganHang, r.soTien, r.noiDung, r.nguoiTao, r.thoiGianTao, r.linkFile, r.chuRung, _chu_(r.soHD)]), [1], [8]);
     sheet.getRange(2, 1, body.length, headers.length).setValues(_dongAnToan_(body));
     _canhLeTheoKieu_(sheet, 2, body);
     sheet.getRange(2, 5, body.length, 1).setNumberFormat("#,##0");
@@ -3590,13 +3633,13 @@ function exportChiTietDNTTDaChotExcel_(fDate, tDate) {
     const sheet = ss.getSheets()[0];
     sheet.setName("ChiTiet");
     // SỬA LỖI: trước khóa nhầm cột 3,4,5,7,17 (lệch với tiêu đề bên dưới).
-    _lockTextCols_(sheet, [1, 2, 3, 5, 15, 16], rows.length + 5); // Số phiếu cân, Ngày CK, Ngày nhập, Số HĐ, Số TK, Ngày ghi
+    _lockTextCols_(sheet, [1, 5, 15], rows.length + 5); // Số phiếu cân, Số HĐ, Số TK (Ngày CK / nhập / ghi: ngày thật - 2026.9.47)
     const headers = ["Số phiếu cân", "Ngày CK", "Ngày nhập", "Đại lý", "Số hợp đồng", "Họ tên chủ rừng", "Tên người thụ hưởng", "Địa chỉ", "KL (kg)", "KL (tấn)", "Đơn giá", "Thành tiền", "Nguồn gốc", "Ngân hàng", "Số tài khoản", "Ngày ghi"];
     sheet.getRange(1, 1, 1, headers.length).setValues([headers]).setFontWeight("bold").setBackground("#d9d2e9");
-    const body = rows.map(r => [
-      _chu_(r.soPhieuCan), _ngayXuat_(r.ngayCK), _ngayXuat_(r.ngayNhap), r.daiLy, _chu_(r.soHD), r.hoTenChuRung, r.tenThuHuong, r.diaChi,
-      r.klKg, r.klTan, r.donGia, r.thanhTien, r.nguonGoc, r.nganHang, _chu_(r.soTaiKhoan), _ngayGioXuat_(r.ngayGhi)
-    ]);
+    const body = _cotNgayThatChoXuat_(sheet, 2, rows.map(r => [
+      _chu_(r.soPhieuCan), r.ngayCK, r.ngayNhap, r.daiLy, _chu_(r.soHD), r.hoTenChuRung, r.tenThuHuong, r.diaChi,
+      r.klKg, r.klTan, r.donGia, r.thanhTien, r.nguonGoc, r.nganHang, _chu_(r.soTaiKhoan), r.ngayGhi
+    ]), [2, 3], [16]);
     sheet.getRange(2, 1, body.length, headers.length).setValues(_dongAnToan_(body));
     _canhLeTheoKieu_(sheet, 2, body);
     sheet.getRange(2, 9, body.length, 1).setNumberFormat("#,##0");
@@ -4249,7 +4292,7 @@ const BANG_DE_XUAT = {
   RONG_MAX: { MAC_DINH: 260, NOI_DUNG: 420, GHI_CHU: 340 },
   MUC_MOI_DONG: 2,                                               // Ghi chú: tối đa 2 mục mỗi dòng
   HE_SO_DONG: 1.45, PX_LE_DONG: 8,                               // cao 1 dòng chữ = cỡ chữ (px) × hệ số
-  NHOM_CAO_TOI_DA: 30                                            // quá số nhóm chiều cao -> 1 chiều cao chung
+  NHOM_CAO_TOI_DA: 40                                            // số lệnh đặt chiều cao tối đa (ngoài lệnh chiều cao chung)
 };
 function _pxCoChu_() { return BANG_DE_XUAT.CO_CHU * 96 / 72; }
 /** Bề rộng (px) ước tính của 1 dòng chữ ở cỡ BANG_DE_XUAT.CO_CHU. */
@@ -4323,13 +4366,32 @@ function _uocSoDongO_(text, rongPx) {
     return tong + soDong;
   }, 0);
 }
-/** Đặt chiều cao các dòng dữ liệu (từ dongDau) theo mảng caoPx với ÍT lệnh nhất: gom các
- * dòng liền nhau cùng chiều cao (setRowHeights); quá NHOM_CAO_TOI_DA nhóm thì dùng 1 chiều
- * cao chung (cao nhất). Trước đây đặt từng dòng một -> 2.000 hồ sơ mất hơn 4 phút. */
+/** Đặt chiều cao các dòng dữ liệu (từ dongDau) theo mảng caoPx với ÍT lệnh nhất: 1 lệnh
+ * đặt CẢ vùng bằng chiều cao nền, rồi chỉ đặt riêng (gom dòng liền nhau) các dòng cần CAO
+ * HƠN nền. Nền = chiều cao phổ biến nhất; nếu số nhóm cần đặt riêng vượt NHOM_CAO_TOI_DA thì
+ * nâng nền lên mức kế tiếp (dòng thấp hơn nền chỉ dư chút khoảng trắng, không bao giờ cắt chữ).
+ * Trước đây đặt từng dòng (2.000 hồ sơ > 4 phút); rồi quá 30 nhóm thì đặt MỌI dòng bằng dòng
+ * cao nhất -> 1 hồ sơ ghi chú dài làm cả bảng giãn rất lớn (người dùng báo 28/09/2026). */
 function _datChieuCaoDong_(sh, dongDau, caoPx) {
-  const nhom = [];
-  caoPx.forEach((h, i) => { const cuoi = nhom[nhom.length - 1]; if (cuoi && cuoi.h === h) cuoi.n++; else nhom.push({ tu: i, n: 1, h }); });
-  if (nhom.length > BANG_DE_XUAT.NHOM_CAO_TOI_DA) { sh.setRowHeights(dongDau, caoPx.length, Math.max(...caoPx)); return; }
+  if (!caoPx.length) return;
+  const dem = new Map();
+  caoPx.forEach(h => dem.set(h, (dem.get(h) || 0) + 1));
+  const mucCao = Array.from(dem.keys()).sort((a, b) => a - b);
+  const phoBien = Array.from(dem.entries()).sort((a, b) => b[1] - a[1] || a[0] - b[0])[0][0];
+  const nhomCaoHon = nen => {
+    const nhom = [];
+    caoPx.forEach((h, i) => {
+      if (h <= nen) return;
+      const cuoi = nhom[nhom.length - 1];
+      if (cuoi && cuoi.h === h && cuoi.tu + cuoi.n === i) cuoi.n++; else nhom.push({ tu: i, n: 1, h });
+    });
+    return nhom;
+  };
+  let nen = phoBien, nhom = nhomCaoHon(nen);
+  for (let k = mucCao.indexOf(nen) + 1; nhom.length > BANG_DE_XUAT.NHOM_CAO_TOI_DA && k < mucCao.length; k++) {
+    nen = mucCao[k]; nhom = nhomCaoHon(nen);
+  }
+  sh.setRowHeights(dongDau, caoPx.length, nen);
   nhom.forEach(g => sh.setRowHeights(dongDau + g.tu, g.n, g.h));
 }
 /** Căn lề theo KIỂU dữ liệu (người dùng yêu cầu 28/09/2026): cột toàn số -> phải; tên,
@@ -4341,7 +4403,7 @@ function _canhLeTheoKieu_(sh, dongDau, rows) {
   const soCot = rows[0].length;
   // Chuỗi Sheets tự đổi thành số khi ghi ("1", "14.83") cũng là số; chuỗi có dấu ' hoặc
   // số 0 đầu (STK, CCCD, Số HĐ - đã giữ dạng chữ) vẫn là chữ.
-  const laSo = v => typeof v === "number" || (typeof v === "string" && /^-?(0|[1-9]\d*)(\.\d+)?$/.test(v.trim()));
+  const laSo = v => typeof v === "number" || v instanceof Date || (typeof v === "string" && /^-?(0|[1-9]\d*)(\.\d+)?$/.test(v.trim()));
   const canh = Array.from({ length: soCot }, (_, c) => {
     const coGiaTri = rows.map(r => r[c]).filter(v => v !== "" && v !== null && v !== undefined);
     return coGiaTri.length && coGiaTri.every(laSo) ? "right" : "left";
@@ -4364,7 +4426,7 @@ function renderSheet1Full_(sheet, filteredRows, dateRange) {
   // ngày đã định dạng (không phải Date object thật), nếu không khóa,
   // Google Sheets sẽ tự "đoán" lại theo locale riêng của file mới tạo,
   // có thể ra sai thứ tự ngày/tháng so với Vùng Định Dạng đã chọn.
-  _lockTextCols_(sheet, [2, 6], filteredRows.length + 5); // SỬA (tối ưu tốc độ): dùng đúng số dòng thực tế thay vì mặc định 2000
+  _lockTextCols_(sheet, [6], filteredRows.length + 5); // Số tài khoản. Ngày đề nghị (cột 2): ngày thật theo Vùng xuất (2026.9.47)
   sheet.getRange("A1").setValue(TEN_DON_VI_BAO_CAO).setFontSize(10).setFontWeight("bold");
   sheet.getRange("A2:K2").merge().setValue("BẢNG ĐỀ XUẤT THANH TOÁN CHUYỂN KHOẢN CÔNG NỢ")
         .setFontSize(15).setFontWeight("bold").setHorizontalAlignment("center");
@@ -4375,12 +4437,13 @@ function renderSheet1Full_(sheet, filteredRows, dateRange) {
 
   const body = filteredRows.map((r, i) => [
     // Lần TT là SỐ (căn phải như các cột số); giá trị không phải số thì giữ nguyên chữ.
-    i + 1, _formatNgayXuat_(r.ngayISO || r.ngayDN), /^\d+$/.test(String(r.soLan).trim()) ? Number(r.soLan) : r.soLan, r.chuRung, r.nguoiNhan, _chu_(r.stk), r.nganHang,
+    i + 1, (r.ngayISO && _docNgaySo_(r.ngayISO)) || r.ngayDN || "", /^\d+$/.test(String(r.soLan).trim()) ? Number(r.soLan) : r.soLan, r.chuRung, r.nguoiNhan, _chu_(r.stk), r.nganHang,
     // v2026.7.2: diễn giải "Tổng KL: .. | Đã trả: .. | ..." xuống dòng từng phần cho dễ đọc.
     utils.parseNum(r.klTan), utils.parseNum(r.soTien), _noiDungHaiDong_(r.noiDungCK), _ghiChuBangDeXuat_(r.ghiChu)
   ]);
 
   if (body.length > 0) {
+    _cotNgayThatChoXuat_(sheet, 5, body, [2]);
     sheet.getRange(5, 1, body.length, 11).setValues(_dongAnToan_(body)).setBorder(true, true, true, true, true, true).setVerticalAlignment("middle");
 
     const M = BANG_DE_XUAT.RONG_MAX;
@@ -4389,7 +4452,7 @@ function renderSheet1Full_(sheet, filteredRows, dateRange) {
     const cot = c => body.map(r => r[c]);
     const rong = [
       _rongCotVua_(cot(0).map(String), headers[0]),
-      _rongCotVua_(cot(1), headers[1]),
+      _rongCotVua_(cot(1).map(v => v instanceof Date ? _formatNgayXuat_(v) : String(v)), headers[1]), // đo theo chữ hiển thị
       _rongCotVua_(cot(2).map(String), headers[2]),
       _rongCotVua_(cot(3), headers[3]),
       _rongCotVua_(cot(4), headers[4]),
@@ -4818,30 +4881,43 @@ function _laySoPhieuCanDaCoTrongMisa_(shUpdateNH) {
  * phiếu cân CHƯA có trong file - kiểm tra trùng + ghi trong cùng 1 khóa (v2026.6:
  * 2 lượt chạy song song không thể cùng thấy "chưa có" rồi cùng ghi trùng).
  * Dùng chung cho Tạo lại MISA (Hệ Thống) và Tạo bổ sung (Báo Cáo MISA). */
+/** 1 dòng Update_NganHang_DN (33 cột) - DÙNG CHUNG cho Duyệt (tự ghi) và Tạo lại / Tạo bổ
+ * sung MISA (B-10, người dùng chọn 28/09/2026 "1 hình thức như Duyệt"): Ngày hạch toán = Ngày
+ * chứng từ = Ngày CK (theo Vùng xuất), Nội dung CK "Thanh toán phiếu cân X", cột K Họ tên chủ
+ * rừng trên hồ sơ ĐNTT (sổ CT), STK / Ngân hàng / Người thụ hưởng như UNC. */
+function _dongMisa_(x, bankInfo) {
+  const sach = v => String(v == null ? "" : v).replace(/^'/, "").trim();
+  const soP = sach(x.soPhieuCan);
+  const noiDung = `Thanh toán phiếu cân ${soP}`;
+  const row = new Array(33).fill("");
+  row[0] = ""; row[1] = 0;
+  row[2] = _ngayXuat_(x.ngayCK); row[3] = row[2];
+  row[4] = _chu_(soP);
+  row[5] = _chu_(bankInfo.account); row[6] = bankInfo.name; row[7] = bankInfo.code;
+  row[8] = noiDung;
+  row[9] = _chu_(sach(x.cccdChuRung)); row[10] = x.hoTenChuRung; row[11] = x.diaChi;
+  row[12] = _chu_(sach(x.stk)); row[13] = x.nganHang; row[14] = x.tenThuHuong;
+  row[15] = _chu_(sach(x.cccdThuHuong));
+  row[19] = "VND"; row[21] = noiDung;
+  row[22] = "33111"; row[23] = "1121"; row[24] = utils.parseNum(x.thanhTien); row[32] = _chu_(sach(x.soHD));
+  return row;
+}
+
 function _ghiMisaChuaCo_(shUpdateNH, tempRows) {
   return _chayTrongKhoa_(() => {
     const soPDaCo = _laySoPhieuCanDaCoTrongMisa_(shUpdateNH);
     const chuaCo = tempRows.filter(item => !soPDaCo.has(utils.standardize(item.bank.soPhieuCan)));
     if (chuaCo.length > 0) {
       const bankInfo = getCompanyBankInfo_();
+      // B-10: cùng 1 kiểu dòng với lúc Duyệt (_dongMisa_) - cột K tên chủ rừng trên hồ sơ
+      // ĐNTT (sổ CT), Nội dung CK "Thanh toán phiếu cân X". Trước đây cột K lấy tên trong
+      // HD_NCC và Nội dung CK lấy của hồ sơ -> cùng 1 phiếu cân ra 2 dòng MISA khác nhau.
       const bankUpdateRows = chuaCo.map(item => {
-        const b = item.bank;
-        const row = new Array(33).fill("");
-        row[0] = ""; row[1] = 0;
-        row[2] = b.ngayCK; row[3] = b.ngayCK;
-        row[4] = _chu_(b.soPhieuCan);
-        row[5] = _chu_(bankInfo.account); row[6] = bankInfo.name; row[7] = bankInfo.code;
-        row[8] = b.noiDung || ("Thanh toán phiếu cân " + b.soPhieuCan);
-        // SỬA LỖI (rà soát phát hiện): STK/Ngân hàng/Tên thụ hưởng (cột
-        // 12/13/14) trước đây LUÔN lấy mặc định hợp đồng (b.hd[15/16/10])
-        // - dùng b.stk/b.nganHang/b.tenThuHuong (đã ưu tiên giá trị SỬA
-        // TAY nếu có - xem _gomChiTietChuyenKhoan_()) để khớp đúng với
-        // tiền đã chuyển thật (UNC).
-        row[9] = _chu_(_chuanHoaCCCD_(b.hd[6])); row[10] = b.hd[4]; row[11] = b.hd[5];
-        row[12] = _chu_(b.stk || ""); row[13] = b.nganHang; row[14] = b.tenThuHuong;
-        row[15] = _chu_(_chuanHoaCCCD_(b.hd[11])); row[19] = "VND"; row[21] = b.noiDung;
-        row[22] = "33111"; row[23] = "1121"; row[24] = b.thanhTien; row[32] = _chu_(b.soHD);
-        return row;
+        const b = item.bank, d = item.data;
+        return _dongMisa_({
+          ngayCK: b.ngayCKGoc, soPhieuCan: b.soPhieuCan, cccdChuRung: d[9], hoTenChuRung: d[8], diaChi: d[12],
+          stk: b.stk, nganHang: b.nganHang, tenThuHuong: b.tenThuHuong, cccdThuHuong: d[11], thanhTien: b.thanhTien, soHD: b.soHD
+        }, bankInfo);
       });
       const startRow = Math.max(2, shUpdateNH.getLastRow() + 1);
       shUpdateNH.getRange(startRow, 1, bankUpdateRows.length, 33).setValues(_dongAnToan_(bankUpdateRows));
@@ -4939,26 +5015,12 @@ function _tuDongXuatMisaKhiDong_(rowsChiTietY) {
     const rowsChuaCo = rowsChiTietY.filter(r => !soPDaCo.has(utils.standardize(String(r[2] || "").replace(/^'/, ""))));
     if (!rowsChuaCo.length) return; // tất cả đã có sẵn - không ghi thêm gì
 
-    const bankRows = rowsChuaCo.map(r => {
-      // Vị trí theo _xayChiTietDNTTRows_(): [0]idHeThong [1]lanTT [2]soPhieuCan
-      // [3]ngayCK [8]hoTenChuRung [9]cccdChuRung [10]tenThuHuong [11]cccdThuHuong
-      // [12]diaChi [23]nganHang [24]soTK [21]thanhTien [6]soHD
-      const soPClean = String(r[2] || "").replace(/^'/, "");
-      const soHDClean = String(r[6] || "").replace(/^'/, "");
-      const noiDung = `Thanh toán phiếu cân ${soPClean}`;
-      const row = new Array(33).fill("");
-      row[0] = ""; row[1] = 0;
-      row[2] = _ngayXuat_(r[3]); row[3] = row[2]; // Ngày hạch toán, Ngày chứng từ = Ngày CK - file MISA theo Vùng xuất
-      row[4] = _chu_(soPClean);
-      row[5] = _chu_(bankInfo.account); row[6] = bankInfo.name; row[7] = bankInfo.code;
-      row[8] = noiDung;
-      row[9] = r[9]; row[10] = r[8]; row[11] = r[12]; // CCCD chủ rừng, Họ tên chủ rừng (nguồn CT - đã đối soát), Địa chỉ
-      row[12] = r[24]; row[13] = r[23]; row[14] = r[10]; // STK, Ngân hàng, Tên người thụ hưởng
-      row[15] = r[11]; // CCCD người thụ hưởng
-      row[19] = "VND"; row[21] = noiDung;
-      row[22] = "33111"; row[23] = "1121"; row[24] = utils.parseNum(r[21]); row[32] = _chu_(soHDClean);
-      return row;
-    });
+    // Vị trí theo _xayChiTietDNTTRows_(): [2]soPhieuCan [3]ngayCK [6]soHD [8]hoTenChuRung
+    // [9]cccdChuRung [10]tenThuHuong [11]cccdThuHuong [12]diaChi [21]thanhTien [23]nganHang [24]soTK
+    const bankRows = rowsChuaCo.map(r => _dongMisa_({
+      ngayCK: r[3], soPhieuCan: r[2], cccdChuRung: r[9], hoTenChuRung: r[8], diaChi: r[12],
+      stk: r[24], nganHang: r[23], tenThuHuong: r[10], cccdThuHuong: r[11], thanhTien: r[21], soHD: r[6]
+    }, bankInfo));
 
     const startRow = Math.max(2, shUpdateNH.getLastRow() + 1);
     shUpdateNH.getRange(startRow, 1, bankRows.length, 33).setValues(_dongAnToan_(bankRows));
@@ -5037,7 +5099,7 @@ function _gomChiTietChuyenKhoan_(filteredRows, ctDaDoc) {
         utils.parseNum(pc[PC_COL.KL_KG]), utils.parseNum(pc[PC_COL.KL_KG])/1000, utils.parseNum(pc[PC_COL.DON_GIA_TC]),
         utils.parseNum(pc[PC_COL.THANH_TIEN]), pc[PC_COL.NGUON_GOC], nganHangThat, _chu_(stkThat), ctRow[2]
       ],
-      bank: { ngayCK: _formatNgayXuat_(ctRow[20]), soPhieuCan: ctRow[11], noiDung: parentInfo?.noiDungCK, thanhTien: ctRow[16], soHD: ctRow[19], hd: hd, tenThuHuong: tenThuHuong, nganHang: nganHangThat, stk: stkThat }
+      bank: { ngayCK: _formatNgayXuat_(ctRow[20]), ngayCKGoc: ctRow[20], soPhieuCan: ctRow[11], noiDung: parentInfo?.noiDungCK, thanhTien: ctRow[16], soHD: ctRow[19], hd: hd, tenThuHuong: tenThuHuong, nganHang: nganHangThat, stk: stkThat }
     });
   });
   return tempRows;
@@ -5103,7 +5165,7 @@ function renderSheet2Detail_(sheet, filteredRows, dateRange) {
   // Số hợp đồng(7), CCCD Chủ rừng(10), CCCD Người thụ hưởng(12), Số tài
   // khoản(25) - khóa TEXT thuần, chắc chắn không bị Sheets tự chuyển
   // thành số (mất số 0 đầu) dù dấu ' có được ghi kèm hay không.
-  _lockTextCols_(sheet, [3, 4, 5, 7, 10, 12, 25], tempRows.length + 5); // đúng số dòng phiếu cân của bảng (trước đây số hồ sơ)
+  _lockTextCols_(sheet, [3, 7, 10, 12, 25], tempRows.length + 5); // đúng số dòng phiếu cân của bảng; Ngày CK / nhập là ngày thật (2026.9.47)
   sheet.getRange("A1:Z1").merge().setValue("BẢNG KÊ CHI TIẾT CHUYỂN KHOẢN").setFontSize(16).setFontWeight("bold").setHorizontalAlignment("center");
   sheet.getRange("A2:Z2").merge().setValue("Thời gian: " + dateRange).setFontStyle("italic").setHorizontalAlignment("center");
 
@@ -5111,7 +5173,7 @@ function renderSheet2Detail_(sheet, filteredRows, dateRange) {
   sheet.getRange(4, 1, 1, headers.length).setValues([headers]).setBackground("#cfe2f3").setFontWeight("bold").setBorder(true, true, true, true, true, true).setHorizontalAlignment("center");
 
   if (tempRows.length > 0) {
-    const finalRows = tempRows.map((dong, index) => { dong[0] = index + 1; return dong; });
+    const finalRows = _cotNgayThatChoXuat_(sheet, 5, tempRows.map((dong, index) => { dong[0] = index + 1; return dong; }), [4, 5], [26]);
     const lastR = 5 + finalRows.length - 1;
     sheet.getRange(5, 1, finalRows.length, headers.length).setValues(_dongAnToan_(finalRows)).setBorder(true, true, true, true, true, true).setVerticalAlignment("middle");
     _canhLeTheoKieu_(sheet, 5, finalRows);
@@ -5196,11 +5258,10 @@ function renderSheet2DetailFromDraft_(sheet, filteredRows, dateRange) {
     const thuTuHoSo = new Map(filteredRows.map((r, i) => [r.idHeThong, i]));
     tempRows.forEach((row, i) => { row.viTri = i; });
     tempRows.sort((a, b) => thuTuHoSo.get(a.idHoSo) - thuTuHoSo.get(b.idHoSo) || a.viTri - b.viTri);
-    let finalRows = tempRows.map((row, index) => { const out = row.slice(); out[0] = index + 1; return out; });
-    // Khóa TEXT theo ĐÚNG số dòng phiếu cân của bảng (rà soát 28/09/2026: trước đây theo số hồ
-    // sơ - từ dòng thứ "số hồ sơ + 5" trở đi, ngày dạng chữ bị Sheets đọc lại thành ngày theo
-    // vùng của file mới, có thể lộn ngày/tháng như lỗi đã sửa ở renderSheet2Detail_).
-    _lockTextCols_(sheet, [3, 4, 5, 7, 10, 12, 25], 4 + finalRows.length + 5);
+    // Khóa TEXT theo ĐÚNG số dòng phiếu cân của bảng. Ngày CK / Ngày nhập / Thời gian nhập
+    // liệu là ngày thật theo Vùng xuất (2026.9.47 - trước đây chuỗi khóa TEXT).
+    _lockTextCols_(sheet, [3, 7, 10, 12, 25], 4 + tempRows.length + 5);
+    let finalRows = _cotNgayThatChoXuat_(sheet, 5, tempRows.map((row, index) => { const out = row.slice(); out[0] = index + 1; return out; }), [4, 5], [26]);
     const lastR = 5 + finalRows.length - 1;
     sheet.getRange(5, 1, finalRows.length, headers.length).setValues(_dongAnToan_(finalRows)).setBorder(true, true, true, true, true, true).setVerticalAlignment("middle");
     _canhLeTheoKieu_(sheet, 5, finalRows);
@@ -6874,11 +6935,11 @@ function exportTinhHinhThanhToanExcel_(fDate, tDate, filters) {
     sheet.setName("TinhHinhThanhToan");
     // SỬA (theo yêu cầu - file xuất ra cũng phải khóa): Số phiếu cân(1),
     // Ngày thanh toán/Ngày nhập/Giờ cân(2,3,4,5) - khóa TEXT thuần.
-    _lockTextCols_(sheet, [1, 2, 3, 4, 5], rows.length + 5); // SỬA (tối ưu tốc độ): dùng đúng số dòng thực tế thay vì mặc định 2000
+    _lockTextCols_(sheet, [1, 4, 5], rows.length + 5); // Số phiếu cân, Giờ cân 1/2 (Ngày thanh toán / nhập: ngày thật - 2026.9.47)
     const headers = ["Số phiếu cân", "Ngày thanh toán", "Ngày nhập", "Giờ cân 1", "Giờ cân 2", "Cân lần 1", "Cân lần 2", "Mặt hàng", "Khách hàng", "KL (kg)", "KL (tấn)", "Đơn giá", "Thành tiền", "Đại lý", "Nguồn gốc"];
     sheet.getRange(1, 1, 1, headers.length).setValues([headers]).setFontWeight("bold").setBackground("#d9d2e9");
     if (rows.length) {
-      const body = rows.map(r => [r.soPhieuCan, _formatNgayXuat_(r.ngayThanhToan), _formatNgayXuat_(r.ngayNhap1), r.gioCan1, r.gioCan2, r.canLan1, r.canLan2, r.matHang, r.khachHang, r.klKg, r.klTan, r.donGia, r.thanhTien, r.dl, r.ng]);
+      const body = _cotNgayThatChoXuat_(sheet, 2, rows.map(r => [r.soPhieuCan, _docNgayVN_(r.ngayThanhToan) || r.ngayThanhToan, _docNgayVN_(r.ngayNhap1) || r.ngayNhap1, r.gioCan1, r.gioCan2, r.canLan1, r.canLan2, r.matHang, r.khachHang, r.klKg, r.klTan, r.donGia, r.thanhTien, r.dl, r.ng]), [2, 3]);
       sheet.getRange(2, 1, body.length, headers.length).setValues(_dongAnToan_(body));
       _canhLeTheoKieu_(sheet, 2, body);
     }
@@ -6933,7 +6994,7 @@ function _renderPhanTichSheet_(sheet, report, fDate, tDate) {
   sheet.getRange(row, 1, 1, 12).merge().setValue("BÁO CÁO TỔNG HỢP NHẬP & THANH TOÁN GỖ KEO")
     .setFontSize(16).setFontWeight("bold").setHorizontalAlignment("center").setBackground("#4a6b57").setFontColor("#ffffff");
   row++;
-  sheet.getRange(row, 1, 1, 12).merge().setValue(`Từ ngày ${fDate} đến ngày ${tDate}`).setFontStyle("italic").setHorizontalAlignment("center");
+  sheet.getRange(row, 1, 1, 12).merge().setValue(`Từ ngày ${_formatNgayXuat_(fDate)} đến ngày ${_formatNgayXuat_(tDate)}`).setFontStyle("italic").setHorizontalAlignment("center");
   row += 2;
 
   const renderTable = (title, pivot) => {
@@ -6948,7 +7009,7 @@ function _renderPhanTichSheet_(sheet, report, fDate, tDate) {
     sheet.getRange(row, 1, 1, headerRow.length).setValues(_dongAnToan_([headerRow])).setFontWeight("bold").setBackground("#e8e2d5");
     row++;
     // 1 lệnh ghi cho cả bảng (trước đây 1 lệnh/ngày).
-    const lines = pivot.rows.map(r => [r.ngay, ...r.values, r.tongKl, r.tongGiaTri]);
+    const lines = _cotNgayThatChoXuat_(sheet, row, pivot.rows.map(r => [r.ngay, ...r.values, r.tongKl, r.tongGiaTri]), [1]); // ngày thật (2026.9.47)
     sheet.getRange(row, 1, lines.length, headerRow.length).setValues(_dongAnToan_(lines));
     _canhLeTheoKieu_(sheet, row, lines);
     row += lines.length;
@@ -7013,11 +7074,11 @@ function exportChiTietCongNoPhieuCanExcel_(ngayStr, filters) {
     // có thể toàn số (mất số 0 đầu), Ngày nhập/Giờ cân(2,3,4) có nguy cơ
     // bị Sheets tự chuyển thành Ngày/Giờ thật (cùng loại lỗi đã sửa ở
     // sheet Draft) - khóa TEXT thuần cho chắc chắn.
-    _lockTextCols_(sheet, [1, 2, 3, 4], rows.length + 5); // SỬA (tối ưu tốc độ): dùng đúng số dòng thực tế thay vì mặc định 2000
+    _lockTextCols_(sheet, [1, 3, 4], rows.length + 5); // Số phiếu cân, Giờ cân 1/2 (Ngày nhập 1: ngày thật - 2026.9.47)
     const headers = ["Số phiếu cân", "Ngày nhập 1", "Giờ cân 1", "Giờ cân 2", "Cân lần 1", "Cân lần 2", "Mặt hàng", "Khách hàng", "KL (kg)", "KL (tấn)", "Đơn giá", "Thành tiền", "Đại lý", "Nguồn gốc", "Chênh lệch ngày"];
     sheet.getRange(1, 1, 1, headers.length).setValues([headers]).setFontWeight("bold").setBackground("#d9d2e9");
     if (rows.length) {
-      const body = rows.map(r => [r.soPhieuCan, _formatNgayXuat_(r.ngayNhap1), r.gioCan1, r.gioCan2, r.canLan1, r.canLan2, r.matHang, r.khachHang, r.klKg, r.klTan, r.donGia, r.thanhTien, r.dl, r.ng, r.chenhLechNgay]);
+      const body = _cotNgayThatChoXuat_(sheet, 2, rows.map(r => [r.soPhieuCan, _docNgayVN_(r.ngayNhap1) || r.ngayNhap1, r.gioCan1, r.gioCan2, r.canLan1, r.canLan2, r.matHang, r.khachHang, r.klKg, r.klTan, r.donGia, r.thanhTien, r.dl, r.ng, r.chenhLechNgay]), [2]);
       sheet.getRange(2, 1, body.length, headers.length).setValues(_dongAnToan_(body));
       _canhLeTheoKieu_(sheet, 2, body);
     }
@@ -10062,6 +10123,7 @@ function exportBaoCaoDNTTFromDraft_(selectedIds) {
       rows.push({
         idHeThong: id,
         ngayDN: utils.formatDate(r[16]),
+        ngayISO: _docNgaySo_(r[16]) ? Utilities.formatDate(_docNgaySo_(r[16]), "GMT+7", "yyyy-MM-dd") : "", // Bảng Đề Xuất ghi ngày thật
         soLan: String(r[18] || ""),
         chuRung: String(r[2] || ""),
         nguoiNhan: String(r[3] || ""),

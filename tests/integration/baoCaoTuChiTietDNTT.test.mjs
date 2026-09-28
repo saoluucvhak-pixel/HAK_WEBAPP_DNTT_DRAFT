@@ -34,7 +34,7 @@ test('(a) the detail sheet of "Export report" is taken from ChiTietDNTT, without
   assert.equal(dong.length, 2);
   assert.deepEqual(dong.map(r => r[0]), [1, 2]);
   assert.ok(dong.every(r => r[7] === 'XE-TU-CHITIET'), 'values come from ChiTietDNTT');
-  assert.equal(dong[0][3], '15/01/2026', 'Ngày CK in the export region format');
+  assert.ok(dong[0][3] instanceof Date && dong[0][3].toISOString().slice(0, 10) === '2026-01-15', 'Ngày CK is a real date (2026.9.47)');
   assert.equal(ctx.docPc(), 0, 'weigh-ticket file not read');
 });
 
