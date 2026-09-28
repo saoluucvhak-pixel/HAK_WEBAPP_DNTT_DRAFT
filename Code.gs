@@ -3172,13 +3172,6 @@ function webCreateUNCFromDraft_(selectedIds, ngayHieuLuc, tkTrichNoOverride, tkT
 }
 
 /**
- * Tạo file Excel UNC (Ủy Nhiệm Chi) theo mẫu ngân hàng - SỬA (theo yêu
- * cầu): thay toàn bộ tham số "cứng" trong code gốc bằng cấu hình lấy từ
- * getUncConfig_()/getCompanyBankInfo_() - sửa được ở Cài Đặt, không cần
- * sửa code. Cũng khóa TEXT thuần cho TkNo/SoTK/TkPhi (tránh mất số 0
- * đầu) và khóa định dạng ngày theo Vùng Định Dạng Báo Cáo Xuất Excel.
- */
-/**
  * MỚI (theo yêu cầu - "sao không cho ghi để xem lại"): mỗi lần "Tạo File
  * UNC" trước đây CHỈ tạo 1 file Excel rời, không lưu vết gì lại trong
  * hệ thống - không xem lại lịch sử được. Giờ MỖI LẦN tạo UNC, GHI THÊM
@@ -3246,9 +3239,6 @@ function _ghiLichSuUNC_(filteredRows, uncCfg, toDate, fileUrl) {
   }
 }
 
-/** Đọc lại lịch sử UNC theo khoảng ngày (dựa vào Thời gian tạo) - dùng
- * chung kiểu đọc "từ cuối lên, dừng sớm" như getLichSuSuaDoi_() vì
- * ChiTietUNC cũng luôn ghi thêm vào cuối theo thứ tự thời gian. */
 /** Chuyển chuỗi ngày đã xuất (theo đúng Vùng Định Dạng Báo Cáo Xuất
  * Excel đang cấu hình - có thể dd/MM/yyyy hoặc MM/dd/yyyy) về lại
  * yyyy-MM-dd để so sánh lọc theo khoảng ngày - dùng cho việc XEM/LỌC
@@ -3642,6 +3632,9 @@ function exportMisaTheoNgayExcel_(fDate, tDate) {
 }
 
 /** choXuat = true: ngày giữ giá trị gốc (file Báo Cáo UNC ghi ngày thật); mặc định chuỗi kiểu VN cho web. */
+/** Đọc lại lịch sử UNC theo khoảng ngày (dựa vào Thời gian tạo) - dùng
+ * chung kiểu đọc "từ cuối lên, dừng sớm" như getLichSuSuaDoi_() vì
+ * ChiTietUNC cũng luôn ghi thêm vào cuối theo thứ tự thời gian. */
 function getLichSuUNC_(fDate, tDate, choXuat) {
   const CHUNK = 1000;
   const GIOI_HAN_KET_QUA = 1000;
@@ -3850,6 +3843,13 @@ function _kiemTraTrungUNC_(filteredRows) {
   }
 }
 
+/**
+ * Tạo file Excel UNC (Ủy Nhiệm Chi) theo mẫu ngân hàng - SỬA (theo yêu
+ * cầu): thay toàn bộ tham số "cứng" trong code gốc bằng cấu hình lấy từ
+ * getUncConfig_()/getCompanyBankInfo_() - sửa được ở Cài Đặt, không cần
+ * sửa code. Cũng khóa TEXT thuần cho TkNo/SoTK/TkPhi (tránh mất số 0
+ * đầu) và khóa định dạng ngày theo Vùng Định Dạng Báo Cáo Xuất Excel.
+ */
 function runCreateUNCOnly_(filteredRows, toDate, tkTrichNoOverride, tkThuPhiOverride) {
   try {
     // MỚI (theo yêu cầu - "có chức năng loại trùng không"): UNC là hành
@@ -4769,11 +4769,6 @@ function _ghiChiTietDNTT_N_(idHeThongList, ctRowsDaLoc, layLanTT, layThongTinNha
   }
 }
 
-/** Lúc "Đóng Thanh Toán": chuyển các dòng N (đã có sẵn từ "In Báo Cáo
- * ĐNTT") thành Y cho các hồ sơ vừa chốt. Nếu hồ sơ NÀO chưa từng "In
- * Báo Cáo ĐNTT" (không có dòng N sẵn) - tính bù trực tiếp từ dữ liệu CT
- * vừa chốt (ctToCommit), ghi thẳng là Y. Trả về TOÀN BỘ dòng Y vừa xử
- * lý (28 cột) để dùng tự động tạo MISA ngay - không cần đọc lại. */
 /**
  * MỚI (theo yêu cầu - "Chi Tiết Chuyển Khoản không có đầy đủ ngày -
  * hàm chạy đồng bộ từ đầu"): ChiTietDNTT chỉ được ghi TỪ KHI tính năng
@@ -4880,6 +4875,11 @@ function dongBoChiTietDNTTTuDauLichSu_(gioiHanMoiLan) {
   }
 }
 
+/** Lúc "Đóng Thanh Toán": chuyển các dòng N (đã có sẵn từ "In Báo Cáo
+ * ĐNTT") thành Y cho các hồ sơ vừa chốt. Nếu hồ sơ NÀO chưa từng "In
+ * Báo Cáo ĐNTT" (không có dòng N sẵn) - tính bù trực tiếp từ dữ liệu CT
+ * vừa chốt (ctToCommit), ghi thẳng là Y. Trả về TOÀN BỘ dòng Y vừa xử
+ * lý (28 cột) để dùng tự động tạo MISA ngay - không cần đọc lại. */
 function _chuyenChiTietDNTTSangYVaTinhBu_(validIds, ctToCommit, mapSoLan, mapNhanTien112) {
   const sh = _getChiTietDnttSheet_();
   const idSet = new Set(validIds);
@@ -4959,10 +4959,6 @@ function _chuyenChiTietDNTTSangYVaTinhBu_(validIds, ctToCommit, mapSoLan, mapNha
   return rowsDaChuyenY;
 }
 
-/** Tự động ghi MISA (Update_NganHang_DN) NGAY lúc "Đóng Thanh Toán" -
- * SỬA (theo yêu cầu): CHỈ GHI THÊM (append) vào cuối, KHÔNG còn xóa/ghi
- * lại TOÀN BỘ sheet mỗi lần như trước - Đóng Thanh Toán vì vậy nhanh và
- * ổn định hơn (không phụ thuộc kích thước lịch sử Update_NganHang_DN). */
 /**
  * MỚI (theo yêu cầu - "3 bảng con phải thay đổi theo bảng mẹ"):
  * ChiTietDNTT, ChiTietUNC, Update_NganHang_DN đều là BẢNG CON của
@@ -5033,17 +5029,6 @@ function _laySoPhieuCanDaCoTrongMisa_(shUpdateNH) {
   return soPDaCo;
 }
 
-/**
- * MỚI (theo yêu cầu - "đưa vào Hệ Thống, dùng batch 150 hồ sơ/lượt"):
- * bản DỰ PHÒNG của "Xuất MISA" - dùng cho khoảng NGÀY (không cần chọn
- * tay từng hồ sơ) - xử lý THEO LÔ (offset), trình duyệt tự gọi lại tới
- * khi xong, tránh timeout với khoảng ngày rộng/nhiều hồ sơ. Dùng lại
- * ĐÚNG logic _gomChiTietChuyenKhoan_() + loại trùng đã có.
- */
-/** Ghi vào Update_NganHang_DN các dòng (từ _gomChiTietChuyenKhoan_) có Số
- * phiếu cân CHƯA có trong file - kiểm tra trùng + ghi trong cùng 1 khóa (v2026.6:
- * 2 lượt chạy song song không thể cùng thấy "chưa có" rồi cùng ghi trùng).
- * Dùng chung cho Tạo lại MISA (Hệ Thống) và Tạo bổ sung (Báo Cáo MISA). */
 /** 1 dòng Update_NganHang_DN (33 cột) - DÙNG CHUNG cho Duyệt (tự ghi) và Tạo lại / Tạo bổ
  * sung MISA (B-10, người dùng chọn 28/09/2026 "1 hình thức như Duyệt"): Ngày hạch toán = Ngày
  * chứng từ = Ngày CK (theo Vùng xuất), Nội dung CK "Thanh toán phiếu cân X", cột K Họ tên chủ
@@ -5066,6 +5051,10 @@ function _dongMisa_(x, bankInfo) {
   return row;
 }
 
+/** Ghi vào Update_NganHang_DN các dòng (từ _gomChiTietChuyenKhoan_) có Số
+ * phiếu cân CHƯA có trong file - kiểm tra trùng + ghi trong cùng 1 khóa (v2026.6:
+ * 2 lượt chạy song song không thể cùng thấy "chưa có" rồi cùng ghi trùng).
+ * Dùng chung cho Tạo lại MISA (Hệ Thống) và Tạo bổ sung (Báo Cáo MISA). */
 function _ghiMisaChuaCo_(shUpdateNH, tempRows) {
   return _chayTrongKhoa_(() => {
     const soPDaCo = _laySoPhieuCanDaCoTrongMisa_(shUpdateNH);
@@ -5089,6 +5078,13 @@ function _ghiMisaChuaCo_(shUpdateNH, tempRows) {
     return chuaCo;
   });
 }
+/**
+ * MỚI (theo yêu cầu - "đưa vào Hệ Thống, dùng batch 150 hồ sơ/lượt"):
+ * bản DỰ PHÒNG của "Xuất MISA" - dùng cho khoảng NGÀY (không cần chọn
+ * tay từng hồ sơ) - xử lý THEO LÔ (offset), trình duyệt tự gọi lại tới
+ * khi xong, tránh timeout với khoảng ngày rộng/nhiều hồ sơ. Dùng lại
+ * ĐÚNG logic _gomChiTietChuyenKhoan_() + loại trùng đã có.
+ */
 function webTaoLaiMisaTheoNgay_(fDate, tDate, offset, gioiHanMoiLan) {
   try {
     const GIOI_HAN = Math.max(20, Math.min(300, parseInt(gioiHanMoiLan, 10) || 150));
@@ -5162,6 +5158,10 @@ function webTaoLaiUNCTheoNgay_(fDate, tDate, ngayHieuLuc, offset, gioiHanMoiLan,
   }
 }
 
+/** Tự động ghi MISA (Update_NganHang_DN) NGAY lúc "Đóng Thanh Toán" -
+ * SỬA (theo yêu cầu): CHỈ GHI THÊM (append) vào cuối, KHÔNG còn xóa/ghi
+ * lại TOÀN BỘ sheet mỗi lần như trước - Đóng Thanh Toán vì vậy nhanh và
+ * ổn định hơn (không phụ thuộc kích thước lịch sử Update_NganHang_DN). */
 function _tuDongXuatMisaKhiDong_(rowsChiTietY) {
   try {
     if (!rowsChiTietY || !rowsChiTietY.length) return;
@@ -7223,12 +7223,6 @@ function _dailyRefreshAllCachesThucHien_() {
   return { cache, tienDoCount, congNo, range };
 }
 
-/**
- * MỚI (mục 11): hàm chạy nền lúc 15h HÀNG NGÀY - tổng hợp cho ĐÚNG "ngày
- * hôm qua" (so với lúc trigger chạy): Phân Tích Nhập/Thanh Toán theo
- * NG & ĐL + Chi Tiết Công Nợ theo Phiếu Cân. Bật bằng
- * setupDaily15hTrigger_() (menu/Cài Đặt) - chạy 1 lần.
- */
 /** Xuất PDF từ 1 Google Sheet (dùng endpoint export chính thức của
  * Google) - trả về Blob PDF. */
 function _exportSheetAsPdf_(ssId) {
@@ -7443,6 +7437,12 @@ function _tuNgayTongHop15h_(ngayHomQua, homNay) {
 }
 
 /** Trigger "Tổng hợp 15h" - đo thời gian chạy (xem _chayTriggerCoDo_). */
+/**
+ * MỚI (mục 11): hàm chạy nền lúc 15h HÀNG NGÀY - tổng hợp cho ĐÚNG "ngày
+ * hôm qua" (so với lúc trigger chạy): Phân Tích Nhập/Thanh Toán theo
+ * NG & ĐL + Chi Tiết Công Nợ theo Phiếu Cân. Bật bằng
+ * setupDaily15hTrigger_() (menu/Cài Đặt) - chạy 1 lần.
+ */
 function daily15hRefresh_() {
   return _chayTriggerCoDo_("daily15hRefresh_", _daily15hRefreshThucHien_);
 }
@@ -8417,7 +8417,6 @@ function webRunCongNoRefreshNow_(fDate, tDate) {
   }
 }
 
-/** #2 (bản CÔNG KHAI cho Web App): tương tự getDebtByCustomer_(). */
 /** MỚI (mục 7): đọc Công Nợ theo Hợp Đồng TỪ CHÍNH sheet
  * HopDongTienDo_DRAFT (đã ghép sẵn cột Công Nợ - xem
  * refreshHopDongTienDoCache_()) nếu khoảng ngày khớp cache hiện tại;
@@ -9133,9 +9132,6 @@ function runDeleteDraftRecord_(idKey) {
 // ============================================================
 
 /**
- * Số liệu tổng quan cho Trang chủ.
- */
-/**
  * MỚI (theo yêu cầu - code chạy độc lập): kiểm tra múi giờ của PROJECT
  * Apps Script này - CỰC KỲ QUAN TRỌNG vì mọi lịch chạy nền (7:30, 13:00,
  * 15:00, cửa sổ 7:30-19:00) và cả cách tính "Lần Thanh Toán" theo giờ
@@ -9197,6 +9193,9 @@ function getDraftBadgeCount_() {
   }
 }
 
+/**
+ * Số liệu tổng quan cho Trang chủ.
+ */
 function getDashboardStats_() {
   const result = {
     draftSetup: true, // MỚI: File Nháp giờ LÀ chính file đang chạy - luôn sẵn sàng, tự tạo sheet nếu thiếu (xem getDraftSheets_())
@@ -9563,6 +9562,17 @@ function _htmlPhieuChiTietThanhToan_(r, luc, tieuDe) {
   </body></html>`;
 }
 
+/** Tên hiển thị các trường hồ sơ Nháp (nhật ký "trước → sau"). */
+const TRUONG_HO_SO = { chuRung: "Chủ rừng", nguoiNhan: "Người nhận", nganHang: "Ngân hàng", stk: "STK", noiDungCK: "Nội dung CK", soHD: "Số HĐ", slDuKien: "SL HĐ dự kiến" };
+/** Các trường của 1 dòng 112 Nháp theo TRUONG_HO_SO (chuỗi, bỏ dấu ' đầu). */
+function _truongHoSo_(row) {
+  const chu = v => String(v == null ? "" : v).replace(/^'+/, "").trim();
+  return { chuRung: chu(row[2]), nguoiNhan: chu(row[3]), nganHang: chu(row[4]), stk: chu(row[5]), noiDungCK: chu(row[7]), soHD: chu(row[8]), slDuKien: chu(row[17]) };
+}
+/** Nhật ký "trước → sau": chỉ các trường thật sự đổi, vd `Người nhận: "A" → "B"; STK: "1" → "2"`. */
+function _moTaThayDoi_(truoc, sau, nhan) {
+  return Object.keys(nhan).filter(k => truoc[k] !== sau[k]).map(k => `${nhan[k]}: "${truoc[k]}" → "${sau[k]}"`).join("; ");
+}
 /**
  * Sửa thông tin 1 hồ sơ Nháp (các trường cho phép sửa tay: Chủ rừng,
  * Người nhận, Ngân hàng, STK, Số HĐ, Nội dung CK). Số tiền/lũy kế vẫn
@@ -9575,17 +9585,6 @@ function _htmlPhieuChiTietThanhToan_(r, luc, tieuDe) {
  * này giờ đồng bộ các trường liên quan xuống MỌI dòng Draft CT của
  * cùng ID_KEY.
  */
-/** Tên hiển thị các trường hồ sơ Nháp (nhật ký "trước → sau"). */
-const TRUONG_HO_SO = { chuRung: "Chủ rừng", nguoiNhan: "Người nhận", nganHang: "Ngân hàng", stk: "STK", noiDungCK: "Nội dung CK", soHD: "Số HĐ", slDuKien: "SL HĐ dự kiến" };
-/** Các trường của 1 dòng 112 Nháp theo TRUONG_HO_SO (chuỗi, bỏ dấu ' đầu). */
-function _truongHoSo_(row) {
-  const chu = v => String(v == null ? "" : v).replace(/^'+/, "").trim();
-  return { chuRung: chu(row[2]), nguoiNhan: chu(row[3]), nganHang: chu(row[4]), stk: chu(row[5]), noiDungCK: chu(row[7]), soHD: chu(row[8]), slDuKien: chu(row[17]) };
-}
-/** Nhật ký "trước → sau": chỉ các trường thật sự đổi, vd `Người nhận: "A" → "B"; STK: "1" → "2"`. */
-function _moTaThayDoi_(truoc, sau, nhan) {
-  return Object.keys(nhan).filter(k => truoc[k] !== sau[k]).map(k => `${nhan[k]}: "${truoc[k]}" → "${sau[k]}"`).join("; ");
-}
 function updateDraft112Info_(idKey, updates) {
   let lock;
   try {
@@ -9778,20 +9777,6 @@ function removePhieuCanFromDraft_(idCT) {
   } finally { if (lock) lock.releaseLock(); }
 }
 
-/**
- * Wrapper cho Web App: chốt thanh toán cho danh sách ID được chọn từ
- * màn "Danh Sách Nháp", trả về object thay vì chuỗi để JS dễ xử lý.
- */
-/**
- * MỚI (mục U): "Xác Nhận" - chuyển các hồ sơ đã CÓ Số tiền (Chờ ĐNTT)
- * sang trạng thái "Đang ĐNTT" (đã Xác Nhận, chờ Duyệt). Chỉ sau bước
- * này mới được phép in Báo Cáo ĐNTT (mẫu excel) và bấm "Duyệt" (Đóng
- * Thanh Toán). Hồ sơ chưa tính tiền (Số tiền <= 0) bị bỏ qua kèm cảnh báo.
- */
-/** MỚI (theo yêu cầu): kiểm tra CHÉO tên Khách hàng của từng phiếu cân
- * (tra từ PhieuCan_DN) so với Chủ rừng của hồ sơ - dùng để cảnh báo
- * trước khi Xác Nhận chuyển ĐNTT (đúng bước "sau khi chọn chuyển sang
- * ĐNTT" theo yêu cầu). */
 // ============================================================
 // MỚI (theo yêu cầu): ĐỐI SOÁT TÊN KHÁCH HÀNG - so sánh "Chủ rừng" ở
 // DNTT_GK_DN_CT (bản CHÍNH, đã chốt) với "Khách hàng" tương ứng ở
@@ -10331,6 +10316,16 @@ function _timPhieuCanKhacTenChuRung_(idSet) {
   return mismatches;
 }
 
+/**
+ * MỚI (mục U): "Xác Nhận" - chuyển các hồ sơ đã CÓ Số tiền (Chờ ĐNTT)
+ * sang trạng thái "Đang ĐNTT" (đã Xác Nhận, chờ Duyệt). Chỉ sau bước
+ * này mới được phép in Báo Cáo ĐNTT (mẫu excel) và bấm "Duyệt" (Đóng
+ * Thanh Toán). Hồ sơ chưa tính tiền (Số tiền <= 0) bị bỏ qua kèm cảnh báo.
+ */
+/** MỚI (theo yêu cầu): kiểm tra CHÉO tên Khách hàng của từng phiếu cân
+ * (tra từ PhieuCan_DN) so với Chủ rừng của hồ sơ - dùng để cảnh báo
+ * trước khi Xác Nhận chuyển ĐNTT (đúng bước "sau khi chọn chuyển sang
+ * ĐNTT" theo yêu cầu). */
 function runXacNhanDNTT_(selectedIds, forceConfirm) {
   let lock;
   try {
@@ -10398,12 +10393,6 @@ function runXacNhanDNTT_(selectedIds, forceConfirm) {
   } finally { if (lock) lock.releaseLock(); }
 }
 
-/**
- * MỚI (mục W): "Về Chờ ĐNTT" - chuyển 1 hồ sơ đang "Đang ĐNTT" (đã Xác
- * Nhận) NGƯỢC LẠI về "Chờ ĐNTT" - vì Sửa/Xóa CHỈ được phép thực hiện ở
- * trạng thái "Chờ ĐNTT" (mục W: khóa Sửa/Xóa ở "Chưa ĐNTT" và "Đang
- * ĐNTT" để tránh sửa nhầm hồ sơ đã tính tiền/đã xác nhận).
- */
 /** Các dòng ChiTietUNC (UNC đã tạo) của hồ sơ `id`: [{stk, nguoiNhan, soTien, ngayHieuLuc, taoLuc, link}]. */
 function _uncDaTaoCuaHoSo_(id) {
   const sh = _getChiTietUncSheet_();
@@ -10422,6 +10411,12 @@ function _uncDaTaoCuaHoSo_(id) {
 // B-14 (rà soát 28/09/2026): hồ sơ đã có UNC mà về "Chờ ĐNTT" thì sửa được STK / số tiền rồi
 // tạo UNC lần 2 - nếu file UNC cũ đã nộp ngân hàng là chuyển tiền 2 lần / sai tài khoản. Nay
 // phải xác nhận rõ (dongYDaCoUnc) và nhật ký ghi lại UNC cũ.
+/**
+ * MỚI (mục W): "Về Chờ ĐNTT" - chuyển 1 hồ sơ đang "Đang ĐNTT" (đã Xác
+ * Nhận) NGƯỢC LẠI về "Chờ ĐNTT" - vì Sửa/Xóa CHỈ được phép thực hiện ở
+ * trạng thái "Chờ ĐNTT" (mục W: khóa Sửa/Xóa ở "Chưa ĐNTT" và "Đang
+ * ĐNTT" để tránh sửa nhầm hồ sơ đã tính tiền/đã xác nhận).
+ */
 function runHuyXacNhanDNTT_(idKey, dongYDaCoUnc) {
   let lock;
   try {
@@ -10453,6 +10448,10 @@ function runHuyXacNhanDNTT_(idKey, dongYDaCoUnc) {
   } finally { if (lock) lock.releaseLock(); }
 }
 
+/**
+ * Wrapper cho Web App: chốt thanh toán cho danh sách ID được chọn từ
+ * màn "Danh Sách Nháp", trả về object thay vì chuỗi để JS dễ xử lý.
+ */
 function webConfirmPayment_(selectedIds, payDateStr) {
   const msg = runConfirmPayment_(selectedIds, payDateStr);
   return { success: msg.indexOf("✅") === 0, message: msg };
@@ -11013,22 +11012,6 @@ function _chatbotTraLoiDuPhong_(cauHoi) {
     'hoặc vào Cài Đặt để dán API key Gemini (Google AI Studio) cho chatbot.';
 }
 
-/**
- * #Web: hàm chính chatbot - gọi từ widget. cauHoi: chuỗi câu hỏi.
- * lichSuHoiDap: mảng {vaiTro:'nguoi'|'bot', noiDung} - vài lượt gần nhất
- * để hiểu câu hỏi nối tiếp (không cần idGoiY vì đây là trợ lý tự do,
- * không tra cứu đối tượng dữ liệu cụ thể theo ID).
- */
-/**
- * MỚI (theo yêu cầu - "sao nó không truy cập được"): TRA DỮ LIỆU THẬT
- * TRƯỚC (đúng nguyên tắc "không để AI tự bịa số liệu") - lấy nhanh số
- * liệu tổng quan hiện tại (giống Trang Chủ), đưa vào ngữ cảnh cho AI
- * diễn giải câu trả lời tự nhiên. CHỈ lấy số liệu TỔNG QUAN (không phải
- * chi tiết từng hồ sơ/số tiền cá nhân) - đủ để trả lời "hôm nay thế
- * nào", "còn bao nhiêu hồ sơ chờ duyệt"... Nếu lỗi (chưa kết nối File
- * Chính...), trả về null - chatbot vẫn hoạt động ở chế độ không có số
- * liệu (như trước).
- */
 /** P-04 (rà soát 28/09/2026): phần số liệu NẶNG cho Trợ lý AI (công nợ phiếu cân / KH / HĐ,
  * Đại lý - Nguồn gốc) - giữ trong bộ nhớ đệm 10 phút; khóa gắn mốc "sổ có thay đổi"
  * (CONGNO_LUC.THAY_DOI, ghi mỗi lần Duyệt / Mở Đóng TT) nên Duyệt xong hỏi lại là có số mới.
@@ -11095,6 +11078,16 @@ function _soLieuNangChoChatbotTinh_(tuNgay90Ngay, homNayIso) {
  * ưu tiên hồ sơ/khách hàng có công nợ LỚN NHẤT trước - đây thường là
  * điều người dùng quan tâm nhất khi hỏi.
  */
+/**
+ * MỚI (theo yêu cầu - "sao nó không truy cập được"): TRA DỮ LIỆU THẬT
+ * TRƯỚC (đúng nguyên tắc "không để AI tự bịa số liệu") - lấy nhanh số
+ * liệu tổng quan hiện tại (giống Trang Chủ), đưa vào ngữ cảnh cho AI
+ * diễn giải câu trả lời tự nhiên. CHỈ lấy số liệu TỔNG QUAN (không phải
+ * chi tiết từng hồ sơ/số tiền cá nhân) - đủ để trả lời "hôm nay thế
+ * nào", "còn bao nhiêu hồ sơ chờ duyệt"... Nếu lỗi (chưa kết nối File
+ * Chính...), trả về null - chatbot vẫn hoạt động ở chế độ không có số
+ * liệu (như trước).
+ */
 function _layNgayVaSoLieuThatChoChatbot_() {
   try {
     const stats = getDashboardStats_();
@@ -11128,6 +11121,12 @@ Số liệu THẬT đang có trong hệ thống (hồ sơ Nháp đọc trực ti
   }
 }
 
+/**
+ * #Web: hàm chính chatbot - gọi từ widget. cauHoi: chuỗi câu hỏi.
+ * lichSuHoiDap: mảng {vaiTro:'nguoi'|'bot', noiDung} - vài lượt gần nhất
+ * để hiểu câu hỏi nối tiếp (không cần idGoiY vì đây là trợ lý tự do,
+ * không tra cứu đối tượng dữ liệu cụ thể theo ID).
+ */
 function TRA_LOI_CHATBOT_(cauHoi, lichSuHoiDap) {
   try {
     cauHoi = String(cauHoi || '').trim();
