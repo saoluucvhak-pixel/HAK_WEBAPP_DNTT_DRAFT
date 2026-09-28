@@ -2,7 +2,17 @@
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/). Phiên bản theo `NĂM.ĐỢT.SỬA`; thay đổi làm đổi hành vi nghiệp vụ (⚖️) sẽ tăng số ĐỢT và ghi rõ đã được người dùng đồng ý.
 
-## [Chưa phát hành] — chỉ thêm test (code web app không đổi, vẫn 2026.9.17)
+## [2026.9.18] — Tạo lại MISA chọn đúng ngày thanh toán (người dùng báo 28/09/2026)
+
+### Fixed
+- **Hệ Thống › Tạo Lại MISA** chọn hồ sơ theo **Ngày ĐN** (ngày lập đề nghị, cột ngày của sổ 112), trong khi Báo Cáo MISA, file xuất, Tạo bổ sung, Dọn dẹp và chính dòng MISA (Ngày hạch toán) đều theo **Ngày CK** (ngày thanh toán). Hậu quả: chọn đúng ngày thanh toán thì báo “không có hồ sơ”; chọn ngày lập ĐN thì tạo ra dòng MISA mang ngày khác, xem Báo Cáo MISA cùng khoảng không thấy. Nay Tạo lại MISA chọn theo **Ngày CK**; ô ngày ghi rõ “Ngày CK”.
+- Chọn dòng CT theo Ngày CK (`_ctTheoNgayCK_`) và lấy hồ sơ theo mã (`_hoSoDaChotTheoMa_`) dùng chung cho Tạo lại MISA, kiểm tra thiếu và Tạo bổ sung.
+- Tạo lại **UNC** vẫn chọn theo Ngày ĐN như trước (khớp Báo Cáo Thanh Toán / 112).
+
+### Tests
+- 115 test (thêm test Tạo lại MISA theo Ngày CK — thất bại trên 2026.9.17).
+
+## [2026.9.17 + test] — chỉ thêm test (code web app không đổi)
 
 ### Tests
 - 114 test. Thêm 2 test **cờ “đang khóa sổ”** trên file Phiếu Cân (Developer Metadata `HAK_KHOA_SO_NAM_DANG_CHAY`, có từ 2026.9.10 nhưng trước đây chưa được kiểm chứng — mock chưa hỗ trợ nên lệnh đặt cờ lỗi và bị bỏ qua trong test): suốt lúc xóa dòng PhieuCan_DN có đúng 1 cờ `{nam, batDau, ung: "DNTT"}` hiển thị DOCUMENT; xem trước không đặt cờ; xong thì gỡ; lỗi giữa chừng vẫn gỡ; cờ sót từ lần bị ngắt được thay. Đã thử bỏ đặt cờ / bỏ gỡ cờ → test đỏ. Mock thêm Developer Metadata cấp spreadsheet.

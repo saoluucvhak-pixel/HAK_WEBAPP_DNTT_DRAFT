@@ -142,3 +142,16 @@ test('"Tạo bổ sung" is an accounting action (view-only users cannot run it)'
   assert.equal(run('API_ROUTES').webTaoBoSungMisa.quyen, 'NGHIEP_VU');
   assert.equal(run('webTaoBoSungMisa_')('', '2026-09-26').success, false);
 });
+
+test('"Tạo lại MISA" picks records by payment date (Ngày CK) like the MISA report, not by request date', () => {
+  const { run, nh } = worldDaChot(); // lập ĐN 20/09, thanh toán (Ngày CK) 26/09
+  nh.data = [nh.data[0]];
+  const khong = run('webTaoLaiMisaTheoNgay_')('2026-09-20', '2026-09-20', 0, 150);
+  assert.deepEqual([khong.count, khong.xong], [0, true], 'the request date is not the payment date');
+  assert.equal(nh.getLastRow(), 1);
+  const kq = run('webTaoLaiMisaTheoNgay_')('2026-09-26', '2026-09-26', 0, 150);
+  assert.equal(kq.success, true, kq.message);
+  assert.deepEqual(soTrongMisa(nh), ['PC001', 'PC002']);
+  assert.deepEqual(nh.rows(33).slice(1).map(r => r[2]), ['26/09/2026', '26/09/2026']);
+  assert.equal(run('getMisaDataTheoNgay_')('2026-09-26', '2026-09-26').items.length, 2, 'the report shows them on the same date');
+});

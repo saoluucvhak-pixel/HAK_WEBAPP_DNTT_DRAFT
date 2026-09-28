@@ -526,7 +526,7 @@
       <div class="nav-item" role="button" tabindex="0" data-page="settings"><span class="ic">⚙️</span> Cài đặt / Nháp</div>
     </nav>
     <div class="nguoi-dung-chip" id="nguoi-dung-chip"></div>
-    <div class="sidebar-footer">Hệ thống Quản Lý Thanh Toán · v2026.9.17<br><button type="button" class="theme-toggle" id="theme-toggle" aria-label="Đổi giao diện sáng / tối">🌓 Giao diện: Tự động</button></div>
+    <div class="sidebar-footer">Hệ thống Quản Lý Thanh Toán · v2026.9.18<br><button type="button" class="theme-toggle" id="theme-toggle" aria-label="Đổi giao diện sáng / tối">🌓 Giao diện: Tự động</button></div>
   </aside>
 
   <main class="main">
@@ -2728,7 +2728,7 @@ function doDongBoChiTietLichSu(){
 function doTaoLaiMisaTheoNgay(){
   const f = document.getElementById('taolaimisa-from').value, t = document.getElementById('taolaimisa-to').value;
   if (!f || !t) { toast('Vui lòng chọn đủ Từ ngày/Đến ngày.', 'warn'); return; }
-  if (!confirm(`Tạo lại MISA cho các hồ sơ ĐÃ CHỐT trong khoảng ${f} → ${t}?\n\nHệ thống tự bỏ qua dòng đã có sẵn (không trùng), xử lý theo lô và tự lặp tới khi xong.\n\nBấm OK để tiếp tục.`)) return;
+  if (!confirm(`Tạo lại MISA cho các hồ sơ thanh toán (Ngày CK) trong khoảng ${f} → ${t}?\n\nHệ thống tự bỏ qua dòng đã có sẵn (không trùng), xử lý theo lô và tự lặp tới khi xong.\n\nBấm OK để tiếp tục.`)) return;
   const box = document.getElementById('taolaimisa-result');
   let offset = 0, tongDaGhi = 0, soLot = 0;
   box.innerHTML = '<div class="empty"><div class="ic">⏳</div>Đang bắt đầu...</div>';
@@ -3873,9 +3873,9 @@ function renderHeThong(){
     </div>
     <div class="card" style="border-color:var(--timber)">
       <h3>🔧 Tạo Lại MISA (dự phòng, theo khoảng ngày)</h3>
-      <p class="muted" style="font-size:13px">Dùng khi: hồ sơ CŨ (chốt trước khi có tính năng tự động ghi MISA), hoặc lần tự động bị lỗi. Chọn khoảng ngày ĐÃ CHỐT cần tạo lại - hệ thống tự quét, tự bỏ qua dòng đã có sẵn (không trùng), tự xử lý theo lô và lặp lại tới khi xong.</p>
+      <p class="muted" style="font-size:13px">Dùng khi: hồ sơ CŨ (chốt trước khi có tính năng tự động ghi MISA), hoặc lần tự động bị lỗi. Chọn khoảng <b>Ngày CK (ngày thanh toán)</b> cần tạo lại - cùng ngày với Báo Cáo MISA - hệ thống tự quét, tự bỏ qua dòng đã có sẵn (không trùng), tự xử lý theo lô và lặp lại tới khi xong.</p>
       <div class="grid cols-2">
-        <div class="field"><label>Từ ngày (Ngày ĐN đã chốt)</label><input type="date" id="taolaimisa-from" value="${isoDaysAgoVN(7)}"></div>
+        <div class="field"><label>Từ ngày (Ngày CK)</label><input type="date" id="taolaimisa-from" value="${isoDaysAgoVN(7)}"></div>
         <div class="field"><label>Đến ngày</label><input type="date" id="taolaimisa-to" value="${todayISOVN()}"></div>
       </div>
       <button class="btn" style="background:var(--timber);color:#fff;border-color:var(--timber)" onclick="doTaoLaiMisaTheoNgay()">🔧 Tạo Lại Ngay</button>

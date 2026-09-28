@@ -1,6 +1,6 @@
 /**
  * ============================================================
- * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.17
+ * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.18
  * Lịch sử thay đổi: CHANGELOG.md · Kiến trúc: docs/ARCHITECTURE.md
  * ------------------------------------------------------------
  * *** QUAN TRỌNG - CẦN LÀM TRƯỚC KHI DÙNG BẢN NÀY (chỉ 1 LẦN DUY NHẤT
@@ -2987,17 +2987,30 @@ function _tomTatDongMisa_(r) {
 const MISA_THIEU_XEM_TOI_DA = 50;
 const MISA_BO_SUNG_HO_SO_MOI_LAN = 150;
 
-/** Phiếu cân đã chốt (sổ CT, kể cả năm đã khóa sổ) có Ngày CK trong [fDate,
- * tDate] - cùng cách hiểu ngày với màn Báo Cáo MISA - mà Số phiếu cân chưa có ở
+/** Dòng sổ đã chốt (CT, kể cả năm đã khóa sổ) có Ngày CK (ngày thanh toán) trong
+ * [fDate, tDate]. Mọi chức năng MISA (xem, xuất, tạo lại, tạo bổ sung, dọn dẹp)
+ * chọn theo NGÀY CK - dòng MISA cũng mang Ngày CK làm Ngày hạch toán. */
+function _ctTheoNgayCK_(fDate, tDate) {
+  return _ctGopLuuTru_(fDate, tDate).filter(ct => {
+    if (utils.isBlank(ct[0]) || utils.isBlank(ct[1]) || !(ct[20] instanceof Date)) return false;
+    const iso = Utilities.formatDate(ct[20], "GMT+7", "yyyy-MM-dd");
+    return (!fDate || iso >= fDate) && (!tDate || iso <= tDate);
+  });
+}
+/** Hồ sơ đã chốt (dòng get112ViewData_) theo mã, không lọc ngày: Ngày ĐN (cột ngày
+ * của sổ 112) khác Ngày CK, lọc theo Ngày ĐN sẽ chọn sai hồ sơ. Giữ thứ tự sổ 112. */
+function _hoSoDaChotTheoMa_(idSet) {
+  return idSet.size ? get112ViewData_("", "").filter(h => idSet.has(h.idHeThong)) : [];
+}
+
+/** Phiếu cân đã chốt có Ngày CK trong [fDate, tDate] mà Số phiếu cân chưa có ở
  * bất kỳ dòng nào của Update_NganHang_DN (cùng cách so trùng với lúc ghi). */
 function _misaThieu_(shUpdateNH, fDate, tDate) {
   const daCo = _laySoPhieuCanDaCoTrongMisa_(shUpdateNH);
   const phieu = [];
-  _ctGopLuuTru_(fDate, tDate).forEach(ct => {
-    if (utils.isBlank(ct[0]) || utils.isBlank(ct[1]) || !(ct[20] instanceof Date)) return;
-    const iso = Utilities.formatDate(ct[20], "GMT+7", "yyyy-MM-dd");
+  _ctTheoNgayCK_(fDate, tDate).forEach(ct => {
     const k = utils.standardize(ct[11]);
-    if ((fDate && iso < fDate) || (tDate && iso > tDate) || !k || daCo.has(k)) return;
+    if (!k || daCo.has(k)) return;
     phieu.push({ idHeThong: String(ct[1]).trim(), soPhieuCan: String(ct[11]).replace(/'/g, "").trim(), ngayTT: utils.formatDate(ct[20]), chuRung: String(ct[3] || ""), thanhTien: utils.parseNum(ct[16]) });
   });
   return { phieu, idHoSo: new Set(phieu.map(x => x.idHeThong)) };
@@ -3016,9 +3029,7 @@ function webTaoBoSungMisa_(fDate, tDate) {
     const shNH = _sheetMisa_();
     const { idHoSo } = _misaThieu_(shNH, fDate, tDate);
     if (!idHoSo.size) return { success: true, count: 0, conLai: 0, xong: true, message: "✅ Không còn hồ sơ đã chốt nào thiếu dòng MISA." };
-    // Thông tin người nhận (kể cả sửa tay) lấy từ sổ 112 theo mã hồ sơ, không theo
-    // ngày: Ngày ĐN (cột ngày của 112) có thể khác Ngày CK đang lọc.
-    const hoSo = get112ViewData_("", "").filter(h => idHoSo.has(h.idHeThong));
+    const hoSo = _hoSoDaChotTheoMa_(idHoSo); // người nhận (kể cả sửa tay) lấy từ sổ 112
     if (!hoSo.length) return { success: false, message: `❌ Không tìm thấy hồ sơ ${Array.from(idHoSo).join(", ")} trong sổ 112 - không đủ thông tin người nhận để ghi MISA.` };
     const loNay = hoSo.slice(0, MISA_BO_SUNG_HO_SO_MOI_LAN);
     const daGhi = _ghiMisaChuaCo_(shNH, _gomChiTietChuyenKhoan_(loNay));
@@ -4308,8 +4319,13 @@ function webTaoLaiMisaTheoNgay_(fDate, tDate, offset, gioiHanMoiLan) {
   try {
     const GIOI_HAN = Math.max(20, Math.min(300, parseInt(gioiHanMoiLan, 10) || 150));
     offset = parseInt(offset, 10) || 0;
-    const dsHoSo = get112ViewData_(fDate, tDate);
-    if (!dsHoSo.length) return { success: true, message: "⚠️ Không có hồ sơ nào đã chốt trong khoảng ngày đã chọn.", count: 0, conLai: 0, xong: true };
+    // SỬA LỖI (người dùng báo 28/09/2026 - "tạo MISA chạy ngày không đúng"): trước
+    // đây chọn hồ sơ theo Ngày ĐN (get112ViewData_(fDate, tDate)) trong khi Báo Cáo
+    // MISA / Tạo bổ sung / Dọn dẹp và chính dòng MISA dùng Ngày CK -> chọn đúng
+    // ngày thanh toán thì báo "không có hồ sơ", chọn ngày lập ĐN thì ra dòng MISA
+    // mang ngày khác. Giờ chọn theo Ngày CK như mọi chức năng MISA khác.
+    const dsHoSo = _hoSoDaChotTheoMa_(new Set(_ctTheoNgayCK_(fDate, tDate).map(ct => String(ct[1]).trim())));
+    if (!dsHoSo.length) return { success: true, message: "⚠️ Không có hồ sơ nào thanh toán (Ngày CK) trong khoảng ngày đã chọn.", count: 0, conLai: 0, xong: true };
     const loNay = dsHoSo.slice(offset, offset + GIOI_HAN);
     if (loNay.length === 0) return { success: true, message: `✅ HOÀN TẤT - đã xử lý toàn bộ ${dsHoSo.length} hồ sơ.`, count: 0, conLai: 0, xong: true };
 

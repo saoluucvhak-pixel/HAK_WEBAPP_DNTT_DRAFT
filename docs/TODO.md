@@ -59,6 +59,7 @@ Trạng thái: ✅ xong · 🟡 một phần · ⏳ chưa làm · ⚖️ cần n
 - ✅ Khóa sổ năm (quy trình người dùng): kiểm chứng công nợ đầu năm = phiếu chưa trả mang sang (test `khoaSoNam`); không cần bộ nhớ đệm 6 tháng.
 - ✅ 2026.9.16: Nhật ký thao tác giữ dạng chữ cho Mã hồ sơ / mã lỗi (không mất số 0 đầu).
 - ✅ 2026.9.15: Hệ Thống › Dọn Dẹp MISA (trùng / mồ côi / tất cả trong khoảng Ngày CK), xem trước + sao lưu. UNC không cần nút xóa riêng (xem CHANGELOG).
+- ✅ 2026.9.18: Tạo lại MISA chọn theo Ngày CK (trước theo Ngày ĐN - lệch với Báo Cáo MISA). ❓ Hỏi người dùng: Tạo lại UNC có cần đổi sang Ngày CK không (hiện theo Ngày ĐN).
 - ✅ Kiểm chứng: trigger không bị phân quyền chặn (test `triggers.test.mjs`).
 - ✅ Kiểm chứng: cờ “đang khóa sổ” trên file Phiếu Cân đặt/gỡ đúng (test `luuTruNam`). ⏳ Phía QL_NHAPKHO (dự án khác) cần đọc cờ theo quy ước trong Code.gs (khóa, DOCUMENT, hết hiệu lực sau 10 phút).
 - ✅ 2026.9.17: Báo Cáo MISA cảnh báo phiếu đã chốt chưa có dòng MISA + nút “Tạo bổ sung”. Mở Đóng TT vẫn xóa dòng MISA (người dùng chọn không giữ).
