@@ -64,7 +64,7 @@ test('design: one type scale declared once, no serif font left, headings in text
 test('home page figures are buttons that open the matching screen (only if allowed)', () => {
   const trangChu = /function renderDashboard\(\)\{[\s\S]*?\n\}/.exec(INDEX)[0];
   [["draft', 'all"], ["draft', 'san_sang"], ["draft', 'cho_tinh"], ["debt', 'phantich"], ["report', 'gokeo"], ["debt', 'customer', 'card"]]
-    .forEach(([a]) => assert.ok(trangChu.includes(`_oSoMo('${a}')`), a));
+    .forEach(([a]) => assert.ok(trangChu.includes(`_oSoMo('${a}'`), a)); // tham số 3 (nếu có) chỉ là lớp màu vạch
   const oSo = /function _oSoMo\(trang, tab, lopThem\)\{[\s\S]*?\n\}/.exec(INDEX)[0];
   assert.match(oSo, /coQuyen\(PAGES\[trang\]\.quyen\)/, 'no button look when the page is not allowed');
   assert.match(oSo, /stat-nut/);

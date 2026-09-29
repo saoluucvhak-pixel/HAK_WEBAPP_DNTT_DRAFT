@@ -65,6 +65,7 @@ Trạng thái: ✅ xong · 🟡 một phần · ⏳ chưa làm · ⚖️ cần n
 - ✅ 2026.9.47: ⚖️ B-10 dòng MISA 1 kiểu như Duyệt; ⚖️ báo cáo Excel ghi ngày thật theo Vùng xuất (mẫu nhập UNC / XuatMISA giữ chữ); sửa dòng Báo cáo ĐNTT giãn; P-04, P-05, P-06, P-07, P-08, P-10; giao diện U-03…U-08.
 - Không làm (người dùng không chọn 28/09/2026): P-09; bảo mật S-10…S-13.
 - ✅ 2026.9.49: nâng cấp #1 tự tính tiền, #3 hộp xác nhận, #4 lịch sử hồ sơ, #5 kiểm tra đêm + email, #6 hoàn tất Duyệt dở, #7 tuổi nợ + xu hướng, #8 tìm nhanh, #9 lưu nháp Tạo Mới, #10 tên trạng thái, #11 Hệ Thống 2 tab, #12 nhãn Lưu, #13 đối chiếu sao kê, #14 VietQR, #15 CI, #16 dọn chú thích. Không làm #2 (thông báo người duyệt - người dùng bỏ).
+- ✅ 2026.9.50: làm lại giao diện trên tông màu cũ - thanh bên theo nhóm + thu gọn + ngăn kéo điện thoại, thanh tiêu đề có đường dẫn, thành phần đồng bộ, Trang chủ 2 cột, Danh Sách ĐNTT vừa màn hình; sửa thanh "Đi nhanh" xếp dọc.
 - Còn lại (dài hạn, chưa yêu cầu): tách Code.gs theo lớp, đọc cột theo tên tiêu đề (H-01 đã từ chối), chuyển DB sang PostgreSQL khi thương mại hóa.
 - ✅ 2026.9.43: Tạo lại UNC theo Ngày CK. Ô ký phiếu PDF giữ Người lập phiếu / Kế toán trưởng / Giám đốc (người dùng chọn giữ nguyên 28/09/2026).
 - ✅ 2026.9.42: Công nợ mở bằng bản tổng hợp (Làm mới khi cần); thanh Đi nhanh cho trang dài; nhật ký trước → sau cho thao tác hồ sơ.

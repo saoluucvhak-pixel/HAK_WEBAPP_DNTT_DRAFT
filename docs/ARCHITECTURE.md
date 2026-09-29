@@ -1,4 +1,4 @@
-# ARCHITECTURE — HAK Quản Lý Thanh Toán (v2026.9.49)
+# ARCHITECTURE — HAK Quản Lý Thanh Toán (v2026.9.50)
 
 > Tài liệu sống: cập nhật mỗi khi đổi module, lớp, luồng dữ liệu hoặc schema.
 > Phân tích chi tiết hiện trạng: `docs/PROJECT_ANALYSIS.md`. Kiến trúc đích: `docs/REFACTOR_PLAN.md` §3–§4.
@@ -262,4 +262,11 @@ Lỗi đọc sổ trong báo cáo (2026.9.46): công nợ / phân tích / tiến
 - **Lịch sử hồ sơ** `getLichSuHoSo_`, **tìm nhanh** `timKiemNhanh_`, **đối chiếu sao kê** `doiChieuSaoKe_` (chỉ đọc ChiTietUNC), **VietQR** `_urlVietQr_` / `_anhVietQr_` (img.vietqr.io, tắt bằng `PHIEU_VIETQR=0`), **Trang chủ** `xuHuong30Ngay` + `tuoiNo` (chỉ đọc số đã tổng hợp).
 - **Trình duyệt**: Hệ Thống 2 tab (Tra cứu / Can thiệp), Tạo Mới lưu nháp `sessionStorage` (`hak_tao_moi_nhap_v1`), biểu đồ SVG dùng `--series-1/2` (đã kiểm định mù màu sáng/tối).
 - **CI**: `.github/workflows/test.yml` - `node --check` Code.gs + `node --test`.
+
+## Giao diện 2026.9.50
+- Khung: `aside.sidebar#sidebar` (nhóm `.nav-nhom`, mục `.nav-item[data-page]` có `.ic` SVG + `.nhan`) · `.nen-menu` (nền ngăn kéo) · `header.topbar` (`#nut-menu`, `#page-crumb`, `#page-title`, `#page-desc`, `#topbar-actions`) · `#content`.
+- `PAGES[trang].nhom` = tên nhóm cho đường dẫn. `apDungQuyenGiaoDien()` ẩn mục không được phép rồi ẩn nhóm rỗng.
+- Thu gọn: lớp `body.thanh-ben-gon` (≥ 901px), nhớ ở `localStorage['hak_thanh_ben_gon']`. Ngăn kéo: lớp `body.menu-mo` (≤ 900px), `goTo()` tự đóng.
+- Biến màu mới: `--bang-dau` (nền tiêu đề / dòng tổng bảng), `--shadow-noi`, `--rong-thanh-ben`. Ô số liệu: `.stat.vach-timber` / `.stat.vach-danger` đổi màu vạch trái.
+- Không dùng bộ chọn `nav{}` chung (từng làm hỏng thanh "Đi nhanh" `.muc-luc`, cũng là thẻ `<nav>`); thanh bên dùng `#nav`.
 
