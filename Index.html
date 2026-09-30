@@ -33,12 +33,15 @@
       --danger:#dc2626;
       --danger-light:#fee2e2;
       --white:#ffffff;
-      --radius:10px;
-      --shadow:0 1px 2px rgba(31,41,55,.06), 0 4px 14px rgba(31,41,55,.05);
+      --radius:12px;
+      --bang-dau:#f8fafc; /* nền dòng tiêu đề bảng */
+      --shadow:0 1px 2px rgba(15,23,42,.05), 0 1px 3px rgba(15,23,42,.04);
+      --shadow-noi:0 4px 16px rgba(15,23,42,.08);
       --border:var(--line); /* v2026.9.7: tên cũ còn dùng ở vài chỗ - trước đây chưa khai báo nên viền bị mất */
       --focus:#2563eb;
       /* #7 biểu đồ: 2 màu đầu của bảng màu phân loại đã kiểm định (mù màu, tương phản) cho nền sáng */
       --series-1:#2a78d6; --series-2:#eb6834;
+      --rong-thanh-ben:248px;
       color-scheme:light;
     }
     *{box-sizing:border-box;}
@@ -59,39 +62,53 @@
     a{color:inherit;}
     button{font-family:inherit;}
 
-    /* ---------- SIDEBAR ---------- */
+    /* ---------- SIDEBAR (giao diện 2026.9.50: nhóm menu, biểu tượng nét, thu gọn / ngăn kéo) ---------- */
     .sidebar{
-      width:236px;
-      flex:0 0 236px;
+      width:var(--rong-thanh-ben);
+      flex:0 0 var(--rong-thanh-ben);
       background:var(--forest);
       color:#cbd5e1;
       display:flex;
       flex-direction:column;
-      padding:22px 14px;
+      padding:18px 12px 14px;
       position:sticky;
       top:0;
       height:100vh;
+      overflow-y:auto;
+      overflow-x:hidden;
+      scrollbar-width:thin;
+      scrollbar-color:rgba(255,255,255,.18) transparent;
+      transition:width .18s ease, flex-basis .18s ease;
+      z-index:20;
     }
     .brand{
-      display:flex; align-items:center; gap:10px;
-      padding:4px 10px 20px 10px;
-      border-bottom:1px solid rgba(255,255,255,.14);
+      display:flex; align-items:center; gap:11px;
+      padding:2px 8px 16px 8px;
+      border-bottom:1px solid rgba(255,255,255,.10);
       margin-bottom:14px;
     }
     .brand .mark{
-      width:34px;height:34px;border-radius:8px;
-      background:linear-gradient(155deg,var(--timber),#b45309);
+      width:36px;height:36px;border-radius:9px;
+      background:linear-gradient(155deg,#d97706,var(--timber));
+      box-shadow:inset 0 0 0 1px rgba(255,255,255,.18);
       display:flex;align-items:center;justify-content:center;
-      font-weight:700;color:#fff;font-size:16px;
+      font-weight:700;color:#fff;font-size:17px;
       flex:0 0 auto;
     }
-    .brand .name{font-size:var(--fs-the);font-weight:700;line-height:1.25;color:#fff;letter-spacing:-0.01em;}
-    .brand .sub{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:#8b98ab;margin-top:1px;}
+    .brand-chu{min-width:0;}
+    .brand .name{font-size:var(--fs-the);font-weight:700;line-height:1.25;color:#fff;letter-spacing:-0.01em;white-space:nowrap;}
+    .brand .sub{font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:#8b98ab;margin-top:2px;white-space:nowrap;}
 
-    nav{display:flex;flex-direction:column;gap:2px;flex:1;}
+    #nav{display:flex;flex-direction:column;gap:2px;flex:1;}
+    .nav-nhom{
+      font-size:10.5px; font-weight:700; letter-spacing:.08em; text-transform:uppercase;
+      color:#7c8aa0; padding:14px 12px 6px; white-space:nowrap;
+    }
+    .nav-nhom:first-child{padding-top:4px;}
     .nav-item{
+      position:relative;
       display:flex; align-items:center; gap:11px;
-      padding:10px 12px;
+      padding:9px 12px;
       border-radius:8px;
       cursor:pointer;
       font-size:var(--fs-than);
@@ -99,10 +116,12 @@
       color:#cbd5e1;
       transition:background .15s ease, color .15s ease;
       user-select:none;
+      white-space:nowrap;
     }
-    .nav-item .ic{width:18px;text-align:center;font-size:15px;opacity:.9;}
+    .nav-item .ic{width:19px;height:19px;flex:0 0 19px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;opacity:.85;}
+    .nav-item .nhan{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;}
     .nav-item:hover{background:var(--forest-2); color:#fff;}
-    .nav-item.active{background:var(--accent); color:#fff;}
+    .nav-item.active{background:#2563eb; color:#fff; font-weight:600; box-shadow:0 1px 2px rgba(0,0,0,.25);}
     .nav-item.active .ic{opacity:1;}
     .nav-badge{
       margin-left:auto;
@@ -110,35 +129,69 @@
       color:#fff;
       font-size:10.5px;
       font-weight:700;
-      padding:1px 6px;
+      padding:1px 7px;
       border-radius:20px;
-      min-width:18px;
+      min-width:20px;
       text-align:center;
+      font-variant-numeric:tabular-nums;
     }
-    .nav-sep{height:1px;background:rgba(255,255,255,.12);margin:10px 4px;}
+    .nav-item.active .nav-badge{background:rgba(255,255,255,.22);}
 
     .sidebar-footer{
+      display:flex; flex-direction:column; gap:8px;
       font-size:10.5px;
       color:#8b98ab;
-      padding:10px 10px 2px 10px;
-      border-top:1px solid rgba(255,255,255,.12);
+      padding:12px 8px 0;
+      border-top:1px solid rgba(255,255,255,.10);
       margin-top:10px;
+    }
+    .sidebar-footer .chan-nut{display:flex; gap:6px; align-items:center;}
+    .nut-thu-gon{margin-left:auto; width:28px; height:26px; display:inline-flex; align-items:center; justify-content:center; background:transparent;
+      border:1px solid rgba(255,255,255,.18); border-radius:6px; color:#cbd5e1; cursor:pointer; flex:0 0 auto;}
+    .nut-thu-gon:hover{background:rgba(255,255,255,.08); color:#fff;}
+    .nut-thu-gon svg{width:16px; height:16px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; transition:transform .18s ease;}
+
+    /* Thanh bên thu gọn (máy tính): chỉ còn biểu tượng, rê chuột hiện tên (title). */
+    @media (min-width:901px){
+      body.thanh-ben-gon{--rong-thanh-ben:68px;}
+      body.thanh-ben-gon .sidebar{padding-left:10px; padding-right:10px;}
+      body.thanh-ben-gon .brand{justify-content:center; padding-left:0; padding-right:0;}
+      body.thanh-ben-gon .brand-chu, body.thanh-ben-gon .nav-item .nhan, body.thanh-ben-gon .nav-nhom,
+      body.thanh-ben-gon .tim-nhanh, body.thanh-ben-gon .phien-ban, body.thanh-ben-gon .theme-toggle,
+      body.thanh-ben-gon .nd-chu, body.thanh-ben-gon .nguoi-dung-chip .dang-xuat{display:none;}
+      body.thanh-ben-gon .nav-item{justify-content:center; padding:10px 0;}
+      body.thanh-ben-gon .nav-badge{position:absolute; top:3px; right:4px; padding:0 5px; min-width:16px; font-size:9.5px;}
+      body.thanh-ben-gon .nguoi-dung-chip{justify-content:center; padding-left:0; padding-right:0;}
+      body.thanh-ben-gon .sidebar-footer{padding-left:0; padding-right:0; align-items:center;}
+      body.thanh-ben-gon .nut-thu-gon{margin-left:0;}
+      body.thanh-ben-gon .nut-thu-gon svg{transform:rotate(180deg);}
     }
 
     /* ---------- MAIN ---------- */
     .main{flex:1; min-width:0; display:flex; flex-direction:column;}
     .topbar{
-      display:flex; align-items:center; justify-content:space-between;
-      padding:20px 34px;
+      display:flex; align-items:center; gap:16px;
+      padding:14px 32px;
+      min-height:78px;
       border-bottom:1px solid var(--line);
-      background:var(--paper);
-      position:sticky; top:0; z-index:5;
+      background:var(--white);
+      position:sticky; top:0; z-index:10;
+      flex-shrink:0;
+      transition:box-shadow .15s ease;
     }
-    .topbar h1{font-size:var(--fs-trang); margin:0; font-weight:700; color:var(--ink);}
-    .topbar .desc{font-size:var(--fs-phu); color:var(--ink-soft); margin-top:3px;}
-    .topbar .actions{display:flex; gap:8px;}
+    .topbar.da-cuon{box-shadow:0 2px 10px rgba(15,23,42,.07);}
+    .tieu-de-trang{flex:1; min-width:0;}
+    .duong-dan{font-size:11.5px; font-weight:600; letter-spacing:.02em; color:var(--ink-soft); margin-bottom:2px;}
+    .duong-dan:empty{display:none;}
+    .topbar h1{font-size:var(--fs-trang); margin:0; font-weight:700; line-height:1.25; color:var(--ink);}
+    .topbar .desc{font-size:var(--fs-phu); color:var(--ink-soft); margin-top:2px;}
+    .topbar .actions{display:flex; gap:8px; align-items:center; flex-wrap:wrap; justify-content:flex-end;}
+    .nut-menu{display:none; width:40px; height:40px; flex:0 0 40px; align-items:center; justify-content:center; border:1px solid var(--line);
+      border-radius:9px; background:var(--white); color:var(--ink); cursor:pointer;}
+    .nut-menu svg{width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round;}
+    .nen-menu{display:none;}
 
-    .content{padding:26px 34px 60px 34px; flex:1;}
+    .content{padding:24px 32px 64px; flex:1; width:100%; max-width:1680px;}
 
     /* ---------- COMPONENTS ---------- */
     .card{
@@ -146,38 +199,52 @@
       border:1px solid var(--line);
       border-radius:var(--radius);
       box-shadow:var(--shadow);
-      padding:20px;
+      padding:20px 22px;
       margin-bottom:18px;
     }
-    .card h3{margin:0 0 14px 0; font-size:var(--fs-the); font-weight:600; color:var(--ink);}
+    .card h3{margin:0 0 14px 0; font-size:var(--fs-the); font-weight:650; line-height:1.35; color:var(--ink);}
     .grid{display:grid; gap:16px;}
     .grid.cols-2{grid-template-columns:1fr 1fr;}
     .grid.cols-3{grid-template-columns:repeat(3,1fr);}
     .grid.cols-4{grid-template-columns:repeat(4,1fr);}
     .grid.cols-5{grid-template-columns:repeat(5, minmax(0, 1fr));}
     @media(max-width:900px){.grid.cols-2,.grid.cols-3,.grid.cols-4,.grid.cols-5{grid-template-columns:1fr 1fr;}}
+    /* Máy tính bảng / điện thoại: thanh bên thành ngăn kéo mở bằng nút ☰. */
+    @media(max-width:900px){
+      .sidebar{position:fixed; left:0; top:0; bottom:0; height:100vh; width:272px; flex:none; transform:translateX(-100%);
+        transition:transform .2s ease; box-shadow:none;}
+      body.menu-mo .sidebar{transform:none; box-shadow:0 0 40px rgba(0,0,0,.35);}
+      body.menu-mo .nen-menu{display:block; position:fixed; inset:0; background:rgba(15,23,42,.45); z-index:15;}
+      .nut-menu{display:inline-flex;}
+      .nut-thu-gon{display:none;}
+      .topbar{padding:12px 20px; min-height:64px;}
+      .content{padding:20px 20px 60px;}
+    }
     @media(max-width:640px){
-      body{flex-direction:column;}
-      .sidebar{width:100%; flex:0 0 auto; height:auto; position:relative; padding:14px;}
-      nav{flex-direction:row; flex-wrap:wrap;}
-      .nav-item{flex:0 0 auto;}
-      .sidebar-footer{display:none;}
-      .topbar,.content{padding-left:16px; padding-right:16px;}
+      .topbar{padding:10px 16px; flex-wrap:wrap; gap:10px;}
+      .topbar .desc{display:none;}
+      .topbar .actions{width:100%; justify-content:flex-start;}
+      .content{padding:16px 16px 70px;}
       .grid.cols-2,.grid.cols-3,.grid.cols-4,.grid.cols-5{grid-template-columns:1fr;}
     }
 
     .stat{
+      position:relative; overflow:hidden;
       background:var(--white); border:1px solid var(--line); border-radius:var(--radius);
-      padding:18px; box-shadow:var(--shadow);
+      padding:16px 18px 16px 20px; box-shadow:var(--shadow);
     }
-    .stat .label{font-size:var(--fs-nho); text-transform:uppercase; letter-spacing:.05em; color:var(--ink-soft); font-weight:600;}
+    /* Vạch màu bên trái theo màu số liệu (xanh / hổ phách / đỏ / xanh lá). */
+    .stat::before{content:''; position:absolute; left:0; top:0; bottom:0; width:3px; background:var(--accent); opacity:.85;}
+    .stat.vach-timber::before{background:var(--timber);}
+    .stat.vach-danger::before{background:var(--danger);}
+    .stat .label{font-size:11.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-soft); font-weight:650; padding-right:22px;}
     .stat .value{font-family:var(--font-chu); font-variant-numeric:tabular-nums; font-size:var(--fs-so); font-weight:700; letter-spacing:-0.02em; line-height:1.15; color:var(--accent); margin-top:8px;}
     .stat .value.timber{color:var(--timber);}
     .stat .hint{font-size:var(--fs-nho); color:var(--ink-soft); margin-top:4px;}
     /* Ô số liệu dạng nút (Trang chủ): bấm mở thẳng màn hình tương ứng */
     .stat-nut{position:relative; cursor:pointer; transition:border-color .15s ease, box-shadow .15s ease, transform .15s ease;}
     .stat-nut::after{content:'→'; position:absolute; top:16px; right:18px; font-size:var(--fs-the); font-weight:600; color:var(--ink-soft); opacity:.55; transition:opacity .15s ease, transform .15s ease, color .15s ease;}
-    .stat-nut:hover, .stat-nut:focus-visible{border-color:var(--accent); box-shadow:0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent), var(--shadow); transform:translateY(-1px); outline:none;}
+    .stat-nut:hover, .stat-nut:focus-visible{border-color:color-mix(in srgb, var(--accent) 55%, var(--line)); box-shadow:var(--shadow-noi); transform:translateY(-1px); outline:none;}
     .stat-nut:hover::after, .stat-nut:focus-visible::after{opacity:1; color:var(--accent); transform:translateX(3px);}
     .stat-nut:active{transform:translateY(0);}
 
@@ -190,28 +257,34 @@
     .ngay-vn input[type=date]::-webkit-datetime-edit{display:none;}
     input[type=text], input[type=date], input[type=number], select, textarea{
       width:100%;
-      border:1px solid var(--line);
-      border-radius:7px;
+      border:1px solid color-mix(in srgb, var(--line) 70%, var(--ink-soft));
+      border-radius:8px;
       padding:9px 11px;
       font-size:var(--fs-than);
       font-family:inherit;
       color:var(--ink);
-      background:var(--paper);
+      background:var(--white);
       transition:border-color .15s ease, box-shadow .15s ease;
     }
+    input[type=text]:hover, input[type=date]:hover, input[type=number]:hover, select:hover, textarea:hover{border-color:var(--ink-soft);}
     input:focus, select:focus, textarea:focus{
-      outline:none; border-color:var(--moss); box-shadow:0 0 0 3px var(--moss-light); background:var(--white);
+      outline:none; border-color:var(--accent); box-shadow:0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent); background:var(--white);
     }
+    input:disabled, select:disabled, textarea:disabled, input[readonly]{background:var(--paper); color:var(--ink-soft);}
     .field{margin-bottom:14px;}
     .hint-text{font-size:var(--fs-nho); color:var(--ink-soft); margin-top:4px; line-height:1.5;}
 
     .btn{
-      display:inline-flex; align-items:center; gap:7px;
-      border:1px solid var(--line);
+      display:inline-flex; align-items:center; justify-content:center; gap:7px;
+      border:1px solid color-mix(in srgb, var(--line) 70%, var(--ink-soft));
       background:var(--white);
       color:var(--ink);
-      padding:9px 15px;
+      padding:8px 14px;
+      min-height:36px;
       border-radius:8px;
+      line-height:1.25;
+      white-space:nowrap;
+      box-shadow:0 1px 1px rgba(15,23,42,.04);
       font-size:var(--fs-phu);
       font-weight:600;
       cursor:pointer;
@@ -219,26 +292,28 @@
     }
     .btn:hover{background:var(--paper-2);}
     .btn:active{transform:translateY(1px);}
-    .btn.primary{background:var(--accent); border-color:var(--accent); color:#fff;}
+    .btn.primary{background:var(--accent); border-color:var(--accent); color:#fff; box-shadow:0 1px 2px rgba(37,99,235,.3);}
     .btn.primary:hover{background:#1d4ed8;}
     .btn.accent{background:var(--timber); border-color:var(--timber); color:#fff;}
     .btn.accent:hover{background:#92400e;}
     .btn.danger{background:var(--white); border-color:var(--danger); color:var(--danger);}
     .btn.danger:hover{background:var(--danger-light);}
-    .btn.ghost{background:transparent; border-color:transparent;}
+    .btn.ghost{background:transparent; border-color:transparent; box-shadow:none;}
     .btn.ghost:hover{background:var(--paper-2);}
-    .btn.sm{padding:5px 10px; font-size:var(--fs-nho);}
+    .btn.sm{padding:4px 10px; min-height:30px; font-size:var(--fs-nho);}
     a.btn{text-decoration:none;}
     .btn:disabled{opacity:.45; cursor:not-allowed;}
 
     table{width:100%; border-collapse:collapse; font-size:var(--fs-phu);}
     thead th{
-      text-align:left; font-size:11.5px; text-transform:uppercase; letter-spacing:.04em;
-      color:var(--ink-soft); font-weight:700; padding:9px 10px; border-bottom:1px solid var(--line);
-      white-space:nowrap;
+      text-align:left; font-size:11.5px; text-transform:uppercase; letter-spacing:.05em;
+      color:var(--ink-soft); font-weight:700; padding:10px 12px; border-bottom:1px solid var(--line);
+      background:var(--bang-dau); white-space:nowrap;
     }
-    tbody td{padding:11px 10px; border-bottom:1px solid var(--paper-2); vertical-align:middle;}
-    tbody tr:hover{background:var(--paper-2);}
+    thead th:first-child{border-top-left-radius:8px;} thead th:last-child{border-top-right-radius:8px;}
+    tbody td{padding:11px 12px; border-bottom:1px solid color-mix(in srgb, var(--line) 65%, transparent); vertical-align:middle;}
+    tbody tr:hover{background:color-mix(in srgb, var(--accent) 4%, var(--white));}
+    tfoot td{padding:11px 12px; border-top:2px solid var(--line); background:var(--bang-dau); font-weight:700;}
     tbody tr:last-child td{border-bottom:none;}
     td.num, th.num{text-align:right; font-family:var(--font-chu); font-variant-numeric:tabular-nums;}
 
@@ -248,7 +323,7 @@
     }
     .badge.ready{background:var(--moss-light); color:var(--moss);}
     .badge.pending{background:var(--timber-light); color:var(--timber);}
-    .badge.wait{background:#E4EAF3; color:#33517A;}
+    .badge.wait{background:color-mix(in srgb, var(--accent) 12%, var(--white)); color:color-mix(in srgb, var(--accent) 75%, var(--ink));}
     .badge.dot::before{content:''; width:6px; height:6px; border-radius:50%; background:currentColor;}
 
     .empty{
@@ -311,27 +386,32 @@
 
     /* modal */
     .modal-bg{
-      position:fixed; inset:0; background:rgba(35,42,32,.45); z-index:900;
+      position:fixed; inset:0; background:rgba(15,23,42,.5); z-index:900;
       display:none; align-items:flex-start; justify-content:center; padding:5vh 20px; overflow:auto;
     }
     .modal-bg.show{display:flex;}
     .modal{
-      background:var(--white); color:var(--ink); border-radius:12px; width:100%; max-width:560px;
-      box-shadow:0 20px 60px rgba(0,0,0,.25); animation:pop .15s ease;
+      background:var(--white); color:var(--ink); border-radius:14px; width:100%; max-width:560px; overflow:hidden;
+      box-shadow:0 24px 64px rgba(15,23,42,.28); animation:pop .15s ease;
     }
     @keyframes pop{from{opacity:0; transform:translateY(8px) scale(.98);} to{opacity:1; transform:none;}}
     .modal-head{
       display:flex; align-items:center; justify-content:space-between;
-      padding:16px 20px; border-bottom:1px solid var(--line);
+      padding:16px 22px; border-bottom:1px solid var(--line);
     }
-    .modal-head h3{margin:0; font-size:16px; font-weight:600; color:var(--ink);}
-    .modal-head .x{cursor:pointer; font-size:18px; color:var(--ink-soft); background:none; border:none;}
+    .modal-head h3{margin:0; font-size:16px; font-weight:650; color:var(--ink);}
+    .modal-head .x{cursor:pointer; font-size:18px; color:var(--ink-soft); background:none; border:none; width:32px; height:32px; border-radius:8px;}
+    .modal-head .x:hover{background:var(--paper); color:var(--ink);}
     .modal-body{padding:20px; max-height:65vh; overflow:auto;}
     .modal.rong{max-width:880px;}
     /* #8 tìm nhanh (thanh bên) */
-    .tim-nhanh{padding:0 14px 10px;}
-    .tim-nhanh input{width:100%; box-sizing:border-box; background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.18); color:#f9fafb; border-radius:8px; padding:8px 10px; font-size:13px;}
-    .tim-nhanh input::placeholder{color:#9ca3af;}
+    .tim-nhanh{position:relative; margin:0 0 8px;}
+    .tim-nhanh .ic-tim{position:absolute; left:10px; top:50%; width:16px; height:16px; transform:translateY(-50%); fill:none; stroke:#8b98ab; stroke-width:2; stroke-linecap:round; pointer-events:none;}
+    .tim-nhanh input{width:100%; box-sizing:border-box; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.14); color:#f9fafb; border-radius:8px; padding:8px 30px 8px 32px; font-size:13px;}
+    .tim-nhanh input:focus{background:rgba(255,255,255,.10); border-color:var(--accent); box-shadow:0 0 0 3px rgba(37,99,235,.35);}
+    .tim-nhanh input::placeholder{color:#8b98ab;}
+    .tim-nhanh .phim-tat{position:absolute; right:8px; top:50%; transform:translateY(-50%); font:600 10.5px/1 var(--font-chu); color:#8b98ab;
+      border:1px solid rgba(255,255,255,.18); border-radius:4px; padding:3px 6px; pointer-events:none;}
     .ket-qua-tim tr{cursor:pointer;}
     /* #7 biểu đồ xu hướng Trang chủ */
     .bieu-do{position:relative;}
@@ -351,13 +431,15 @@
     #hop-xac-nhan .modal-head.nguy-hiem h3{color:var(--danger);}
     #hop-xac-nhan input{width:100%; margin-top:10px;}
     /* Trang chủ (thiết kế lại 28/09/2026): tiêu đề nhóm, quy trình dạng bước có đường nối */
-    .muc-tieu-de{font-size:var(--fs-nho); font-weight:700; text-transform:uppercase; letter-spacing:.07em; color:var(--ink-soft); margin:26px 0 10px;}
+    .muc-tieu-de{display:flex; align-items:center; gap:10px; font-size:var(--fs-nho); font-weight:700; text-transform:uppercase; letter-spacing:.07em; color:var(--ink-soft); margin:28px 0 12px;}
+    .muc-tieu-de::after{content:''; flex:1; height:1px; background:var(--line);}
     .muc-tieu-de:first-child{margin-top:0;}
-    /* Tiêu đề thẻ + nút bên phải (vd Xuất Excel + PDF); xuống dòng trên màn hẹp. */
-    .card-dau{display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px;}
-    .card-dau h3{margin:0;}
+    .dash-hai-cot{grid-template-columns:minmax(0, 1.65fr) minmax(0, 1fr); align-items:stretch; margin-bottom:0;}
+    .dash-cot-phai{display:flex; flex-direction:column; gap:16px;}
+    .dash-cot-phai > .card{margin-bottom:0;}
+    @media (max-width:1100px){.dash-hai-cot{grid-template-columns:1fr;}}
     /* Thanh "Đi nhanh" của trang dài */
-    .muc-luc{display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin:0 0 18px;}
+    .muc-luc{display:flex; flex-direction:row; flex-wrap:wrap; gap:6px; align-items:center; margin:0 0 18px;}
     .muc-luc-nhan{font-size:var(--fs-nho); font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-soft); margin-right:4px;}
     .muc-luc a{font-size:var(--fs-nho); font-weight:600; text-decoration:none; color:var(--ink); background:var(--white); border:1px solid var(--line);
       border-radius:20px; padding:5px 11px; white-space:nowrap;}
@@ -389,8 +471,22 @@
     .modal.rong .modal-body{max-height:78vh;}
     iframe.xem-phieu{width:100%; height:70vh; border:1px solid var(--line); border-radius:8px; background:#fff;}
     tr.dong-bam{cursor:pointer;}
+    /* Ô 2 dòng trong bảng: dòng chính + dòng phụ nhỏ, mờ (Danh Sách ĐNTT). */
+    td .ten-chinh{font-weight:600; color:var(--ink);}
+    td .dong-phu{font-size:12px; color:var(--ink-soft); margin-top:2px; line-height:1.35;}
+    td.cot-ten{min-width:180px;}
+    table.cot-cuoi-dinh thead th:last-child{background:var(--bang-dau);}
+    table.cot-cuoi-dinh thead th{white-space:normal; vertical-align:bottom;}
+    table.cot-cuoi-dinh tbody tr:hover td:last-child{background:color-mix(in srgb, var(--accent) 4%, var(--white));}
+    table.cot-cuoi-dinh tfoot td:last-child{background:var(--bang-dau);}
+    td.cot-nh{min-width:170px; max-width:260px;}
+    td.cot-nh .dong-phu{max-width:175px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+    td.cot-nh{max-width:none;}
+    .thanh-loc-hang{display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap;}
+    .thanh-loc-hang .o-loc{flex:1 1 320px; max-width:560px;}
+    table.cot-cuoi-dinh td.mono, table.cot-cuoi-dinh td.num{white-space:nowrap;}
     tr.dong-bam:hover td{background:var(--paper-2);}
-    .modal-foot{padding:14px 20px; border-top:1px solid var(--line); display:flex; justify-content:flex-end; gap:8px;}
+    .modal-foot{padding:14px 22px; border-top:1px solid var(--line); display:flex; justify-content:flex-end; gap:8px; background:var(--bang-dau);}
 
     .kv{display:flex; justify-content:space-between; padding:7px 0; border-bottom:1px dashed var(--line); font-size:var(--fs-phu);}
     .kv:last-child{border-bottom:none;}
@@ -401,8 +497,8 @@
     input[type=checkbox]{width:16px; height:16px; accent-color:var(--moss); cursor:pointer;}
 
     .sticky-actionbar{
-      position:sticky; bottom:0; background:var(--white); border:1px solid var(--line); border-radius:var(--radius);
-      box-shadow:var(--shadow); padding:14px 18px; display:flex; align-items:center; justify-content:space-between;
+      position:sticky; bottom:12px; z-index:4; background:var(--white); border:1px solid var(--line); border-radius:var(--radius);
+      box-shadow:0 8px 28px rgba(15,23,42,.14); padding:12px 18px; display:flex; align-items:center; justify-content:space-between;
       margin-top:4px;
     }
 
@@ -418,10 +514,12 @@
 
     /* MỚI (theo yêu cầu): widget chatbot AI nổi góc màn hình */
     #chatbotNut{
-      position:fixed; bottom:20px; right:20px; width:54px; height:54px; border-radius:50%;
+      position:fixed; bottom:20px; right:20px; width:52px; height:52px; border-radius:50%;
       background:var(--moss); color:#fff; display:flex; align-items:center; justify-content:center;
-      font-size:24px; cursor:pointer; box-shadow:0 4px 14px rgba(0,0,0,.25); z-index:850; border:none;
+      font-size:23px; cursor:pointer; box-shadow:0 6px 18px rgba(22,163,74,.35), 0 2px 6px rgba(0,0,0,.15); z-index:850; border:none;
+      transition:transform .15s ease, box-shadow .15s ease;
     }
+    #chatbotNut:hover{transform:translateY(-2px); box-shadow:0 10px 24px rgba(22,163,74,.4), 0 2px 6px rgba(0,0,0,.15);}
     #chatbotHop{
       display:none; position:fixed; bottom:84px; right:20px; width:340px; max-width:calc(100vw - 40px);
       height:460px; max-height:calc(100vh - 110px); background:var(--white); border-radius:12px; box-shadow:0 10px 40px rgba(0,0,0,.25); z-index:850;
@@ -452,13 +550,17 @@
     }
     #chatbotNutGui:hover{background:var(--forest);}
 
-    .subtabs{display:flex; gap:6px; margin-bottom:18px; flex-wrap:wrap;}
+    /* Thanh tab trong trang: dạng khối phân đoạn (segmented) trên nền trắng. */
+    .subtabs{display:flex; gap:4px; margin-bottom:18px; flex-wrap:wrap; padding:4px; background:var(--white);
+      border:1px solid var(--line); border-radius:11px; box-shadow:var(--shadow); width:fit-content; max-width:100%;}
     .subtab{
-      padding:8px 14px; border-radius:8px; font-size:12.5px; font-weight:600;
-      background:var(--white); border:1px solid var(--line); color:var(--ink-soft); cursor:pointer;
+      padding:7px 14px; border-radius:8px; font-size:13px; font-weight:600;
+      background:transparent; border:1px solid transparent; color:var(--ink-soft); cursor:pointer; white-space:nowrap;
+      transition:background .15s ease, color .15s ease;
     }
-    .subtab:hover{background:var(--paper-2);}
-    .subtab.active{background:var(--accent); border-color:var(--accent); color:#fff;}
+    .subtab:hover{background:var(--paper); color:var(--ink);}
+    .subtab.active{background:var(--accent); border-color:var(--accent); color:#fff; box-shadow:0 1px 2px rgba(37,99,235,.3);}
+    .subtab .dem{font-weight:500; opacity:.8;}
     .debt-neg{color:var(--danger);}
     .debt-pos{color:var(--moss);}
     .stat .value.debt-neg{color:var(--danger);} .stat .value.debt-pos{color:var(--moss);}
@@ -477,7 +579,7 @@
        đụng tới font cỡ nhỏ mặc định ở Báo Cáo/Công Nợ/Cài Đặt... */
     body.dntt-lg #content table, body.dntt-lg #modal table{font-size:15px;}
     body.dntt-lg #content thead th, body.dntt-lg #modal thead th{font-size:12px;}
-    body.dntt-lg #content tbody td, body.dntt-lg #modal tbody td{padding:12px 10px;}
+    body.dntt-lg #content tbody td, body.dntt-lg #modal tbody td{padding:11px 10px;}
     body.dntt-lg #content label, body.dntt-lg #modal label{font-size:14px;}
     body.dntt-lg #content input[type=text], body.dntt-lg #content input[type=date],
     body.dntt-lg #content input[type=number], body.dntt-lg #content select, body.dntt-lg #content textarea,
@@ -518,11 +620,17 @@
     .chon-tab-khac{margin-left:8px;padding:3px 8px;border-radius:6px;background:#fff4e5;color:#8a4b00;font-size:12.5px;white-space:nowrap}
     /* Đăng nhập & người dùng (v2026.7) */
     body.chua-dang-nhap #nav, body.chua-dang-nhap #chatbotNut, body.chua-dang-nhap #chatbotHop{display:none;}
-    .nguoi-dung-chip{font-size:12px; line-height:1.5; padding:10px 10px 4px; border-top:1px solid rgba(255,255,255,.12); margin-top:auto; color:#e5e7eb; word-break:break-all;}
+    .nguoi-dung-chip{display:flex; align-items:center; gap:10px; font-size:12px; line-height:1.4; padding:12px 8px 4px; border-top:1px solid rgba(255,255,255,.10); margin-top:auto; color:#e5e7eb;}
     .nguoi-dung-chip:empty{display:none;}
-    .nguoi-dung-chip .vai-tro{display:inline-block; font-size:11px; font-weight:600; padding:1px 8px; border-radius:10px; background:var(--timber-light); color:var(--timber); margin-top:2px;}
-    .nguoi-dung-chip .dang-xuat{margin-top:6px; background:transparent; color:#e5e7eb; border:1px solid rgba(255,255,255,.3); border-radius:6px; padding:3px 10px; font-size:12px; cursor:pointer;}
-    .nguoi-dung-chip .dang-xuat:hover{background:rgba(255,255,255,.08);}
+    .nguoi-dung-chip .anh-dai-dien{width:34px; height:34px; flex:0 0 34px; border-radius:50%; background:#334155; color:#fff; font-weight:700; font-size:14px;
+      display:flex; align-items:center; justify-content:center; box-shadow:inset 0 0 0 1px rgba(255,255,255,.15);}
+    .nguoi-dung-chip .nd-chu{display:flex; flex-direction:column; align-items:flex-start; gap:3px; min-width:0; flex:1;}
+    .nguoi-dung-chip .nd-email{max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#f1f5f9; font-weight:500;}
+    .nguoi-dung-chip .vai-tro{display:inline-block; font-size:10.5px; font-weight:700; padding:1px 8px; border-radius:10px; background:rgba(217,119,6,.2); color:#fbbf24;}
+    .nguoi-dung-chip .dang-xuat{flex:0 0 auto; width:30px; height:30px; display:inline-flex; align-items:center; justify-content:center; background:transparent; color:#cbd5e1;
+      border:1px solid rgba(255,255,255,.18); border-radius:7px; cursor:pointer;}
+    .nguoi-dung-chip .dang-xuat svg{width:15px; height:15px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round;}
+    .nguoi-dung-chip .dang-xuat:hover{background:rgba(220,38,38,.2); color:#fff; border-color:rgba(248,113,113,.5);}
     /* ============================================================
        v2026.9.7 - GIAO DIỆN: chế độ tối, bàn phím / trình đọc màn hình,
        giảm chuyển động, bảng cuộn ngang trên điện thoại, bản in.
@@ -534,7 +642,7 @@
         --paper:#0f172a; --paper-2:#1e293b; --ink:#e5e7eb; --ink-soft:#94a3b8; --line:#334155;
         --forest:#020617; --forest-2:#1e293b; --accent:#60a5fa; --moss:#4ade80; --moss-light:#14532d;
         --timber:#f59e0b; --timber-light:#422006; --danger:#f87171; --danger-light:#450a0a; --white:#111827;
-        --shadow:0 1px 2px rgba(0,0,0,.4), 0 4px 14px rgba(0,0,0,.35); --focus:#93c5fd; color-scheme:dark;
+        --shadow:0 1px 2px rgba(0,0,0,.4), 0 1px 3px rgba(0,0,0,.3); --shadow-noi:0 6px 20px rgba(0,0,0,.45); --bang-dau:#172033; --focus:#93c5fd; color-scheme:dark;
         --series-1:#3987e5; --series-2:#d95926;
       }
     }
@@ -542,7 +650,7 @@
       --paper:#0f172a; --paper-2:#1e293b; --ink:#e5e7eb; --ink-soft:#94a3b8; --line:#334155;
       --forest:#020617; --forest-2:#1e293b; --accent:#60a5fa; --moss:#4ade80; --moss-light:#14532d;
       --timber:#f59e0b; --timber-light:#422006; --danger:#f87171; --danger-light:#450a0a; --white:#111827;
-      --shadow:0 1px 2px rgba(0,0,0,.4), 0 4px 14px rgba(0,0,0,.35); --focus:#93c5fd; color-scheme:dark;
+      --shadow:0 1px 2px rgba(0,0,0,.4), 0 1px 3px rgba(0,0,0,.3); --shadow-noi:0 6px 20px rgba(0,0,0,.45); --bang-dau:#172033; --focus:#93c5fd; color-scheme:dark;
       --series-1:#3987e5; --series-2:#d95926;
     }
     #loading-overlay{background:color-mix(in srgb, var(--paper) 94%, transparent);}
@@ -552,7 +660,7 @@
     :focus-visible{outline:2px solid var(--focus); outline-offset:2px;}
     .nav-item:focus-visible, .subtab:focus-visible{outline:2px solid var(--focus); outline-offset:-2px;}
     .sr-only{position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0;}
-    .theme-toggle{margin-top:8px; background:transparent; color:#cbd5e1; border:1px solid rgba(255,255,255,.25); border-radius:6px; padding:3px 10px; font-size:11.5px; cursor:pointer;}
+    .theme-toggle{background:transparent; color:#cbd5e1; border:1px solid rgba(255,255,255,.18); border-radius:6px; padding:4px 10px; font-size:11.5px; cursor:pointer; height:26px;}
     .theme-toggle:hover{background:rgba(255,255,255,.08);}
 
     /* Người dùng chọn giảm chuyển động trong hệ điều hành. */
@@ -591,7 +699,7 @@
     @media print{
       :root{--paper:#fff; --paper-2:#fff; --white:#fff; --ink:#000; --ink-soft:#333; --line:#999; --shadow:none;}
       body{display:block; background:#fff; color:#000;}
-      .sidebar, #topbar-actions, .sticky-actionbar, #chatbotNut, #chatbotHop, #toast-wrap, #loading-overlay,
+      .sidebar, .nut-menu, .nen-menu, #topbar-actions, .sticky-actionbar, #chatbotNut, #chatbotHop, #toast-wrap, #loading-overlay,
       .modal-bg, .subtabs, button, .btn, input[type=checkbox], .nav-badge{display:none !important;}
       .topbar{position:static; border:none; padding:0 0 8px;}
       .content{padding:0;}
@@ -606,41 +714,53 @@
 </head>
 <body data-phien="<?= phien ?>" data-loi-dang-nhap="<?= loiDangNhap ?>" data-trang-dau="<?= trangDau ?>" data-so-thang-bao-cao="<?= soThangBaoCao ?>" class="chua-dang-nhap">
 
-  <aside class="sidebar">
+  <aside class="sidebar" id="sidebar" aria-label="Thanh điều hướng">
     <div class="brand">
-      <div class="mark">H</div>
-      <div>
+      <div class="mark" aria-hidden="true">H</div>
+      <div class="brand-chu">
         <div class="name">HAK Đà Nẵng</div>
         <div class="sub">Quản lý thanh toán</div>
       </div>
     </div>
     <form id="tim-nhanh" class="tim-nhanh hidden" role="search" onsubmit="event.preventDefault(); timNhanh();">
-      <input type="search" id="tim-nhanh-o" placeholder="🔍 Tìm mã hồ sơ, phiếu cân, STK… (/)" aria-label="Tìm nhanh hồ sơ theo mã, số phiếu cân, số tài khoản, số hợp đồng hoặc tên" autocomplete="off">
+      <svg class="ic-tim" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input type="search" id="tim-nhanh-o" placeholder="Tìm hồ sơ, phiếu cân…" aria-label="Tìm nhanh hồ sơ theo mã, số phiếu cân, số tài khoản, số hợp đồng hoặc tên" autocomplete="off">
+      <kbd class="phim-tat" aria-hidden="true">/</kbd>
     </form>
     <nav id="nav" aria-label="Điều hướng chính">
-      <div class="nav-item" role="button" tabindex="0" data-page="dashboard"><span class="ic">🏠</span> Trang chủ</div>
-      <div class="nav-sep"></div>
-      <div class="nav-item" role="button" tabindex="0" data-page="draft"><span class="ic">📋</span> Danh Sách ĐNTT <span class="nav-badge hidden" id="badge-draft">0</span></div>
-      <div class="nav-sep"></div>
-      <div class="nav-item" role="button" tabindex="0" data-page="report"><span class="ic">📊</span> Báo Cáo Thanh Toán</div>
-      <div class="nav-item" role="button" tabindex="0" data-page="debt"><span class="ic">💰</span> Báo Cáo Công Nợ Khách Hàng Gỗ Keo</div>
-      <div class="nav-sep"></div>
-      <div class="nav-item" role="button" tabindex="0" data-page="huongdan"><span class="ic">📖</span> Hướng Dẫn Sử Dụng</div>
-      <div class="nav-item" role="button" tabindex="0" data-page="hethong"><span class="ic">🩺</span> Hệ Thống</div>
-      <div class="nav-item" role="button" tabindex="0" data-page="settings"><span class="ic">⚙️</span> Cài đặt / Nháp</div>
+      <div class="nav-nhom">Tổng quan</div>
+      <div class="nav-item" role="button" tabindex="0" data-page="dashboard" title="Trang chủ"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/><path d="M10 21v-6h4v6"/></svg><span class="nhan">Trang chủ</span></div>
+      <div class="nav-nhom">Nghiệp vụ</div>
+      <div class="nav-item" role="button" tabindex="0" data-page="draft" title="Danh Sách ĐNTT"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="3.5" width="14" height="18" rx="2"/><path d="M9 3.5h6v3H9z"/><path d="M9 11h6M9 15h6"/></svg><span class="nhan">Danh Sách ĐNTT</span> <span class="nav-badge hidden" id="badge-draft">0</span></div>
+      <div class="nav-nhom">Báo cáo</div>
+      <div class="nav-item" role="button" tabindex="0" data-page="report" title="Báo Cáo Thanh Toán"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h16"/><path d="M7 16v-5M12 16V7M17 16v-8"/></svg><span class="nhan">Báo Cáo Thanh Toán</span></div>
+      <div class="nav-item" role="button" tabindex="0" data-page="debt" title="Báo Cáo Công Nợ Khách Hàng Gỗ Keo"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="14" rx="2"/><path d="M3 10h18"/><path d="M16 15h2"/><path d="M6 6V5a2 2 0 0 1 2-2h8"/></svg><span class="nhan">Công Nợ Gỗ Keo</span></div>
+      <div class="nav-nhom">Hỗ trợ &amp; quản trị</div>
+      <div class="nav-item" role="button" tabindex="0" data-page="huongdan" title="Hướng Dẫn Sử Dụng"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 21V5"/><path d="M8 7h7"/></svg><span class="nhan">Hướng Dẫn Sử Dụng</span></div>
+      <div class="nav-item" role="button" tabindex="0" data-page="hethong" title="Hệ Thống"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12h4l2-5 4 10 2-5h6"/></svg><span class="nhan">Hệ Thống</span></div>
+      <div class="nav-item" role="button" tabindex="0" data-page="settings" title="Cài đặt / Nháp"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg><span class="nhan">Cài đặt / Nháp</span></div>
     </nav>
     <div class="nguoi-dung-chip" id="nguoi-dung-chip"></div>
-    <div class="sidebar-footer">Hệ thống Quản Lý Thanh Toán · v2026.9.50<br><button type="button" class="theme-toggle" id="theme-toggle" aria-label="Đổi giao diện sáng / tối">🌓 Giao diện: Tự động</button></div>
+    <div class="sidebar-footer">
+      <span class="phien-ban">Quản Lý Thanh Toán · v2026.9.50</span>
+      <span class="chan-nut">
+        <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Đổi giao diện sáng / tối">🌓 Giao diện: Tự động</button>
+        <button type="button" class="nut-thu-gon" id="nut-thu-gon" aria-label="Thu gọn thanh bên" title="Thu gọn / mở rộng thanh bên"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 6-6 6 6 6"/></svg></button>
+      </span>
+    </div>
   </aside>
+  <div class="nen-menu" id="nen-menu" aria-hidden="true"></div>
 
   <main class="main">
-    <div class="topbar">
-      <div>
+    <header class="topbar">
+      <button type="button" class="nut-menu" id="nut-menu" aria-label="Mở menu" aria-controls="sidebar" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+      <div class="tieu-de-trang">
+        <div class="duong-dan" id="page-crumb" aria-hidden="true"></div>
         <h1 id="page-title">Trang chủ</h1>
         <div class="desc" id="page-desc">Tổng quan quy trình đề nghị thanh toán</div>
       </div>
       <div class="actions" id="topbar-actions"></div>
-    </div>
+    </header>
     <div class="content" id="content">
       <!-- render động -->
     </div>
@@ -1018,6 +1138,7 @@ function hienManHinhDangNhap(loi){
   try { sessionStorage.removeItem(PHIEN_STORAGE_KEY); } catch(e) {}
   document.body.classList.add('chua-dang-nhap');
   document.getElementById('nguoi-dung-chip').innerHTML = '';
+  document.getElementById('page-crumb').textContent = '';
   document.getElementById('page-title').textContent = 'Đăng nhập';
   document.getElementById('page-desc').textContent = 'Hệ thống Quản Lý Thanh Toán HAK';
   document.getElementById('topbar-actions').innerHTML = '';
@@ -1077,8 +1198,10 @@ function _veNguoiDungChip_(){
   const nd = state.nguoiDung;
   const el = document.getElementById('nguoi-dung-chip');
   if (!nd || !nd.daDangNhap) { el.innerHTML = ''; return; }
-  el.innerHTML = `<div>👤 ${esc(nd.email)}</div><span class="vai-tro">${esc(nd.vaiTroNhan)}</span>
-    ${nd.quaPhien ? '<div><button class="dang-xuat" onclick="dangXuatWeb()">Đăng xuất</button></div>' : ''}`;
+  const chu = (String(nd.email || '?').match(/[\p{L}\p{N}]/u) || ['?'])[0].toUpperCase();
+  el.innerHTML = `<span class="anh-dai-dien" aria-hidden="true">${esc(chu)}</span>
+    <span class="nd-chu"><span class="nd-email" title="${esc(nd.email)}">${esc(nd.email)}</span><span class="vai-tro">${esc(nd.vaiTroNhan)}</span></span>
+    ${nd.quaPhien ? '<button class="dang-xuat" onclick="dangXuatWeb()" title="Đăng xuất" aria-label="Đăng xuất"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg></button>' : ''}`;
 }
 function apDungQuyenGiaoDien(){
   document.body.classList.remove('chua-dang-nhap');
@@ -1086,6 +1209,12 @@ function apDungQuyenGiaoDien(){
   document.querySelectorAll('#nav .nav-item').forEach(el => {
     const meta = PAGES[el.dataset.page];
     el.style.display = (meta && coQuyen(meta.quyen)) ? '' : 'none';
+  });
+  // Ẩn tên nhóm khi cả nhóm không còn trang nào được mở.
+  document.querySelectorAll('#nav .nav-nhom').forEach(nhom => {
+    let conTrang = false;
+    for (let el = nhom.nextElementSibling; el && !el.classList.contains('nav-nhom'); el = el.nextElementSibling) if (el.style.display !== 'none') conTrang = true;
+    nhom.style.display = conTrang ? '' : 'none';
   });
   _veNguoiDungChip_();
 }
@@ -1413,18 +1542,47 @@ function doiGiaoDien(){
 try { _apDungGiaoDien_(localStorage.getItem(GIAO_DIEN_KHOA) || 'auto'); } catch(e) { _apDungGiaoDien_('auto'); }
 document.getElementById('theme-toggle').addEventListener('click', doiGiaoDien);
 
+/* ---------- Thanh bên (giao diện 2026.9.50) ----------
+ * Máy tính: nút ‹ ở chân thanh bên thu gọn còn biểu tượng (nhớ trên máy này).
+ * Điện thoại / máy tính bảng: thanh bên ẩn, nút ☰ ở thanh tiêu đề mở ra dạng ngăn kéo. */
+const THU_GON_KHOA = 'hak_thanh_ben_gon';
+function _datThuGon_(gon){
+  document.body.classList.toggle('thanh-ben-gon', gon);
+  const nut = document.getElementById('nut-thu-gon');
+  nut.setAttribute('aria-label', gon ? 'Mở rộng thanh bên' : 'Thu gọn thanh bên');
+  nut.setAttribute('aria-expanded', String(!gon));
+}
+try { _datThuGon_(localStorage.getItem(THU_GON_KHOA) === '1'); } catch(e) { _datThuGon_(false); }
+document.getElementById('nut-thu-gon').addEventListener('click', () => {
+  const gon = !document.body.classList.contains('thanh-ben-gon');
+  _datThuGon_(gon);
+  try { localStorage.setItem(THU_GON_KHOA, gon ? '1' : '0'); } catch(e) {}
+});
+function _dongMenuDienThoai_(){
+  document.body.classList.remove('menu-mo');
+  document.getElementById('nut-menu').setAttribute('aria-expanded', 'false');
+}
+document.getElementById('nut-menu').addEventListener('click', () => {
+  const mo = document.body.classList.toggle('menu-mo');
+  document.getElementById('nut-menu').setAttribute('aria-expanded', String(mo));
+});
+document.getElementById('nen-menu').addEventListener('click', _dongMenuDienThoai_);
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && document.body.classList.contains('menu-mo')) _dongMenuDienThoai_(); });
+// Thanh tiêu đề có bóng khi trang đã cuộn xuống.
+window.addEventListener('scroll', () => document.querySelector('.topbar').classList.toggle('da-cuon', window.scrollY > 4), { passive: true });
+
 /* ============================================================
  * NAVIGATION
  * ============================================================ */
 // quyen: quyền tối thiểu để thấy trang (khớp QUYEN phía server).
 const PAGES = {
-  dashboard: {title:'Trang chủ', desc:'Tổng quan quy trình đề nghị thanh toán', render: renderDashboard, quyen:'XEM'},
-  draft:     {title:'Danh Sách ĐNTT (chờ duyệt)', desc:'Tạo mới, xem, duyệt, tính tiền và Đóng Thanh Toán các Đề Nghị Thanh Toán đang chờ xử lý (Nháp)', render: renderDraft, quyen:'NGHIEP_VU'},
-  report:    {title:'Báo Cáo Thanh Toán', desc:'Danh sách hồ sơ đã chốt thanh toán chính thức', render: renderReport, quyen:'XEM'},
-  debt:      {title:'Báo Cáo Công Nợ Khách Hàng Gỗ Keo', desc:'Công nợ theo khách hàng / hợp đồng, sổ chi tiết, phân tích tình hình thanh toán', render: renderDebt, quyen:'XEM'},
-  huongdan:  {title:'Hướng Dẫn Sử Dụng', desc:'Quy trình thực hiện thủ tục thanh toán và hướng dẫn từng màn hình', render: renderHuongDan, quyen:'XEM'},
-  hethong:   {title:'Hệ Thống', desc:'Tra cứu, kiểm tra dữ liệu và (tab riêng) các công cụ can thiệp dữ liệu đã chốt', render: renderHeThong, quyen:'HE_THONG'},
-  settings:  {title:'Cài đặt / File Nháp', desc:'Khởi tạo và quản lý File Nháp, người dùng & đăng nhập', render: renderSettings, quyen:'QUAN_TRI'}
+  dashboard: {nhom:'Tổng quan', title:'Trang chủ', desc:'Tổng quan quy trình đề nghị thanh toán', render: renderDashboard, quyen:'XEM'},
+  draft:     {nhom:'Nghiệp vụ', title:'Danh Sách ĐNTT (chờ duyệt)', desc:'Tạo mới, xem, duyệt, tính tiền và Đóng Thanh Toán các Đề Nghị Thanh Toán đang chờ xử lý (Nháp)', render: renderDraft, quyen:'NGHIEP_VU'},
+  report:    {nhom:'Báo cáo', title:'Báo Cáo Thanh Toán', desc:'Danh sách hồ sơ đã chốt thanh toán chính thức', render: renderReport, quyen:'XEM'},
+  debt:      {nhom:'Báo cáo', title:'Báo Cáo Công Nợ Khách Hàng Gỗ Keo', desc:'Công nợ theo khách hàng / hợp đồng, sổ chi tiết, phân tích tình hình thanh toán', render: renderDebt, quyen:'XEM'},
+  huongdan:  {nhom:'Hỗ trợ', title:'Hướng Dẫn Sử Dụng', desc:'Quy trình thực hiện thủ tục thanh toán và hướng dẫn từng màn hình', render: renderHuongDan, quyen:'XEM'},
+  hethong:   {nhom:'Quản trị', title:'Hệ Thống', desc:'Tra cứu, kiểm tra dữ liệu và (tab riêng) các công cụ can thiệp dữ liệu đã chốt', render: renderHeThong, quyen:'HE_THONG'},
+  settings:  {nhom:'Quản trị', title:'Cài đặt / File Nháp', desc:'Khởi tạo và quản lý File Nháp, người dùng & đăng nhập', render: renderSettings, quyen:'QUAN_TRI'}
 };
 
 document.getElementById('nav').addEventListener('click', e => {
@@ -1446,8 +1604,11 @@ function goTo(page){
     if (el.dataset.page === page) el.setAttribute('aria-current', 'page'); else el.removeAttribute('aria-current');
   });
   const meta = PAGES[page];
+  document.getElementById('page-crumb').textContent = meta.nhom + ' › ' + meta.title;
   document.getElementById('page-title').textContent = meta.title;
   document.getElementById('page-desc').textContent = meta.desc;
+  _dongMenuDienThoai_();
+  window.scrollTo(0, 0);
   document.getElementById('topbar-actions').innerHTML = '';
   _boTheoDoiMucLuc(document.getElementById('content'));
   meta.render();
@@ -1588,6 +1749,8 @@ function _oSoMo(trang, tab, lopThem){
 }
 function renderDashboard(){
   const c = document.getElementById('content');
+  // Bố cục (giao diện 2026.9.50): quy trình 5 bước → hồ sơ cần xử lý → tháng này → xu hướng & công nợ
+  // (2 cột) → tuổi nợ → cơ cấu mua.
   c.innerHTML = `<div id="dash-setup-warning"></div><div id="dash-kiem-tra-dem"></div>
   <div class="card" id="dash-quy-trinh">
     <h3>Quy trình thanh toán</h3>
@@ -1601,35 +1764,36 @@ function renderDashboard(){
   <div class="grid cols-4 o-so" id="dash-stats">
     <div ${_oSoMo('draft', 'all')}><div class="label">Hồ sơ đang ở Nháp</div><div class="value" id="s-draft">–</div><div class="hint">Chưa chốt thanh toán</div></div>
     <div ${_oSoMo('draft', 'san_sang')}><div class="label">Sẵn sàng chốt</div><div class="value" id="s-ready">–</div><div class="hint">Đã có Số tiền</div></div>
-    <div ${_oSoMo('draft', 'cho_tinh')}><div class="label">Chưa tính tiền</div><div class="value" id="s-pending">–</div><div class="hint">Chưa tính số tiền</div></div>
-    <div ${_oSoMo('draft', 'san_sang')}><div class="label">Tổng tiền sẵn sàng</div><div class="value timber" id="s-total">–</div><div class="hint">VNĐ</div></div>
+    <div ${_oSoMo('draft', 'cho_tinh', 'vach-timber')}><div class="label">Chưa tính tiền</div><div class="value timber" id="s-pending">–</div><div class="hint">Chưa tính số tiền</div></div>
+    <div ${_oSoMo('draft', 'san_sang', 'vach-timber')}><div class="label">Tổng tiền sẵn sàng</div><div class="value timber" id="s-total">–</div><div class="hint">VNĐ</div></div>
   </div>
   <div class="muc-tieu-de">Mua &amp; thanh toán tháng này</div>
   <div class="grid cols-4 o-so" id="dash-stats-thang">
     <div ${_oSoMo('debt', 'phantich')}><div class="label">KL Mua Tháng Này</div><div class="value" id="s-kl-mua">–</div><div class="hint">kg (theo ngày cân)</div></div>
     <div ${_oSoMo('debt', 'phantich')}><div class="label">Tiền Mua Tháng Này</div><div class="value" id="s-tien-mua">–</div><div class="hint">VNĐ (theo ngày cân)</div></div>
-    <div ${_oSoMo('report', 'gokeo')}><div class="label">KL Thanh Toán Tháng Này</div><div class="value timber" id="s-kl-tt">–</div><div class="hint">tấn (theo ngày CK/TT)</div></div>
-    <div ${_oSoMo('report', 'gokeo')}><div class="label">Tiền Thanh Toán Tháng Này</div><div class="value timber" id="s-tien-tt">–</div><div class="hint">VNĐ (theo ngày CK/TT)</div></div>
+    <div ${_oSoMo('report', 'gokeo', 'vach-timber')}><div class="label">KL Thanh Toán Tháng Này</div><div class="value timber" id="s-kl-tt">–</div><div class="hint">tấn (theo ngày CK/TT)</div></div>
+    <div ${_oSoMo('report', 'gokeo', 'vach-timber')}><div class="label">Tiền Thanh Toán Tháng Này</div><div class="value timber" id="s-tien-tt">–</div><div class="hint">VNĐ (theo ngày CK/TT)</div></div>
   </div>
   <div class="hint-text" id="s-thang-cap-nhat" style="margin-top:8px"></div>
-  <div class="muc-tieu-de">Công nợ khách hàng gỗ keo</div>
-  <div class="grid cols-2">
-    <div ${_oSoMo('debt', 'customer', 'card')}>
-      <h3>Tổng nợ tiền gỗ keo</h3>
-      <div class="value" id="s-tong-no" style="font-variant-numeric:tabular-nums; font-size:var(--fs-so); font-weight:700; letter-spacing:-0.02em; color:var(--danger)">–</div>
-      <div class="muted" style="font-size:12px; margin-top:4px">VNĐ - cộng dồn công nợ còn lại của TẤT CẢ khách hàng (khoảng 90 ngày gần nhất), chỉ tính khách hàng còn nợ</div>
-      <div class="hint-text" id="s-congno-cap-nhat" style="margin-top:6px"></div>
-    </div>
-    <div class="card">
-      <h3>Top 5 khách hàng nợ nhiều nhất</h3>
-      <div id="dash-top5-no"><div class="empty"><div class="ic">⏳</div>Đang tải...</div></div>
+  <div class="muc-tieu-de">Xu hướng 30 ngày &amp; công nợ</div>
+  <div class="grid dash-hai-cot">
+    <div class="card" style="margin-bottom:0"><h3>Mua và thanh toán 30 ngày gần nhất</h3><div id="dash-xu-huong"><div class="empty"><div class="ic">⏳</div>Đang tải...</div></div></div>
+    <div class="dash-cot-phai">
+      <div ${_oSoMo('debt', 'customer', 'card')}>
+        <h3>Tổng nợ tiền gỗ keo</h3>
+        <div class="value" id="s-tong-no" style="font-variant-numeric:tabular-nums; font-size:var(--fs-so); font-weight:700; letter-spacing:-0.02em; color:var(--danger)">–</div>
+        <div class="muted" style="font-size:12px; margin-top:4px">VNĐ - cộng dồn công nợ còn lại của TẤT CẢ khách hàng (khoảng 90 ngày gần nhất), chỉ tính khách hàng còn nợ</div>
+        <div class="hint-text" id="s-congno-cap-nhat" style="margin-top:6px"></div>
+      </div>
+      <div class="card" style="margin-bottom:0">
+        <h3>Top 5 khách hàng nợ nhiều nhất</h3>
+        <div id="dash-top5-no"><div class="empty"><div class="ic">⏳</div>Đang tải...</div></div>
+      </div>
     </div>
   </div>
   <div class="muc-tieu-de">Tuổi nợ phiếu cân chưa thanh toán</div>
-  <div class="grid cols-4 o-so" id="dash-tuoi-no">${[0, 1, 2, 3].map(i => `<div ${_oSoMo('debt', 'ctcn')}><div class="label" id="tn-nhan-${i}">–</div><div class="value${i >= 2 ? ' timber' : ''}" id="tn-tien-${i}">–</div><div class="hint" id="tn-so-${i}">phiếu cân</div></div>`).join('')}</div>
+  <div class="grid cols-4 o-so" id="dash-tuoi-no">${[0, 1, 2, 3].map(i => `<div ${_oSoMo('debt', 'ctcn', ['', '', 'vach-timber', 'vach-danger'][i])}><div class="label" id="tn-nhan-${i}">–</div><div class="value${i === 2 ? ' timber' : i === 3 ? ' debt-neg' : ''}" id="tn-tien-${i}">–</div><div class="hint" id="tn-so-${i}">phiếu cân</div></div>`).join('')}</div>
   <div class="hint-text" id="tn-tinh-den" style="margin-top:8px"></div>
-  <div class="muc-tieu-de">Xu hướng 30 ngày: mua và thanh toán</div>
-  <div class="card"><div id="dash-xu-huong"><div class="empty"><div class="ic">⏳</div>Đang tải...</div></div></div>
   <div class="muc-tieu-de">Mua tháng này theo nguồn gốc &amp; đại lý</div>
   <div class="grid cols-2">
     <div class="card">
@@ -1750,6 +1914,7 @@ async function cancelCreateFlow(){
 }
 
 function renderCreate(){
+  document.getElementById('page-crumb').textContent = 'Nghiệp vụ › Danh Sách ĐNTT › Tạo Mới';
   document.getElementById('page-title').textContent = 'Tạo Đề Nghị Thanh Toán';
   document.getElementById('page-desc').textContent = 'Bước 1: chọn phiếu cân → Bước 2: thông tin nhận tiền → Bước 3: xác nhận & lưu';
   document.getElementById('topbar-actions').innerHTML = `<button class="btn ghost" onclick="cancelCreateFlow()">← Quay lại Danh Sách ĐNTT</button>`;
@@ -2389,6 +2554,7 @@ function renderDraft(){
   if (!state.draftView) state.draftView = 'list';
   if (state.draftView === 'create') return renderCreate();
 
+  document.getElementById('page-crumb').textContent = PAGES.draft.nhom + ' › ' + PAGES.draft.title;
   document.getElementById('page-title').textContent = PAGES.draft.title;
   document.getElementById('page-desc').textContent = PAGES.draft.desc;
   document.getElementById('topbar-actions').innerHTML = `
@@ -2405,15 +2571,15 @@ function renderDraft(){
       <div class="subtab" data-f="dang_dntt">3 · Chờ duyệt <span class="dem"></span></div>
       <div class="subtab" data-f="san_sang">Đã có số tiền (2 + 3) <span class="dem"></span></div>
     </div>
-    <div class="hint-text" style="margin-bottom:10px">Quy trình: Tạo Mới → hệ thống tự tính tiền → (2) Chờ xác nhận → chọn hồ sơ, bấm "Xác Nhận" → (3) Chờ duyệt → in Báo Cáo ĐNTT / tạo UNC, rồi bấm "Duyệt" để Đóng Thanh Toán (ghi sổ chính thức).</div>
-    <div class="card" id="draft-filter-card">
-      <div class="grid cols-3" style="align-items:end">
-        <div class="field" style="grid-column:span 2"><label for="draft-tu-khoa">Lọc theo tên khách hàng (chủ rừng / người nhận)</label>
+    <div class="card thanh-loc" id="draft-filter-card">
+      <div class="thanh-loc-hang">
+        <div class="o-loc"><label for="draft-tu-khoa">Lọc theo tên khách hàng (chủ rừng / người nhận)</label>
           <input type="text" id="draft-tu-khoa" list="draft-ds-khach" autocomplete="off" placeholder="Gõ tên - không cần dấu, vd: nguyen van a" value="${esc(state.draftTuKhoa || '')}">
           <datalist id="draft-ds-khach"></datalist></div>
-        <div class="field"><button class="btn ghost" onclick="boLocDraft()">✕ Bỏ lọc</button></div>
+        <button class="btn" onclick="boLocDraft()">✕ Bỏ lọc</button>
       </div>
-      <div id="draft-tong" style="margin-top:10px"></div>
+      <div id="draft-tong" style="margin-top:12px"></div>
+      <div class="hint-text" style="margin-top:8px">Quy trình: Tạo Mới → hệ thống tự tính tiền → (2) Chờ xác nhận → chọn hồ sơ, bấm "Xác Nhận" → (3) Chờ duyệt → in Báo Cáo ĐNTT / tạo UNC, rồi bấm "Duyệt" để Đóng Thanh Toán (ghi sổ chính thức).</div>
     </div>
     <div id="duyet-do-dang"></div>
     <div class="card" id="draft-table-wrap"><div class="empty"><div class="ic">⏳</div>Đang tải...</div></div>
@@ -2552,25 +2718,22 @@ function renderDraftTable(){
   const daChonHet = chonDuoc.length > 0 && chonDuoc.every(r => state.draftSelected.has(r.idKey));
   wrap.innerHTML = `<div class="cuon-ngang"><table class="cot-cuoi-dinh"><thead><tr>
       <th><input type="checkbox" id="chk-all" ${daChonHet ? 'checked' : ''} onchange="toggleAll(this)"></th>
-      <th>Ngày đề nghị</th><th>Chủ rừng</th><th>Người nhận</th><th>Ngân hàng / STK</th><th>Số HĐ</th>
-      <th class="num">Số phiếu</th><th class="num">KL (kg)</th><th class="num">Số tiền</th><th>Trạng thái</th><th></th>
+      <th title="Số hợp đồng / Ngày đề nghị">HĐ · Ngày</th><th>Chủ rừng / Người nhận</th><th>STK / Ngân hàng</th>
+      <th class="num" title="Khối lượng (kg) / Số phiếu cân">KL (kg)</th><th class="num">Số tiền</th><th>Trạng thái</th><th></th>
     </tr></thead><tbody>
     ${list.map(r => `<tr>
       <td><input type="checkbox" class="chk-row" data-id="${esc(r.idKey)}" ${state.draftSelected.has(r.idKey)?'checked':''} ${r.sanSangChot?'':'disabled title="Chưa tính Đề Nghị Thanh Toán"'} onchange="toggleRow(this.dataset.id, this.checked)"></td>
-      <td class="mono">${esc(r.ngayDeNghi)}</td>
-      <td>${esc(r.chuRung)}</td>
-      <td>${esc(r.nguoiNhan)}</td>
-      <td>${esc(r.nganHang)}<br><span class="muted mono" style="font-size:11.5px">${esc(r.stk)}</span></td>
-      <td class="mono">${esc(r.soHD)}</td>
-      <td class="num">${r.soLuongPhieu}</td>
-      <td class="num">${fmtKl(r.klTongKg)}</td>
-      <td class="num">${r.sanSangChot ? fmtMoney(r.soTien) : '–'}</td>
+      <td><div class="mono ten-chinh">${esc(r.soHD || '–')}</div><div class="dong-phu mono">${esc(r.ngayDeNghi)}</div></td>
+      <td class="cot-ten"><div class="ten-chinh">${esc(r.chuRung)}</div><div class="dong-phu">Nhận: ${esc(r.nguoiNhan || '–')}</div></td>
+      <td class="cot-nh"><div class="mono ten-chinh">${esc(r.stk || '–')}</div><div class="dong-phu" title="${esc(r.nganHang)}">${esc(r.nganHang)}</div></td>
+      <td class="num">${fmtKl(r.klTongKg)}<div class="dong-phu">${r.soLuongPhieu} phiếu</div></td>
+      <td class="num"><b>${r.sanSangChot ? fmtMoney(r.soTien) : '–'}</b></td>
       <td>${DRAFT_STATUS_BADGE[r.trangThaiKey] || esc(r.trangThaiLabel)}${r.canTinhLai ? `<br><span class="badge pending dot" title="Số tiền ${fmtMoney(r.soTien)} đ khác tổng phiếu cân ${fmtMoney(r.tongTienPhieu)} đ - bấm Tính lại số tiền">⚠️ Cần tính lại</span>` : ''}</td>
       <td style="white-space:nowrap">${draftRowActionsHtml(r)}</td>
     </tr>`).join('')}
     </tbody>
-    <tfoot><tr style="font-weight:700"><td colspan="6" style="text-align:right">TỔNG CỘNG (${list.length} hồ sơ)</td>
-      <td class="num">${list.reduce((t, r) => t + r.soLuongPhieu, 0)}</td><td class="num">${fmtKl(list.reduce((t, r) => t + r.klTongKg, 0))}</td>
+    <tfoot><tr style="font-weight:700"><td colspan="4" style="text-align:right">TỔNG CỘNG (${list.length} hồ sơ)</td>
+      <td class="num">${fmtKl(list.reduce((t, r) => t + r.klTongKg, 0))}<div class="dong-phu">${list.reduce((t, r) => t + r.soLuongPhieu, 0)} phiếu</div></td>
       <td class="num">${fmtMoney(list.filter(r => r.sanSangChot).reduce((t, r) => t + r.soTien, 0))}</td><td colspan="2"></td></tr></tfoot></table></div>`;
   updateDraftActionbar();
 }
@@ -3873,8 +4036,7 @@ function renderDebt(){
         <div class="field"><label>Đến ngày (cũng là mốc tính công nợ lũy kế)</label><input type="date" id="debt-to" value="${esc(state.debtTo)}"></div>
         <div class="field" style="display:flex; align-items:flex-end; gap:6px">
           <button class="btn primary" onclick="loadDebtTab()">🔍 Xem</button>
-          ${['customer','contract'].includes(state.debtTab) ? `<button class="btn" onclick="doLamMoiCongNo()" title="Tính lại ngay Công Nợ theo Khách Hàng/Hợp Đồng cho đúng khoảng ngày đang xem - không cần chờ tới giờ trigger 7:30/13:00">🔄 Làm mới báo cáo</button>
-          <button class="btn accent" onclick="doXuatCongNo('${state.debtTab === 'customer' ? 'kh' : 'hd'}')" title="Xuất đúng số liệu đang xem ra file Excel + PDF (lưu trong thư mục Báo cáo)">📥 Xuất Excel + PDF</button>` : ''}
+          ${['customer','contract'].includes(state.debtTab) ? `<button class="btn" onclick="doLamMoiCongNo()" title="Tính lại ngay Công Nợ theo Khách Hàng/Hợp Đồng cho đúng khoảng ngày đang xem - không cần chờ tới giờ trigger 7:30/13:00">🔄 Làm mới báo cáo</button>` : ''}
         </div>
       </div>
       <div class="hint-text" style="margin-top:6px">"Trong kỳ" giới hạn tối đa ~3 tháng để tải nhanh hơn; số dư/lũy kế vẫn tính đủ đến "Đến ngày" như bình thường.${['customer','contract'].includes(state.debtTab) ? ' Nếu vừa nhập thêm Phiếu Cân/thanh toán mà số liệu chưa cập nhật, bấm "Làm mới báo cáo" thay vì chờ tới giờ trigger 7:30/13:00.' : ''}</div>
@@ -4160,7 +4322,7 @@ function renderLedgerDetailTable(){
         <div class="stat"><div class="label">Số dư cuối kỳ (còn nợ)</div><div class="value ${res.duCuoiKy>0?'debt-neg':'debt-pos'}">${fmtMoney(res.duCuoiKy)}</div></div>
       </div>
       <div class="card" style="margin-top:16px">
-        <div class="card-dau"><h3>Sổ chi tiết công nợ - ${esc(res.tenHienThi || res.key)}${res.cccd ? ' – CCCD ' + esc(res.cccd) : ''}</h3>${NUT_XUAT_SO_CONG_NO}</div>
+        <h3>Sổ chi tiết công nợ - ${esc(res.tenHienThi || res.key)}${res.cccd ? ' – CCCD ' + esc(res.cccd) : ''}</h3>
         <table><thead><tr><th>Ngày</th><th>Diễn giải</th><th class="num">Phát sinh Nợ</th><th class="num">Phát sinh Có</th><th class="num">Số dư</th></tr></thead><tbody>
           ${pageRows.map(r => `<tr><td>${esc(r.ngay)}</td><td>${esc(r.dienGiai)}</td>
             <td class="num">${r.no?fmtMoney(r.no):''}</td><td class="num">${r.co?fmtMoney(r.co):''}</td>
@@ -4176,7 +4338,7 @@ function renderLedgerDetailTable(){
         <div class="stat"><div class="label">Công nợ hiện tại</div><div class="value ${res.congNo>0?'debt-neg':'debt-pos'}">${fmtMoney(res.congNo)}</div></div>
       </div>
       <div class="card" style="margin-top:16px">
-        <div class="card-dau"><h3>Tiến độ hợp đồng - ${esc(res.key)}</h3>${NUT_XUAT_SO_CONG_NO}</div>
+        <h3>Tiến độ hợp đồng - ${esc(res.key)}</h3>
         <table><thead><tr><th>Ngày</th><th>Số phiếu cân</th><th class="num">KL (tấn)</th><th class="num">Thành tiền</th><th>Trạng thái</th></tr></thead><tbody>
           ${pageRows.map(r => `<tr><td>${esc(r.ngay)}</td><td class="mono">${esc(r.soPhieuCan)}</td>
             <td class="num">${fmtKl(r.klTan)}</td><td class="num">${fmtMoney(r.thanhTien)}</td>
@@ -4316,32 +4478,20 @@ function clearPhanTichSubFilter(){
   renderPhanTichNhapTTTable();
 }
 
-/** Hộp kết quả của báo cáo xuất cả Excel + PDF ({excelUrl, pdfUrl, canhBao}). */
-function _moKetQuaXuat(moTa, res){
-  if (!res || !res.success) { toast('❌ ' + (res && res.message || 'Xuất báo cáo thất bại.'), 'err'); return; }
-  openModal(`<div class="modal-head"><h3>Xuất báo cáo thành công</h3><button class="x" onclick="closeModal()" aria-label="Đóng">&times;</button></div>
-    <div class="modal-body">
-      <p>${esc(moTa)}</p>
-      ${nutMoFile_(res.excelUrl, '📊 Mở file Excel', 'btn primary', 'width:100%;margin-bottom:8px')}
-      ${res.pdfUrl ? nutMoFile_(res.pdfUrl, '📄 Mở file PDF', 'btn', 'width:100%') : `<p class="muted">⚠️ ${esc(res.canhBao || 'Không tạo được file PDF.')}</p>`}
-    </div>
-    <div class="modal-foot"><button class="btn ghost" onclick="closeModal()">Đóng</button></div>`);
-}
 function doExportPhanTich(){
-  call('exportPhanTichNhapTTBaoCao', [state.phanTichFrom, state.phanTichTo], 'Đang xuất báo cáo Excel + PDF...')
-    .then(res => _moKetQuaXuat(`Báo cáo tổng hợp từ ${_isoSangVN(state.phanTichFrom)} đến ${_isoSangVN(state.phanTichTo)} đã được tạo.`, res));
-}
-
-/* ---------- Xuất Công nợ theo KH / HĐ / Sổ chi tiết ra Excel + PDF ----------
- * Đúng số liệu đang xem: khoảng ngày đã bấm Xem (state), đối tượng sổ chi tiết đang mở. */
-const TEN_XUAT_CONG_NO = { kh: 'Công nợ theo Khách hàng', hd: 'Công nợ theo Hợp đồng', so: 'Sổ chi tiết công nợ' };
-const NUT_XUAT_SO_CONG_NO = `<button class="btn accent sm" onclick="doXuatCongNo('so')" title="Xuất sổ đang xem ra file Excel + PDF">📥 Xuất Excel + PDF</button>`;
-function doXuatCongNo(loai){
-  const tuyChon = loai === 'so' ? { loaiSo: state.debtLedgerType || 'customer', khoa: state.debtLedgerKey || '' } : {};
-  if (loai === 'so' && !tuyChon.khoa) { toast('Chọn đối tượng rồi bấm "Xem sổ chi tiết" trước khi xuất.', 'warn'); return; }
-  const ten = TEN_XUAT_CONG_NO[loai];
-  call('exportCongNo', [loai, state.debtFrom, state.debtTo, tuyChon], `Đang xuất ${ten} (Excel + PDF)...`)
-    .then(res => _moKetQuaXuat(`${ten} ${loai === 'so' ? 'đến hết' : `từ ${_isoSangVN(state.debtFrom)} đến`} ${_isoSangVN(state.debtTo)} đã được tạo (${(res && res.count) || 0} dòng).`, res));
+  call('exportPhanTichNhapTTBaoCao', [state.phanTichFrom, state.phanTichTo], 'Đang xuất báo cáo Excel + PDF...').then(res => {
+    if (res && res.success) {
+      openModal(`<div class="modal-head"><h3>Xuất báo cáo thành công</h3><button class="x" onclick="closeModal()" aria-label="Đóng">&times;</button></div>
+        <div class="modal-body">
+          <p>Báo cáo tổng hợp từ ${esc(state.phanTichFrom)} đến ${esc(state.phanTichTo)} đã được tạo.</p>
+          ${nutMoFile_(res.excelUrl, '📊 Mở file Excel', 'btn primary', 'width:100%;margin-bottom:8px')}
+          ${res.pdfUrl ? nutMoFile_(res.pdfUrl, '📄 Mở file PDF', 'btn', 'width:100%') : `<p class="muted">⚠️ ${esc(res.canhBao || 'Không tạo được file PDF.')}</p>`}
+        </div>
+        <div class="modal-foot"><button class="btn ghost" onclick="closeModal()">Đóng</button></div>`);
+    } else {
+      toast('❌ ' + (res && res.message || 'Xuất báo cáo thất bại.'), 'err');
+    }
+  });
 }
 
 /* ============================================================
@@ -4651,9 +4801,9 @@ function renderHuongDan(){
   <details class="card">
     <summary style="cursor:pointer;font-weight:700;font-size:15px">💰 Báo Cáo Công Nợ Khách Hàng Gỗ Keo (7 mục)</summary>
     <div style="margin-top:10px;font-size:13px;line-height:1.7">
-      <b>1 · Công nợ theo Khách hàng</b> - tổng khối lượng nhập/đã trả/còn nợ theo từng khách hàng, trong 1 khoảng ngày. Nút <b>📥 Xuất Excel + PDF</b> xuất đúng số liệu đang xem.<br>
-      <b>2 · Công nợ theo Hợp đồng</b> - tương tự nhưng theo từng hợp đồng (kể cả hợp đồng đã thanh lý). Xuất được Excel + PDF.<br>
-      <b>3 · Sổ chi tiết công nợ</b> - bấm vào 1 khách hàng/hợp đồng ở tab 1/2 để xem từng phiếu cân/lần thanh toán cụ thể. Nút <b>📥 Xuất Excel + PDF</b> ở góc bảng xuất sổ đang xem.<br>
+      <b>1 · Công nợ theo Khách hàng</b> - tổng khối lượng nhập/đã trả/còn nợ theo từng khách hàng, trong 1 khoảng ngày.<br>
+      <b>2 · Công nợ theo Hợp đồng</b> - tương tự nhưng theo từng hợp đồng (kể cả hợp đồng đã thanh lý).<br>
+      <b>3 · Sổ chi tiết công nợ</b> - bấm vào 1 khách hàng/hợp đồng ở tab 1/2 để xem từng phiếu cân/lần thanh toán cụ thể.<br>
       <b>4 · Phân tích thanh toán</b> - tổng hợp theo Nguồn Gốc và Đại Lý trong khoảng ngày.<br>
       <b>5 · Phân tích Nhập/TT theo NG-ĐL</b> - bảng theo NGÀY (dòng) × Nguồn Gốc/Đại Lý (cột), mặc định đầu tháng → hôm nay ("Từ ngày" bị khóa, tự tính theo "Đến ngày"). Có ô "Lọc lại" để xem thu hẹp trong khoảng đã tải. Xuất được cả Excel + PDF.<br>
       <b>6 · Chi tiết Công Nợ theo Phiếu Cân</b> - liệt kê phiếu cân CHƯA thanh toán tính đến 1 ngày cụ thể, kèm "Chênh lệch ngày" (đã treo bao lâu). Mặc định xem hôm qua, chọn ngày khác tự tính lại ngay.<br>
@@ -5051,7 +5201,7 @@ const NHAN_CHUC_NANG = {
   exportBaoCaoDNTTFromDraft: 'In Báo cáo ĐNTT', webCreateUNCFromDraft: 'Tạo UNC', webConfirmPayment: 'Duyệt / Đóng thanh toán',
   getReportList: 'Báo cáo thanh toán', webExportReport: 'Xuất báo cáo thanh toán', getChiTietDNTTDaChot: 'Báo cáo TT chi tiết',
   getMisaDataTheoNgay: 'Báo cáo MISA', getLichSuUNC: 'Báo cáo UNC', getDebtByCustomer: 'Công nợ khách hàng',
-  getDebtByContract: 'Công nợ hợp đồng', getDebtLedgerDetail: 'Sổ chi tiết công nợ', exportCongNo: 'Xuất công nợ', getChiTietCongNoPhieuCanWeb: 'Công nợ theo phiếu cân',
+  getDebtByContract: 'Công nợ hợp đồng', getDebtLedgerDetail: 'Sổ chi tiết công nợ', getChiTietCongNoPhieuCanWeb: 'Công nợ theo phiếu cân',
   getTinhHinhThanhToanHangNgayWeb: 'Tình hình thanh toán', getPaymentAnalysis: 'Phân tích nhập / thanh toán',
   webRunCongNoRefreshNow: 'Cập nhật công nợ ngay', webRunDaily15hRefreshNow: 'Cập nhật số liệu tháng ngay',
   webRefreshPhieuCanCache: 'Làm mới phiếu cân', getKiemTraDoiChieuBaoTri: 'Bảo trì kiểm tra', getDoiSoatTenKhachHang: 'Đối soát tên KH',
@@ -5170,7 +5320,6 @@ function renderSettings(){
           <button class="btn" onclick="doSetupKiemTraDem()" title="Mỗi đêm 2:00 chạy Bảo Trì + MISA thiếu dòng + phiếu cân đã trả chưa khóa; email Quản trị khi có vấn đề mới">🌙 Bật kiểm tra dữ liệu hằng đêm (2:00)</button>
           <span id="badge-kiemtradem" class="badge dot">Đang kiểm tra...</span>
         </div>
-        <div class="hint-text" style="margin-top:4px">📧 Email cảnh báo gửi tới Quản trị cố định và mọi tài khoản vai trò <b>Quản trị</b> đang hoạt động - thêm / bớt người nhận ở thẻ <b>👥 Người Dùng &amp; Phân Quyền</b> (trang Cài đặt). Lần đầu cần cấp quyền gửi email cho dự án Apps Script.</div>
         <button class="btn" style="margin-top:8px" onclick="doResetPhanTich()">🧹 Xóa Sạch &amp; Nạp Lại Phân Tích NG-ĐL</button>
         <button class="btn" style="margin-top:8px" onclick="doResetChiTietCongNo()">🧹 Xóa Sạch &amp; Nạp Lại Chi Tiết Công Nợ PC</button>
         <div style="margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
