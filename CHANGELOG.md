@@ -2,7 +2,7 @@
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/). Phiên bản theo `NĂM.ĐỢT.SỬA`; thay đổi làm đổi hành vi nghiệp vụ (⚖️) sẽ tăng số ĐỢT và ghi rõ đã được người dùng đồng ý.
 
-## [2026.9.50] — Làm lại giao diện chuyên nghiệp trên tông màu cũ (yêu cầu 29/09/2026)
+## [2026.9.51] — Làm lại giao diện chuyên nghiệp trên tông màu cũ (yêu cầu 29/09/2026)
 
 ### Changed
 - **Khung ứng dụng**: giữ nguyên bảng màu cũ (thanh bên xám than `#1f2937`, xanh dương `#2563eb`, hổ phách `#b45309`, xanh lá `#16a34a`, nền `#f3f4f6`) và chế độ sáng / tối.
@@ -18,9 +18,19 @@
 - Thanh "Đi nhanh" ở Cài đặt / Hướng dẫn bị xếp dọc giữa trang (quy tắc CSS `nav{...}` của thanh bên áp nhầm) - nay nằm ngang, xuống dòng khi hết chỗ.
 - Cột Trạng thái của Danh Sách ĐNTT bị cột thao tác dính phải che mất ở màn hình 1366px.
 - Điện thoại: thanh tiêu đề bị ép thấp, nút đè lên nội dung.
+- Hàng nút cạnh ô ngày (Xem / Làm mới / 📥 Xuất Excel + PDF của Công nợ) xuống dòng khi hết chỗ, không tràn ra ngoài thẻ.
 
 ### Tests
-- 266 test (thêm `giaoDien2026_9_50.test.mjs` 6 test; `clientAlign` chấp nhận tham số lớp màu của ô số liệu). Kiểm tra Chromium: 7 trang sáng / tối ở 1366px, thanh bên thu gọn, ngăn kéo điện thoại 390px (không cuộn ngang), hộp xác nhận.
+- 271 test sau khi gộp main (thêm `giaoDien2026_9_51.test.mjs` 6 test; `clientAlign` chấp nhận tham số lớp màu của ô số liệu). Kiểm tra Chromium: 7 trang sáng / tối ở 1366px, thanh bên thu gọn, ngăn kéo điện thoại 390px (không cuộn ngang), hộp xác nhận.
+
+## [2026.9.50] — Xuất Excel + PDF cho báo cáo Công nợ (người dùng yêu cầu 29/09/2026)
+
+### Added
+- **Báo Cáo Công Nợ › 1 · Công nợ theo Khách hàng, 2 · Công nợ theo Hợp đồng**: nút **📥 Xuất Excel + PDF** cạnh nút Xem. **3 · Sổ chi tiết công nợ**: nút cùng tên ở góc bảng (cả sổ theo Khách hàng và theo Hợp đồng). File lưu trong thư mục Báo cáo, cùng số liệu màn hình: tên đơn vị, tiêu đề, khoảng ngày, nguồn số liệu (“tổng hợp lúc …” hoặc “tính trực tiếp lúc …”), STT, dòng TỔNG CỘNG; ngày thật theo Vùng xuất, CCCD / Số HĐ / Số phiếu giữ số 0 đầu, số tiền `#,##0`, căn lề theo kiểu dữ liệu. PDF lỗi vẫn trả file Excel kèm hướng dẫn tải PDF.
+- Cài đặt › cạnh nút **🌙 Bật kiểm tra dữ liệu hằng đêm**: ghi rõ email cảnh báo gửi tới Quản trị cố định + tài khoản vai trò Quản trị (thêm ở **👥 Người Dùng & Phân Quyền**), lần đầu cần cấp quyền gửi email.
+
+### Changed
+- Tạo PDF từ file báo cáo dùng chung `_luuPdfCuaFile_` (Báo cáo tổng hợp NG-ĐL và Công nợ) - bỏ đoạn lặp; hộp “Xuất báo cáo thành công” dùng chung, ngày hiện dd/mm/yyyy.
 
 ## [2026.9.49] — Nâng cấp theo báo cáo rà soát (người dùng đồng ý 28/09/2026: "bỏ mục 2, còn lại bạn làm đi")
 

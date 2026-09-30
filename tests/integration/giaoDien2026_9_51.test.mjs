@@ -1,4 +1,4 @@
-// Giao diện 2026.9.50: khung ứng dụng mới (tông màu cũ) - thanh bên theo nhóm, thu gọn, ngăn kéo trên điện thoại.
+// Giao diện 2026.9.51: khung ứng dụng mới (tông màu cũ) - thanh bên theo nhóm, thu gọn, ngăn kéo trên điện thoại.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

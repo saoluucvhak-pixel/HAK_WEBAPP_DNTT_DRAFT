@@ -1,6 +1,6 @@
 /**
  * ============================================================
- * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.50
+ * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.51
  * Lịch sử thay đổi: CHANGELOG.md · Kiến trúc: docs/ARCHITECTURE.md
  * ------------------------------------------------------------
  * *** QUAN TRỌNG - CẦN LÀM TRƯỚC KHI DÙNG BẢN NÀY (chỉ 1 LẦN DUY NHẤT
@@ -1574,6 +1574,7 @@ const API_ROUTES = (() => {
     getDebtByContract: r(getDebtByContract_, X),
     getCongNoTrangThai: r(getCongNoTrangThai_, X, KHONG_CHO),
     getDebtLedgerDetail: r(getDebtLedgerDetail_, X),
+    exportCongNo: r(exportCongNo_, X),
     getDoiChieuCongNoCccd: r(getDoiChieuCongNoCccd_, X),
     getPaymentAnalysis: r(getPaymentAnalysis_, X),
     getPhanTichNhapTTReport: r(getPhanTichNhapTTReport_, X),
@@ -7236,6 +7237,16 @@ function _exportSheetAsPdf_(ssId) {
   return res.getBlob().setName("bao_cao.pdf");
 }
 
+/** Lưu bản PDF của file báo cáo `ss` vào `folder`. PDF lỗi -> vẫn giữ file Excel đã tạo, trả
+ * cảnh báo (trước đây báo lỗi cả thao tác, người dùng mất link Excel dù file đã có). */
+function _luuPdfCuaFile_(ss, folder, fileName) {
+  try {
+    return { pdfUrl: folder.createFile(_exportSheetAsPdf_(ss.getId())).setName(fileName + ".pdf").getUrl(), canhBao: "" };
+  } catch (ePdf) {
+    return { pdfUrl: "", canhBao: "Không tạo được file PDF: " + (ePdf && ePdf.message) + " Mở file Excel rồi File › Tải xuống › PDF." };
+  }
+}
+
 function _renderPhanTichSheet_(sheet, report, fDate, tDate) {
   sheet.clear();
   let row = 1;
@@ -7291,14 +7302,7 @@ function exportPhanTichNhapTTBaoCao_(fDate, tDate) {
     _renderPhanTichSheet_(sh1, report, fDate, tDate);
     SpreadsheetApp.flush();
 
-    // PDF lỗi -> vẫn trả file Excel đã tạo, kèm cảnh báo (trước đây báo lỗi
-    // cả thao tác, người dùng mất link Excel dù file đã nằm trong thư mục).
-    let pdfUrl = "", canhBao = "";
-    try {
-      pdfUrl = folder.createFile(_exportSheetAsPdf_(ss.getId())).setName(fileName + ".pdf").getUrl();
-    } catch (ePdf) {
-      canhBao = "Không tạo được file PDF: " + (ePdf && ePdf.message) + " Mở file Excel rồi File › Tải xuống › PDF.";
-    }
+    const { pdfUrl, canhBao } = _luuPdfCuaFile_(ss, folder, fileName);
 
     logAction_("XUAT_PHAN_TICH_NG_DL", "-", `Xuất báo cáo tổng hợp ${fDate} - ${tDate} - ${ss.getUrl()}${canhBao ? " - " + canhBao : ""}`);
     return { success: true, excelUrl: ss.getUrl(), pdfUrl, canhBao };
@@ -7335,6 +7339,110 @@ function exportChiTietCongNoPhieuCanExcel_(ngayStr, filters) {
 
     logAction_("XUAT_CHITIET_CONGNO_PC", "-", `Xuất Chi Tiết Công Nợ theo Phiếu Cân (đến ${ngayStr}), ${rows.length} dòng - ${ss.getUrl()}`);
     return { success: true, url: ss.getUrl(), count: rows.length };
+  } catch (e) {
+    return { success: false, message: "❌ Lỗi: " + _loiChoNguoiDung_(e) };
+  }
+}
+
+// ------------------------------------------------------------
+// XUẤT BÁO CÁO CÔNG NỢ (người dùng yêu cầu 29/09/2026): Công nợ theo Khách hàng, Công nợ theo
+// Hợp đồng và Sổ chi tiết công nợ xuất 1 file Google Sheet (tải về Excel) + 1 file PDF, CÙNG
+// số liệu với màn hình (khoảng mặc định đọc bản tổng hợp - file ghi rõ giờ tổng hợp).
+// Cột: [tiêu đề, kiểu] - "stt" | "chu" | "ma" (Số HĐ, CCCD, Số phiếu: khóa chữ, giữ số 0
+// đầu) | "ngay" (ngày thật theo Vùng xuất - dữ liệu web dd/MM/yyyy đọc bằng _docNgayVN_,
+// không theo Vùng xuất) | "tien" | "tan".
+// ------------------------------------------------------------
+const XUAT_CONG_NO_DINH_DANG = { tien: "#,##0", tan: "#,##0.000" };
+const XUAT_CONG_NO_NHOM = { TIEU_DE: "#d9d2e9", TONG: "#f3f0e8" };
+const _stt_ = rows => rows.map((r, i) => [i + 1].concat(r));
+const _tongCot_ = (rows, key) => rows.reduce((t, r) => t + (Number(r[key]) || 0), 0);
+
+/** Dòng phụ nói rõ nguồn số liệu Công nợ KH / HĐ (bản tổng hợp lúc nào, có thay đổi sau đó chưa). */
+function _nguonSoLieuCongNo_(loai, fDate, tDate) {
+  const tt = getCongNoTrangThai_(loai, fDate, tDate);
+  if (!tt.tongHop) return `Số liệu tính trực tiếp lúc ${Utilities.formatDate(new Date(), "GMT+7", "HH:mm dd/MM/yyyy")}.`;
+  return `Số liệu tổng hợp lúc ${tt.capNhatLuc}` + (tt.coThayDoi ? ` - chưa gồm Duyệt / Mở Đóng TT sau đó (lúc ${tt.thayDoiLuc}).` : ".");
+}
+
+/** Bảng xuất của 1 báo cáo Công nợ: { tieuDe, tenFile, tenSheet, dongPhu[], cot[], dong[][], tong[] }. */
+function _bangCongNoXuat_(loai, fDate, tDate, tuyChon) {
+  const f = _clampReportRange_(fDate, tDate);
+  const khoangNgay = `Từ ngày ${_formatNgayXuat_(f)} đến ngày ${_formatNgayXuat_(tDate)} (số dư, lũy kế tính đến hết ngày ${_formatNgayXuat_(tDate)})`;
+  if (loai === "kh") {
+    const rows = getDebtByCustomer_(fDate, tDate);
+    return {
+      tieuDe: "BÁO CÁO CÔNG NỢ THEO KHÁCH HÀNG", tenFile: `CONG NO THEO KHACH HANG (${f} den ${tDate})`, tenSheet: "CongNoKhachHang",
+      dongPhu: [khoangNgay, _nguonSoLieuCongNo_("kh", fDate, tDate)],
+      cot: [["STT", "stt"], ["Khách hàng", "chu"], ["CCCD", "ma"], ["KL nhập trong kỳ (tấn)", "tan"], ["Giá trị nhập trong kỳ", "tien"], ["Đã TT trong kỳ", "tien"],
+        ["Giá trị nhập lũy kế", "tien"], ["Đã TT lũy kế", "tien"], ["Công nợ", "tien"]],
+      dong: _stt_(rows.map(r => [r.khachHang, r.trungTen ? "Trùng tên - chưa rõ CCCD" : _chu_(r.cccd || ""), r.klNhapTrongKy, r.giaTriNhapTrongKy, r.daTTTrongKy, r.giaTriNhapLuyKe, r.daTTLuyKe, r.congNo])),
+      tong: ["", "TỔNG CỘNG", "", _tongCot_(rows, "klNhapTrongKy"), _tongCot_(rows, "giaTriNhapTrongKy"), _tongCot_(rows, "daTTTrongKy"), _tongCot_(rows, "giaTriNhapLuyKe"), _tongCot_(rows, "daTTLuyKe"), _tongCot_(rows, "congNo")]
+    };
+  }
+  if (loai === "hd") {
+    const rows = getDebtByContract_(fDate, tDate);
+    return {
+      tieuDe: "BÁO CÁO CÔNG NỢ THEO HỢP ĐỒNG", tenFile: `CONG NO THEO HOP DONG (${f} den ${tDate})`, tenSheet: "CongNoHopDong",
+      dongPhu: [khoangNgay, _nguonSoLieuCongNo_("hd", fDate, tDate)],
+      cot: [["STT", "stt"], ["Số HĐ", "ma"], ["Chủ rừng", "chu"], ["Ngày ký", "ngay"], ["SL dự kiến (tấn)", "tan"], ["SL đã thực hiện (tấn)", "tan"],
+        ["Còn lại (âm = vượt SL)", "tan"], ["Giá trị TT trong kỳ", "tien"], ["Đang chờ TT (công nợ)", "tien"]],
+      dong: _stt_(rows.map(r => [_chu_(r.soHD), r.chuRung, _docNgayVN_(r.ngayKy) || r.ngayKy, r.slDuKien, r.klThucHienLuyKe, r.conLaiSanLuong, r.giaTriTrongKy, r.congNo])),
+      tong: ["", "TỔNG CỘNG", "", "", _tongCot_(rows, "slDuKien"), _tongCot_(rows, "klThucHienLuyKe"), "", _tongCot_(rows, "giaTriTrongKy"), _tongCot_(rows, "congNo")]
+    };
+  }
+  if (loai === "so") {
+    const res = getDebtLedgerDetail_(tuyChon.loaiSo, tuyChon.khoa, tDate);
+    if (!res.success) throw new Error(res.message);
+    if (res.mode === "customer") {
+      const ten = (res.tenHienThi || res.key) + (res.cccd ? " - CCCD " + res.cccd : "");
+      return {
+        tieuDe: "SỔ CHI TIẾT CÔNG NỢ THEO KHÁCH HÀNG", tenFile: `SO CHI TIET CONG NO ${_boDauTimKiem_(res.tenHienThi || res.key).toUpperCase()} (den ${tDate})`, tenSheet: "SoChiTietCongNo",
+        dongPhu: [`Khách hàng: ${ten}`, `Đến hết ngày ${_formatNgayXuat_(tDate)} · Số dư cuối kỳ (còn nợ): ${Math.round(res.duCuoiKy).toLocaleString("vi-VN")} đ`],
+        cot: [["STT", "stt"], ["Ngày", "ngay"], ["Diễn giải", "chu"], ["Phát sinh Nợ", "tien"], ["Phát sinh Có", "tien"], ["Số dư", "tien"]],
+        dong: _stt_(res.rows.map(r => [_docNgayVN_(r.ngay) || r.ngay, r.dienGiai, r.no || "", r.co || "", r.du])),
+        tong: ["", "", "TỔNG CỘNG", res.tongNo, res.tongCo, res.duCuoiKy]
+      };
+    }
+    return {
+      tieuDe: "SỔ CHI TIẾT CÔNG NỢ THEO HỢP ĐỒNG (TIẾN ĐỘ)", tenFile: `SO CHI TIET CONG NO HD ${_boDauTimKiem_(res.key).toUpperCase()} (den ${tDate})`, tenSheet: "SoChiTietHopDong",
+      dongPhu: [`Hợp đồng: ${res.key}`, `Đã thanh toán: ${Math.round(res.tongDaTT).toLocaleString("vi-VN")} đ · Đang chờ (Nháp): ${Math.round(res.tongDangCho).toLocaleString("vi-VN")} đ · Công nợ hiện tại: ${Math.round(res.congNo).toLocaleString("vi-VN")} đ`],
+      cot: [["STT", "stt"], ["Ngày", "ngay"], ["Số phiếu cân", "ma"], ["KL (tấn)", "tan"], ["Thành tiền", "tien"], ["Trạng thái", "chu"]],
+      dong: _stt_(res.rows.map(r => [_docNgayVN_(r.ngay) || r.ngay, _chu_(r.soPhieuCan), r.klTan, r.thanhTien, r.trangThai])),
+      tong: ["", "", "TỔNG CỘNG", _tongCot_(res.rows, "klTan"), _tongCot_(res.rows, "thanhTien"), ""]
+    };
+  }
+  throw new Error("Loại báo cáo công nợ không hợp lệ (kh | hd | so).");
+}
+
+/** #Web: xuất Công nợ theo Khách hàng (loai "kh"), theo Hợp đồng ("hd") hoặc Sổ chi tiết
+ * ("so", tuyChon { loaiSo: "customer" | "contract", khoa }) ra Excel + PDF. */
+function exportCongNo_(loai, fDate, tDate, tuyChon) {
+  try {
+    const b = _bangCongNoXuat_(loai, fDate, tDate, tuyChon || {});
+    const folder = DriveApp.getFolderById(getReportFolderId_());
+    const ss = _taoFileBaoCao_(b.tenFile, folder);
+    const sh = ss.getSheets()[0];
+    sh.setName(b.tenSheet);
+    const soCot = b.cot.length, cotKieu = kieu => b.cot.map((c, i) => c[1] === kieu ? i + 1 : 0).filter(Boolean);
+    sh.getRange(1, 1).setValue(TEN_DON_VI_BAO_CAO).setFontWeight("bold");
+    sh.getRange(2, 1, 1, soCot).merge().setValue(b.tieuDe).setFontSize(14).setFontWeight("bold").setHorizontalAlignment("center");
+    b.dongPhu.forEach((s, i) => sh.getRange(3 + i, 1, 1, soCot).merge().setValue(s).setFontStyle("italic").setHorizontalAlignment("center"));
+    const dongTieuDe = 4 + b.dongPhu.length, dongDau = dongTieuDe + 1;
+    sh.getRange(dongTieuDe, 1, 1, soCot).setValues([b.cot.map(c => c[0])]).setFontWeight("bold")
+      .setBackground(XUAT_CONG_NO_NHOM.TIEU_DE).setHorizontalAlignment("center").setVerticalAlignment("middle").setWrap(true);
+    _lockTextCols_(sh, cotKieu("ma"), dongDau + b.dong.length + 5);
+    const body = _cotNgayThatChoXuat_(sh, dongDau, b.dong, cotKieu("ngay"));
+    const tatCa = body.concat([b.tong]);
+    sh.getRange(dongDau, 1, tatCa.length, soCot).setValues(_dongAnToan_(tatCa));
+    _canhLeTheoKieu_(sh, dongDau, body.length ? body : [b.tong]);
+    Object.keys(XUAT_CONG_NO_DINH_DANG).forEach(k => cotKieu(k).forEach(c => sh.getRange(dongDau, c, tatCa.length, 1).setNumberFormat(XUAT_CONG_NO_DINH_DANG[k])));
+    sh.getRange(dongDau + body.length, 1, 1, soCot).setFontWeight("bold").setBackground(XUAT_CONG_NO_NHOM.TONG);
+    sh.setFrozenRows(dongTieuDe);
+    sh.autoResizeColumns(1, soCot);
+    SpreadsheetApp.flush();
+    const { pdfUrl, canhBao } = _luuPdfCuaFile_(ss, folder, b.tenFile);
+    logAction_("XUAT_CONG_NO", "-", `Xuất ${b.tieuDe.toLowerCase()} (${b.dongPhu[0]}), ${body.length} dòng - ${ss.getUrl()}${canhBao ? " - " + canhBao : ""}`);
+    return { success: true, excelUrl: ss.getUrl(), pdfUrl, canhBao, count: body.length };
   } catch (e) {
     return { success: false, message: "❌ Lỗi: " + _loiChoNguoiDung_(e) };
   }
