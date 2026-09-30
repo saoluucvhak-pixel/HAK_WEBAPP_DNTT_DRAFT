@@ -2,6 +2,27 @@
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/). Phiên bản theo `NĂM.ĐỢT.SỬA`; thay đổi làm đổi hành vi nghiệp vụ (⚖️) sẽ tăng số ĐỢT và ghi rõ đã được người dùng đồng ý.
 
+## [2026.9.51] — Làm lại giao diện chuyên nghiệp trên tông màu cũ (yêu cầu 29/09/2026)
+
+### Changed
+- **Khung ứng dụng**: giữ nguyên bảng màu cũ (thanh bên xám than `#1f2937`, xanh dương `#2563eb`, hổ phách `#b45309`, xanh lá `#16a34a`, nền `#f3f4f6`) và chế độ sáng / tối.
+  - Thanh bên chia nhóm **Tổng quan / Nghiệp vụ / Báo cáo / Hỗ trợ & quản trị**; biểu tượng nét (SVG) thay biểu tượng cảm xúc; tên menu ngắn "Công Nợ Gỗ Keo" (rê chuột thấy tên đầy đủ); nhóm không còn trang nào được phép thì tự ẩn.
+  - Ô Tìm nhanh có biểu tượng kính lúp + gợi ý phím `/`; thẻ người dùng có ảnh chữ cái đầu, vai trò, nút đăng xuất gọn.
+  - Nút **‹ thu gọn thanh bên** (chỉ còn biểu tượng, nhớ trên máy). Máy tính bảng / điện thoại: thanh bên thành **ngăn kéo** mở bằng nút ☰ (bấm nền mờ / Esc / chọn trang để đóng) - trước đây menu dồn lên đầu trang.
+  - Thanh tiêu đề nền trắng, có **đường dẫn** (vd "Báo cáo › Báo Cáo Thanh Toán"), bóng nhẹ khi cuộn; nội dung rộng tối đa 1680px.
+- **Thành phần**: thẻ bo 12px, ô số liệu có vạch màu bên trái (xanh / hổ phách / đỏ); ô nhập nền trắng, viền xanh khi đang gõ; nút cao đều 36px (nhỏ 30px); bảng có dòng tiêu đề nền nhạt, dòng tổng nền nhạt; thanh tab dạng khối phân đoạn; hộp thoại bo 14px, chân hộp nền nhạt; thanh thao tác (hồ sơ đã chọn) nổi cách đáy 12px.
+- **Trang chủ**: quy trình 5 bước → Hồ sơ đang xử lý → Tháng này → **Xu hướng 30 ngày và Công nợ đặt cạnh nhau (2 cột)** → Tuổi nợ (61-90 ngày hổ phách, trên 90 ngày đỏ) → Theo nguồn gốc / đại lý.
+- **Danh Sách ĐNTT**: bảng gọn 8 cột, vừa màn hình 1366px không phải cuộn ngang - "HĐ · Ngày", "Chủ rừng / Người nhận", "STK / Ngân hàng" (tên ngân hàng dài rút gọn, rê chuột xem đủ), "KL (kg)" kèm số phiếu; khung lọc gọn 1 hàng, dòng quy trình chuyển vào khung lọc.
+
+### Fixed
+- Thanh "Đi nhanh" ở Cài đặt / Hướng dẫn bị xếp dọc giữa trang (quy tắc CSS `nav{...}` của thanh bên áp nhầm) - nay nằm ngang, xuống dòng khi hết chỗ.
+- Cột Trạng thái của Danh Sách ĐNTT bị cột thao tác dính phải che mất ở màn hình 1366px.
+- Điện thoại: thanh tiêu đề bị ép thấp, nút đè lên nội dung.
+- Hàng nút cạnh ô ngày (Xem / Làm mới / 📥 Xuất Excel + PDF của Công nợ) xuống dòng khi hết chỗ, không tràn ra ngoài thẻ.
+
+### Tests
+- 271 test sau khi gộp main (thêm `giaoDien2026_9_51.test.mjs` 6 test; `clientAlign` chấp nhận tham số lớp màu của ô số liệu). Kiểm tra Chromium: 7 trang sáng / tối ở 1366px, thanh bên thu gọn, ngăn kéo điện thoại 390px (không cuộn ngang), hộp xác nhận.
+
 ## [2026.9.50] — Xuất Excel + PDF cho báo cáo Công nợ (người dùng yêu cầu 29/09/2026)
 
 ### Added
