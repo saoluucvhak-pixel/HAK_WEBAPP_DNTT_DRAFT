@@ -199,6 +199,29 @@ export class MockSpreadsheet {
     this.id = id;
     this.name = name || id;
     this.sheets = new Map();
+    this.developerMetadata = [];   // Developer Metadata cấp spreadsheet
+  }
+  // Developer Metadata cấp spreadsheet (đủ cho cờ "đang khóa sổ" dùng chung giữa các dự án).
+  addDeveloperMetadata(key, value, visibility) {
+    const list = this.developerMetadata;
+    const md = {
+      key, value: value == null ? null : String(value), visibility: visibility || 'DOCUMENT',
+      getKey() { return this.key; },
+      getValue() { return this.value; },
+      getVisibility() { return this.visibility; },
+      remove() { const i = list.indexOf(md); if (i >= 0) list.splice(i, 1); },
+    };
+    list.push(md);
+    return this;
+  }
+  getDeveloperMetadata() { return this.developerMetadata.slice(); }
+  createDeveloperMetadataFinder() {
+    let key = null;
+    const finder = {
+      withKey(k) { key = k; return finder; },
+      find: () => this.developerMetadata.filter(md => key == null || md.key === key),
+    };
+    return finder;
   }
   addSheet(name, rows) {
     const sh = new MockSheet(name, rows, this);
@@ -206,19 +229,6 @@ export class MockSpreadsheet {
     return sh;
   }
   getSheetByName(name) { return this.sheets.get(name) || null; }
-  // Developer Metadata cấp spreadsheet (đủ cho cờ khóa sổ dùng chung với QL_NHAPKHO).
-  addDeveloperMetadata(key, value, visibility) {
-    const list = (this.metadata ||= []);
-    const md = { key, value, visibility, getKey: () => key, getValue: () => value, getVisibility: () => visibility,
-      remove: () => { const i = list.indexOf(md); if (i >= 0) list.splice(i, 1); } };
-    list.push(md);
-    return this;
-  }
-  createDeveloperMetadataFinder() {
-    let key = null;
-    const finder = { withKey: k => { key = k; return finder; }, find: () => (this.metadata || []).filter(m => key === null || m.key === key) };
-    return finder;
-  }
   insertSheet(name) { return this.addSheet(name || 'Sheet' + (this.sheets.size + 1), []); }
   getSheets() { return Array.from(this.sheets.values()); }
   deleteSheet(sh) { this.sheets.delete(sh.getName()); }
@@ -286,7 +296,6 @@ export function createGasEnvironment({ activeSpreadsheet, spreadsheets = [], pro
   const lock = { held: 0, waitLock() { this.held++; }, tryLock() { this.held++; return true; }, releaseLock() { this.held = Math.max(0, this.held - 1); }, hasLock() { return this.held > 0; } };
 
   const SpreadsheetApp = {
-    DeveloperMetadataVisibility: { DOCUMENT: 'DOCUMENT', PROJECT: 'PROJECT' },
     getActive: () => active,
     getActiveSpreadsheet: () => active,
     openById: id => {
@@ -301,6 +310,7 @@ export function createGasEnvironment({ activeSpreadsheet, spreadsheets = [], pro
     },
     flush: () => {},
     WrapStrategy: { WRAP: 'WRAP', CLIP: 'CLIP', OVERFLOW: 'OVERFLOW' },
+    DeveloperMetadataVisibility: { DOCUMENT: 'DOCUMENT', PROJECT: 'PROJECT' },
     getUi: () => {
       if (!identity.uiAvailable) throw new Error('Cannot call SpreadsheetApp.getUi() from this context.');
       return {
@@ -356,7 +366,7 @@ export function createGasEnvironment({ activeSpreadsheet, spreadsheets = [], pro
       getFileById: () => ({ getId: () => 'file', getUrl: () => 'url', moveTo() {}, getParents: () => ({ hasNext: () => false }) }),
       getRootFolder: () => ({ removeFile() {} })
     },
-    ScriptApp: { getProjectTriggers: () => [], newTrigger: () => ({ timeBased: () => ({}) }), deleteTrigger() {}, getService: () => ({ getUrl: () => serviceUrl }) },
+    ScriptApp: { getProjectTriggers: () => [], newTrigger: () => ({ timeBased: () => ({}) }), deleteTrigger() {}, getService: () => ({ getUrl: () => serviceUrl }), getOAuthToken: () => 'mock-token' },
     HtmlService: {
       createTemplateFromFile: (name) => {
         const tpl = { file: name, evaluate() { const out = htmlOutput(''); out.templateVars = { ...tpl }; return out; } };

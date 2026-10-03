@@ -39,7 +39,24 @@ Trạng thái: ✅ xong · 🟡 một phần · ⏳ chưa làm · ⚖️ cần n
 | M-13 | Lỗi trả `err.toString()` cho client | ✅ 2026.7.4 | `_loiChoNguoiDung_` + log `LOI_HE_THONG` |
 | M-03 | Hồ sơ chọn tồn tại qua các tab | ✅ 2026.7.5 | Cách B: giữ chọn + cảnh báo “N hồ sơ ở tab khác” |
 | M-04 | Công nợ gom theo tên | ✅ 2026.8.0 ⚖️ | CCCD + Tên; phiếu cân gán CCCD theo hồ sơ, rồi theo HD_NCC; có bảng đối chiếu cũ/mới |
-| M-02, M-05..M-09, M-11, M-12, M-14.., L-* | | ⏳ | Xem `REFACTOR_PLAN.md` §5 |
+| M-05 | 10 hàm xuất Excel trùng | 🟡 2026.9.7 | Phần tạo file dùng chung `_taoFileBaoCao_`; dựng bảng từng báo cáo vẫn riêng |
+| M-02, M-06..M-09, M-11, M-12, M-14.., L-* | | ⏳ | Xem `REFACTOR_PLAN.md` §5 |
+
+## Rà soát 27/09/2026 (`REVIEW_2026_09.md`)
+| ID | Hạng mục | Trạng thái |
+|---|---|---|
+| R-01 | Trả 2 lần trong cùng lượt Duyệt | ✅ 2026.9.7 |
+| R-02, R-03 | Mở Đóng TT / Đồng bộ tên tìm phiếu cân sai cột | ✅ 2026.9.7 |
+| R-04 | Xóa hồ sơ Nháp không sao lưu ChiTietDNTT/UNC | ✅ 2026.9.7 |
+| R-07, R-21, R-22 | Công nợ phiếu cân ngày D; sắp xếp Tình hình TT; Thông Số | ✅ 2026.9.7 |
+| R-08, R-09, R-10 | Mở File Chính 1 lần/lượt; `_taoFileBaoCao_`; bỏ đọc lặp | ✅ 2026.9.7 |
+| R-19, R-20, R-23…R-26 | Client, a11y, dark/print, mã chết | ✅ 2026.9.7 |
+| R-05 | Mở Đóng TT nguyên tử | ✅ 2026.9.12 ⚖️ (người dùng đồng ý 27/09/2026) |
+| R-06 | `logAction_` lỗi âm thầm | ✅ 2026.9.11 |
+| R-11, R-12 | Webhook: giới hạn tần suất, so sánh an toàn | ✅ 2026.9.9 — bỏ hẳn webhook (người dùng yêu cầu) |
+| R-14, R-18 | Đọc số dạng chữ VN; PDF lỗi | ✅ 2026.9.11 |
+| R-13, R-16, R-17, R-27, R-29, R-31, R-32 | Xem REVIEW | ⏳ |
+| L-01, L-02 | Accessibility, Dark mode | ✅ 2026.9.7 (cơ bản) |
 
 ## Đã bỏ theo yêu cầu người dùng
 - L-09: “Số điện thoại mất số 0” — người dùng quyết định **không rà nữa** (26/09/2026).
@@ -53,6 +70,7 @@ Trạng thái: ✅ xong · 🟡 một phần · ⏳ chưa làm · ⚖️ cần n
 - Không mở PR gộp vào `main`; làm tiếp trên nhánh `claude/check-fix-code-bugs-lb2uuf`.
 
 ## Việc kỹ thuật phát sinh
+- ⏳ Kiểm chứng trên Google thật (2026.9.7): Duyệt lô có phiếu trùng, Mở Đóng TT phiếu nhiều dòng, xóa Nháp rồi Khôi phục, chế độ tối/in (xem `DEPLOY.md`).
 - ⏳ Kiểm chứng trên Google thật: đăng nhập qua Cổng (lần đầu Google hỏi quyền xem email), đăng xuất, khóa tài khoản.
 - ✅ 2026.8.2: Giao diện “Khôi phục từ SYS_SaoLuuDongXoa” (hoàn tất C-07).
 - ⏳ Kiểm chứng trên Google Sheets thật: `getRangeList().setValue()` và `deleteRows()` với dữ liệu lớn (mock đã kiểm chứng logic).

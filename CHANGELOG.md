@@ -554,34 +554,101 @@ Báo cáo rà soát đầy đủ (13 phần, chấm điểm, lộ trình): `docs
 ### Tests
 - 101 test (thêm `misa.test.mjs`: 33 cột, tiêu đề, lọc theo ngày TT, số 0 đầu, sheet tóm tắt, khớp màn hình).
 
-## [2026.9.7 → 2026.9.12] — Đồng bộ từ code trên main (commit “UPDATE270920265”, 27/09/2026)
-
-Code.gs / Index.html đã được cập nhật trực tiếp trên main; mục này ghi lại theo chú thích phiên bản trong code và phần so sánh với 2026.9.6.
-
-### Fixed
-- **Mở Đóng TT** (9.12, R-05): xóa khỏi sổ chính (có sao lưu) TRƯỚC rồi mới ghi hồ sơ Nháp; lỗi giữa chừng không còn để hồ sơ nằm ở cả 2 nơi — báo rõ mã thao tác để Khôi phục. Mở khóa phiếu cân tìm theo cột Số phiếu cân (SO_CT) — đúng cột Duyệt đã khóa, mọi dòng cùng số (9.7).
-- **Duyệt**: chặn thêm trường hợp 1 phiếu cân nằm ở 2 dòng Nháp trong CÙNG lượt Duyệt (2 hồ sơ, hoặc 2 lần trong 1 hồ sơ).
-- **Công nợ theo phiếu cân tại 1 ngày** (9.7): so theo ngày giờ VN — phiếu trả đúng ngày đang xem không còn bị tính là nợ.
-- **Tình hình thanh toán**: sắp theo ngày thật (trước đây so chuỗi dd/MM/yyyy, sai khi qua nhiều tháng).
-- **Xóa hồ sơ Nháp** (9.7): dọn ChiTietDNTT / ChiTietUNC có sao lưu (khôi phục được, nhãn “🗑️ Xóa hồ sơ Nháp”), xóa theo khối.
-- **Đối soát tên KH** (9.7): tra theo cột Số phiếu cân, sửa mọi dòng cùng số.
-- **Số dạng chữ kiểu Việt Nam** (9.11, R-14): `utils.parseNum` đọc đúng “1.234.567”, “12,5”… (trước: 1,234 và 125).
-- **Xuất PDF** (9.11, R-18): Google trả lỗi thì không lưu trang lỗi thành .pdf; báo cáo tổng hợp vẫn trả file Excel kèm cảnh báo.
-- Nhật ký lỗi ghi (9.11, R-06): ghi thất bại thì ghi vào nhật ký thực thi Apps Script, không mất âm thầm.
-- Sheet Thông Số (9.7): hiện link file ĐANG DÙNG (đã đổi ở Cài đặt), không phải mặc định trong code.
+## [2026.9.12] — Mở Đóng TT: xóa trước, ghi Nháp sau (R-05, người dùng đồng ý)
 
 ### Changed
-- **Báo cáo ĐNTT** (9.8): in theo thời gian lập hồ sơ; Bảng kê chi tiết cùng thứ tự hồ sơ.
-- **Khóa sổ năm** (9.10): cờ “đang khóa sổ” trên file Phiếu Cân cho QL_NHAPKHO (xem ARCHITECTURE §4e).
-- Tạo file báo cáo dùng `moveTo` thư mục (thay addFile/removeFile đã lỗi thời); mở File Chính 1 lần mỗi lượt chạy; Tổng hợp 112 đọc “Lần TT” 1 lần.
-- **Giao diện** (9.7): chế độ sáng / tối (nút ở chân thanh bên), điều khiển bằng bàn phím + trình đọc màn hình, giảm chuyển động, bảng cuộn ngang trên điện thoại, bản in gọn; nút mở file là thẻ link đúng chuẩn.
-
-### Removed
-- **Webhook làm mới cache tức thì** (9.9, người dùng yêu cầu): bỏ `?action=lam_moi_cache`, menu “🔑 Xem Link Webhook…”, nút ở Cài đặt. Đoạn onChange cũ còn cài ở file Phiếu Cân / HD_NCC chỉ nhận lỗi, không làm gì.
-- Code không còn dùng: `searchChuRungNames_`, `getChuRungContext_`, `getNguoiDeNghiInfo_`, `getSoHopDongOptions_`, `getNguoiNhanTienOptions_`, `_hdNccActiveData_`…
+- **Thứ tự Mở Đóng Thanh Toán** (`webMoDongThanhToanTheoHoSo_`): trước đây ghi hồ sơ mới vào File Nháp **trước** rồi mới xóa khỏi sổ chính — lỗi giữa chừng để hồ sơ nằm ở **cả** Nháp lẫn sổ chính (phải dọn tay; tiền không bị trả 2 lần nhờ Duyệt chặn). Nay:
+  1. Dựng sẵn hồ sơ Nháp trong bộ nhớ (chưa ghi).
+  2. Sao lưu + xóa khỏi sổ chính (CT, DNTT_GK_DN, 112) và 3 bảng con (ChiTietDNTT, ChiTietUNC, MISA) — như cũ.
+  3. **Rồi mới** ghi hồ sơ vào Nháp; sau đó mở khóa phiếu cân, tính lại báo cáo — như cũ.
+- Lỗi ở bước xóa: chưa ghi gì vào Nháp; nếu đã xóa được 1 phần thì thông báo nêu **mã thao tác** để Khôi phục.
+- Lỗi ở bước ghi Nháp: tự dọn dòng Nháp ghi dở, ghi nhật ký `LOI_MO_DONG_THANH_TOAN`, thông báo nêu mã thao tác → Hệ Thống › Khôi phục trả hồ sơ về sổ chính như cũ (không bị chặn “trả 2 lần” vì Nháp không còn bản sao).
+- Kết quả khi chạy thành công **không đổi** (cùng dữ liệu, cùng sao lưu, cùng thông báo).
 
 ### Tests
-- 100 test: bỏ `showWebhookInfoDialog` khỏi danh sách hàm công khai; thêm test đọc số dạng chữ kiểu Việt Nam.
+- 118 test (+2 trong `reopenAndMaintenance`, đều thất bại trên 2026.9.11): xóa sổ chính lỗi → không có hồ sơ Nháp; ghi Nháp lỗi → không còn dòng Nháp dở, thông báo có mã thao tác, Khôi phục trả đủ CT/112.
+
+## [2026.9.11] — Rà soát lại: 3 lỗi nhỏ
+
+### Fixed
+- **R-18 — Xuất Báo cáo tổng hợp (Excel + PDF):** Google trả lỗi khi xuất PDF (hết quota, không có quyền…) thì trước đây trang lỗi bị lưu thành file `.pdf` hỏng, hoặc cả thao tác báo lỗi dù file Excel đã tạo. Nay `_exportSheetAsPdf_` kiểm tra mã HTTP; PDF lỗi thì vẫn trả link Excel kèm cảnh báo “Không tạo được file PDF…” (`exportPhanTichNhapTTBaoCao_`, `doExportPhanTich`).
+- **R-06 — Nhật ký thao tác mất âm thầm:** `logAction_` ghi lỗi (hết quota, sheet bị khóa…) nay ghi `LOI_GHI_NHAT_KY` + hành động/mã/chi tiết vào nhật ký thực thi Apps Script (Executions). Vẫn không chặn thao tác chính.
+- **R-14 — `utils.parseNum` với số dạng CHỮ kiểu Việt Nam:** `"1.234.567"` trước đọc thành 1,234 và `"12,5"` thành 125; nay đúng 1.234.567 và 12,5. Ô kiểu số (dữ liệu hiện tại) không đổi; `"1,234"`, `"1,234.5"`, `"1.234"` giữ cách đọc cũ.
+
+### Tests
+- 116 test (+3 trong `review202609`, đều thất bại trên 2026.9.10). Mock thêm `ScriptApp.getOAuthToken`.
+
+## [2026.9.10] — Cờ "đang khóa sổ" cho webapp nhập kho
+
+### Added
+- Khi chạy **Khóa Sổ Năm thật** (không phải xem trước), file **Phiếu Cân** được gắn cờ Developer Metadata cấp spreadsheet để webapp nhập kho **QL_NHAPKHO** (dự án Apps Script khác) tạm dừng import / nhập tay / tính giá phiếu cân trong lúc khóa sổ đang xóa dòng khỏi `PhieuCan_DN` — tránh ghi lệch dòng.
+  - Quy ước dùng chung (QL_NHAPKHO đã đọc đúng, không được đổi): khóa `HAK_KHOA_SO_NAM_DANG_CHAY`, hiển thị `DOCUMENT`, giá trị `{"nam": <năm>, "batDau": <Date.now()>, "ung": "DNTT"}`; bên đọc coi cờ hết hiệu lực sau 10 phút.
+  - Hàm mới `_voiCoKhoaSo_(nam, fn)` + `_goCoKhoaSo_(ss)`: xóa cờ cũ cùng khóa → gắn cờ → chạy khóa sổ → gỡ cờ trong `finally` (khóa sổ lỗi giữa chừng cũng gỡ).
+  - Đặt/gỡ cờ lỗi chỉ ghi log, **không** chặn khóa sổ. Xem trước không gắn cờ.
+- Không đổi nghiệp vụ, số liệu hay cấu trúc sheet.
+
+### Tests
+- 113 test (+4 trong `luuTruNam`): cờ đúng 1, đúng năm/giờ/DOCUMENT lúc xóa dòng và gỡ sau khi xong; xem trước không gắn cờ; `deleteRows` lỗi → `success = false` và không còn cờ; gắn cờ lỗi vẫn khóa sổ được. Mock hỗ trợ `addDeveloperMetadata`, `createDeveloperMetadataFinder`, `DeveloperMetadataVisibility`.
+
+## [2026.9.9] — Bỏ webhook làm mới cache (người dùng yêu cầu)
+
+### Removed
+- Webhook `?action=lam_moi_cache&secret=…` (file Phiếu Cân / HD_NCC tự gọi web app khi có thay đổi) cùng nút/menu “🔑 Xem Link Webhook Làm Mới Cache Tức Thì” (Cài đặt + menu Sheet), `getWebhookInfoForWeb`, `showWebhookInfoDialog`, `_getWebhookSecret_`. Mọi link `?action=` giờ đều bị từ chối — web app không còn cửa nào chạy được mà không đăng nhập (xử lý luôn R-11/R-12).
+- Dữ liệu Phiếu Cân / Hợp đồng vẫn tự làm mới theo trigger 10 phút (7:30–19:00), 7:30 & 13:00, hoặc nút “↻ Làm mới” / “🔄 Tải & Tính Lại”.
+
+### Việc cần làm tay (nếu trước đây đã cài webhook)
+- Mở Apps Script của file **Phiếu Cân** và **HD_NCC** → Triggers → xóa trigger `onChangeLamMoiCache`, xóa file mã chứa hàm đó.
+- (Tùy chọn) Apps Script của File Nháp → Project Settings › Script Properties → xóa `WEBHOOK_SECRET`.
+
+### Tests
+- 109 test; `auth` kiểm tra `?action=lam_moi_cache` bị từ chối và không còn chức năng webhook.
+
+## [2026.9.8] — In Báo Cáo ĐNTT theo thời gian lập hồ sơ
+
+### Fixed
+- **In Báo Cáo ĐNTT (Excel)** liệt kê hồ sơ theo thứ tự dòng trong File Nháp (thực tế đang theo tên chủ rừng). Nay sắp theo **thời gian lập hồ sơ** (Timestamp, cũ trước); cùng thời điểm thì theo Ngày đề nghị. Sheet “Bảng Kê Chi Tiết CK” theo đúng thứ tự hồ sơ đó (trong 1 hồ sơ giữ thứ tự phiếu cân), STT liên tục. Không đổi số liệu.
+
+### Tests
+- 109 test (thêm 1; thất bại trên 2026.9.7 — Excel ra “Nguyen Van A” trước “Tran Thi B” dù B lập trước).
+
+## [2026.9.7] — Rà soát toàn hệ thống: chặn trả 2 lần trong 1 lượt Duyệt, giao diện tối / in / bàn phím
+
+Báo cáo đầy đủ: `docs/REVIEW_2026_09.md` (kiến trúc, 34 mục lỗi R-01…R-34, đề xuất tính năng). Không đổi schema dữ liệu, không đổi quy trình thanh toán.
+
+### Fixed
+- **R-01 (CRITICAL) Trả tiền 2 lần trong cùng lượt Duyệt**: 1 phiếu cân nằm ở 2 dòng Nháp (2 hồ sơ, hoặc 2 lần trong 1 hồ sơ — vd sửa tay File Nháp) được Duyệt cùng lượt thì cả 2 đều được ghi vào sổ (kiểm tra cũ chỉ so với sổ đã chốt). Nay mọi hồ sơ có phiếu trùng trong lượt bị giữ lại, báo rõ phiếu nào, ghi `CHAN_TRA_HAI_LAN`; các hồ sơ khác vẫn chốt.
+- **R-02 Mở Đóng TT không mở khóa đủ phiếu cân**: Duyệt khóa theo cột W (Số CT) nhưng Mở Đóng TT tìm theo cột A và chỉ 1 dòng/số → phiếu có 2 cột khác nhau hoặc nhiều dòng vẫn bị khóa “Đóng TT”. Nay dùng chung 1 hàm (`_dongPhieuCanTheoSo_`, cột W, mọi dòng).
+- **R-03 Đồng bộ tên khách hàng** (Hệ Thống › Đối soát) tìm sai cột / thiếu dòng — cùng nguyên nhân R-02.
+- **R-04 Xóa hồ sơ Nháp** xóa dòng ChiTietDNTT/ChiTietUNC (lịch sử UNC) **không sao lưu**, từng dòng một. Nay sao lưu vào `SYS_SaoLuuDongXoa` (hành động `XOA_NHAP`, khôi phục được ở Hệ Thống) và xóa theo khối.
+- **R-07 Chi tiết công nợ theo phiếu cân “đến ngày D”** vẫn tính các phiếu đã trả ĐÚNG ngày D (ngày TT lưu 12:00 so với mốc 00:00). Nay so theo ngày giờ VN.
+- **R-21** Tình hình thanh toán hằng ngày sắp sai thứ tự khi khoảng ngày qua nhiều tháng.
+- **R-22** Sheet “Thông Số” hiện link mặc định trong code thay vì link đang dùng (đã đổi ở Cài đặt).
+- Client: “Khách lẻ” (có dấu) bị coi là khác tên chủ rừng khi Lưu (R-19); `var(--border)` chưa khai báo làm mất viền ở Cài đặt (R-20); `<a><button>` lồng nhau, thiếu `rel="noopener"` (R-23).
+
+### Changed (hiệu năng, không đổi kết quả)
+- 1 lượt chạy mở File Chính **1 lần** (`getMainSs_` nhớ theo ID trong lượt) — trước đây mỗi lần ghi nhật ký/tra “Lần TT”… lại `openById` (~0,1–0,5 s/lần).
+- Tổng hợp 112 đọc sheet “Lần TT” 1 lần/lượt (trước: mỗi hồ sơ mới); ghi lịch sử UNC không đọc Script Properties theo từng dòng; xuất báo cáo Phân tích ghi 1 lệnh/bảng.
+- Tạo file báo cáo: `_taoFileBaoCao_` (DriveApp `moveTo`) thay 10 bản sao dùng `addFile/removeFile` (API lỗi thời).
+
+### Added — Giao diện
+- **Chế độ tối** theo hệ điều hành + nút “🌓 Giao diện” (Tự động / Sáng / Tối) ở chân thanh bên.
+- **Bản in** (Ctrl+P): chỉ phần nội dung, ẩn menu/nút, lặp tiêu đề bảng.
+- **Bàn phím & trình đọc màn hình**: menu, tab con, dòng bấm được dùng Tab + Enter/Space; Esc đóng hộp thoại/Trợ lý AI; focus vào hộp thoại và trả lại khi đóng; `lang="vi"`, `role`/`aria-*`, `aria-live` cho thông báo; viền focus rõ; tôn trọng “giảm chuyển động”.
+- **Màn hình nhỏ**: bảng rộng cuộn ngang trong thẻ (trước tràn ra ngoài), hộp thoại toàn màn hình trên điện thoại.
+- Hộp thoại “Xuất Excel thành công” dùng chung (`_hienKetQuaXuat_`).
+
+### Removed
+- Mã chết không có route/không nơi gọi (R-26): `searchChuRungNames_`, `getNguoiDeNghiInfo_`, `getNguoiNhanTienOptions_`, `getSoHopDongOptions_`, `getChuRungContext_`, `_hdNccActiveData_`, `HD_TRANG_THAI_LOAI_TRU`, `MISA_DEFAULT_KEYS`, `UNC_DEFAULT_KEYS`, `CFG.FOLDER_REPORT_ID`, client `doSetupDraft` (đã được thay bằng cache trình duyệt từ mục AG).
+
+### Tests
+- 108 test Node (thêm 9 trong `review202609.test.mjs` — **cả 9 thất bại trên 2026.9.6**).
+- Mới: 5 test giao diện Playwright (`tests/ui/giaoDien.ui.mjs`): mọi trang không lỗi JS + chống XSS, chế độ tối, 375/768 px không tràn, bàn phím/Esc/ARIA, bản in.
+
+### Docs
+- Mới: `docs/REVIEW_2026_09.md`, `API.md`, `DATABASE.md`, `FLOW.md`, `SECURITY.md`, `DEPLOY.md`, `INSTALL.md`, `USER_GUIDE.md`, `ADMIN_GUIDE.md`, `DEVELOPER_GUIDE.md`, `TEST_REPORT.md`.
+
+### Kiểm chứng trên Google thật (sau khi Deploy)
+Xem `docs/DEPLOY.md` › “Riêng v2026.9.7”.
 
 ## [2026.9.6] — Ngày đề nghị, % tiến độ, đo hiệu năng
 

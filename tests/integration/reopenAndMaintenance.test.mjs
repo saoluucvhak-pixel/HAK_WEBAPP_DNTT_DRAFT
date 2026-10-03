@@ -133,3 +133,41 @@ test('backups written by older versions (no group id) are still listed and resto
   assert.equal(run('webKhoiPhucSaoLuuXoa_')(ds[0].ma).success, true);
   assert.ok(ids(world.main.getSheetByName('DNTT_GK_DN'), 0).includes('OLD9'));
 });
+
+// R-05 (2026.9.12): Mở Đóng TT xóa khỏi sổ chính (có sao lưu) TRƯỚC, ghi hồ sơ
+// Nháp SAU -> lỗi giữa chừng không bao giờ để hồ sơ nằm ở cả 2 nơi.
+const soDongNhap = w => ['DNTT_GK_DN_DRAFT', 'DNTT_GK_DN_112_DRAFT', 'DNTT_GK_DN_CT_DRAFT']
+  .map(t => w.draft.getSheetByName(t).getLastRow());
+
+test('R-05: a reopen failing while deleting from the main books leaves no draft copy', () => {
+  const { world, run } = committedWorld();
+  const nhapTruoc = soDongNhap(world);
+  world.main.getSheetByName('DNTT_GK_DN_CT').deleteRows = () => { throw new Error('Sheet bị khóa'); };
+  const res = run('webMoDongThanhToanTheoHoSo_')('Nguyen Van A', '2026-09-26', '1');
+  assert.equal(res.success, false);
+  assert.deepEqual(soDongNhap(world), nhapTruoc, 'no draft record created');
+  assert.deepEqual(ids(world.main.getSheetByName('DNTT_GK_DN_CT'), 1), ['A1', 'A1'], 'payment still in the main books');
+});
+
+test('R-05: a reopen failing while writing the draft names the backup to restore, and the restore works', () => {
+  const { world, run } = committedWorld();
+  const nhapTruoc = soDongNhap(world);
+  const ctNhap = world.draft.getSheetByName('DNTT_GK_DN_CT_DRAFT');
+  const ghi = ctNhap.getRange.bind(ctNhap);
+  ctNhap.getRange = (r, ...a) => {
+    if (r > ctNhap.getLastRow()) throw new Error('Hết quota');
+    return ghi(r, ...a);
+  };
+  const res = run('webMoDongThanhToanTheoHoSo_')('Nguyen Van A', '2026-09-26', '1');
+  ctNhap.getRange = ghi;
+  assert.equal(res.success, false);
+  const ds = run('getDanhSachSaoLuuXoa_')();
+  assert.equal(ds.length, 1);
+  assert.ok(res.message.includes(ds[0].ma), res.message);
+  assert.deepEqual(soDongNhap(world), nhapTruoc, 'half-written draft rows removed');
+
+  const ok = run('webKhoiPhucSaoLuuXoa_')(ds[0].ma);
+  assert.equal(ok.success, true, ok.message);
+  assert.deepEqual(ids(world.main.getSheetByName('DNTT_GK_DN_CT'), 11).sort(), ['PC001', 'PC002']);
+  assert.deepEqual(ids(world.main.getSheetByName('DNTT_GK_DN_112'), 0), ['A1']);
+});

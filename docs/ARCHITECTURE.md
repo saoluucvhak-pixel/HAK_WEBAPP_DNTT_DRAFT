@@ -40,6 +40,8 @@ Quy tắc bắt buộc cho mọi code mới: **không đọc cả sheet rồi gh
 | `_thayVungDuLieu_(sh, startRow, nCols, oldCount, newRows)` | Thay toàn bộ vùng dữ liệu Nháp | 1–2 (ghi đè, rồi xóa đuôi) |
 | `_ghiLaiMirror_(sh, header, rows, cotText)` | Làm mới sheet mirror/snapshot | 2–4, không có lúc sheet trống |
 | `_saoLuuVaXoaDong_(sh, predicate, hanhDong)` | Xóa dòng theo điều kiện (đọc lại mới nhất, theo ID) | 1 sao lưu + 1 / đoạn |
+| `_dongPhieuCanTheoSo_(shPC, soKeySet)` | Mọi dòng PhieuCan_DN của các Số phiếu cân (cột W) — dùng chung cho khóa (Duyệt, Khôi phục) và mở khóa (Mở Đóng TT) (2026.9.7) | 1 đọc |
+| `_taoFileBaoCao_(ten, thuMuc)` | Tạo Google Sheet báo cáo ngay trong thư mục báo cáo (`moveTo`) (2026.9.7) | 2 |
 | `_tapKhoaTrongCot_(sh, colKey, colCo)` | Kiểm tra “đã tồn tại / đã chốt” (idempotency) | 1–2 đọc |
 | `_chayTrongKhoa_(fn)` | Đoạn đọc-rồi-ghi-thêm ngoài luồng đã giữ `sysLock` | – |
 | `_giuDangChu_(v)` | Giữ số 0 đầu cho chuỗi số khi ghi | – |
@@ -74,7 +76,7 @@ Dọn dẹp MISA (`webDonDepMisa_(che, f, t, chayThat)`, Hệ Thống): `_boChon
 6. Khóa phiếu cân: 3 lệnh RangeList trên đúng các dòng.
 7. Dọn Nháp: ghi đè trước, xóa đuôi sau.
 
-Chặn trả 2 lần: trước bước 3, đọc thẳng CT thật (`_phieuCanDaTraThat_`); hồ sơ có phiếu cân đã chốt ở hồ sơ khác bị bỏ qua cả hồ sơ (`CHAN_TRA_HAI_LAN`). Tạo mới / Thêm phiếu cũng kiểm tra (`_chanPhieuCanDaTra_`). **Cache “phiếu cân chưa TT” chỉ để gợi ý, không dùng một mình để quyết định phiếu còn trả được.**
+Chặn trả 2 lần: trước bước 3, đọc thẳng CT thật (`_phieuCanDaTraThat_`); hồ sơ có phiếu cân đã chốt ở hồ sơ khác bị bỏ qua cả hồ sơ (`CHAN_TRA_HAI_LAN`). Từ 2026.9.7: phiếu cân xuất hiện ≥ 2 lần trong các dòng Nháp của CÙNG lượt Duyệt → bỏ qua mọi hồ sơ liên quan. Tạo mới / Thêm phiếu cũng kiểm tra (`_chanPhieuCanDaTra_`). **Cache “phiếu cân chưa TT” chỉ để gợi ý, không dùng một mình để quyết định phiếu còn trả được.**
 
 Số tiền phải khớp phiếu cân (2026.9.44): Xác nhận, In Báo Cáo ĐNTT, Tạo UNC và Duyệt bỏ qua hồ sơ có Số tiền (cột G sổ 112 Nháp) khác tổng Thành tiền các dòng CT Nháp quá `LECH_TIEN_CHO_PHEP` (1 đ) — `_hoSoLechTien_`; Danh Sách ĐNTT gắn cờ `canTinhLai`. Thêm / Bỏ phiếu cân không tự tính lại nên luôn phải qua "Đề Nghị Thanh Toán (tính lại)".
 
@@ -198,6 +200,12 @@ Khách hàng = **CCCD + Tên**, khóa `CCCD|TÊN_CHUẨN_HÓA` (`_khoaCongNo_`);
 
 `_computeDebtByCustomerLive_(f, t, nhanDien)` và Sổ chi tiết dùng CHUNG bộ nhận diện; `_nhanDienKhachTheoTen_()` là cách gom cũ, chỉ dùng cho `getDoiChieuCongNoCccd_` (đối chiếu) và mở Sổ chi tiết bằng khóa cũ (chỉ có tên).
 
+## 4g. Giao diện (v2026.9.7)
+
+- Màu qua biến CSS (`--white` = nền thẻ, `--paper`, `--ink`, `--line`…); chế độ tối = định nghĩa lại biến dưới `prefers-color-scheme: dark` hoặc `html[data-theme=dark]` (nút “🌓 Giao diện”, lưu `localStorage` `hak_giao_dien`). `@media print` ẩn menu/nút.
+- Bàn phím: phần tử `.subtab`, `tr.clickable`, `.suggest-item` được MutationObserver gắn `role="button" tabindex="0"`; Enter/Space phát sự kiện click/mousedown tương ứng; Esc đóng modal/chatbot; `openModal` đưa focus vào và trả lại khi đóng.
+- Xuất file: `nutMoFile_(url, nhãn)`, `_hienKetQuaXuat_(res, () => mô tả)`.
+
 ## 5. Kiểm thử
 
 ```bash
@@ -212,6 +220,7 @@ HAK_CODE_GS=/đường/dẫn/Code.cu.gs node --test "tests/**/*.test.mjs"   # so
 | `tests/gas/fixtures.mjs` | Bộ dữ liệu mẫu File Nháp + File Chính + file ngoài |
 | `tests/gas/clientSource.mjs` | Tách 1 hàm của `Index.html` để test không cần trình duyệt |
 | `tests/unit/` | Hàm thuần, lớp ghi an toàn, ngày giờ VN & nút mang dữ liệu ở client |
+| `tests/ui/` | Playwright: `giaoDien.ui.mjs` + `trangMau.mjs` (Index.html với `google.script.run` giả) — chạy riêng `NODE_PATH=$(npm root -g) node --test tests/ui/giaoDien.ui.mjs` |
 | `tests/integration/` | Chốt TT, chạy lại, Mở Đóng TT, bảo trì, tách phiếu, vá ngân hàng, xác nhận, cache, đăng nhập & phân quyền, số 0 đầu, chống công thức, thông điệp lỗi, model Gemini |
 
 File test dùng đuôi `.mjs` để công cụ đồng bộ Apps Script không coi là mã server.
