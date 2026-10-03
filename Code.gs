@@ -1,6 +1,6 @@
 /**
  * ============================================================
- * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.52
+ * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.53
  * Lịch sử thay đổi: CHANGELOG.md · Kiến trúc: docs/ARCHITECTURE.md
  * ------------------------------------------------------------
  * *** QUAN TRỌNG - CẦN LÀM TRƯỚC KHI DÙNG BẢN NÀY (chỉ 1 LẦN DUY NHẤT
@@ -8980,6 +8980,12 @@ function _kiemTraStkTheoHopDong_(soHD, stk) {
   }
 }
 
+/** 2026.9.53: mã hồ sơ có ít nhất 1 chữ a-f và không ở dạng số mũ ("12e45678"). Cột mã hồ sơ
+ * không khóa dạng chữ, nên mã toàn chữ số ("00123456") bị Google Sheets đổi thành SỐ khi ghi
+ * (mất số 0 đầu) và "12e45678" thành số mũ -> không tìm lại được hồ sơ theo mã (~1/70 lần tạo). */
+function _maKhongThanhSo_(ma) {
+  return /[a-f]/i.test(ma) && !/^\d+e\d+$/i.test(ma);
+}
 /** Mã hồ sơ mới (8 ký tự hex như cũ) chưa dùng ở đâu: Nháp (Src, 112), sổ đang mở (Src,
  * 112) và sổ DNTT_GK_DN của các năm đã khóa sổ. B-11 (rà soát 28/09/2026): trước đây Tạo mới
  * chỉ so Nháp + sổ đang mở, Mở Đóng TT không so gì -> có thể trùng mã hồ sơ đã chốt năm cũ
@@ -8995,7 +9001,7 @@ function _maHoSoMoi_() {
   them(_docLuuTruTrongKhoang_(CFG.DNTT_SRC, 1, "", ""));
   for (let lan = 0; lan < 50; lan++) {
     const ma = Utilities.getUuid().split('-')[0];
-    if (!daCo.has(ma)) return ma;
+    if (!daCo.has(ma) && _maKhongThanhSo_(ma)) return ma;
   }
   throw new Error("Không sinh được mã hồ sơ mới không trùng - thử lại.");
 }

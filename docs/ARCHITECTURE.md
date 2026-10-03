@@ -1,4 +1,4 @@
-# ARCHITECTURE — HAK Quản Lý Thanh Toán (v2026.9.52)
+# ARCHITECTURE — HAK Quản Lý Thanh Toán (v2026.9.53)
 
 > Tài liệu sống: cập nhật mỗi khi đổi module, lớp, luồng dữ liệu hoặc schema.
 > Phân tích chi tiết hiện trạng: `docs/PROJECT_ANALYSIS.md`. Kiến trúc đích: `docs/REFACTOR_PLAN.md` §3–§4.
@@ -280,3 +280,7 @@ Lỗi đọc sổ trong báo cáo (2026.9.46): công nợ / phân tích / tiến
 
 - `_tinhLai112Nhap_` ghi cột P (Ghi chú) = `SL HĐ: <cột R> | Tổng KL | Đã trả | Còn lại | Đề nghị đợt này | Phiếu`, số theo Vùng xuất. Cột R (SL HĐ dự kiến) tự bù từ HD_NCC mirror (tổng lô rừng HD_RUNG, không có thì cột Z) khi đang trống / 0. Hồ sơ đã Duyệt giữ Ghi chú lúc chốt (không ghi lại sổ chính).
 - Mọi nơi hiển thị tách Ghi chú theo `|` (Bảng đề xuất `_ghiChuBangDeXuat_` 2 mục/dòng, phiếu PDF, Diễn giải trên web) nên thêm mục không cần sửa nơi hiển thị.
+
+## Mã hồ sơ 2026.9.53
+
+- `_maHoSoMoi_` (Tạo mới, Mở Đóng TT) chỉ nhận mã qua `_maKhongThanhSo_`: có ít nhất 1 chữ a-f và không ở dạng số mũ. Cột mã hồ sơ (cột A các sổ, cột B sổ CT) không nằm trong `COT_CHU`, nên mã toàn chữ số bị Sheets đổi thành số khi ghi (mất số 0 đầu) và `12e45678` thành số mũ - hồ sơ không tìm lại được theo mã.

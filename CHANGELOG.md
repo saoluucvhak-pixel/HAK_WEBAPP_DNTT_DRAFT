@@ -2,6 +2,12 @@
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/). Phiên bản theo `NĂM.ĐỢT.SỬA`; thay đổi làm đổi hành vi nghiệp vụ (⚖️) sẽ tăng số ĐỢT và ghi rõ đã được người dùng đồng ý.
 
+## [2026.9.53] — Sửa lỗi mã hồ sơ mới có thể bị Sheets đổi thành số (rà soát 03/10/2026)
+
+### Fixed
+- Mã hồ sơ mới (8 ký tự ngẫu nhiên) đôi khi ra toàn chữ số (vd `00123456`) hoặc dạng số mũ (`12e45678`). Cột mã hồ sơ không khóa dạng chữ nên Google Sheets đổi thành SỐ khi ghi: mất số 0 đầu / thành số khổng lồ, hồ sơ vừa tạo không tìm lại được theo mã (chi tiết, sửa, xác nhận, UNC, Duyệt). Xảy ra ngẫu nhiên khoảng 1/70 lần Tạo mới / Mở Đóng TT. Nay mã luôn có ít nhất 1 chữ cái và không ở dạng số mũ (`_maKhongThanhSo_`); mã cũ đã có không đổi.
+- Phát hiện khi kiểm tra main: bộ test thỉnh thoảng hỏng 1 test (Tạo mới không tìm lại được hồ sơ) đúng vì lỗi này - nay ổn định.
+
 ## [2026.9.52] — Ghi chú sổ 112 luôn có “SL HĐ” (người dùng yêu cầu 03/10/2026)
 
 ### Changed
