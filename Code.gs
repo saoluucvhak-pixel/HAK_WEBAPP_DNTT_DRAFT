@@ -1,6 +1,6 @@
 /**
  * ============================================================
- * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.51
+ * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.52
  * Lịch sử thay đổi: CHANGELOG.md · Kiến trúc: docs/ARCHITECTURE.md
  * ------------------------------------------------------------
  * *** QUAN TRỌNG - CẦN LÀM TRƯỚC KHI DÙNG BẢN NÀY (chỉ 1 LẦN DUY NHẤT
@@ -6101,7 +6101,9 @@ function _tinhLai112Nhap_() {
     row112[12] = slHD_TuDong;
     row112[13] = daTra_N;
     row112[14] = kyNay_O;
-    row112[15] = `Tổng KL: ${fmt(slHD_TuDong)} | Đã trả: ${fmt(daTra_N)} | Còn lại: ${fmt(kyNay_O)} | Đề nghị đợt này: ${fmt(valL_Tan)} | Phiếu: ${phieuStr}`;
+    // 2026.9.52 (người dùng yêu cầu 03/10/2026): Ghi chú mở đầu bằng SL HĐ dự kiến (cột R) cho
+    // MỌI hồ sơ - trước đây không có, sổ 112 lẫn dòng cũ có "SL HĐ" và dòng mới không có.
+    row112[15] = `SL HĐ: ${fmt(row112[17])} | Tổng KL: ${fmt(slHD_TuDong)} | Đã trả: ${fmt(daTra_N)} | Còn lại: ${fmt(kyNay_O)} | Đề nghị đợt này: ${fmt(valL_Tan)} | Phiếu: ${phieuStr}`;
     row112[21] = (soHD !== "" && tongTien > 0) ? "Đủ ĐK TT" : "Không đủ ĐK TT";
 
     count++;

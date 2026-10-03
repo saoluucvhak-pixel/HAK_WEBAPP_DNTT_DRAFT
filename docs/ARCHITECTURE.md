@@ -1,4 +1,4 @@
-# ARCHITECTURE — HAK Quản Lý Thanh Toán (v2026.9.51)
+# ARCHITECTURE — HAK Quản Lý Thanh Toán (v2026.9.52)
 
 > Tài liệu sống: cập nhật mỗi khi đổi module, lớp, luồng dữ liệu hoặc schema.
 > Phân tích chi tiết hiện trạng: `docs/PROJECT_ANALYSIS.md`. Kiến trúc đích: `docs/REFACTOR_PLAN.md` §3–§4.
@@ -276,3 +276,7 @@ Lỗi đọc sổ trong báo cáo (2026.9.46): công nợ / phân tích / tiến
 - Biến màu mới: `--bang-dau` (nền tiêu đề / dòng tổng bảng), `--shadow-noi`, `--rong-thanh-ben`. Ô số liệu: `.stat.vach-timber` / `.stat.vach-danger` đổi màu vạch trái.
 - Không dùng bộ chọn `nav{}` chung (từng làm hỏng thanh "Đi nhanh" `.muc-luc`, cũng là thẻ `<nav>`); thanh bên dùng `#nav`.
 
+## Ghi chú sổ 112 - 2026.9.52
+
+- `_tinhLai112Nhap_` ghi cột P (Ghi chú) = `SL HĐ: <cột R> | Tổng KL | Đã trả | Còn lại | Đề nghị đợt này | Phiếu`, số theo Vùng xuất. Cột R (SL HĐ dự kiến) tự bù từ HD_NCC mirror (tổng lô rừng HD_RUNG, không có thì cột Z) khi đang trống / 0. Hồ sơ đã Duyệt giữ Ghi chú lúc chốt (không ghi lại sổ chính).
+- Mọi nơi hiển thị tách Ghi chú theo `|` (Bảng đề xuất `_ghiChuBangDeXuat_` 2 mục/dòng, phiếu PDF, Diễn giải trên web) nên thêm mục không cần sửa nơi hiển thị.

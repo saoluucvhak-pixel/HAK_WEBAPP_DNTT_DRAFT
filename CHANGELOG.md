@@ -2,6 +2,13 @@
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/). Phiên bản theo `NĂM.ĐỢT.SỬA`; thay đổi làm đổi hành vi nghiệp vụ (⚖️) sẽ tăng số ĐỢT và ghi rõ đã được người dùng đồng ý.
 
+## [2026.9.52] — Ghi chú sổ 112 luôn có “SL HĐ” (người dùng yêu cầu 03/10/2026)
+
+### Changed
+- ⚖️ Cột **Ghi chú** của sổ **DNTT_GK_DN_112** mở đầu bằng **SL HĐ** (SL hợp đồng dự kiến - cột R) cho MỌI hồ sơ: `SL HĐ: 1.800,00 | Tổng KL: 1.691,11 | Đã trả: 1.678,50 | Còn lại: 12,61 | Đề nghị đợt này: 12,61 | Phiếu: 9877`. Trước đây không có mục này (sổ lẫn dòng cũ có “SL HĐ” với dòng mới không có). Hợp đồng chưa khai báo SL dự kiến hiện `SL HĐ: 0,00`.
+- Bảng đề xuất (In Báo Cáo ĐNTT) tự in thành 3 dòng cân đối: “SL HĐ · Tổng KL”, “Đã trả · Còn lại”, “Đề nghị đợt này · Phiếu”; phiếu PDF và Diễn giải trên web có thêm dòng SL HĐ.
+- Áp dụng cho hồ sơ Nháp ở lần tính tiền kế tiếp (Tạo / Thêm / Bỏ phiếu cân / 🔄 Tính lại số tiền); hồ sơ đã Duyệt giữ nguyên Ghi chú lúc chốt.
+
 ## [2026.9.51] — Làm lại giao diện chuyên nghiệp trên tông màu cũ (yêu cầu 29/09/2026)
 
 ### Changed
