@@ -2,6 +2,17 @@
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/). Phiên bản theo `NĂM.ĐỢT.SỬA`; thay đổi làm đổi hành vi nghiệp vụ (⚖️) sẽ tăng số ĐỢT và ghi rõ đã được người dùng đồng ý.
 
+## [2026.9.54] — Bỏ phiếu cân / Duyệt giữ ChiTietDNTT khớp phiếu thật (người dùng báo 03/10/2026)
+
+### Fixed
+- **Bảo Trì báo “ChiTietDNTT: dòng N nhưng hồ sơ không còn trong File Nháp”** (hồ sơ 96c36b58, phiếu 10034/2026/NK). Nguyên nhân: hồ sơ đã In Báo Cáo ĐNTT (ghi dòng N), sau đó Về Chờ xác nhận và **bỏ phiếu cân cuối cùng** - hồ sơ tự xóa khỏi Nháp nhưng dòng N (cùng đơn xin Nháp và lịch sử UNC) ở lại. Nay bỏ phiếu cuối dọn đúng như **Xóa hồ sơ**; bỏ 1 phiếu khi hồ sơ còn phiếu khác thì xóa dòng N của đúng phiếu đó. Dòng bị xóa đều sao lưu, khôi phục được ở Hệ Thống.
+- ⚖️ **Duyệt**: trước đây đổi MỌI dòng N của hồ sơ thành Y - phiếu đã bỏ sau khi In vẫn thành Y, vào **MISA và Báo cáo Thanh toán như đã trả**; phiếu Thêm sau khi In thì không được tính bù (thiếu dòng, thiếu MISA). Nay so theo từng phiếu: chỉ phiếu thật đang chốt thành Y, dòng N thừa bị xóa (sao lưu), phiếu thiếu được tính bù.
+- Dọn dẹp chỉ đọc cột mã hồ sơ rồi đúng các dòng khớp (`_saoLuuVaXoaDongTheoKhoa_`), không đọc cả ChiTietDNTT / ChiTietUNC.
+
+### Xử lý dữ liệu cũ
+- Dòng mồ côi đang có: Hệ Thống › Bảo Trì › tích dòng ở mục “ChiTietDNTT: dòng N nhưng hồ sơ không còn trong File Nháp” › Xóa (an toàn - hồ sơ chưa từng Duyệt).
+- Nếu trước đây đã Duyệt hồ sơ có phiếu bỏ sau khi In: Bảo Trì mục “ChiTietDNTT Y mồ côi” sẽ liệt kê; dòng MISA tương ứng dọn ở Hệ Thống › Dọn Dẹp MISA › Mồ côi.
+
 ## [2026.9.53] — Sửa lỗi mã hồ sơ mới có thể bị Sheets đổi thành số (rà soát 03/10/2026)
 
 ### Fixed

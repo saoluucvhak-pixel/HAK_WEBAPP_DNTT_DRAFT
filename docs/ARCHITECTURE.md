@@ -1,4 +1,4 @@
-# ARCHITECTURE — HAK Quản Lý Thanh Toán (v2026.9.53)
+# ARCHITECTURE — HAK Quản Lý Thanh Toán (v2026.9.54)
 
 > Tài liệu sống: cập nhật mỗi khi đổi module, lớp, luồng dữ liệu hoặc schema.
 > Phân tích chi tiết hiện trạng: `docs/PROJECT_ANALYSIS.md`. Kiến trúc đích: `docs/REFACTOR_PLAN.md` §3–§4.
@@ -284,3 +284,8 @@ Lỗi đọc sổ trong báo cáo (2026.9.46): công nợ / phân tích / tiến
 ## Mã hồ sơ 2026.9.53
 
 - `_maHoSoMoi_` (Tạo mới, Mở Đóng TT) chỉ nhận mã qua `_maKhongThanhSo_`: có ít nhất 1 chữ a-f và không ở dạng số mũ. Cột mã hồ sơ (cột A các sổ, cột B sổ CT) không nằm trong `COT_CHU`, nên mã toàn chữ số bị Sheets đổi thành số khi ghi (mất số 0 đầu) và `12e45678` thành số mũ - hồ sơ không tìm lại được theo mã.
+
+## ChiTietDNTT theo từng phiếu 2026.9.54
+
+- Bỏ phiếu cân (`removePhieuCanFromDraft_`): phiếu cuối = xóa hồ sơ, dọn như Xóa hồ sơ qua `_xoaSrcNhap_` + `_donBangConHoSoNhap_` (đơn xin Nháp, ChiTietDNTT, ChiTietUNC); còn phiếu khác thì xóa dòng N của đúng phiếu đó. Mọi lần xóa đều sao lưu (`_saoLuuVaXoaDongTheoKhoa_` - chỉ đọc cột mã hồ sơ rồi dòng khớp, không đọc cả sheet).
+- Duyệt (`_chuyenChiTietDNTTSangYVaTinhBu_`) so theo khóa mã hồ sơ + Số phiếu cân với phiếu đang chốt: N có trong hồ sơ -> Y; N của phiếu đã bỏ -> xóa (sao lưu `CHOT_THANH_TOAN`); phiếu chưa có dòng (chưa In, hoặc Thêm sau khi In) -> tính bù Y. MISA lấy từ các dòng Y này.
