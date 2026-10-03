@@ -2,6 +2,31 @@
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/). Phiên bản theo `NĂM.ĐỢT.SỬA`; thay đổi làm đổi hành vi nghiệp vụ (⚖️) sẽ tăng số ĐỢT và ghi rõ đã được người dùng đồng ý.
 
+## [2026.9.55] — Kiểm soát toàn vẹn dữ liệu thanh toán (Integrity Gate) (người dùng đồng ý 03/10/2026: "làm cả 2 và có cảnh báo giá phiếu cân thay đổi")
+
+Rà soát chuỗi Phiếu Cân → đơn xin (DNTT_GK_DN) → CT → 112 → Duyệt theo các sai lệch phát hiện trong dữ liệu thật (a0e8c1c2, f94f41a3, 9636702c, lệch 1.000đ). Hai lỗi gốc CÒN trên bản 2026.9.54 đã dựng lại được và sửa; chốt chặn có sẵn (khóa hệ thống, chặn trả 2 lần, Duyệt chạy lại không ghi trùng, lệch tiền 112/CT) giữ nguyên.
+
+### Fixed
+- **ID_CT bị trùng (f94f41a3-2)**: Thêm phiếu đặt mã dòng = số dòng + 1 → hồ sơ có -1, -2, bỏ -1 rồi Thêm phiếu ra lại -2. Nay = STT lớn nhất + 1. **Bỏ phiếu** trước đây xóa MỌI dòng cùng mã (bỏ 1 phiếu mất cả 2, có khi mất cả hồ sơ) → nay xóa đúng 1 dòng (theo mã + số phiếu), từ chối nếu không xác định được.
+- ⚖️ **Đơn xin không theo phiếu thật (a0e8c1c2, 9636702c)**: cột KL Tổng / DS Phiếu cân gốc của đơn xin (và cột I/J của dòng CT) chỉ ghi lúc Tạo mới - Thêm / Bỏ phiếu, Mở Đóng TT không sửa, Duyệt chép nguyên vào DNTT_GK_DN: đơn xin còn ghi phiếu đã chuyển sang hồ sơ khác (lệch đúng KL các phiếu đó) hoặc thiếu phiếu Thêm sau. Nay mỗi lần hệ thống tính lại tiền (Tạo / Thêm / Bỏ / Mở Đóng TT / 🔄 Tính lại) đơn xin **Nháp** tự cập nhật theo phiếu trong CT, có nhật ký `DONG_BO_DON_XIN` (trước → sau). Sổ đã chốt không bị sửa.
+- Tạo mới chặn 1 phiếu cân được chọn 2 lần trong cùng hồ sơ.
+
+### Added
+- **Integrity Gate** `_kiemTraToanVenHoSo_` (1 hàm dùng chung, đọc theo lô, Map/Set O(N), không tự sửa dữ liệu) chặn ở **Xác nhận, In Báo Cáo ĐNTT, Tạo UNC, Duyệt** với mã lỗi: `DUPLICATE_ID_CT`, `DUPLICATE_TICKET` (phiếu ở 2 hồ sơ / đã trả ở hồ sơ khác), `WRONG_OWNER` (phiếu đơn xin khai báo nhưng thuộc hồ sơ khác - theo CT Nháp, CT đã chốt, ChiTietDNTT đã trả), `MISSING_CT` / `ORPHAN_CT` (tập phiếu đơn xin ≠ CT), `KG_MISMATCH` (KG Phiếu Cân = đơn xin = CT), `PRICE_CHANGED`, `AMOUNT_MISMATCH`. Duyệt kiểm tra đầy đủ nhất (đọc Phiếu Cân không qua bộ nhớ đệm, ChiTietDNTT chỉ các dòng của phiếu liên quan). Thông báo cụ thể từng hồ sơ, từng phiếu; mỗi lần chặn ghi nhật ký `CHAN_TOAN_VEN` (mã lỗi, phiếu, KG Phiếu Cân / đơn xin / CT, tiền CT / 112).
+- ⚖️ **Cảnh báo giá phiếu cân thay đổi**: Phiếu Cân sửa KL / giá sau khi lập hồ sơ → Danh Sách ĐNTT hiện "⚠️ Giá phiếu cân đã đổi" (rê chuột xem cũ → mới), Chi tiết hồ sơ hiện khung đỏ, 4 bước trên bị chặn. **🔄 Tính lại số tiền** lấy giá / KL mới cho hồ sơ "Chờ xác nhận" (nhật ký `CAP_NHAT_GIA_PHIEU_CAN`); hồ sơ đã Xác nhận (có thể đã in / tạo UNC) không tự đổi - phải "Về Chờ xác nhận" trước.
+- Duyệt **kiểm lại sổ chính** (đủ dòng CT theo ID_CT và dòng 112) trước khi dọn File Nháp; thiếu thì dừng, giữ Nháp + dấu lượt Duyệt dở (nhật ký `LOI_KIEM_LAI_SAU_CHOT`).
+- **Bảo Trì** thêm 3 mục toàn vẹn sổ đã chốt (chỉ đọc, không có nút xóa): ID_CT trùng / phiếu thuộc nhiều hồ sơ; đơn xin lệch phiếu / KG (WRONG_OWNER, MISSING_CT, ORPHAN_CT, KG_MISMATCH); chốt dở dang (PARTIAL_COMMIT, ORPHAN_112, MISSING_112) + nút **📥 Tải báo cáo toàn vẹn đầy đủ (CSV)** (ID_KEY, Mã lỗi, Mức độ, Phiếu cân, DNTT KG, CT KG, CT tiền, 112 tiền, Ghi chú). Kiểm tra hằng đêm báo cả 3 mục.
+
+### Quy tắc làm tròn (ghi rõ)
+- Số tiền 112 = cộng thẳng Thành tiền từng phiếu (Thành tiền có sẵn trên Phiếu Cân) - **không có bước làm tròn nghiệp vụ nào**. Sai số 1đ (tiền) / 0,5 kg (KL) chỉ để bỏ qua sai số cộng số thực. Lệch 1.000đ trong sổ đã chốt nhiều khả năng là hồ sơ chốt trước 2026.9.44 (Thêm / Bỏ phiếu không tính lại) - Bảo Trì mục "Tổng tiền 112 LỆCH" liệt kê; cần mã hồ sơ + nhật ký để xác nhận.
+
+### Xử lý dữ liệu cũ
+- Hồ sơ **Nháp**: lần tính lại kế tiếp tự cập nhật đơn xin. Hồ sơ Nháp có ID_CT trùng: mở Chi tiết, Xóa đúng phiếu của dòng trùng rồi Thêm lại (mã mới).
+- Sổ **đã chốt**: Hệ Thống › Bảo Trì › Chạy Kiểm Tra → xem 3 mục mới / tải CSV. Không tự sửa - sửa từng hồ sơ có xác nhận (Mở Đóng TT nếu cần).
+
+### Tests
+- 295 test (thêm `toanVen2026_9_55.test.mjs` 15 test: 12 trường hợp yêu cầu + hồi quy a0e8c1c2 / f94f41a3 / 9636702c + cảnh báo giá + Bảo Trì chỉ đọc). Trên Code.gs 2026.9.54: 12/15 thất bại; 3 ca đạt cả bản cũ là chốt chặn đã có (bấm Duyệt 2 lần, Duyệt đồng thời, ghi 112 lỗi giữa chừng).
+
 ## [2026.9.54] — Bỏ phiếu cân / Duyệt giữ ChiTietDNTT khớp phiếu thật (người dùng báo 03/10/2026)
 
 ### Fixed

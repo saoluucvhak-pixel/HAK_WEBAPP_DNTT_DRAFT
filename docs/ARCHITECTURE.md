@@ -1,4 +1,4 @@
-# ARCHITECTURE — HAK Quản Lý Thanh Toán (v2026.9.54)
+# ARCHITECTURE — HAK Quản Lý Thanh Toán (v2026.9.55)
 
 > Tài liệu sống: cập nhật mỗi khi đổi module, lớp, luồng dữ liệu hoặc schema.
 > Phân tích chi tiết hiện trạng: `docs/PROJECT_ANALYSIS.md`. Kiến trúc đích: `docs/REFACTOR_PLAN.md` §3–§4.
@@ -289,3 +289,12 @@ Lỗi đọc sổ trong báo cáo (2026.9.46): công nợ / phân tích / tiến
 
 - Bỏ phiếu cân (`removePhieuCanFromDraft_`): phiếu cuối = xóa hồ sơ, dọn như Xóa hồ sơ qua `_xoaSrcNhap_` + `_donBangConHoSoNhap_` (đơn xin Nháp, ChiTietDNTT, ChiTietUNC); còn phiếu khác thì xóa dòng N của đúng phiếu đó. Mọi lần xóa đều sao lưu (`_saoLuuVaXoaDongTheoKhoa_` - chỉ đọc cột mã hồ sơ rồi dòng khớp, không đọc cả sheet).
 - Duyệt (`_chuyenChiTietDNTTSangYVaTinhBu_`) so theo khóa mã hồ sơ + Số phiếu cân với phiếu đang chốt: N có trong hồ sơ -> Y; N của phiếu đã bỏ -> xóa (sao lưu `CHOT_THANH_TOAN`); phiếu chưa có dòng (chưa In, hoặc Thêm sau khi In) -> tính bù Y. MISA lấy từ các dòng Y này.
+
+## Kiểm soát toàn vẹn 2026.9.55 (Integrity Gate)
+- `_kiemTraToanVenHoSo_(ids, nguon)` - 1 hàm thuần (không đọc / ghi sheet): nguon = {draftCT, draft112, draftSrc, ctThat?, chiTietDntt?, pc?} do `_nguonToanVen_(tuyChon, ids)` đọc sẵn. Trả Map(id → {ok, errors:[{ma, thongDiep}], dnttTickets, ctTickets, missingTickets, unexpectedTickets, wrongOwnerTickets, duplicateTickets, duplicateCtIds, priceChanged, kgSource, kgDntt, kgCt, amountCt, amount112}). Mã lỗi ở `TOAN_VEN.MA`.
+- Chủ thật của phiếu = hồ sơ đang chứa phiếu ở CT Nháp, CT đã chốt, ChiTietDNTT "Y". Dòng "N" cũ không phải chủ.
+- Gắn: `runXacNhanDNTT_`, `exportBaoCaoDNTTFromDraft_`, `webCreateUNCFromDraft_` qua `_congToanVen_` (sổ CT qua bộ nhớ đệm; UNC kiểm cả chủ sở hữu); `runConfirmPayment_` gọi trực tiếp với sổ CT đọc thẳng + Phiếu Cân không qua bộ nhớ đệm, rồi kiểm lại sổ chính trước khi dọn Nháp. Chặn → `_baoLoiToanVen_` (câu báo + nhật ký `CHAN_TOAN_VEN`).
+- Đơn xin Nháp theo CT: `_dongBoDonXinNhap_` chạy cuối `_tinhLai112Nhap_`. Mã dòng CT: `_sttKeTiep_`. Giá Phiếu Cân: `_capNhatGiaPhieuCanNhap_` chỉ chạy từ nút Tính lại (`runCreate112`).
+- Danh Sách ĐNTT: route `getDraftListSummary` → `getDanhSachNhapCoKiemTra_` (thêm `canhBaoToanVen`); Trang chủ / huy hiệu vẫn `getDraftListSummary_` (không đọc Phiếu Cân).
+- Sổ đã chốt: `_quetToanVenSoChinh_(src, ct, 112, draftCT)` → dòng {idKey, ma, mucDo, phieu, kgDntt, kgCt, tienCt, tien112, ghiChu}; dùng ở Bảo Trì (`trungIdCtPhieu`, `donXinLechPhieu`, `chotDoDang`), kiểm tra đêm, `getBaoCaoToanVen_` (CSV). Chỉ đọc.
+
