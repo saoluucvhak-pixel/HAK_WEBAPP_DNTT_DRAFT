@@ -650,7 +650,8 @@ function _kiemTraToanVenHoSo_(ids, nguon) {
   // Khối lượng theo hợp đồng (tấn): đã thanh toán (CT đã chốt "Y", trừ hồ sơ còn trong Nháp - lượt
   // Duyệt dở chạy lại) + đang đề nghị ở MỌI hồ sơ Nháp của hợp đồng.
   const daTraTheoHD = new Map(), nhapTheoHD = new Map(), hoSoNhapTheoHD = new Map();
-  if (nguon.ctThat) nguon.ctThat.forEach(r => {
+  // Gồm cả các năm đã khóa sổ (file DATA<năm>) - người dùng 03/10/2026: "tính hết kể cả khóa sổ".
+  if (nguon.ctThat) (nguon.ctLuuTru || []).concat(nguon.ctThat).forEach(r => {
     const hd = utils.standardize(String(r[19] || "").replace(/'/g, ""));
     if (!hd || String(r[18] || "").trim().toUpperCase() !== "Y" || ctTheoHoSo.has(String(r[1] || "").trim())) return;
     daTraTheoHD.set(hd, (daTraTheoHD.get(hd) || 0) + utils.parseNum(r[12]));
@@ -671,8 +672,8 @@ function _kiemTraToanVenHoSo_(ids, nguon) {
       missingTickets: [], unexpectedTickets: [], wrongOwnerTickets: [], duplicateTickets: [], duplicateCtIds: [],
       priceChanged: [], kgSource: null, kgDntt: null, kgCt: 0, amountCt: 0, amount112: r112 ? utils.parseNum(r112[6]) : 0
     };
-    const loi = (ma, thongDiep) => {
-      if (TOAN_VEN.CHI_CANH_BAO.indexOf(ma) >= 0) { kq.warnings.push({ ma, thongDiep }); return; }
+    const loi = (ma, thongDiep, chiCanhBao) => {
+      if (chiCanhBao || TOAN_VEN.CHI_CANH_BAO.indexOf(ma) >= 0) { kq.warnings.push({ ma, thongDiep }); return; }
       kq.ok = false; kq.errors.push({ ma, thongDiep });
     };
     if (!dong.length) loi(M.NO_CT, "Hồ sơ không còn dòng phiếu cân nào trong File Nháp.");
@@ -759,7 +760,9 @@ function _kiemTraToanVenHoSo_(ids, nguon) {
       kq.slHD = slHD; kq.klDaTraHD = daTraHD; kq.klNhapHD = nhapHD;
       if (hd && slHD > 0 && daTraHD + nhapHD > slHD + TOAN_VEN.LECH_TAN) {
         const hoSo = Array.from(hoSoNhapTheoHD.get(hd) || []);
-        loi(M.VUOT_SL_HD, `Vượt khối lượng hợp đồng ${soHD}: SL HĐ ${_tan_(slHD)} tấn; đã thanh toán ${_tan_(daTraHD)} + đang đề nghị ở Nháp ${_tan_(nhapHD)} (hồ sơ ${hoSo.join(", ")}) = ${_tan_(daTraHD + nhapHD)} tấn - vượt ${_tan_(daTraHD + nhapHD - slHD)} tấn. Bỏ bớt phiếu cân hoặc điều chỉnh SL hợp đồng trước.`);
+        // Người dùng 03/10/2026: hồ sơ vượt SL bị chặn đến khi xử lý - CHỈ Quản trị được làm tiếp (cảnh báo + nhật ký).
+        loi(M.VUOT_SL_HD, `Vượt khối lượng hợp đồng ${soHD}: SL HĐ ${_tan_(slHD)} tấn; đã thanh toán ${_tan_(daTraHD)} + đang đề nghị ở Nháp ${_tan_(nhapHD)} (hồ sơ ${hoSo.join(", ")}) = ${_tan_(daTraHD + nhapHD)} tấn - vượt ${_tan_(daTraHD + nhapHD - slHD)} tấn. `
+          + (nguon.quanTri ? "Tài khoản Quản trị được phép duyệt vượt (ghi nhật ký)." : "Bỏ bớt phiếu cân hoặc điều chỉnh SL hợp đồng - chỉ Quản trị mới duyệt được hồ sơ vượt SL."), !!nguon.quanTri);
       } else if (hd && slHD <= 0) {
         loi(M.SL_HD_CHUA_KHAI, `Hợp đồng ${soHD} chưa khai báo SL dự kiến - chưa kiểm tra được vượt khối lượng hợp đồng.`);
       }
@@ -775,7 +778,10 @@ function _nguonToanVen_(tuyChon, ids) {
   const tc = tuyChon || {};
   const { shCT, sh112, shSrc } = getDraftSheets_();
   const doc = (sh, soCot) => { const lr = sh.getLastRow(); return lr > 1 ? sh.getRange(2, 1, lr - 1, soCot).getValues() : []; };
-  const nguon = { draftCT: tc.draftCT || doc(shCT, 22), draft112: tc.draft112 || doc(sh112, 24), draftSrc: doc(shSrc, 18), ctThat: tc.ctThat || null, chiTietDntt: null, pc: null };
+  const nguon = { draftCT: tc.draftCT || doc(shCT, 22), draft112: tc.draft112 || doc(sh112, 24), draftSrc: doc(shSrc, 18), ctThat: tc.ctThat || null, chiTietDntt: null, pc: null,
+    // KL đã trả theo hợp đồng gồm cả các năm đã khóa sổ (bộ nhớ đệm 6 giờ - sổ đã khóa không đổi).
+    ctLuuTru: tc.ctThat ? _docLuuTruTrongKhoang_(CFG.DNTT_CT, 22, "", "") : null,
+    quanTri: _coQuyenHienTai_(QUYEN.QUAN_TRI) };
   if (tc.chuSoHuu) {
     const sh = getMainSs_().getSheetByName(CHITIET_DNTT_SHEET);
     const idSet = new Set((ids || []).map(x => String(x || "").trim()));
@@ -796,15 +802,16 @@ function _congToanVen_(ids, buoc, tuyChon) {
   if (!dsId.length) return { loi: new Set(), bao: "" };
   const kq = _kiemTraToanVenHoSo_(dsId, _nguonToanVen_(Object.assign({ ctThat: _ctThatDataCache_(), phieuCan: true }, tuyChon), dsId));
   const loi = dsId.map(id => kq.ketQua.get(id)).filter(k => k && !k.ok && k.errors.some(e => e.ma !== TOAN_VEN.MA.NO_CT));
-  const canhBao = _canhBaoToanVenTxt_(dsId.map(id => kq.ketQua.get(id)));
+  const canhBao = _canhBaoToanVenTxt_(dsId.map(id => kq.ketQua.get(id)), buoc);
   return { loi: new Set(loi.map(k => k.idKey)), bao: [_baoLoiToanVen_(loi, buoc), canhBao].filter(Boolean).join("\n") };
 }
 
 /** Cảnh báo (không chặn) của các hồ sơ được làm tiếp -> câu báo; sai chủ phiếu ghi nhật ký CANH_BAO_TOAN_VEN. */
-function _canhBaoToanVenTxt_(ketQuaList) {
+function _canhBaoToanVenTxt_(ketQuaList, buoc) {
   // "HĐ chưa khai báo SL" chỉ hiện trong Chi tiết hồ sơ - không lặp ở mọi thông báo Xác nhận / Duyệt.
   const co = ketQuaList.filter(k => k && k.ok && k.warnings.some(w => w.ma !== TOAN_VEN.MA.SL_HD_CHUA_KHAI));
   co.filter(k => k.warnings.some(w => w.ma === TOAN_VEN.MA.WRONG_OWNER)).forEach(k => logAction_("CANH_BAO_TOAN_VEN", k.idKey, `WRONG_OWNER: ${k.wrongOwnerTickets.join("; ")}`));
+  co.forEach(k => k.warnings.filter(w => w.ma === TOAN_VEN.MA.VUOT_SL_HD).forEach(w => logAction_("QUAN_TRI_VUOT_SL_HD", k.idKey, `${buoc || "-"}: Quản trị cho làm tiếp hồ sơ vượt SL hợp đồng - ${w.thongDiep}`)));
   if (!co.length) return "";
   return "⚠️ Cảnh báo (vẫn cho làm tiếp):\n" + co.map(k => `• Hồ sơ ${k.idKey}: ` + k.warnings.filter(w => w.ma !== TOAN_VEN.MA.SL_HD_CHUA_KHAI).map(w => `[${w.ma}] ${w.thongDiep}`).join(" ")).join("\n");
 }
@@ -5886,7 +5893,7 @@ function runConfirmPayment_(selectedIds, payDateStr) {
     const toanVen = _kiemTraToanVenHoSo_(validIds, _nguonToanVen_({ draftCT: draftCTAll, draft112: draft112All, ctThat: ctThatLucDau, chuSoHuu: true, phieuCan: true, pc: pcLucDuyet }, validIds));
     const loiToanVen = validIds.map(id => toanVen.ketQua.get(id)).filter(k => k && !k.ok);
     loiToanVen.forEach(k => validIds.splice(validIds.indexOf(k.idKey), 1));
-    const baoToanVen = [_baoLoiToanVen_(loiToanVen, "Duyệt (Chốt Thanh Toán)"), _canhBaoToanVenTxt_(validIds.map(id => toanVen.ketQua.get(id)))].filter(Boolean).join("\n");
+    const baoToanVen = [_baoLoiToanVen_(loiToanVen, "Duyệt (Chốt Thanh Toán)"), _canhBaoToanVenTxt_(validIds.map(id => toanVen.ketQua.get(id)), "Duyệt (Chốt Thanh Toán)")].filter(Boolean).join("\n");
 
     if (validIds.length === 0) {
       let msg = "❌ Không có hồ sơ nào đủ điều kiện để chốt.";

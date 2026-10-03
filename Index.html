@@ -2756,11 +2756,11 @@ function _veCanhBaoToanVen(r){
   const ds = (r && r.canhBaoToanVen) || [];
   const daVe = new Set();
   return ds.map(c => {
-    const nhan = CANH_BAO_TOAN_VEN_NHAN[c.ma] || ('⚠️ ' + c.ma);
+    const nhan = (CANH_BAO_TOAN_VEN_NHAN[c.ma] || ('⚠️ ' + c.ma)).replace(/^⛔/, c.chan === false ? '⚠️' : '⛔');
     if (daVe.has(nhan)) return '';
     daVe.add(nhan);
     const loai = c.chan === false ? 'wait' : (c.ma === 'PRICE_CHANGED' || c.ma === 'MISSING_CT' || c.ma === 'ORPHAN_CT' ? 'pending' : 'loi');
-    return `<br><span class="badge ${loai} dot" title="${esc(ds.filter(x => (CANH_BAO_TOAN_VEN_NHAN[x.ma] || '') === nhan).map(x => x.thongDiep).join('\n'))}">${esc(nhan)}</span>`;
+    return `<br><span class="badge ${loai} dot" title="${esc(ds.filter(x => x.ma === c.ma || CANH_BAO_TOAN_VEN_NHAN[x.ma] === CANH_BAO_TOAN_VEN_NHAN[c.ma]).map(x => x.thongDiep).join('\n'))}">${esc(nhan)}</span>`;
   }).join('');
 }
 
@@ -2856,12 +2856,23 @@ function getDraftActionButtonsHtml(){
     <button class="btn primary" onclick="openConfirmPaymentModal()">📨 Duyệt (Đóng Thanh Toán)</button>`;
 }
 
+/** 2026.9.55: hồ sơ vượt SL hợp đồng - máy chủ chỉ cho Quản trị làm tiếp (với Quản trị mã VUOT_SL_HD là
+ * cảnh báo). Hỏi Quản trị xác nhận rõ ràng trước khi Xác nhận / In / Tạo UNC / Duyệt các hồ sơ đó. */
+async function _xacNhanVuotSlQuanTri_(ids, buoc){
+  const vuot = (state.draftList || []).filter(r => ids.includes(r.idKey))
+    .flatMap(r => (r.canhBaoToanVen || []).filter(c => c.ma === 'VUOT_SL_HD' && c.chan === false).map(c => `• ${r.idKey}: ${c.thongDiep}`));
+  if (!vuot.length) return true;
+  return xacNhan(`${vuot.join('\n')}\n\nBạn là Quản trị - vẫn ${buoc} hồ sơ vượt khối lượng hợp đồng? (ghi nhật ký)`,
+    { tieuDe: '⚠️ Vượt khối lượng hợp đồng', nutOk: 'Vẫn ' + buoc, nguyHiem: true });
+}
+
 /** Bước 2 → 3: "Xác Nhận" các hồ sơ đang "Chờ xác nhận" (đã tính tiền)
  * chuyển sang "Chờ duyệt" (sẵn sàng in Báo Cáo ĐNTT & chờ Duyệt). Hồ sơ
  * chưa tính tiền trong lựa chọn sẽ tự bị bỏ qua kèm cảnh báo. */
-function doXacNhanDNTT(){
+async function doXacNhanDNTT(){
   const ids = Array.from(state.draftSelected);
   if (!ids.length) { toast('Vui lòng chọn ít nhất 1 hồ sơ.', 'warn'); return; }
+  if (!(await _xacNhanVuotSlQuanTri_(ids, 'Xác nhận'))) return;
   call('runXacNhanDNTT', [ids], 'Đang Xác Nhận...').then(async res => {
     if (res && res.needConfirm) {
       if ((await xacNhan(res.message, { tieuDe: '⚠️ Tên khách hàng khác Chủ rừng', nutOk: 'Vẫn Xác nhận' }))) {
@@ -2874,9 +2885,10 @@ function doXacNhanDNTT(){
 }
 
 /** Bước 3: in "Báo Cáo ĐNTT" (mẫu excel) cho các hồ sơ đã "Chờ duyệt". */
-function doInBaoCaoDNTT(){
+async function doInBaoCaoDNTT(){
   const ids = Array.from(state.draftSelected);
   if (!ids.length) { toast('Vui lòng chọn ít nhất 1 hồ sơ.', 'warn'); return; }
+  if (!(await _xacNhanVuotSlQuanTri_(ids, 'In Báo Cáo ĐNTT'))) return;
   call('exportBaoCaoDNTTFromDraft', [ids], 'Đang xuất Báo Cáo ĐNTT...').then(res => {
     if (res && res.success) {
       toast(res.message || '✅ Đã xuất Báo Cáo ĐNTT.');
@@ -2892,9 +2904,10 @@ function doInBaoCaoDNTT(){
 
 /** MỚI (theo yêu cầu): Tạo File UNC (Ủy Nhiệm Chi) cho hồ sơ "Chờ duyệt"
  * đã chọn - CHƯA chốt thanh toán, chỉ để nộp ngân hàng chuyển tiền trước. */
-function openCreateUNCModal(){
+async function openCreateUNCModal(){
   const ids = Array.from(state.draftSelected);
   if (!ids.length) { toast('Vui lòng chọn ít nhất 1 hồ sơ.', 'warn'); return; }
+  if (!(await _xacNhanVuotSlQuanTri_(ids, 'Tạo UNC'))) return;
   const iso = todayISOVN();
   openModal(`
     <div class="modal-head"><h3>Tạo File UNC (${ids.length} hồ sơ)</h3><button class="x" onclick="closeModal()" aria-label="Đóng">&times;</button></div>
@@ -3221,6 +3234,7 @@ async function submitConfirmPayment(){
   const vn = _isoSangVN(dateStr);
   if (dateStr > todayISOVN() && !(await xacNhan(`Ngày thanh toán ${vn} là ngày SAU hôm nay. Vẫn Đóng Thanh Toán với ngày này?`, { tieuDe: '⚠️ Ngày thanh toán ở tương lai', nutOk: 'Vẫn Đóng Thanh Toán' }))) return;
   const ids = Array.from(state.draftSelected);
+  if (!(await _xacNhanVuotSlQuanTri_(ids, 'Duyệt'))) return;
   call('webConfirmPayment', [ids, dateStr], 'Đang chốt thanh toán...').then(res => {
     closeModal();
     handleResult(res, () => loadDraftList());
@@ -4888,7 +4902,7 @@ function renderHuongDan(){
     <summary style="cursor:pointer;font-weight:700;font-size:15px">❓ Xử lý sự cố thường gặp</summary>
     <div style="margin-top:10px;font-size:13px;line-height:1.7">
       <b>Không thấy phiếu cân/hợp đồng mới vừa nhập?</b> Bấm "🔄 Tải &amp; Tính Lại" (Bước 2 Tạo Mới) hoặc "↻ Làm mới" (Danh Sách ĐNTT).<br><br>
-      <b>Bị chặn Xác nhận / In / Tạo UNC / Duyệt với mã lỗi [PRICE_CHANGED], [WRONG_OWNER]...?</b> Hệ thống kiểm tra phiếu cân → chủ phiếu → tập phiếu → KG → giá → tiền trước mỗi bước. <b>[PRICE_CHANGED]</b> giá / KL Phiếu Cân đã sửa sau khi lập hồ sơ: "Về Chờ xác nhận" (nếu đã Xác nhận) rồi "🔄 Tính lại số tiền". <b>[DUPLICATE_ID_CT]</b>: mở Chi tiết, Xóa phiếu của dòng trùng rồi Thêm lại. <b>[DUPLICATE_TICKET]</b>: 1 phiếu ở 2 hồ sơ - bỏ phiếu khỏi 1 trong 2 hồ sơ. <b>[WRONG_OWNER]</b> (chỉ cảnh báo, không chặn): đơn xin ghi phiếu đang thuộc hồ sơ khác - kiểm tra lại, "🔄 Tính lại số tiền" để đơn xin theo đúng phiếu. <b>[VUOT_SL_HD]</b>: KL đã thanh toán + KL đang đề nghị ở Nháp vượt SL hợp đồng - bỏ bớt phiếu hoặc điều chỉnh SL hợp đồng. <b>[MISSING_CT] / [ORPHAN_CT] / [KG_MISMATCH]</b>: bấm "🔄 Tính lại số tiền" để đơn xin cập nhật theo phiếu; vẫn lệch thì kiểm tra lại phiếu cân của hồ sơ. Sổ đã chốt: Hệ Thống › Bảo Trì (mục Toàn vẹn sổ đã chốt, tải CSV).<br><br>
+      <b>Bị chặn Xác nhận / In / Tạo UNC / Duyệt với mã lỗi [PRICE_CHANGED], [WRONG_OWNER]...?</b> Hệ thống kiểm tra phiếu cân → chủ phiếu → tập phiếu → KG → giá → tiền trước mỗi bước. <b>[PRICE_CHANGED]</b> giá / KL Phiếu Cân đã sửa sau khi lập hồ sơ: "Về Chờ xác nhận" (nếu đã Xác nhận) rồi "🔄 Tính lại số tiền". <b>[DUPLICATE_ID_CT]</b>: mở Chi tiết, Xóa phiếu của dòng trùng rồi Thêm lại. <b>[DUPLICATE_TICKET]</b>: 1 phiếu ở 2 hồ sơ - bỏ phiếu khỏi 1 trong 2 hồ sơ. <b>[WRONG_OWNER]</b> (chỉ cảnh báo, không chặn): đơn xin ghi phiếu đang thuộc hồ sơ khác - kiểm tra lại, "🔄 Tính lại số tiền" để đơn xin theo đúng phiếu. <b>[VUOT_SL_HD]</b>: KL đã thanh toán (kể cả các năm đã khóa sổ) + KL đang đề nghị ở Nháp vượt SL hợp đồng - bỏ bớt phiếu hoặc điều chỉnh SL hợp đồng; chỉ tài khoản Quản trị mới làm tiếp được (có hộp xác nhận, ghi nhật ký). <b>[MISSING_CT] / [ORPHAN_CT] / [KG_MISMATCH]</b>: bấm "🔄 Tính lại số tiền" để đơn xin cập nhật theo phiếu; vẫn lệch thì kiểm tra lại phiếu cân của hồ sơ. Sổ đã chốt: Hệ Thống › Bảo Trì (mục Toàn vẹn sổ đã chốt, tải CSV).<br><br>
       <b>Không sửa/xóa được hồ sơ?</b> Chỉ sửa/xóa được khi đang "Chờ xác nhận" - nếu đang "Chờ duyệt", bấm "Về Chờ xác nhận" trước. Nếu ĐÃ chốt (Đóng Thanh Toán), dùng "Mở Đóng Thanh Toán" ở mục Hệ Thống.<br><br>
       <b>CCCD/STK/ID bị mất số 0 đầu, hoặc Ngày bị lộn ngày-tháng?</b> Vào Cài Đặt bấm "Khóa Định Dạng TEXT/Ngày" - lưu ý KHÔNG phục hồi được dữ liệu cũ đã sai, cần gõ lại tay.<br><br>
       <b>Xuất báo cáo Excel bị chậm/timeout?</b> Hệ thống đã tối ưu dùng cache chung cho Phiếu Cân/Hợp Đồng - nếu vẫn chậm, báo rõ báo cáo nào và khoảng bao nhiêu dòng dữ liệu để kiểm tra tiếp.<br><br>

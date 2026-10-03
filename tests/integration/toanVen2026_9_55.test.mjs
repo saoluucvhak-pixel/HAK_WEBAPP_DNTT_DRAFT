@@ -247,29 +247,49 @@ test('ledger health check: read only, reports duplicate ID_CT, ticket in two rec
   assert.ok(bt.trungIdCtPhieu.total >= 2 && bt.donXinLechPhieu.total >= 1 && bt.chotDoDang.total >= 1);
 });
 
-test('contract quantity: paid KL + KL proposed in the draft may not exceed SL HĐ -> VUOT_SL_HD blocks every step', () => {
+test('contract quantity: paid KL (incl. closed years) + KL proposed in the draft may not exceed SL HĐ -> VUOT_SL_HD; only an admin may go on', () => {
+  const keToan = t => t.run('_coQuyenHienTai_ = q => q !== QUYEN.QUAN_TRI'); // đăng nhập là Kế toán
+  const quanTri = t => t.run('_coQuyenHienTai_ = q => true');
   const t = theGioi();
-  // Đã thanh toán trước 20 tấn của HD01 (sổ CT đã chốt).
+  // Đã thanh toán trước 20 tấn của HD01 (sổ CT đang mở).
   const cu = new Array(22).fill(''); cu[0] = 'CU-1'; cu[1] = 'CU'; cu[11] = "'PCCU"; cu[12] = 20; cu[16] = 20000000; cu[18] = 'Y'; cu[19] = "'HD01";
   t.w.main.getSheetByName('DNTT_GK_DN_CT').data.push(cu);
   t.run('_invalidateCtSrc112Cache_')();
   const a = t.tao(['PC004']), b = t.tao(['PC005']); // Nháp HD01: A1 + B2 có sẵn (3 tấn) + 16,72 + 14,61 = 34,33 tấn
   [a, b].forEach(id => { t.r112(id)[17] = 50; });     // SL HĐ 50 tấn: 20 + 34,33 = 54,33 > 50
+
+  keToan(t);
   const k = t.kiem([a]).get(a);
   assert.deepEqual(Array.from(k.errors, e => e.ma), ['VUOT_SL_HD']);
   assert.match(k.errors[0].thongDiep, /SL HĐ 50,000 tấn; đã thanh toán 20,000 \+ đang đề nghị ở Nháp 34,330 \(hồ sơ .*\) = 54,330 tấn - vượt 4,330 tấn/);
+  assert.match(k.errors[0].thongDiep, /chỉ Quản trị mới duyệt được/);
   const xn = t.run('runXacNhanDNTT_')([a], true);
   assert.equal(xn.success, false); assert.match(xn.message, /VUOT_SL_HD/);
   t.r112(a)[23] = 'Đang ĐNTT';
   assert.match(t.run('runConfirmPayment_')([a], homNay()), /VUOT_SL_HD/);
-  // Bỏ hồ sơ B khỏi Nháp -> 20 + 3 + 16,72 = 39,72 <= 50: được duyệt.
-  t.run('runDeleteDraftRecord_')(b);
-  t.r112(a)[17] = 50;
-  assert.equal(t.kiem([a]).get(a).ok, true);
-  assert.match(t.run('runConfirmPayment_')([a], homNay()), /^✅/);
+  assert.equal(t.soChinh('DNTT_GK_DN_CT', 1).filter(x => x === a).length, 0);
+
+  // Quản trị: chỉ cảnh báo, được duyệt, có nhật ký.
+  quanTri(t);
+  const kqt = t.kiem([a]).get(a);
+  assert.equal(kqt.ok, true); assert.ok(Array.from(kqt.warnings, w => w.ma).includes('VUOT_SL_HD'));
+  const duyet = t.run('runConfirmPayment_')([a], homNay());
+  assert.match(duyet, /^✅/); assert.match(duyet, /Quản trị được phép duyệt vượt/);
+  assert.ok(t.w.main.getSheetByName('NhatKyThaoTac').data.some(r => r.join('|').includes('QUAN_TRI_VUOT_SL_HD')));
+
   // Hợp đồng chưa khai báo SL: chỉ cảnh báo, không chặn.
+  keToan(t);
   const c = t.tao(['PC006']); t.r112(c)[17] = 0;
   const kc = t.kiem([c]).get(c);
   assert.equal(kc.ok, true); assert.deepEqual(Array.from(kc.warnings, w => w.ma), ['SL_HD_CHUA_KHAI']);
-});
 
+  // Năm đã khóa sổ (file DATA2025) cũng tính vào "đã thanh toán".
+  const t2 = theGioi();
+  const dong2025 = new Array(22).fill(''); dong2025[1] = 'CU25'; dong2025[12] = 40; dong2025[18] = 'Y'; dong2025[19] = "'HD01";
+  t2.run(`_docLuuTruTrongKhoang_ = ten => ten === CFG.DNTT_CT ? ${JSON.stringify([dong2025])} : []`);
+  keToan(t2);
+  const d = t2.tao(['PC008']); t2.r112(d)[17] = 45; // 40 (2025 đã khóa sổ) + 3 + 5 = 48 > 45
+  const kd = t2.kiem([d]).get(d);
+  assert.deepEqual(Array.from(kd.errors, e => e.ma), ['VUOT_SL_HD']);
+  assert.match(kd.errors[0].thongDiep, /đã thanh toán 40,000/);
+});
