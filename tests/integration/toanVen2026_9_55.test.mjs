@@ -82,7 +82,7 @@ test('Case 4 - one ticket in two records -> DUPLICATE_TICKET for both', () => {
   assert.ok(t.ma(b).includes('DUPLICATE_TICKET'));
 });
 
-test('Case 5 / regression a0e8c1c2 - request still lists tickets now owned by another record -> WRONG_OWNER with the exact KG gap', () => {
+test('Case 5 / regression a0e8c1c2 - request still lists tickets now owned by another record -> WRONG_OWNER warning (not a block), KG gap explained', () => {
   const t = theGioi();
   const a = t.tao(['PC004', 'PC005', 'PC008']);
   // Bản cũ: bỏ PC004, PC005 khỏi A (đơn xin không đổi), rồi lập hồ sơ B với 2 phiếu đó.
@@ -94,12 +94,16 @@ test('Case 5 / regression a0e8c1c2 - request still lists tickets now owned by an
   // Dữ liệu cũ chưa được tính lại (hoặc đơn xin đã chốt ở sổ chính) vẫn mang DS phiếu cũ:
   t.src(a)[10] = "'PC004, PC005, PC008"; t.src(a)[9] = 36330;
   const k = t.kiem([a]).get(a);
-  assert.ok(k.errors.some(e => e.ma === 'WRONG_OWNER'), JSON.stringify(k.errors));
+  // Người dùng 03/10/2026: "sai chủ chỉ cảnh báo, KG chặn".
+  assert.deepEqual(Array.from(k.warnings, w => w.ma).filter(m => m !== 'SL_HD_CHUA_KHAI'), ['WRONG_OWNER'], JSON.stringify(k.errors));
+  assert.equal(k.ok, true, 'no blocking error: the moved tickets are explained, KG matches after removing them');
+  assert.match(k.warnings[0].thongDiep, /đơn xin ghi thừa 31\.330 kg/);
   assert.deepEqual(Array.from(k.wrongOwnerTickets), [`PC004 (thuộc hồ sơ ${b})`, `PC005 (thuộc hồ sơ ${b})`]);
   assert.equal(k.kgDntt - k.kgCt, 16720 + 14610, 'gap = the two moved tickets (31.330 kg)');
   const r = t.r112(a); r[6] = 5000000; r[23] = 'Đang ĐNTT';
   const msg = t.run('runConfirmPayment_')([a], homNay());
-  assert.match(msg, /WRONG_OWNER/); assert.match(msg, new RegExp(`PC004 \\(thuộc hồ sơ ${b}\\)`));
+  assert.match(msg, /^✅/, msg); assert.match(msg, /Cảnh báo.*\n.*WRONG_OWNER/); assert.match(msg, new RegExp(`PC004 \\(thuộc hồ sơ ${b}\\)`));
+  assert.ok(t.w.main.getSheetByName('NhatKyThaoTac').data.some(r => r.join('|').includes('CANH_BAO_TOAN_VEN')));
   // Bản mới: Bỏ phiếu cập nhật đơn xin nên không phát sinh lệch.
   const c = t.tao(['PC006', 'PC007']);
   assert.equal(t.run('removePhieuCanFromDraft_')(c + '-1', 'PC006').success, true);
@@ -242,3 +246,30 @@ test('ledger health check: read only, reports duplicate ID_CT, ticket in two rec
   const bt = t.run('getKiemTraDoiChieuBaoTri_')();
   assert.ok(bt.trungIdCtPhieu.total >= 2 && bt.donXinLechPhieu.total >= 1 && bt.chotDoDang.total >= 1);
 });
+
+test('contract quantity: paid KL + KL proposed in the draft may not exceed SL HĐ -> VUOT_SL_HD blocks every step', () => {
+  const t = theGioi();
+  // Đã thanh toán trước 20 tấn của HD01 (sổ CT đã chốt).
+  const cu = new Array(22).fill(''); cu[0] = 'CU-1'; cu[1] = 'CU'; cu[11] = "'PCCU"; cu[12] = 20; cu[16] = 20000000; cu[18] = 'Y'; cu[19] = "'HD01";
+  t.w.main.getSheetByName('DNTT_GK_DN_CT').data.push(cu);
+  t.run('_invalidateCtSrc112Cache_')();
+  const a = t.tao(['PC004']), b = t.tao(['PC005']); // Nháp HD01: A1 + B2 có sẵn (3 tấn) + 16,72 + 14,61 = 34,33 tấn
+  [a, b].forEach(id => { t.r112(id)[17] = 50; });     // SL HĐ 50 tấn: 20 + 34,33 = 54,33 > 50
+  const k = t.kiem([a]).get(a);
+  assert.deepEqual(Array.from(k.errors, e => e.ma), ['VUOT_SL_HD']);
+  assert.match(k.errors[0].thongDiep, /SL HĐ 50,000 tấn; đã thanh toán 20,000 \+ đang đề nghị ở Nháp 34,330 \(hồ sơ .*\) = 54,330 tấn - vượt 4,330 tấn/);
+  const xn = t.run('runXacNhanDNTT_')([a], true);
+  assert.equal(xn.success, false); assert.match(xn.message, /VUOT_SL_HD/);
+  t.r112(a)[23] = 'Đang ĐNTT';
+  assert.match(t.run('runConfirmPayment_')([a], homNay()), /VUOT_SL_HD/);
+  // Bỏ hồ sơ B khỏi Nháp -> 20 + 3 + 16,72 = 39,72 <= 50: được duyệt.
+  t.run('runDeleteDraftRecord_')(b);
+  t.r112(a)[17] = 50;
+  assert.equal(t.kiem([a]).get(a).ok, true);
+  assert.match(t.run('runConfirmPayment_')([a], homNay()), /^✅/);
+  // Hợp đồng chưa khai báo SL: chỉ cảnh báo, không chặn.
+  const c = t.tao(['PC006']); t.r112(c)[17] = 0;
+  const kc = t.kiem([c]).get(c);
+  assert.equal(kc.ok, true); assert.deepEqual(Array.from(kc.warnings, w => w.ma), ['SL_HD_CHUA_KHAI']);
+});
+

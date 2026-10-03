@@ -599,9 +599,14 @@ const TOAN_VEN = {
   MA: {
     DUPLICATE_ID_CT: "DUPLICATE_ID_CT", DUPLICATE_TICKET: "DUPLICATE_TICKET", WRONG_OWNER: "WRONG_OWNER",
     MISSING_CT: "MISSING_CT", ORPHAN_CT: "ORPHAN_CT", KG_MISMATCH: "KG_MISMATCH",
-    PRICE_CHANGED: "PRICE_CHANGED", AMOUNT_MISMATCH: "AMOUNT_MISMATCH", NO_CT: "NO_CT"
-  }
+    PRICE_CHANGED: "PRICE_CHANGED", AMOUNT_MISMATCH: "AMOUNT_MISMATCH", NO_CT: "NO_CT",
+    VUOT_SL_HD: "VUOT_SL_HD", SL_HD_CHUA_KHAI: "SL_HD_CHUA_KHAI"
+  },
+  // 2026.9.55 (người dùng 03/10/2026): "sai chủ chỉ cảnh báo, KG chặn" - các mã này KHÔNG chặn, chỉ cảnh báo.
+  CHI_CANH_BAO: ["WRONG_OWNER", "SL_HD_CHUA_KHAI"],
+  LECH_TAN: 0.0005 // 0,5 kg tính theo tấn
 };
+const _tan_ = n => (Math.round(n * 1000) / 1000).toLocaleString("vi-VN", { minimumFractionDigits: 3, maximumFractionDigits: 3 });
 const _soPhieuChuan_ = v => utils.standardize(String(v == null ? "" : v).replace(/'/g, ""));
 const _soPhieuHien_ = v => String(v == null ? "" : v).replace(/'/g, "").trim();
 const _tachDsPhieu_ = v => String(v == null ? "" : v).replace(/'/g, "").split(/[,;\n]+/).map(x => x.trim()).filter(Boolean);
@@ -612,7 +617,8 @@ const _kg_ = n => (Math.round(n * 1000) / 1000).toLocaleString("vi-VN");
  *  draftCT (22 cột), draft112 (24 cột), draftSrc (18 cột, null = bỏ qua so tập phiếu với đơn xin),
  *  ctThat (sổ CT đã chốt, null = bỏ qua), chiTietDntt ([[ID, Số phiếu, Y/N]], null = bỏ qua chủ sở hữu),
  *  pc (dòng Phiếu Cân, null = bỏ qua so KG / giá với Phiếu Cân).
- * Trả {ok, ketQua: Map(id -> {ok, idKey, errors:[{ma, thongDiep}], dnttTickets, ctTickets,
+ * errors chặn thao tác; warnings (TOAN_VEN.CHI_CANH_BAO) chỉ cảnh báo.
+ * Trả {ok, ketQua: Map(id -> {ok, idKey, errors:[{ma, thongDiep}], warnings:[{ma, thongDiep}], dnttTickets, ctTickets,
  *  missingTickets, unexpectedTickets, wrongOwnerTickets, duplicateTickets, duplicateCtIds,
  *  priceChanged, kgSource, kgDntt, kgCt, amountCt, amount112})}.
  */
@@ -641,16 +647,34 @@ function _kiemTraToanVenHoSo_(ids, nguon) {
   daTra.forEach((id, so) => themChu(so, id));
   if (nguon.chiTietDntt) nguon.chiTietDntt.forEach(r => { if (String(r[2] || "").trim() === "Y") themChu(_soPhieuChuan_(r[1]), String(r[0] || "").trim()); });
   const pcTheoSo = nguon.pc ? utils.buildIndexMap(nguon.pc, PC_COL.SO_CT, true) : null;
+  // Khối lượng theo hợp đồng (tấn): đã thanh toán (CT đã chốt "Y", trừ hồ sơ còn trong Nháp - lượt
+  // Duyệt dở chạy lại) + đang đề nghị ở MỌI hồ sơ Nháp của hợp đồng.
+  const daTraTheoHD = new Map(), nhapTheoHD = new Map(), hoSoNhapTheoHD = new Map();
+  if (nguon.ctThat) nguon.ctThat.forEach(r => {
+    const hd = utils.standardize(String(r[19] || "").replace(/'/g, ""));
+    if (!hd || String(r[18] || "").trim().toUpperCase() !== "Y" || ctTheoHoSo.has(String(r[1] || "").trim())) return;
+    daTraTheoHD.set(hd, (daTraTheoHD.get(hd) || 0) + utils.parseNum(r[12]));
+  });
+  draftCT.forEach(r => {
+    const hd = utils.standardize(String(r[19] || "").replace(/'/g, ""));
+    if (!hd) return;
+    nhapTheoHD.set(hd, (nhapTheoHD.get(hd) || 0) + utils.parseNum(r[12]));
+    if (!hoSoNhapTheoHD.has(hd)) hoSoNhapTheoHD.set(hd, new Set());
+    hoSoNhapTheoHD.get(hd).add(String(r[1] || "").trim());
+  });
 
   const ketQua = new Map();
   idSet.forEach(id => {
     const dong = ctTheoHoSo.get(id) || [], r112 = r112TheoId.get(id), src = srcTheoId ? srcTheoId.get(id) : null;
     const kq = {
-      ok: true, idKey: id, errors: [], dnttTickets: [], ctTickets: dong.map(r => _soPhieuHien_(r[11])),
+      ok: true, idKey: id, errors: [], warnings: [], dnttTickets: [], ctTickets: dong.map(r => _soPhieuHien_(r[11])),
       missingTickets: [], unexpectedTickets: [], wrongOwnerTickets: [], duplicateTickets: [], duplicateCtIds: [],
       priceChanged: [], kgSource: null, kgDntt: null, kgCt: 0, amountCt: 0, amount112: r112 ? utils.parseNum(r112[6]) : 0
     };
-    const loi = (ma, thongDiep) => { kq.ok = false; kq.errors.push({ ma, thongDiep }); };
+    const loi = (ma, thongDiep) => {
+      if (TOAN_VEN.CHI_CANH_BAO.indexOf(ma) >= 0) { kq.warnings.push({ ma, thongDiep }); return; }
+      kq.ok = false; kq.errors.push({ ma, thongDiep });
+    };
     if (!dong.length) loi(M.NO_CT, "Hồ sơ không còn dòng phiếu cân nào trong File Nháp.");
 
     // R1 - ID_CT duy nhất.
@@ -685,7 +709,15 @@ function _kiemTraToanVenHoSo_(ids, nguon) {
       if (trongCt && kq.duplicateTickets.some(x => x.startsWith(hien + " "))) return; // đã báo DUPLICATE_TICKET
       kq.wrongOwnerTickets.push(`${hien} (thuộc hồ sơ ${chuKhac.join(", ")})`);
     });
-    if (kq.wrongOwnerTickets.length) loi(M.WRONG_OWNER, `Phiếu cân hiện thuộc hồ sơ khác: ${kq.wrongOwnerTickets.join("; ")}.`);
+    // Phiếu đơn xin ghi mà CT không có NHƯNG đang thuộc hồ sơ khác -> chỉ cảnh báo sai chủ (không tính thiếu CT);
+    // KG của các phiếu đó được trừ khỏi KG đơn xin khi so KG bên dưới.
+    let kgPhieuSaiChu = 0, biet = true;
+    kq.missingTickets = kq.missingTickets.filter(hien => {
+      const saiChu = kq.wrongOwnerTickets.some(x => x.startsWith(hien + " "));
+      if (saiChu) { const pc = pcTheoSo && pcTheoSo.get(_soPhieuChuan_(hien)); if (pc) kgPhieuSaiChu += utils.parseNum(pc[PC_COL.KL_KG]); else biet = false; }
+      return !saiChu;
+    });
+    if (kq.wrongOwnerTickets.length) loi(M.WRONG_OWNER, `Phiếu cân hiện thuộc hồ sơ khác: ${kq.wrongOwnerTickets.join("; ")}` + (kgPhieuSaiChu ? ` (đơn xin ghi thừa ${_kg_(kgPhieuSaiChu)} kg của các phiếu này)` : "") + ` - kiểm tra lại, "🔄 Tính lại số tiền" để đơn xin theo đúng phiếu của hồ sơ.`);
     if (kq.missingTickets.length) loi(M.MISSING_CT, `Đơn xin có ${kq.dnttTickets.length} phiếu nhưng CT chỉ có ${kq.ctTickets.length} phiếu - thiếu: ${kq.missingTickets.join(", ")}.`);
     if (kq.unexpectedTickets.length) loi(M.ORPHAN_CT, `CT có phiếu không có trong đơn xin: ${kq.unexpectedTickets.join(", ")}.`);
 
@@ -708,7 +740,8 @@ function _kiemTraToanVenHoSo_(ids, nguon) {
           Math.abs(x.tienMoi - x.tienCu) > LECH_TIEN_CHO_PHEP ? `thành tiền ${Math.round(x.tienCu).toLocaleString("vi-VN")} → ${Math.round(x.tienMoi).toLocaleString("vi-VN")} đ` : ""].filter(Boolean).join(", ") + ")").join("; ")
         + ` - bấm "Về Chờ xác nhận" (nếu đã Xác nhận) rồi "🔄 Tính lại số tiền" để lấy giá mới.`);
     }
-    const kgs = [["Phiếu Cân", kq.kgSource], ["đơn xin", kq.kgDntt], ["CT", kq.kgCt]].filter(x => x[1] !== null);
+    const kgDnttSoSanh = kq.kgDntt === null || !biet ? null : kq.kgDntt - kgPhieuSaiChu;
+    const kgs = [["Phiếu Cân", kq.kgSource], ["đơn xin" + (kgPhieuSaiChu ? " (trừ phiếu sai chủ)" : ""), kgDnttSoSanh], ["CT", kq.kgCt]].filter(x => x[1] !== null);
     if (dong.length && kgs.some(x => Math.abs(x[1] - kq.kgCt) > TOAN_VEN.LECH_KG) && !kq.missingTickets.length && !kq.unexpectedTickets.length && !kq.priceChanged.length) {
       loi(M.KG_MISMATCH, `Khối lượng lệch: ${kgs.map(x => `${x[0]} ${_kg_(x[1])} kg`).join(", ")} (chênh ${_kg_(Math.max(...kgs.map(x => x[1])) - Math.min(...kgs.map(x => x[1])))} kg).`);
     }
@@ -717,6 +750,19 @@ function _kiemTraToanVenHoSo_(ids, nguon) {
     kq.amountCt = dong.reduce((t, r) => t + utils.parseNum(r[16]), 0);
     if (r112 && Math.abs(kq.amount112 - kq.amountCt) > LECH_TIEN_CHO_PHEP) {
       loi(M.AMOUNT_MISMATCH, `Số tiền 112 ${Math.round(kq.amount112).toLocaleString("vi-VN")} đ khác tổng Thành tiền CT ${Math.round(kq.amountCt).toLocaleString("vi-VN")} đ - bấm "🔄 Tính lại số tiền".`);
+    }
+
+    // Khối lượng hợp đồng (người dùng 03/10/2026): KL đã thanh toán + KL đề nghị ở Nháp KHÔNG vượt SL HĐ dự kiến (cột R sổ 112).
+    if (nguon.ctThat && r112 && dong.length) {
+      const soHD = String(r112[8] || dong[0][19] || "").replace(/'/g, "").trim(), hd = utils.standardize(soHD);
+      const slHD = utils.parseNum(r112[17]), daTraHD = daTraTheoHD.get(hd) || 0, nhapHD = nhapTheoHD.get(hd) || 0;
+      kq.slHD = slHD; kq.klDaTraHD = daTraHD; kq.klNhapHD = nhapHD;
+      if (hd && slHD > 0 && daTraHD + nhapHD > slHD + TOAN_VEN.LECH_TAN) {
+        const hoSo = Array.from(hoSoNhapTheoHD.get(hd) || []);
+        loi(M.VUOT_SL_HD, `Vượt khối lượng hợp đồng ${soHD}: SL HĐ ${_tan_(slHD)} tấn; đã thanh toán ${_tan_(daTraHD)} + đang đề nghị ở Nháp ${_tan_(nhapHD)} (hồ sơ ${hoSo.join(", ")}) = ${_tan_(daTraHD + nhapHD)} tấn - vượt ${_tan_(daTraHD + nhapHD - slHD)} tấn. Bỏ bớt phiếu cân hoặc điều chỉnh SL hợp đồng trước.`);
+      } else if (hd && slHD <= 0) {
+        loi(M.SL_HD_CHUA_KHAI, `Hợp đồng ${soHD} chưa khai báo SL dự kiến - chưa kiểm tra được vượt khối lượng hợp đồng.`);
+      }
     }
     ketQua.set(id, kq);
   });
@@ -750,7 +796,17 @@ function _congToanVen_(ids, buoc, tuyChon) {
   if (!dsId.length) return { loi: new Set(), bao: "" };
   const kq = _kiemTraToanVenHoSo_(dsId, _nguonToanVen_(Object.assign({ ctThat: _ctThatDataCache_(), phieuCan: true }, tuyChon), dsId));
   const loi = dsId.map(id => kq.ketQua.get(id)).filter(k => k && !k.ok && k.errors.some(e => e.ma !== TOAN_VEN.MA.NO_CT));
-  return { loi: new Set(loi.map(k => k.idKey)), bao: _baoLoiToanVen_(loi, buoc) };
+  const canhBao = _canhBaoToanVenTxt_(dsId.map(id => kq.ketQua.get(id)));
+  return { loi: new Set(loi.map(k => k.idKey)), bao: [_baoLoiToanVen_(loi, buoc), canhBao].filter(Boolean).join("\n") };
+}
+
+/** Cảnh báo (không chặn) của các hồ sơ được làm tiếp -> câu báo; sai chủ phiếu ghi nhật ký CANH_BAO_TOAN_VEN. */
+function _canhBaoToanVenTxt_(ketQuaList) {
+  // "HĐ chưa khai báo SL" chỉ hiện trong Chi tiết hồ sơ - không lặp ở mọi thông báo Xác nhận / Duyệt.
+  const co = ketQuaList.filter(k => k && k.ok && k.warnings.some(w => w.ma !== TOAN_VEN.MA.SL_HD_CHUA_KHAI));
+  co.filter(k => k.warnings.some(w => w.ma === TOAN_VEN.MA.WRONG_OWNER)).forEach(k => logAction_("CANH_BAO_TOAN_VEN", k.idKey, `WRONG_OWNER: ${k.wrongOwnerTickets.join("; ")}`));
+  if (!co.length) return "";
+  return "⚠️ Cảnh báo (vẫn cho làm tiếp):\n" + co.map(k => `• Hồ sơ ${k.idKey}: ` + k.warnings.filter(w => w.ma !== TOAN_VEN.MA.SL_HD_CHUA_KHAI).map(w => `[${w.ma}] ${w.thongDiep}`).join(" ")).join("\n");
 }
 
 /** Hồ sơ không qua kiểm tra -> câu báo nhiều dòng cho người dùng + ghi nhật ký CHAN_TOAN_VEN. */
@@ -5830,7 +5886,7 @@ function runConfirmPayment_(selectedIds, payDateStr) {
     const toanVen = _kiemTraToanVenHoSo_(validIds, _nguonToanVen_({ draftCT: draftCTAll, draft112: draft112All, ctThat: ctThatLucDau, chuSoHuu: true, phieuCan: true, pc: pcLucDuyet }, validIds));
     const loiToanVen = validIds.map(id => toanVen.ketQua.get(id)).filter(k => k && !k.ok);
     loiToanVen.forEach(k => validIds.splice(validIds.indexOf(k.idKey), 1));
-    const baoToanVen = _baoLoiToanVen_(loiToanVen, "Duyệt (Chốt Thanh Toán)");
+    const baoToanVen = [_baoLoiToanVen_(loiToanVen, "Duyệt (Chốt Thanh Toán)"), _canhBaoToanVenTxt_(validIds.map(id => toanVen.ketQua.get(id)))].filter(Boolean).join("\n");
 
     if (validIds.length === 0) {
       let msg = "❌ Không có hồ sơ nào đủ điều kiện để chốt.";
@@ -6216,7 +6272,8 @@ function getDanhSachNhapCoKiemTra_() {
     const kq = _kiemTraToanVenHoSo_(list.map(r => r.idKey), _nguonToanVen_({ ctThat: _ctThatDataCache_(), phieuCan: true }));
     list.forEach(r => {
       const k = kq.ketQua.get(r.idKey);
-      r.canhBaoToanVen = k ? k.errors.filter(e => e.ma !== TOAN_VEN.MA.AMOUNT_MISMATCH && e.ma !== TOAN_VEN.MA.NO_CT).map(e => ({ ma: e.ma, thongDiep: e.thongDiep })) : [];
+      r.canhBaoToanVen = k ? k.errors.filter(e => e.ma !== TOAN_VEN.MA.AMOUNT_MISMATCH && e.ma !== TOAN_VEN.MA.NO_CT).map(e => ({ ma: e.ma, thongDiep: e.thongDiep, chan: true }))
+        .concat(k.warnings.filter(w => w.ma !== TOAN_VEN.MA.SL_HD_CHUA_KHAI).map(w => ({ ma: w.ma, thongDiep: w.thongDiep, chan: false }))) : [];
     });
   } catch (e) {
     // Chỉ đọc (CHI_DOC) - không ghi nhật ký; Xác nhận / Duyệt vẫn kiểm tra lại và chặn.
@@ -9808,7 +9865,8 @@ function getDraftRecordDetail_(idKey) {
   let canhBaoToanVen = [];
   try { // 2026.9.55: lỗi toàn vẹn của hồ sơ (giá Phiếu Cân đổi, ID_CT trùng, sai chủ phiếu...) hiện ngay trong Chi tiết
     const k = _kiemTraToanVenHoSo_([id], _nguonToanVen_({ draftCT: ctAll, draft112: all112, ctThat: _ctThatDataCache_(), chuSoHuu: true, phieuCan: true }, [id])).ketQua.get(id);
-    canhBaoToanVen = k ? k.errors.filter(e => e.ma !== TOAN_VEN.MA.NO_CT).map(e => ({ ma: e.ma, thongDiep: e.thongDiep })) : [];
+    canhBaoToanVen = k ? k.errors.filter(e => e.ma !== TOAN_VEN.MA.NO_CT).map(e => ({ ma: e.ma, thongDiep: e.thongDiep, chan: true }))
+      .concat(k.warnings.map(w => ({ ma: w.ma, thongDiep: w.thongDiep, chan: false }))) : [];
   } catch (e) { /* chi tiết vẫn mở được; các bước Xác nhận / Duyệt vẫn kiểm tra lại */ }
   return Object.assign(_chiTietHoSo_(row, ctAll.filter(r => String(r[1] || "").trim() === id)), {
     daXacNhan: String(row[COL_TRANG_THAI_DNTT] || "").trim() === "Đang ĐNTT",
@@ -10686,7 +10744,7 @@ function _quetToanVenSoChinh_(srcAll, ctAll, h112All, draftCT) {
       thieu.forEach(so => {
         const chu = hoSoTheoPhieu.get(_soPhieuChuan_(so));
         const khac = chu ? Array.from(chu.ds).filter(x => !x.startsWith(id + " ")) : [];
-        out.push(Object.assign({ ma: khac.length ? "WRONG_OWNER" : "MISSING_CT", mucDo: khac.length ? C.CRITICAL : C.HIGH, phieu: so, ghiChu: khac.length ? `Đơn xin ghi phiếu này nhưng phiếu thuộc hồ sơ ${khac.join(", ")}` : "Đơn xin ghi phiếu này nhưng CT không có" }, goc));
+        out.push(Object.assign({ ma: khac.length ? "WRONG_OWNER" : "MISSING_CT", mucDo: khac.length ? C.MEDIUM : C.HIGH, phieu: so, ghiChu: khac.length ? `Đơn xin ghi phiếu này nhưng phiếu thuộc hồ sơ ${khac.join(", ")}` : "Đơn xin ghi phiếu này nhưng CT không có" }, goc));
       });
       thua.forEach(so => out.push(Object.assign({ ma: "ORPHAN_CT", mucDo: C.HIGH, phieu: so, ghiChu: "CT có phiếu này nhưng đơn xin không ghi (thường do Thêm phiếu sau khi tạo - bản trước 2026.9.55 không cập nhật đơn xin)" }, goc)));
       if (!thieu.length && !thua.length && Math.abs(kgDntt - kgCt) > TOAN_VEN.LECH_KG) out.push(Object.assign({ ma: "KG_MISMATCH", mucDo: C.HIGH, phieu: "", ghiChu: `Chênh ${_kg_(kgDntt - kgCt)} kg` }, goc));

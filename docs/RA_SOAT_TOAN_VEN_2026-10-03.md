@@ -37,7 +37,8 @@ Làm tròn: Số tiền 112 = cộng thẳng Thành tiền từng phiếu (đã 
 | R4 KG | Một phần | gate `KG_MISMATCH` (Phiếu Cân = đơn xin = CT) |
 | Giá Phiếu Cân đổi | Không | gate `PRICE_CHANGED`, cảnh báo Danh Sách / Chi tiết, Tính lại lấy giá mới (hồ sơ Chờ xác nhận) |
 | R5 Tiền | Có | giữ, `AMOUNT_MISMATCH` trong gate |
-| R8 Chủ phiếu | Một phần | gate `WRONG_OWNER` (CT Nháp, CT đã chốt, ChiTietDNTT Y) |
+| R8 Chủ phiếu | Một phần | `WRONG_OWNER` chỉ CẢNH BÁO theo yêu cầu người dùng (CT Nháp, CT đã chốt, ChiTietDNTT Y) |
+| KL hợp đồng | Không | `VUOT_SL_HD` chặn: đã thanh toán + Nháp > SL HĐ dự kiến |
 | R9 Không chốt 2 lần | Có | giữ + test |
 | R10 Không chốt dở | Gần đủ | kiểm lại sổ chính trước khi dọn Nháp |
 | Health Check | 8 mục | + 3 mục toàn vẹn sổ đã chốt + CSV, chỉ đọc |

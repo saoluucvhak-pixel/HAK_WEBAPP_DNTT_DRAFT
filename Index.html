@@ -2745,10 +2745,12 @@ function renderDraftTable(){
 }
 
 /** 2026.9.55: cảnh báo toàn vẹn của hồ sơ (máy chủ kiểm tra lúc tải Danh Sách) - giá Phiếu Cân đổi,
- * ID_CT trùng, phiếu thuộc hồ sơ khác, đơn xin lệch phiếu, lệch KG. Xác nhận / In / UNC / Duyệt chặn. */
+ * ID_CT trùng, đơn xin lệch phiếu, lệch KG, vượt SL hợp đồng: Xác nhận / In / UNC / Duyệt chặn (c.chan).
+ * Sai chủ phiếu (WRONG_OWNER) chỉ cảnh báo (c.chan === false). */
 const CANH_BAO_TOAN_VEN_NHAN = {
   PRICE_CHANGED: '⚠️ Giá PC đổi', DUPLICATE_ID_CT: '⛔ ID_CT trùng', DUPLICATE_TICKET: '⛔ Phiếu 2 nơi',
-  WRONG_OWNER: '⛔ Sai chủ phiếu', MISSING_CT: '⚠️ Lệch phiếu', ORPHAN_CT: '⚠️ Lệch phiếu', KG_MISMATCH: '⚠️ Lệch KG'
+  WRONG_OWNER: '⚠️ Sai chủ phiếu', MISSING_CT: '⚠️ Lệch phiếu', ORPHAN_CT: '⚠️ Lệch phiếu', KG_MISMATCH: '⛔ Lệch KG',
+  VUOT_SL_HD: '⛔ Vượt SL HĐ'
 };
 function _veCanhBaoToanVen(r){
   const ds = (r && r.canhBaoToanVen) || [];
@@ -2757,7 +2759,7 @@ function _veCanhBaoToanVen(r){
     const nhan = CANH_BAO_TOAN_VEN_NHAN[c.ma] || ('⚠️ ' + c.ma);
     if (daVe.has(nhan)) return '';
     daVe.add(nhan);
-    const loai = c.ma === 'PRICE_CHANGED' || c.ma === 'KG_MISMATCH' || c.ma === 'MISSING_CT' || c.ma === 'ORPHAN_CT' ? 'pending' : 'loi';
+    const loai = c.chan === false ? 'wait' : (c.ma === 'PRICE_CHANGED' || c.ma === 'MISSING_CT' || c.ma === 'ORPHAN_CT' ? 'pending' : 'loi');
     return `<br><span class="badge ${loai} dot" title="${esc(ds.filter(x => (CANH_BAO_TOAN_VEN_NHAN[x.ma] || '') === nhan).map(x => x.thongDiep).join('\n'))}">${esc(nhan)}</span>`;
   }).join('');
 }
@@ -2953,9 +2955,12 @@ function viewDraftDetail(idKey){
         <div class="kv"><span class="k">Số hợp đồng</span><span class="v">${esc(r.soHD)}</span></div>
         <div class="kv"><span class="k">SL HĐ Dự Kiến / Lũy Kế / Còn Lại</span><span class="v mono">${fmtKl(r.slDuKien)} / ${fmtKl(r.slLuyKe)} / ${fmtKl(r.conLai)} tấn</span></div>
         <div class="kv"><span class="k">Số tiền</span><span class="v mono">${fmtMoney(r.soTien)} đ</span></div>
-        ${(r.canhBaoToanVen || []).length ? `<div class="card" style="border-color:var(--danger);background:var(--danger-light);margin:12px 0;padding:12px 14px">
+        ${(r.canhBaoToanVen || []).some(c => c.chan !== false) ? `<div class="card" style="border-color:var(--danger);background:var(--danger-light);margin:12px 0;padding:12px 14px">
           <b>⛔ Hồ sơ chưa nhất quán - Xác nhận / In / Tạo UNC / Duyệt sẽ bị chặn:</b>
-          <ul style="margin:6px 0 0 18px">${r.canhBaoToanVen.map(c => `<li><b>[${esc(c.ma)}]</b> ${esc(c.thongDiep)}</li>`).join('')}</ul></div>` : ''}
+          <ul style="margin:6px 0 0 18px">${r.canhBaoToanVen.filter(c => c.chan !== false).map(c => `<li><b>[${esc(c.ma)}]</b> ${esc(c.thongDiep)}</li>`).join('')}</ul></div>` : ''}
+        ${(r.canhBaoToanVen || []).some(c => c.chan === false) ? `<div class="card" style="border-color:var(--timber);background:var(--timber-light);margin:12px 0;padding:12px 14px">
+          <b>⚠️ Cảnh báo (vẫn cho làm tiếp):</b>
+          <ul style="margin:6px 0 0 18px">${r.canhBaoToanVen.filter(c => c.chan === false).map(c => `<li><b>[${esc(c.ma)}]</b> ${esc(c.thongDiep)}</li>`).join('')}</ul></div>` : ''}
         ${veDienGiaiHoSo(r)}
         <details id="lich-su-ho-so" style="margin-top:12px" data-id="${esc(r.idKey)}" ontoggle="if (this.open) taiLichSuHoSo(this.dataset.id)"><summary style="cursor:pointer;font-weight:600">📜 Lịch sử hồ sơ (ai tạo, sửa gì, xác nhận, duyệt - lúc nào)</summary><div id="lich-su-ho-so-noi-dung" class="muted" style="font-size:13px;margin-top:8px">Đang tải...</div></details>
         <h3 style="margin:16px 0 8px 0; font-size:14px">Danh sách phiếu cân (${r.chiTiet.length})</h3>
@@ -4883,7 +4888,7 @@ function renderHuongDan(){
     <summary style="cursor:pointer;font-weight:700;font-size:15px">❓ Xử lý sự cố thường gặp</summary>
     <div style="margin-top:10px;font-size:13px;line-height:1.7">
       <b>Không thấy phiếu cân/hợp đồng mới vừa nhập?</b> Bấm "🔄 Tải &amp; Tính Lại" (Bước 2 Tạo Mới) hoặc "↻ Làm mới" (Danh Sách ĐNTT).<br><br>
-      <b>Bị chặn Xác nhận / In / Tạo UNC / Duyệt với mã lỗi [PRICE_CHANGED], [WRONG_OWNER]...?</b> Hệ thống kiểm tra phiếu cân → chủ phiếu → tập phiếu → KG → giá → tiền trước mỗi bước. <b>[PRICE_CHANGED]</b> giá / KL Phiếu Cân đã sửa sau khi lập hồ sơ: "Về Chờ xác nhận" (nếu đã Xác nhận) rồi "🔄 Tính lại số tiền". <b>[DUPLICATE_ID_CT]</b>: mở Chi tiết, Xóa phiếu của dòng trùng rồi Thêm lại. <b>[WRONG_OWNER] / [DUPLICATE_TICKET]</b>: phiếu đang ở hồ sơ khác - bỏ phiếu khỏi 1 trong 2 hồ sơ. <b>[MISSING_CT] / [ORPHAN_CT] / [KG_MISMATCH]</b>: bấm "🔄 Tính lại số tiền" để đơn xin cập nhật theo phiếu; vẫn lệch thì kiểm tra lại phiếu cân của hồ sơ. Sổ đã chốt: Hệ Thống › Bảo Trì (mục Toàn vẹn sổ đã chốt, tải CSV).<br><br>
+      <b>Bị chặn Xác nhận / In / Tạo UNC / Duyệt với mã lỗi [PRICE_CHANGED], [WRONG_OWNER]...?</b> Hệ thống kiểm tra phiếu cân → chủ phiếu → tập phiếu → KG → giá → tiền trước mỗi bước. <b>[PRICE_CHANGED]</b> giá / KL Phiếu Cân đã sửa sau khi lập hồ sơ: "Về Chờ xác nhận" (nếu đã Xác nhận) rồi "🔄 Tính lại số tiền". <b>[DUPLICATE_ID_CT]</b>: mở Chi tiết, Xóa phiếu của dòng trùng rồi Thêm lại. <b>[DUPLICATE_TICKET]</b>: 1 phiếu ở 2 hồ sơ - bỏ phiếu khỏi 1 trong 2 hồ sơ. <b>[WRONG_OWNER]</b> (chỉ cảnh báo, không chặn): đơn xin ghi phiếu đang thuộc hồ sơ khác - kiểm tra lại, "🔄 Tính lại số tiền" để đơn xin theo đúng phiếu. <b>[VUOT_SL_HD]</b>: KL đã thanh toán + KL đang đề nghị ở Nháp vượt SL hợp đồng - bỏ bớt phiếu hoặc điều chỉnh SL hợp đồng. <b>[MISSING_CT] / [ORPHAN_CT] / [KG_MISMATCH]</b>: bấm "🔄 Tính lại số tiền" để đơn xin cập nhật theo phiếu; vẫn lệch thì kiểm tra lại phiếu cân của hồ sơ. Sổ đã chốt: Hệ Thống › Bảo Trì (mục Toàn vẹn sổ đã chốt, tải CSV).<br><br>
       <b>Không sửa/xóa được hồ sơ?</b> Chỉ sửa/xóa được khi đang "Chờ xác nhận" - nếu đang "Chờ duyệt", bấm "Về Chờ xác nhận" trước. Nếu ĐÃ chốt (Đóng Thanh Toán), dùng "Mở Đóng Thanh Toán" ở mục Hệ Thống.<br><br>
       <b>CCCD/STK/ID bị mất số 0 đầu, hoặc Ngày bị lộn ngày-tháng?</b> Vào Cài Đặt bấm "Khóa Định Dạng TEXT/Ngày" - lưu ý KHÔNG phục hồi được dữ liệu cũ đã sai, cần gõ lại tay.<br><br>
       <b>Xuất báo cáo Excel bị chậm/timeout?</b> Hệ thống đã tối ưu dùng cache chung cho Phiếu Cân/Hợp Đồng - nếu vẫn chậm, báo rõ báo cáo nào và khoảng bao nhiêu dòng dữ liệu để kiểm tra tiếp.<br><br>
