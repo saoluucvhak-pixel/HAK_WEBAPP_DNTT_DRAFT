@@ -11,7 +11,7 @@ Phiên bản hiện tại: xem `VERSION` · Lịch sử thay đổi: `CHANGELOG.
 | `Code.gs` | Backend Apps Script (router, nghiệp vụ, cache, trigger, xuất file, chatbot) |
 | `Index.html` | Giao diện web app |
 | `appsscript.json` | Manifest |
-| `tests/` | Bộ kiểm thử chạy bằng Node (không đưa lên Apps Script) |
+| `tests/` | Bộ kiểm thử chạy bằng Node + Playwright (không đưa lên Apps Script) |
 | `docs/` | Kiến trúc, phân tích, kế hoạch, TODO, lộ trình |
 
 ## Cài đặt (1 lần)
@@ -30,11 +30,19 @@ Phiên bản hiện tại: xem `VERSION` · Lịch sử thay đổi: `CHANGELOG.
 Yêu cầu Node ≥ 20 (không cần cài thư viện):
 
 ```bash
-node --test "tests/**/*.test.mjs"
+node --test "tests/**/*.test.mjs"                                  # 108 test nghiệp vụ / bảo mật
+NODE_PATH=$(npm root -g) node --test tests/ui/giaoDien.ui.mjs        # 5 test giao diện (cần Playwright + Chromium)
 ```
+
+Kết quả gần nhất: `docs/TEST_REPORT.md`.
 
 ## Tài liệu
 
+- `docs/INSTALL.md`, `docs/DEPLOY.md` — cài đặt lần đầu, cập nhật phiên bản
+- `docs/USER_GUIDE.md`, `docs/ADMIN_GUIDE.md` — hướng dẫn người dùng, quản trị
+- `docs/DEVELOPER_GUIDE.md`, `docs/API.md`, `docs/DATABASE.md`, `docs/FLOW.md`, `docs/SECURITY.md` — kỹ thuật
+- `docs/REVIEW_2026_09.md` — rà soát toàn hệ thống 27/09/2026 (danh sách lỗi R-xx, đề xuất tính năng)
+- `docs/TEST_REPORT.md` — báo cáo kiểm thử
 - `docs/ARCHITECTURE.md` — kiến trúc hiện tại & quy tắc ghi/xóa an toàn
 - `docs/PROJECT_ANALYSIS.md` — phân tích toàn bộ dự án
 - `docs/REFACTOR_PLAN.md` — kế hoạch nâng cấp Commercial Edition

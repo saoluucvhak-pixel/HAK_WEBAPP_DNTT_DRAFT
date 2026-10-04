@@ -239,3 +239,11 @@ test('the "closing" flag is removed even when the close fails midway, and a left
   assert.deepEqual(thay, [Y], 'the leftover flag was replaced by this run\'s flag');
   assert.deepEqual(coTren(w.pc), [], 'flag removed after the failure');
 });
+
+test('a failure setting the "closing" flag does not block the close', () => {
+  const { run, w } = world();
+  w.pc.addDeveloperMetadata = () => { throw new Error('Không có quyền'); };
+  const kq = run('webKhoaSoNam_')(Y, true);
+  assert.equal(kq.success, true, kq.message);
+  assert.equal(w.pc.getSheetByName(`PhieuCan_DN_${Y}`).getLastRow(), 3);
+});
