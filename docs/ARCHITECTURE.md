@@ -1,4 +1,4 @@
-# ARCHITECTURE — HAK Quản Lý Thanh Toán (v2026.9.55)
+# ARCHITECTURE — HAK Quản Lý Thanh Toán (v2026.9.56)
 
 > Tài liệu sống: cập nhật mỗi khi đổi module, lớp, luồng dữ liệu hoặc schema.
 > Phân tích chi tiết hiện trạng: `docs/PROJECT_ANALYSIS.md`. Kiến trúc đích: `docs/REFACTOR_PLAN.md` §3–§4.
@@ -299,3 +299,11 @@ Lỗi đọc sổ trong báo cáo (2026.9.46): công nợ / phân tích / tiến
 - Danh Sách ĐNTT: route `getDraftListSummary` → `getDanhSachNhapCoKiemTra_` (thêm `canhBaoToanVen`); Trang chủ / huy hiệu vẫn `getDraftListSummary_` (không đọc Phiếu Cân).
 - Sổ đã chốt: `_quetToanVenSoChinh_(src, ct, 112, draftCT)` → dòng {idKey, ma, mucDo, phieu, kgDntt, kgCt, tienCt, tien112, ghiChu}; dùng ở Bảo Trì (`trungIdCtPhieu`, `donXinLechPhieu`, `chotDoDang`), kiểm tra đêm, `getBaoCaoToanVen_` (CSV). Chỉ đọc.
 
+## Hiệu năng 2026.9.56 (đọc đúng cột / đúng dòng)
+
+- `_docDongTaiViTri_(sh, viTri, rong, giu)`: đọc các dòng theo vị trí (gộp dòng gần nhau) - `_doanDongTheoKhoa_` dùng lại; mọi chỗ "lọc trên vài cột rồi đọc đủ cột cho dòng khớp" dùng hàm này.
+- Sổ CT bản gọn `_ctThatGonCache_` (cột `CT_COT_GON` = mã hồ sơ, thời điểm, Số phiếu, KL, Đã chốt, Số HĐ; bộ nhớ đệm `CT_GON_TTL_GIAY` = 10 phút, xóa cùng `_invalidateCtSrc112Cache_`): chặn trả 2 lần, kiểm tra toàn vẹn (Danh Sách / Xác nhận / In / UNC / Chi tiết), lũy kế `_tinhLai112Nhap_`. Duyệt vẫn đọc thẳng sổ (cột `CT_COT_DUYET`).
+- Phiếu Cân theo phiếu `_pcCuaCacPhieu_(dsSo)` (đọc thẳng, cột Số phiếu rồi dòng khớp): kiểm tra toàn vẹn, Tính lại giá, kiểm tra tên khách lúc Xác nhận. Phân Tích `_pcChoPhanTich_(ngaySet, soPhieuTT)`: dòng cân trong các ngày + phiếu trả trong các ngày (đọc sổ CT trước).
+- Trigger 10 phút: `refreshAllDraftCaches_({ chiPhieuChuaTra, chiKhiDoi })` - Phiếu Cân chỉ đọc cột trạng thái (`PC_COT_TRANG_THAI`) rồi dòng chưa trả (`_laPhieuCanChuaTra_`); bỏ qua file nguồn không đổi theo Drive `getLastUpdated` (`_fileNguonDaDoi_`, bắt buộc làm mới mỗi `LAM_MOI_10P.BAT_BUOC_PHUT` phút, biên `BIEN_GIAY`). Làm mới thủ công / 7:30 / 13:00 không bỏ qua.
+- Báo cáo MISA lọc trên cột C, E rồi đọc 33 cột cho dòng khớp; Chi tiết công nợ theo phiếu cân, Tình hình TT hằng ngày, Phân Tích đọc sổ CT qua `_ctCacCot_` (2-4 cột).
+- Đo: `node tests/perf/doHieuNang.mjs` (`KHONG_CACHE=1` như sổ 1 năm vượt bộ nhớ đệm, `CHI_TIET=<thao tác>` in theo hàm); dữ liệu dùng chung `tests/gas/duLieuLon.mjs`.

@@ -44,3 +44,21 @@
 - **Duyệt**: bỏ lượt đọc lại toàn bộ Phiếu Cân và sổ CT khi cập nhật Phân Tích ngày TT
   (dùng dữ liệu vừa đọc ở đầu lượt Duyệt) — 1,44 → 0,82 triệu ô. Test đối chiếu số liệu
   Phân Tích với tính lại từ đầu.
+
+## 2026.9.56 - tối ưu theo số đo thật (SYS_HieuNang 27/09-03/10)
+
+Số đo thật 7 ngày (lượt bị ghi chậm): trigger 10 phút 403 lượt × 14,2 s; Tạo mới 194 lượt × 14,6 s; Làm mới cache 37 s; Duyệt 52 s; Báo cáo MISA 23,6 s. Đo lại bằng `tests/perf/doHieuNang.mjs`, sổ 1 năm, không bộ nhớ đệm (như thực tế):
+
+| Thao tác | Trước (lượt / ô đọc) | Sau | Giảm |
+|---|---|---|---|
+| Trigger 10 phút | 6 / 253k | 7 / 71k (0 khi file nguồn không đổi) | 72% |
+| Danh Sách ĐNTT | 9 / 441k | 10 / 68k | 85% |
+| Tạo mới hồ sơ | 46 / 287k | 20 / 112k | 61% |
+| Tính lại số tiền | 39 / 278k | 13 / 73k | 74% |
+| Xác nhận 5 hồ sơ | 12 / 442k | 15 / 79k | 82% |
+| In Báo Cáo ĐNTT 5 hồ sơ | 30 / 482k | 31 / 109k | 77% |
+| Duyệt 5 hồ sơ | 42 / 704k | 48 / 226k | 68% |
+| Báo cáo MISA 1 tháng | 7 / 357k | 8 / 123k | 66% |
+| Trang chủ (có tính Phân Tích hôm nay) | 16 / 441k | 25 / 143k | 68% |
+
+Nguyên nhân chung: đọc cả sheet (mọi cột, mọi dòng) trong khi chỉ cần vài cột hoặc vài chục dòng; bản đủ cột của sổ CT / Phiếu Cân 1 năm gần chạm hoặc vượt giới hạn bộ nhớ đệm và chỉ giữ 90 giây. Test `hieuNang2026_9_56.test.mjs`: kết quả giống hệt cách đọc cũ + giới hạn số ô đọc (7/7 thất bại trên bản 2026.9.55).

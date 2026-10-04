@@ -2,6 +2,21 @@
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/). Phiên bản theo `NĂM.ĐỢT.SỬA`; thay đổi làm đổi hành vi nghiệp vụ (⚖️) sẽ tăng số ĐỢT và ghi rõ đã được người dùng đồng ý.
 
+## [2026.9.56] — Tối ưu hiệu năng theo số đo thật (người dùng yêu cầu 04/10/2026)
+
+Căn cứ SYS_HieuNang 27/09-03/10: trigger 10 phút 403 lượt × 14,2 s (web phải chờ đồng bộ trong lúc chạy), Tạo mới 194 lượt × 14,6 s, Duyệt 52 s, Báo cáo MISA 23,6 s. Nguyên nhân chung: đọc cả sheet trong khi chỉ cần vài cột / vài chục dòng. Không đổi nghiệp vụ, không đổi cấu trúc sheet.
+
+### Changed
+- **Trigger 10 phút**: Phiếu Cân chỉ đọc 3 cột trạng thái rồi đúng các phiếu chưa trả (bản sao "chưa TT" giống hệt); **bỏ qua file Phiếu Cân / Hợp Đồng không ai sửa** từ lần làm mới trước (thời điểm sửa của Google Drive), vẫn làm mới tối thiểu mỗi 60 phút. Khi không có gì đổi, trigger xong gần như ngay - web hết phải "chờ đồng bộ" lâu. Nút Làm mới, trigger 7:30 / 13:00 không bỏ qua.
+- **Tạo mới / Thêm / Bỏ phiếu / Tính lại số tiền**: lũy kế, chặn trả 2 lần, kiểm tra toàn vẹn dùng **bản gọn 6/22 cột của sổ CT** giữ trong bộ nhớ đệm 10 phút (bản đủ cột sổ 1 năm gần chạm giới hạn, chỉ giữ 90 giây nên gần như luôn đọc lại cả sổ); xóa ngay khi sổ CT được ghi. Tính lại giá chỉ đọc đúng phiếu trong Nháp.
+- **Danh Sách ĐNTT, Xác nhận, In Báo Cáo ĐNTT, Tạo UNC**: kiểm tra toàn vẹn / tên khách chỉ đọc Phiếu Cân của đúng các phiếu trong Nháp (đọc thẳng, mới nhất) - trước đây đọc cả file Phiếu Cân mỗi lần.
+- **Duyệt**: sổ CT đọc 7/22 cột cần; sổ DNTT_GK_DN chỉ đúng dòng hồ sơ; Phiếu Cân chỉ phiếu của hồ sơ + phiếu cần cho Phân Tích.
+- **Trang chủ / Phân Tích, Báo cáo MISA, Chi tiết công nợ theo phiếu cân, Tình hình TT hằng ngày**: đọc 2-4 cột sổ CT; Phân Tích đọc Phiếu Cân theo ngày cân + phiếu trả trong ngày; MISA lọc trên 2 cột rồi đọc đủ 33 cột cho dòng trong khoảng.
+- Số ô đọc (sổ 1 năm, không bộ nhớ đệm): Danh Sách −85%, Xác nhận −82%, In −77%, Tính lại −74%, trigger 10 phút −72%, Duyệt −68%, Trang chủ −68%, MISA −66%, Tạo mới −61% (46 → 20 lượt gọi). Chi tiết: docs/HIEU_NANG.md.
+
+### Tests
+- `hieuNang2026_9_56.test.mjs` (7): kết quả giống hệt cách đọc cũ (bản sao chưa TT, Phân Tích, MISA, Duyệt) + giới hạn số ô đọc + trigger bỏ qua file không đổi / làm mới mỗi giờ / lỗi Drive vẫn làm mới. Trên bản 2026.9.55: 7/7 thất bại. Bộ đo `tests/perf/doHieuNang.mjs`.
+
 ## [2026.9.55] — Kiểm soát toàn vẹn dữ liệu thanh toán (Integrity Gate) (người dùng đồng ý 03/10/2026: "làm cả 2 và có cảnh báo giá phiếu cân thay đổi")
 
 Rà soát chuỗi Phiếu Cân → đơn xin (DNTT_GK_DN) → CT → 112 → Duyệt theo các sai lệch phát hiện trong dữ liệu thật (a0e8c1c2, f94f41a3, 9636702c, lệch 1.000đ). Hai lỗi gốc CÒN trên bản 2026.9.54 đã dựng lại được và sửa; chốt chặn có sẵn (khóa hệ thống, chặn trả 2 lần, Duyệt chạy lại không ghi trùng, lệch tiền 112/CT) giữ nguyên.

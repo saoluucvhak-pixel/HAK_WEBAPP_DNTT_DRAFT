@@ -1,6 +1,6 @@
 /**
  * ============================================================
- * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.55
+ * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.56
  * Lịch sử thay đổi: CHANGELOG.md · Kiến trúc: docs/ARCHITECTURE.md
  * ------------------------------------------------------------
  * *** QUAN TRỌNG - CẦN LÀM TRƯỚC KHI DÙNG BẢN NÀY (chỉ 1 LẦN DUY NHẤT
@@ -791,8 +791,22 @@ function _nguonToanVen_(tuyChon, ids) {
     phieu.delete("");
     if (sh && phieu.size) nguon.chiTietDntt = _docDongTheoKhoa_(sh, 2, 27, v => phieu.has(_soPhieuChuan_(v))).map(r => [r[0], r[2], r[26]]);
   }
-  if (tc.phieuCan) nguon.pc = tc.pc || _pcData_();
+  if (tc.phieuCan) {
+    // 2026.9.56: chỉ các phiếu của hồ sơ Nháp (đọc thẳng, mới nhất) - trước đây đọc cả file Phiếu Cân
+    // (sổ 1 năm vượt giới hạn bộ nhớ đệm) ở mỗi lần mở Danh Sách ĐNTT / Xác nhận / In / Tạo UNC.
+    const dsPhieu = nguon.draftCT.map(r => r[11]);
+    nguon.draftSrc.forEach(r => dsPhieu.push(..._tachDsPhieu_(r[10])));
+    nguon.pc = tc.pc || _pcCuaCacPhieu_(dsPhieu);
+  }
   return nguon;
+}
+/** Dòng Phiếu Cân (đọc thẳng sổ, mới nhất) của các Số phiếu cân `dsSo` - chỉ đọc cột Số phiếu cân rồi
+ * đúng các dòng đó (Nháp vài chục phiếu / Phiếu Cân chục nghìn dòng). Dòng đủ PC_MIRROR_COLS cột. */
+function _pcCuaCacPhieu_(dsSo) {
+  const can = new Set(Array.from(dsSo || []).map(_soPhieuChuan_).filter(Boolean));
+  if (!can.size) return [];
+  const sh = openExternalSheet_(CFG.PC_SS_ID, CFG.PC_SHEET, "Phiếu Cân");
+  return _docDongTheoKhoa_(sh, PC_COL.SO_CT, PC_MIRROR_COLS, v => can.has(_soPhieuChuan_(v)));
 }
 
 /** Cổng kiểm tra cho Xác nhận / In Báo Cáo ĐNTT / Tạo UNC: {loi: Set(ID không qua), bao: câu báo}.
@@ -800,7 +814,7 @@ function _nguonToanVen_(tuyChon, ids) {
 function _congToanVen_(ids, buoc, tuyChon) {
   const dsId = Array.from(ids);
   if (!dsId.length) return { loi: new Set(), bao: "" };
-  const kq = _kiemTraToanVenHoSo_(dsId, _nguonToanVen_(Object.assign({ ctThat: _ctThatDataCache_(), phieuCan: true }, tuyChon), dsId));
+  const kq = _kiemTraToanVenHoSo_(dsId, _nguonToanVen_(Object.assign({ ctThat: _ctThatGonCache_(), phieuCan: true }, tuyChon), dsId));
   const loi = dsId.map(id => kq.ketQua.get(id)).filter(k => k && !k.ok && k.errors.some(e => e.ma !== TOAN_VEN.MA.NO_CT));
   const canhBao = _canhBaoToanVenTxt_(dsId.map(id => kq.ketQua.get(id)), buoc);
   return { loi: new Set(loi.map(k => k.idKey)), bao: [_baoLoiToanVen_(loi, buoc), canhBao].filter(Boolean).join("\n") };
@@ -3593,15 +3607,13 @@ function _locMisaTheoNgay_(fDate, tDate) {
   const ssNH = SpreadsheetApp.openById(CFG.UPDATE_NH_SS_ID);
   const shUpdateNH = ssNH.getSheetByName("Update_NganHang_DN");
   if (!shUpdateNH || shUpdateNH.getLastRow() < 2) return { tieuDe: [], dong: [], total: 0, truncated: false };
-  const data = shUpdateNH.getRange(2, 1, shUpdateNH.getLastRow() - 1, MISA_SO_COT).getValues();
+  // 2026.9.56: lọc trên 2 cột (C Ngày hạch toán, E Số phiếu cân) rồi chỉ đọc đủ 33 cột cho dòng trong
+  // khoảng - trước đây đọc cả 33 cột của cả sheet (báo cáo 1 tháng / sổ cả năm).
   const trongKhoang = _boLocNgayMisa_(fDate, tDate);
-  const dong = [];
-  let tongKhop = 0;
-  data.forEach(r => {
-    if (!trongKhoang(r)) return;
-    tongKhop++;
-    if (dong.length < MISA_GIOI_HAN_DONG) dong.push(r);
-  });
+  const viTri = [];
+  _docCacCot_(shUpdateNH, [2, 4], MISA_SO_COT).forEach((r, i) => { if (trongKhoang(r)) viTri.push(i); });
+  const tongKhop = viTri.length;
+  const dong = _docDongTaiViTri_(shUpdateNH, viTri.slice(0, MISA_GIOI_HAN_DONG), MISA_SO_COT, trongKhoang).map(x => x.values).slice(0, MISA_GIOI_HAN_DONG); // khối gộp có thể kèm dòng khớp sau giới hạn
   return {
     tieuDe: shUpdateNH.getRange(1, 1, 1, MISA_SO_COT).getValues()[0],
     dong, total: tongKhop, truncated: tongKhop > MISA_GIOI_HAN_DONG
@@ -5854,8 +5866,9 @@ function runConfirmPayment_(selectedIds, payDateStr) {
     // Chặn TRẢ 2 LẦN (đọc thẳng CT thật, không qua cache): hồ sơ có phiếu cân
     // đã chốt ở 1 hồ sơ KHÁC thì không chốt - cả hồ sơ, không chốt nửa vời.
     const skippedDaTra = [];
-    const ctLr = shCTReal.getLastRow();
-    const ctThatLucDau = ctLr > 1 ? shCTReal.getRange(2, 1, ctLr - 1, 22).getValues() : []; // dùng lại khi cập nhật Phân Tích cuối lượt
+    // Đọc thẳng sổ, chỉ các cột dùng tới: chặn trả 2 lần (1, 11), kiểm tra toàn vẹn (+12, 18, 19), Phân
+    // Tích cuối lượt (11, 12, 16, 20) - 2026.9.56, trước đây đọc đủ 22 cột cả sổ.
+    const ctThatLucDau = _docCacCot_(shCTReal, CT_COT_DUYET, 22);
     {
       const daTra = _phieuCanDaTraThat_(ctThatLucDau);
       validIds.slice().forEach(id => {
@@ -5889,8 +5902,8 @@ function runConfirmPayment_(selectedIds, payDateStr) {
     // (CT Nháp / CT đã chốt / ChiTietDNTT đã trả), tập phiếu đơn xin = CT, KG Phiếu Cân = đơn xin = CT,
     // giá / KL Phiếu Cân đổi sau khi lập hồ sơ, tiền CT = 112. Hồ sơ không qua: không chốt (cả hồ sơ).
     _invalidatePcCache_(); // bước ghi sổ: giá / KL Phiếu Cân mới nhất, không qua bộ nhớ đệm 90 giây
-    const pcLucDuyet = _pcData_();
-    const toanVen = _kiemTraToanVenHoSo_(validIds, _nguonToanVen_({ draftCT: draftCTAll, draft112: draft112All, ctThat: ctThatLucDau, chuSoHuu: true, phieuCan: true, pc: pcLucDuyet }, validIds));
+    // Phiếu Cân của đúng các hồ sơ (đọc thẳng sổ, mới nhất) - 2026.9.56, trước đây đọc cả file.
+    const toanVen = _kiemTraToanVenHoSo_(validIds, _nguonToanVen_({ draftCT: draftCTAll, draft112: draft112All, ctThat: ctThatLucDau, chuSoHuu: true, phieuCan: true }, validIds));
     const loiToanVen = validIds.map(id => toanVen.ketQua.get(id)).filter(k => k && !k.ok);
     loiToanVen.forEach(k => validIds.splice(validIds.indexOf(k.idKey), 1));
     const baoToanVen = [_baoLoiToanVen_(loiToanVen, "Duyệt (Chốt Thanh Toán)"), _canhBaoToanVenTxt_(validIds.map(id => toanVen.ketQua.get(id)), "Duyệt (Chốt Thanh Toán)")].filter(Boolean).join("\n");
@@ -6016,13 +6029,13 @@ function runConfirmPayment_(selectedIds, payDateStr) {
     // Phiếu" thủ công từ Sheet - runProcessDetail()), vẫn cập nhật trạng
     // thái tại chỗ như cũ, không bỏ sót. v2026.6: chỉ ghi đúng 4 ô trạng
     // thái (cột O..R) của đúng các dòng đó, không ghi đè cả sheet.
-    if (shSrc.getLastRow() > 1) {
-      const dataSrc = shSrc.getRange(2, 1, shSrc.getLastRow() - 1, 18).getValues();
+    {
+      // Chỉ đọc cột mã hồ sơ rồi đúng các dòng của hồ sơ đang Duyệt (2026.9.56 - trước đây đọc cả sổ).
       const capNhatSrc = [];
-      dataSrc.forEach((r, i) => {
+      _doanDongTheoKhoa_(shSrc, 0, 18, v => validIdSet.has(String(v).trim())).forEach(({ dong, values: r }) => {
         const key = String(r[0]).trim();
-        if (!key || !validIdSet.has(key) || r[17] === "Y") return;
-        capNhatSrc.push({ row: i + 2, values: ["Đóng TT", prefixP + "_" + (mapSoLan.get(key) || "1"), dateForSheet, "Y"] });
+        if (!key || r[17] === "Y") return;
+        capNhatSrc.push({ row: dong, values: ["Đóng TT", prefixP + "_" + (mapSoLan.get(key) || "1"), dateForSheet, "Y"] });
       });
       _ghiTheoDong_(shSrc, capNhatSrc, 15);
     }
@@ -6032,9 +6045,7 @@ function runConfirmPayment_(selectedIds, payDateStr) {
     // PhieuCan_DN có người khác cùng nhập liệu - không được ghi đè cả sheet).
     const pcKeySet = new Set();
     ctToCommit.forEach(row => { if (row[11]) pcKeySet.add(utils.standardize(row[11])); });
-    // Giữ dòng Phiếu Cân trước khi khóa (bộ nhớ đệm bị xóa ngay sau đó): khóa chỉ
-    // đổi 3 ô trạng thái, Phân Tích Nhập/TT cuối lượt không dùng các ô này.
-    const pcTruocKhoa = pcLucDuyet;
+    // Khóa chỉ đổi 3 ô trạng thái - Phân Tích Nhập/TT cuối lượt (tự đọc Phiếu Cân cần) không dùng các ô này.
     _khoaPhieuCanDaTra_(shPC, pcKeySet);
 
     // 2026.9.55 (R10): KIỂM LẠI sổ chính trước khi dọn Nháp - mỗi hồ sơ phải có đủ dòng CT (theo
@@ -6082,7 +6093,7 @@ function runConfirmPayment_(selectedIds, payDateStr) {
         const d = row[20];
         if (d instanceof Date) ngayBiAnhHuong.add(Utilities.formatDate(d, "GMT+7", "yyyy-MM-dd"));
       });
-      if (ngayBiAnhHuong.size) _refreshPhanTichNhapTTChoDanhSachNgayNoLock_(Array.from(ngayBiAnhHuong), { pc: pcTruocKhoa, ct: ctThatLucDau.concat(ctCanGhi) }); // dùng bản KHÔNG khóa - hàm này đang chạy TRONG lượt đã giữ sysLock rồi, tránh khóa lồng nhau
+      if (ngayBiAnhHuong.size) _refreshPhanTichNhapTTChoDanhSachNgayNoLock_(Array.from(ngayBiAnhHuong), { ct: ctThatLucDau.concat(ctCanGhi) }); // dùng bản KHÔNG khóa - hàm này đang chạy TRONG lượt đã giữ sysLock rồi, tránh khóa lồng nhau
     } catch (e) { /* không chặn luồng chính nếu làm mới báo cáo công nợ lỗi */ }
     PropertiesService.getScriptProperties().deleteProperty(DUYET_DO_DANG_PROP); // đã xong trọn lượt
     return msg;
@@ -6248,8 +6259,8 @@ function _capNhatGiaPhieuCanNhap_() {
   const l112 = sh112.getLastRow();
   const daXacNhan = new Set((l112 > 1 ? sh112.getRange(2, 1, l112 - 1, 24).getValues() : [])
     .filter(r => String(r[COL_TRANG_THAI_DNTT] || "").trim() === "Đang ĐNTT").map(r => String(r[0] || "").trim()));
-  _invalidatePcCache_(); // đọc giá Phiếu Cân mới nhất, không dùng bộ nhớ đệm
-  const pcTheoSo = utils.buildIndexMap(_pcData_(), PC_COL.SO_CT, true);
+  // Giá Phiếu Cân mới nhất của đúng các phiếu trong Nháp (đọc thẳng sổ, không qua bộ nhớ đệm).
+  const pcTheoSo = utils.buildIndexMap(_pcCuaCacPhieu_(ctAll.map(r => r[11])), PC_COL.SO_CT, true);
   const ghi = [], hoSoKhoa = new Set();
   ctAll.forEach((r, i) => {
     const pc = pcTheoSo.get(_soPhieuChuan_(r[11]));
@@ -6276,7 +6287,7 @@ function getDanhSachNhapCoKiemTra_() {
   const list = getDraftListSummary_();
   if (!list.length) return list;
   try {
-    const kq = _kiemTraToanVenHoSo_(list.map(r => r.idKey), _nguonToanVen_({ ctThat: _ctThatDataCache_(), phieuCan: true }));
+    const kq = _kiemTraToanVenHoSo_(list.map(r => r.idKey), _nguonToanVen_({ ctThat: _ctThatGonCache_(), phieuCan: true }));
     list.forEach(r => {
       const k = kq.ketQua.get(r.idKey);
       r.canhBaoToanVen = k ? k.errors.filter(e => e.ma !== TOAN_VEN.MA.AMOUNT_MISMATCH && e.ma !== TOAN_VEN.MA.NO_CT).map(e => ({ ma: e.ma, thongDiep: e.thongDiep, chan: true }))
@@ -6333,8 +6344,10 @@ function _tinhLai112Nhap_() {
   const hdCanTinh = new Set(draftCTRows.map(r => utils.standardize(r[19])).filter(Boolean));
   const draft112Truoc = readSheet(shDraft112).slice(1); // Số HĐ của dòng 112 (cột I) - chính khóa tra lũy kế bên dưới
   draft112Truoc.forEach(r => { const k = utils.standardize(String(r[8] || "").replace(/'/g, "")); if (k) hdCanTinh.add(k); });
+  // 2026.9.56: lấy từ bản gọn của sổ CT (CT_COT_GON đủ cột lũy kế dùng: 2, 11, 12, 18, 19) - trước đây
+  // đọc theo Số HĐ thành hàng chục lệnh đọc (dòng của ~30 hợp đồng rải khắp sổ) ở MỖI lần Tạo / Thêm / Bỏ.
   const realCTRows = shCTReal && hdCanTinh.size
-    ? _docDongTheoKhoa_(shCTReal, 19, 22, v => hdCanTinh.has(utils.standardize(v))) : [];
+    ? _ctThatGonCache_().filter(r => hdCanTinh.has(utils.standardize(r[19]))) : [];
 
   let draft112Rows = draft112Truoc;
 
@@ -6622,6 +6635,8 @@ const PC_MIRROR_COLS = 28;    // 0..27 (PC_COL.CHON_TT)
 const PC_ID_DNTT_DA_TRA = "Đóng TT"; // giá trị cột ID_DNTT khi phiếu cân đã được Duyệt thanh toán
 // Cột PhieuCan_DN được đọc (0-based, tăng dần); cột không dùng để trống.
 const PC_COT_CAN_DOC = Array.from(new Set(Object.values(PC_COL))).sort((a, b) => a - b);
+/** Cột quyết định phiếu cân đã / chưa thanh toán (xem _laPhieuCanChuaTra_). */
+const PC_COT_TRANG_THAI = [PC_COL.SO_CT, PC_COL.ID_DNTT, PC_COL.CHON_TT].sort((a, b) => a - b);
 
 // ============================================================
 // MỚI (mục N - tối ưu tốc độ): LỚP CACHE cho 3 sheet tham chiếu
@@ -6939,6 +6954,17 @@ function _hdStkData_() {
 function _ctThatDataCache_() {
   return _getCachedRefData_("ct_that_data_v1", _ctThatDocThang_);
 }
+/** 2026.9.56: sổ CT đã chốt CHỈ các cột kiểm tra phiếu / hợp đồng / lũy kế dùng (CT_COT_GON) - dòng
+ * vẫn 22 cột, cột khác "". Bản đủ 22 cột của sổ 1 năm (~2 MB) gần chạm giới hạn bộ nhớ đệm và chỉ
+ * giữ 90 giây nên Tạo mới / Xác nhận / In / UNC gần như luôn đọc lại cả sổ; bản gọn ~1/4, giữ
+ * CT_GON_TTL_GIAY. Mọi chỗ ghi sổ CT xóa cùng lúc (_invalidateCtSrc112Cache_); Duyệt đọc thẳng sổ. */
+const CT_COT_GON = [1, 2, 11, 12, 18, 19]; // mã hồ sơ, thời điểm, Số phiếu cân, KL tấn, Đã chốt, Số HĐ
+const CT_GON_TTL_GIAY = 600;
+/** Cột sổ CT Duyệt đọc thẳng (xem runConfirmPayment_): CT_COT_GON + Thành tiền (16), Ngày CK (20). */
+const CT_COT_DUYET = Array.from(new Set(CT_COT_GON.concat([16, 20]))).sort((a, b) => a - b);
+function _ctThatGonCache_() {
+  return _getCachedRefData_("ct_that_gon_v1", () => { const sh = _shCtThat_(); return sh ? _docCacCot_(sh, CT_COT_GON, 22) : []; }, CT_GON_TTL_GIAY);
+}
 /** Sheet sổ đã chốt đang mở (DNTT_GK_DN_CT, File Chính). */
 function _shCtThat_() {
   return getMainSs_().getSheetByName(CFG.DNTT_CT);
@@ -6976,6 +7002,7 @@ function _h112ThatDataCache_() {
  * đọc tiếp theo (gợi ý, chẩn đoán) không hiện dữ liệu cũ. */
 function _invalidateCtSrc112Cache_() {
   _invalidateChunkedCache_("ct_that_data_v1");
+  _invalidateChunkedCache_("ct_that_gon_v1");
   _invalidateChunkedCache_("src_that_data_v1");
   _invalidateChunkedCache_("h112_that_data_v1");
 }
@@ -6998,13 +7025,36 @@ function _hdStkFullData_() {
 /** Làm mới CẢ 3 cache (Phiếu Cân chưa TT + HD_NCC + HD_STK, đã lọc
  * "Đang Thực Hiện") trong 1 lần gọi - dùng cho nút "Làm mới" và Trigger
  * tự động. */
-function refreshAllDraftCaches_() {
-  const pc = refreshPhieuCanUnpaidCache_();
-  const hdNccRes = refreshHdNccCache_();
-  const hdStkRes = refreshHdStkCache_(hdNccRes.activeSoHDSet);
+function refreshAllDraftCaches_(tuyChon) {
+  const tc = tuyChon || {}, batDau = Date.now();
+  // Trigger 10 phút (tc.chiKhiDoi): file nguồn không ai sửa từ lần làm mới trước thì bỏ qua (không mở file).
+  const lamPc = !tc.chiKhiDoi || _fileNguonDaDoi_(CFG.PC_SS_ID, "PC");
+  const lamHd = !tc.chiKhiDoi || _fileNguonDaDoi_(CFG.HD_SS_ID, "HD");
+  const pc = lamPc ? refreshPhieuCanUnpaidCache_(tc) : null;
+  if (lamPc) _ghiLanLamMoiFile_("PC", batDau);
+  const hdNccRes = lamHd ? refreshHdNccCache_() : null;
+  const hdStkRes = lamHd ? refreshHdStkCache_(hdNccRes.activeSoHDSet) : null;
+  if (lamHd) _ghiLanLamMoiFile_("HD", batDau);
   logAction_("REFRESH_ALL_CACHE", "-",
-    `PC chưa TT: ${pc} · HD_NCC: ${hdNccRes.count}/${hdNccRes.total} (Đang Thực Hiện) · HD_STK: ${hdStkRes.count}/${hdStkRes.total}.`);
-  return { pc, hdNcc: hdNccRes.count, hdNccTotal: hdNccRes.total, hdStk: hdStkRes.count, hdStkTotal: hdStkRes.total };
+    (lamPc ? `PC chưa TT: ${pc}` : "PC: file không đổi - bỏ qua") + " · " +
+    (lamHd ? `HD_NCC: ${hdNccRes.count}/${hdNccRes.total} (Đang Thực Hiện) · HD_STK: ${hdStkRes.count}/${hdStkRes.total}.` : "Hợp Đồng: file không đổi - bỏ qua."));
+  return { pc, hdNcc: hdNccRes && hdNccRes.count, hdNccTotal: hdNccRes && hdNccRes.total, hdStk: hdStkRes && hdStkRes.count, hdStkTotal: hdStkRes && hdStkRes.total };
+}
+
+// 2026.9.56: trigger 10 phút chỉ làm mới file nguồn ĐÃ ĐỔI (Drive "Lần sửa cuối") từ lần làm mới trước -
+// trước đây mở + đọc file Phiếu Cân và Hợp Đồng mỗi 10 phút kể cả khi không ai sửa. Vẫn làm mới tối
+// thiểu mỗi BAT_BUOC_PHUT phút; sửa trong BIEN_GIAY giây trước lần làm mới trước vẫn tính là "đổi"
+// (thời điểm sửa của Drive có thể cập nhật chậm). Không đọc được thời điểm sửa -> làm mới như cũ.
+const LAM_MOI_10P = { BAT_BUOC_PHUT: 60, BIEN_GIAY: 180, PROP: "LAM_MOI_FILE_LUC_" };
+function _fileNguonDaDoi_(fileId, ten) {
+  const truoc = Number(PropertiesService.getScriptProperties().getProperty(LAM_MOI_10P.PROP + ten)) || 0;
+  if (!truoc || Date.now() - truoc > LAM_MOI_10P.BAT_BUOC_PHUT * 60000) return true;
+  try { return DriveApp.getFileById(fileId).getLastUpdated().getTime() >= truoc - LAM_MOI_10P.BIEN_GIAY * 1000; }
+  catch (e) { return true; }
+}
+/** Ghi thời điểm BẮT ĐẦU lần làm mới file nguồn `ten` (sửa sau thời điểm này sẽ được lần sau thấy). */
+function _ghiLanLamMoiFile_(ten, batDau) {
+  PropertiesService.getScriptProperties().setProperty(LAM_MOI_10P.PROP + ten, String(batDau));
 }
 
 
@@ -7121,11 +7171,23 @@ function refreshPhanTichNhapTTChoKhoang_(fDate, tDate) {
 /** duLieu (tùy chọn) = { pc, ct }: dòng PhieuCan_DN và CT thật nơi gọi đã có
  * sẵn (vd Duyệt vừa đọc) - không đọc lại lần 2. Chỉ dùng khi các ngày không
  * thuộc năm đã khóa sổ (khi đó phải đọc thêm file lưu trữ). */
+/** Dòng Phiếu Cân cho Phân Tích: cân trong `ngaySet` (yyyy-MM-dd) hoặc Số phiếu thuộc `soPhieuSet` (đã
+ * trả trong các ngày đó) - đọc cột Ngày cân + Số phiếu rồi đúng các dòng cần (sổ đang mở). */
+function _pcChoPhanTich_(ngaySet, soPhieuSet) {
+  const sh = openExternalSheet_(CFG.PC_SS_ID, CFG.PC_SHEET, "Phiếu Cân");
+  const can = r => (r[PC_COL.NGAY_CAN_1] instanceof Date && ngaySet.has(Utilities.formatDate(r[PC_COL.NGAY_CAN_1], "GMT+7", "yyyy-MM-dd")))
+    || soPhieuSet.has(utils.standardize(r[PC_COL.SO_CT]));
+  const viTri = [];
+  _docCacCot_(sh, [PC_COL.NGAY_CAN_1, PC_COL.SO_CT], PC_MIRROR_COLS).forEach((r, i) => { if (can(r)) viTri.push(i); });
+  return _docDongTaiViTri_(sh, viTri, PC_MIRROR_COLS, can).map(x => x.values);
+}
+/** duLieu {ct, pc} (tùy chọn): dữ liệu đã đọc sẵn trong lượt (Duyệt truyền sổ CT) - phần thiếu tự đọc. */
 function _refreshPhanTichNhapTTChoDanhSachNgayNoLock_(ngayList, duLieu) {
   const ngaySet = new Set(ngayList);
   const dsNgay = Array.from(ngaySet).sort();
   const tuNgay = dsNgay[0] || "", denNgay = dsNgay[dsNgay.length - 1] || "";
-  const dungDuLieuSan = !!duLieu && !_namLuuTruTrongKhoang_(tuNgay, "").length;
+  const coLuuTru = _namLuuTruTrongKhoang_(tuNgay, "").length > 0;
+  const dungDuLieuSan = !!duLieu && !coLuuTru;
   const dmNgMap = _getDmNgMap_();
   const pcMap = new Map(); // SO_CT -> {tenNG, tenDL} (dùng để tra khi gộp phần Thanh Toán)
   const byNgay = new Map(); // ngayStr -> { ngNhap:Map, dlNhap:Map, ngTT:Map, dlTT:Map, tongKLNhap, tongGiaTriNhap, tongKLTT, tongGiaTriTT }
@@ -7142,8 +7204,17 @@ function _refreshPhanTichNhapTTChoDanhSachNgayNoLock_(ngayList, duLieu) {
     map.set(key, cur);
   };
 
+  // Sổ CT trước (2026.9.56): biết phiếu nào được trả trong các ngày cần tính -> Phiếu Cân chỉ cần dòng
+  // cân trong các ngày đó + đúng các phiếu đó (trước đây đọc cả file Phiếu Cân mỗi lần).
+  let ctRows;
+  try { ctRows = dungDuLieuSan && duLieu.ct ? duLieu.ct : _ctCacCot_(tuNgay, denNgay, [11, 12, 16, 20]); } // chỉ 4 cột dùng
+  catch (e) { throw _loiDocDuLieu_("sổ CT đã chốt (Phân tích thanh toán)", e); }
+  const soPhieuTT = new Set();
+  ctRows.forEach(r => { if (r[20] instanceof Date && ngaySet.has(Utilities.formatDate(r[20], "GMT+7", "yyyy-MM-dd"))) soPhieuTT.add(utils.standardize(r[11])); });
+  const pcRows = dungDuLieuSan && duLieu.pc ? duLieu.pc : coLuuTru ? _pcGopLuuTru_(tuNgay, "") : _pcChoPhanTich_(ngaySet, soPhieuTT);
+
   // 1 LƯỢT quét PhieuCan_DN cho ĐÚNG danh sách ngày cần (phần "Nhập")
-  (dungDuLieuSan ? duLieu.pc : _pcGopLuuTru_(tuNgay, "")).forEach(r => {
+  pcRows.forEach(r => {
     const soCT = String(r[PC_COL.SO_CT] || "").trim();
     const tenNG = _tenNguonGoc_(r[PC_COL.NGUON_GOC], dmNgMap);
     const tenDL = String(r[PC_COL.DAI_LY] || "").trim() || "(Chưa rõ ĐL)";
@@ -7166,7 +7237,7 @@ function _refreshPhanTichNhapTTChoDanhSachNgayNoLock_(ngayList, duLieu) {
 
   // 1 LƯỢT quét CT thật cho ĐÚNG danh sách ngày cần (phần "Thanh Toán")
   try {
-    (dungDuLieuSan ? duLieu.ct : _ctGopLuuTru_(tuNgay, denNgay, true)).forEach(r => {
+    ctRows.forEach(r => {
       const ngayTT = r[20];
       if (!(ngayTT instanceof Date)) return;
       const ngayStr = Utilities.formatDate(ngayTT, "GMT+7", "yyyy-MM-dd");
@@ -7335,7 +7406,7 @@ function getChiTietCongNoPhieuCan_(ngayStr) {
   // từ CT thật - chỉ coi là "đã thanh toán" nếu ngày đó <= ngày đang xem.
   const ngayTTBySoPC = new Map();
   try {
-    _ctGopLuuTru_(ngayStr, "", true).forEach(r => {
+    _ctCacCot_(ngayStr, "", [11, 20]).forEach(r => { // 2026.9.56: chỉ đọc 2 cột dùng
       const soPC = utils.standardize(r[11]); // Số phiếu cân
       const ngayTT = r[20]; // Ngày CK/TT
       if (soPC && ngayTT instanceof Date) ngayTTBySoPC.set(soPC, ngayTT);
@@ -7528,7 +7599,7 @@ function getTinhHinhThanhToanHangNgay_(fDate, tDate) {
 
   const rows = [];
   try {
-    _ctGopLuuTru_(fDate, tDate, true).forEach(ctRow => {
+    _ctCacCot_(fDate, tDate, [11, 20]).forEach(ctRow => { // 2026.9.56: chỉ đọc 2 cột dùng
       const ngayTT = ctRow[20];
       if (!(ngayTT instanceof Date)) return;
       const ngayTTStr = Utilities.formatDate(ngayTT, "GMT+7", "yyyy-MM-dd");
@@ -8230,6 +8301,12 @@ function _doanDongTheoKhoa_(sh, cotKhoa, rong, khop) {
   if (lr < 2) return [];
   const viTri = [];
   sh.getRange(2, cotKhoa + 1, lr - 1, 1).getValues().forEach((v, i) => { if (khop(v[0])) viTri.push(i); });
+  return _docDongTaiViTri_(sh, viTri, rong, r => khop(r[cotKhoa]));
+}
+/** Đọc các dòng dữ liệu ở vị trí `viTri` (0-based tính từ dòng 2, tăng dần): gộp dòng gần nhau
+ * (cách <= DOC_THEO_KHOA.GOP_DONG) thành 1 lệnh đọc; quá DOC_THEO_KHOA.TOI_DA_LENH lệnh thì đọc
+ * 1 khối. `giu(row)` lọc lại dòng đọc thêm khi gộp. Trả [{ dong, values }] - dòng đủ `rong` cột. */
+function _docDongTaiViTri_(sh, viTri, rong, giu) {
   if (!viTri.length) return [];
   let doan = [];
   viTri.forEach(i => { const d = doan[doan.length - 1]; if (d && i - d[1] <= DOC_THEO_KHOA.GOP_DONG) d[1] = i; else doan.push([i, i]); });
@@ -8237,7 +8314,7 @@ function _doanDongTheoKhoa_(sh, cotKhoa, rong, khop) {
   const soCot = Math.min(rong, sh.getLastColumn());
   const kq = [];
   doan.forEach(([dau, cuoi]) => sh.getRange(2 + dau, 1, cuoi - dau + 1, soCot).getValues().forEach((r, k) => {
-    if (!khop(r[cotKhoa])) return;
+    if (!giu(r)) return;
     while (r.length < rong) r.push("");
     kq.push({ dong: 2 + dau + k, values: r });
   }));
@@ -8309,24 +8386,36 @@ function getPcCacheSheet_() {
 
 /** Quét TOÀN BỘ PhieuCan_DN thật (thao tác nặng - chỉ nên chạy định kỳ,
  * không nên gọi trong luồng xử lý nhanh) và ghi đè bản sao "chưa TT". */
-function refreshPhieuCanUnpaidCache_() {
+/** Phiếu cân CHƯA thanh toán: có Số phiếu cân, chưa gắn ĐNTT, cột Chọn TT không phải Y / N. */
+function _laPhieuCanChuaTra_(r) {
+  if (!String(r[PC_COL.SO_CT] || "").trim()) return false;
+  const chonTT = String(r[PC_COL.CHON_TT] || "").trim().toUpperCase();
+  return !String(r[PC_COL.ID_DNTT] || "").trim() && chonTT !== "Y" && chonTT !== "N";
+}
+/** tuyChon.chiPhieuChuaTra: đọc 2 bước (cột trạng thái -> dòng chưa trả), không nhớ cả file cho lượt. */
+function refreshPhieuCanUnpaidCache_(tuyChon) {
   const shSrcPC = openExternalSheet_(CFG.PC_SS_ID, CFG.PC_SHEET, "Phiếu Cân");
   const lastRow = shSrcPC.getLastRow();
   // Chỉ đọc các cột code dùng (PC_COT_CAN_DOC); dòng tiêu đề đọc đủ để giữ
   // nguyên bố cục cột của bản sao.
   const lastCol = Math.min(shSrcPC.getLastColumn(), PC_MIRROR_COLS);
   const header = lastRow >= 1 ? shSrcPC.getRange(1, 1, 1, lastCol).getValues()[0] : [];
-  const all = _docCacCot_(shSrcPC, PC_COT_CAN_DOC, lastCol);
-  if (lastCol === PC_MIRROR_COLS) _ghiNhoTrongLuot_("pc_data_v1", all); // cùng dạng _pcData_(): bước sau trong lượt dùng lại
   _ghiNhanHeaderPc_(header);
-
-  const unpaid = all.filter(r => {
-    const soP = String(r[PC_COL.SO_CT] || "").trim();
-    if (!soP) return false;
-    const idDNTT = String(r[PC_COL.ID_DNTT] || "").trim();
-    const chonTT = String(r[PC_COL.CHON_TT] || "").trim().toUpperCase();
-    return !idDNTT && chonTT !== "Y" && chonTT !== "N";
-  });
+  let all = null, unpaid;
+  if (tuyChon && tuyChon.chiPhieuChuaTra) {
+    // 2026.9.56 (trigger 10 phút): chỉ đọc 3 cột trạng thái rồi đúng các dòng chưa trả (vài trăm /
+    // chục nghìn dòng) - trước đây đọc mọi cột của cả file mỗi 10 phút (~240 nghìn ô / 1 năm).
+    const trangThai = _docCacCot_(shSrcPC, PC_COT_TRANG_THAI, lastCol);
+    const viTri = [];
+    trangThai.forEach((r, i) => { if (_laPhieuCanChuaTra_(r)) viTri.push(i); });
+    const giuCot = new Set(PC_COT_CAN_DOC);
+    unpaid = _docDongTaiViTri_(shSrcPC, viTri, lastCol, _laPhieuCanChuaTra_)
+      .map(x => x.values.map((v, c) => giuCot.has(c) ? v : "")); // cùng dạng _docCacCot_: cột không dùng để ""
+  } else {
+    all = _docCacCot_(shSrcPC, PC_COT_CAN_DOC, lastCol);
+    if (lastCol === PC_MIRROR_COLS) _ghiNhoTrongLuot_("pc_data_v1", all); // cùng dạng _pcData_(): bước sau trong lượt dùng lại
+    unpaid = all.filter(_laPhieuCanChuaTra_);
+  }
 
   // v2026.6: giữ dạng chữ cho Số phiếu / Số phiếu cân (tránh mất số 0 đầu
   // khi ghi vào mirror - cùng lỗi đã sửa cho HD_NCC/HD_STK) và không xóa
@@ -8337,7 +8426,7 @@ function refreshPhieuCanUnpaidCache_() {
   });
   _ghiLaiMirror_(getPcCacheSheet_(), header, unpaid);
   _invalidateChunkedCache_("pc_unpaid_data_v1"); // SỬA: dùng helper xóa hết các mảnh (dữ liệu có thể đã bị chia mảnh nếu lớn)
-  logAction_("REFRESH_CACHE_PC_CHUA_TT", "-", `Đã làm mới cache Phiếu Cân chưa TT: ${unpaid.length}/${all.length} dòng.`);
+  logAction_("REFRESH_CACHE_PC_CHUA_TT", "-", `Đã làm mới cache Phiếu Cân chưa TT: ${unpaid.length}/${all ? all.length : Math.max(0, lastRow - 1)} dòng.`);
   return unpaid.length;
 }
 
@@ -8464,7 +8553,7 @@ function _refreshAllDraftCaches10MinThucHien_() {
   const tuGioTro = (h > 7) || (h === 7 && m >= 30);   // từ 7:30 trở đi
   const truocGioKetThuc = (h < 19);                    // trước 19:00
   if (!tuGioTro || !truocGioKetThuc) return;           // ngoài khung giờ -> bỏ qua, không làm gì
-  refreshAllDraftCaches_();
+  refreshAllDraftCaches_({ chiPhieuChuaTra: true, chiKhiDoi: true });
 }
 
 function setup10MinRefreshTrigger_() {
@@ -9344,7 +9433,7 @@ function _phieuCanDaTraThat_(ctThatRows) {
 }
 /** Chặn trả 2 lần khi lập/sửa hồ sơ: lỗi nếu có phiếu cân đã chốt trong CT thật. */
 function _chanPhieuCanDaTra_(dsSoPhieu) {
-  const daTra = _phieuCanDaTraThat_(_ctThatDataCache_());
+  const daTra = _phieuCanDaTraThat_(_ctThatGonCache_());
   const trung = dsSoPhieu.filter(so => daTra.has(utils.standardize(so)));
   if (trung.length) throw new Error(`Số phiếu cân ${trung.map(so => `"${so}"`).join(", ")} ĐÃ ĐƯỢC THANH TOÁN (hồ sơ ${trung.map(so => daTra.get(utils.standardize(so))).join(", ")}) - không thể thanh toán lần nữa.`);
 }
@@ -9871,7 +9960,7 @@ function getDraftRecordDetail_(idKey) {
   if (!row) return null;
   let canhBaoToanVen = [];
   try { // 2026.9.55: lỗi toàn vẹn của hồ sơ (giá Phiếu Cân đổi, ID_CT trùng, sai chủ phiếu...) hiện ngay trong Chi tiết
-    const k = _kiemTraToanVenHoSo_([id], _nguonToanVen_({ draftCT: ctAll, draft112: all112, ctThat: _ctThatDataCache_(), chuSoHuu: true, phieuCan: true }, [id])).ketQua.get(id);
+    const k = _kiemTraToanVenHoSo_([id], _nguonToanVen_({ draftCT: ctAll, draft112: all112, ctThat: _ctThatGonCache_(), chuSoHuu: true, phieuCan: true }, [id])).ketQua.get(id);
     canhBaoToanVen = k ? k.errors.filter(e => e.ma !== TOAN_VEN.MA.NO_CT).map(e => ({ ma: e.ma, thongDiep: e.thongDiep, chan: true }))
       .concat(k.warnings.map(w => ({ ma: w.ma, thongDiep: w.thongDiep, chan: false }))) : [];
   } catch (e) { /* chi tiết vẫn mở được; các bước Xác nhận / Duyệt vẫn kiểm tra lại */ }
@@ -10936,7 +11025,8 @@ function _timPhieuCanKhacTenChuRung_(idSet) {
   if (lastRow < 2) return [];
   const ctAll = shCT.getRange(2, 1, lastRow - 1, 22).getValues();
 
-  const pcMap = utils.buildIndexMap(_pcData_(), PC_COL.SO_CT, true); // đầy đủ lịch sử, đủ để tra Khách hàng
+  // Chỉ các phiếu của hồ sơ đang Xác nhận (2026.9.56 - trước đây đọc cả file Phiếu Cân).
+  const pcMap = utils.buildIndexMap(_pcCuaCacPhieu_(ctAll.filter(r => idSet.has(String(r[1] || "").trim())).map(r => r[11])), PC_COL.SO_CT, true);
   const mismatches = [];
   ctAll.forEach(row => {
     const idCha = String(row[1] || "").trim();

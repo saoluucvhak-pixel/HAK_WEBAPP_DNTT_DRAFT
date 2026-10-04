@@ -77,7 +77,9 @@ function soLon() {
   w.draft.getSheetByName('DNTT_GK_DN_112_DRAFT').data.slice(1).forEach(r => { r[1] = new Date('2026-09-20T03:00:00Z'); });
   return w;
 }
-test('recalculation gives exactly the same 112 rows while reading only the relevant contracts', () => {
+// 2026.9.56: lũy kế lấy từ bản gọn 6/22 cột của sổ CT (bộ nhớ đệm 10 phút, dùng chung với chặn trả 2 lần
+// và kiểm tra toàn vẹn) thay cho đọc theo Số HĐ (hàng chục lệnh đọc khi Nháp có nhiều hợp đồng).
+test('recalculation gives exactly the same 112 rows while reading few ledger columns, once', () => {
   const tinh = docCaSo => {
     const w = soLon();
     const { run } = loadCode(w.options);
@@ -85,14 +87,17 @@ test('recalculation gives exactly the same 112 rows while reading only the relev
     let oDoc = 0;
     const goc = ct.getRange.bind(ct);
     ct.getRange = (...a) => { const rg = goc(...a); const gv = rg.getValues.bind(rg); rg.getValues = () => { const v = gv(); oDoc += v.length * (v[0] || []).length; return v; }; return rg; };
-    if (docCaSo) run(`() => { _docDongTheoKhoa_ = (sh, c, rong) => sh.getRange(2, 1, sh.getLastRow() - 1, rong).getValues(); }`)(); // như bản cũ: cả sổ
+    if (docCaSo) run(`() => { _ctThatGonCache_ = () => { const sh = _shCtThat_(); return sh.getRange(2, 1, sh.getLastRow() - 1, 22).getValues(); }; }`)(); // đối chứng: cả sổ, đủ cột
     assert.match(run('runCreate112')(), /^✅/);
-    return { rows: JSON.stringify(w.draft.getSheetByName('DNTT_GK_DN_112_DRAFT').rows(24)), oDoc };
+    const lan1 = oDoc;
+    assert.match(run('runCreate112')(), /^✅/);
+    return { rows: JSON.stringify(w.draft.getSheetByName('DNTT_GK_DN_112_DRAFT').rows(24)), lan1, lan2: oDoc - lan1 };
   };
   const moi = tinh(false), cu = tinh(true);
   assert.equal(moi.rows, cu.rows, 'identical Số tiền, lũy kế, ghi chú, trạng thái');
   assert.match(moi.rows, /Đã trả: 19,75/, 'HD01 history (12,5 + 7,25) is still counted');
-  assert.ok(moi.oDoc < cu.oDoc / 10, `cells read from the ledger: ${moi.oDoc} vs ${cu.oDoc}`);
+  assert.ok(moi.lan1 <= cu.lan1 * 6 / 22 + 50, `cells read from the ledger: ${moi.lan1} vs ${cu.lan1}`);
+  assert.equal(moi.lan2, 0, 'a second recalculation within 10 minutes reads the ledger from the cache');
 });
 
 // ---------- Giao diện U-03 … U-08 ----------
