@@ -1,4 +1,4 @@
-# ARCHITECTURE — HAK Quản Lý Thanh Toán (v2026.9.56)
+# ARCHITECTURE — HAK Quản Lý Thanh Toán (v2026.9.57)
 
 > Tài liệu sống: cập nhật mỗi khi đổi module, lớp, luồng dữ liệu hoặc schema.
 > Phân tích chi tiết hiện trạng: `docs/PROJECT_ANALYSIS.md`. Kiến trúc đích: `docs/REFACTOR_PLAN.md` §3–§4.
@@ -307,3 +307,9 @@ Lỗi đọc sổ trong báo cáo (2026.9.46): công nợ / phân tích / tiến
 - Trigger 10 phút: `refreshAllDraftCaches_({ chiPhieuChuaTra, chiKhiDoi })` - Phiếu Cân chỉ đọc cột trạng thái (`PC_COT_TRANG_THAI`) rồi dòng chưa trả (`_laPhieuCanChuaTra_`); bỏ qua file nguồn không đổi theo Drive `getLastUpdated` (`_fileNguonDaDoi_`, bắt buộc làm mới mỗi `LAM_MOI_10P.BAT_BUOC_PHUT` phút, biên `BIEN_GIAY`). Làm mới thủ công / 7:30 / 13:00 không bỏ qua.
 - Báo cáo MISA lọc trên cột C, E rồi đọc 33 cột cho dòng khớp; Chi tiết công nợ theo phiếu cân, Tình hình TT hằng ngày, Phân Tích đọc sổ CT qua `_ctCacCot_` (2-4 cột).
 - Đo: `node tests/perf/doHieuNang.mjs` (`KHONG_CACHE=1` như sổ 1 năm vượt bộ nhớ đệm, `CHI_TIET=<thao tác>` in theo hàm); dữ liệu dùng chung `tests/gas/duLieuLon.mjs`.
+
+## Khóa lại phiếu đã thanh toán 2026.9.57
+
+- `_phieuDaTraChuaKhoa_(ctRows?, pcRows?)`: phiếu có trong sổ CT đã chốt (năm đang mở) mà Phiếu Cân chưa "Y" ở cột Chọn TT - dùng chung cho Bảo Trì (mục `phieuDaTraChuaKhoa`, dữ liệu đã đọc sẵn) và kiểm tra hằng đêm (chỉ đọc cột mã hồ sơ + Số phiếu của sổ CT, 3 cột trạng thái Phiếu Cân).
+- `webKhoaLaiPhieuDaTra_(items)` (quyền Hệ Thống): kiểm tra lại ngay lúc khóa, chỉ khóa phiếu vẫn còn trong sổ đã chốt, qua `_khoaPhieuCanDaTra_` (như Duyệt); nhật ký `KHOA_LAI_PHIEU_DA_TRA` ghi trước -> sau (hiện ở Lịch sử sửa đổi).
+- Nút Bảo Trì dùng chung `doXoaMoCoiBaoTri` với `riskLevel: 'khoa'` (nhãn / câu hỏi riêng, không xóa gì).

@@ -2,6 +2,20 @@
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/). Phiên bản theo `NĂM.ĐỢT.SỬA`; thay đổi làm đổi hành vi nghiệp vụ (⚖️) sẽ tăng số ĐỢT và ghi rõ đã được người dùng đồng ý.
 
+## [2026.9.57] — Khóa lại phiếu cân đã thanh toán nhưng chưa khóa (kiểm tra đêm 06/10/2026)
+
+### Nguyên nhân (đã tra dữ liệu thật)
+- Kiểm tra đêm báo 7 phiếu: 6859, 6982, 7031, 7081, 7140, 7187, 7363/2026/NK. Cả 7 đã chốt trong lượt **Duyệt 30/07/2026 17:04** (hồ sơ ea0f3205, 24293723 - sổ CT đủ, Ngày CK 30/07), nhưng Phiếu Cân còn ID_DNTT "Đã Lập ĐNTT" / "Đã ĐNTT", Chọn TT "N" thay vì "Đóng TT" / "Y". Cùng lượt Duyệt, 26 phiếu khác (kể cả phiếu 7289 của chính hồ sơ ea0f3205) khóa đúng; trước Duyệt 7 phiếu này còn trống (số phiếu chưa trả 115 → 83, giảm đúng 32 phiếu của lượt).
+- Bản app tháng 7 khóa phiếu bằng cách đọc CẢ sheet PhieuCan_DN rồi ghi đè CẢ sheet (lỗi C-02, đã sửa ở 2026.6.0 - nay chỉ ghi đúng 3 ô). Một công cụ khác ghi vào 7 dòng này cùng lúc (giá trị "Đã Lập ĐNTT" không có trong mọi phiên bản app web lẫn app nhập kho) nên ô khóa bị mất. Từ đó tới nay chỉ 7/10.623 phiếu đã trả bị như vậy.
+- Không trả 2 lần được qua app: phiếu Chọn TT "N" không hiện ở danh sách chọn, và Tạo mới / Duyệt chặn phiếu đã có trong sổ CT.
+
+### Added
+- **Hệ Thống › Bảo Trì** mục "Phiếu cân ĐÃ THANH TOÁN nhưng Phiếu Cân chưa khóa" (Số phiếu, hồ sơ đã chốt, giá trị hiện tại) + nút **🔒 Khóa Lại Các Phiếu Đã Chọn**: kiểm tra lại ngay lúc khóa, chỉ khóa phiếu vẫn có trong sổ đã chốt, ghi "OK / Đóng TT / Y" như Duyệt; nhật ký `KHOA_LAI_PHIEU_DA_TRA` (trước → sau, hiện ở Lịch sử sửa đổi). Quyền: Kế toán tổng hợp / Quản trị.
+- Kiểm tra hằng đêm dùng chung hàm phát hiện (chỉ đọc cột cần, không đọc cả Phiếu Cân / sổ CT), thông báo chỉ tới Bảo Trì › Khóa lại.
+
+### Tests
+- `khoaLaiPhieuDaTra.test.mjs` (3): Bảo Trì + kiểm tra đêm phát hiện, Khóa lại chỉ phiếu đã chốt (phiếu chưa trả không bị khóa), nhật ký trước → sau, chạy lại không đổi gì, quyền. Trên bản 2026.9.56: 3/3 thất bại.
+
 ## [2026.9.56] — Tối ưu hiệu năng theo số đo thật (người dùng yêu cầu 04/10/2026)
 
 Căn cứ SYS_HieuNang 27/09-03/10: trigger 10 phút 403 lượt × 14,2 s (web phải chờ đồng bộ trong lúc chạy), Tạo mới 194 lượt × 14,6 s, Duyệt 52 s, Báo cáo MISA 23,6 s. Nguyên nhân chung: đọc cả sheet trong khi chỉ cần vài cột / vài chục dòng. Không đổi nghiệp vụ, không đổi cấu trúc sheet.

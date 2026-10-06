@@ -1,6 +1,6 @@
 /**
  * ============================================================
- * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.56
+ * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.57
  * Lịch sử thay đổi: CHANGELOG.md · Kiến trúc: docs/ARCHITECTURE.md
  * ------------------------------------------------------------
  * *** QUAN TRỌNG - CẦN LÀM TRƯỚC KHI DÙNG BẢN NÀY (chỉ 1 LẦN DUY NHẤT
@@ -1895,6 +1895,7 @@ const API_ROUTES = (() => {
     webXoaCTMoCoi: r(webXoaCTMoCoi_, H),
     webXoaSrcMoCoi: r(webXoaSrcMoCoi_, H),
     webXoaMoCoiChiTietDNTT: r(webXoaMoCoiChiTietDNTT_, H),
+    webKhoaLaiPhieuDaTra: r(webKhoaLaiPhieuDaTra_, H),
     webXoaMoCoiChiTietUNC: r(webXoaMoCoiChiTietUNC_, H),
     runFillMissingBankOnly: r(runFillMissingBankOnly, H),
     timChuRungDaChot: r(timChuRungDaChot_, H, CHI_DOC),
@@ -2920,7 +2921,7 @@ function webSetUncConfig_(values) {
 // người xem trang "Lịch Sử Sửa Đổi".
 /** Nhật ký mọi lần đổi cấu hình ở Cài đặt (trước → sau) - hiện ở Hệ Thống › Lịch sử sửa đổi. */
 const HANH_DONG_CAU_HINH = "CAU_HINH_HE_THONG";
-const LICH_SU_SUA_DOI_ACTIONS = new Set(["MO_DONG_THANH_TOAN", "DOI_SOAT_DONG_BO_TEN", "VA_NGAN_HANG_112", "XOA_MO_COI_CHITIET_DNTT", "XOA_MO_COI_CHITIET_UNC", "XOA_MO_COI_CT_THAT", "XOA_MO_COI_SRC_THAT", "SUA_TEN_KH_PHIEU_CAN", "PHAN_QUYEN", "CAU_HINH_DANG_NHAP", "CANH_BAO_HEADER_PC", "XAC_NHAN_HEADER_PHIEU_CAN", "CHAN_TRA_HAI_LAN", "KHOI_PHUC_DONG_DA_XOA", "CAU_HINH_LUU_TRU_NAM", "KHOA_SO_NAM", "XOA_MISA", "XOA_UNC",
+const LICH_SU_SUA_DOI_ACTIONS = new Set(["MO_DONG_THANH_TOAN", "KHOA_LAI_PHIEU_DA_TRA", "DOI_SOAT_DONG_BO_TEN", "VA_NGAN_HANG_112", "XOA_MO_COI_CHITIET_DNTT", "XOA_MO_COI_CHITIET_UNC", "XOA_MO_COI_CT_THAT", "XOA_MO_COI_SRC_THAT", "SUA_TEN_KH_PHIEU_CAN", "PHAN_QUYEN", "CAU_HINH_DANG_NHAP", "CANH_BAO_HEADER_PC", "XAC_NHAN_HEADER_PHIEU_CAN", "CHAN_TRA_HAI_LAN", "KHOI_PHUC_DONG_DA_XOA", "CAU_HINH_LUU_TRU_NAM", "KHOA_SO_NAM", "XOA_MISA", "XOA_UNC",
   // Thao tác trên hồ sơ (người dùng yêu cầu 28/09/2026 - kèm "trước → sau" khi sửa):
   "SUA_NHAP", "THEM_PHIEU_NHAP", "XOA_PHIEU_NHAP", "XOA_NHAP", "XAC_NHAN_DNTT", "HUY_XAC_NHAN_DNTT", "CHOT_THANH_TOAN",
   // Đổi cấu hình ảnh hưởng tiền / sổ sách (TK công ty, UNC, link file, vùng định dạng...) - rà soát 28/09/2026.
@@ -9406,6 +9407,46 @@ function _khoaPhieuCanDaTra_(shPC, soKeySet) {
   _removeFromPcUnpaidCache_(soKeySet);
 }
 
+/** Phiếu cân ĐÃ CHỐT trong sổ CT (năm đang mở) mà Phiếu Cân chưa khóa "Đóng TT" / "Y" (2026.9.57).
+ * Gặp ở dữ liệu cũ: Duyệt bản trước 2026.6 ghi đè CẢ sheet Phiếu Cân, công cụ khác ghi cùng lúc
+ * làm mất ô khóa của vài dòng (vd 30/07/2026: 7 phiếu còn "Đã Lập ĐNTT" / "N"). Chỉ đọc cột cần.
+ * ctRows / pcRows (tùy chọn): dữ liệu đã đọc sẵn (Bảo Trì). Trả [{soPhieuCan, idHeThong, idDntt, chonTT}]. */
+function _phieuDaTraChuaKhoa_(ctRows, pcRows) {
+  const ct = ctRows || (_shCtThat_() ? _docCacCot_(_shCtThat_(), [1, 11], 22) : []);
+  const daTra = _phieuCanDaTraThat_(ct);
+  if (!daTra.size) return [];
+  const pc = pcRows || _docCacCot_(openExternalSheet_(CFG.PC_SS_ID, CFG.PC_SHEET, "Phiếu Cân"), PC_COT_TRANG_THAI, PC_MIRROR_COLS);
+  const kq = [];
+  pc.forEach(r => {
+    const k = utils.standardize(r[PC_COL.SO_CT]);
+    if (!k || !daTra.has(k) || String(r[PC_COL.CHON_TT] || "").trim().toUpperCase() === "Y") return;
+    kq.push({ soPhieuCan: String(r[PC_COL.SO_CT] || "").replace(/'/g, "").trim(), idHeThong: daTra.get(k),
+      idDntt: String(r[PC_COL.ID_DNTT] || ""), chonTT: String(r[PC_COL.CHON_TT] || "") });
+  });
+  return kq;
+}
+/** #Web (Bảo Trì): khóa lại phiếu cân đã thanh toán mà Phiếu Cân chưa khóa. items: [{soPhieuCan}] (từ
+ * mục phieuDaTraChuaKhoa). Kiểm tra lại ngay lúc khóa: chỉ khóa phiếu VẪN có trong sổ CT đã chốt. */
+function webKhoaLaiPhieuDaTra_(items) {
+  let lock;
+  try {
+    if (!Array.isArray(items) || !items.length) return { success: false, message: "❌ Không có phiếu nào được chọn." };
+    lock = sysLock.acquire();
+    const chon = new Set(items.map(it => utils.standardize(it && it.soPhieuCan)).filter(Boolean));
+    const canKhoa = _phieuDaTraChuaKhoa_().filter(x => chon.has(utils.standardize(x.soPhieuCan)));
+    if (!canKhoa.length) return { success: true, message: "✅ Các phiếu đã chọn đều đã được khóa (hoặc không còn trong sổ đã chốt).", count: 0 };
+    _khoaPhieuCanDaTra_(openExternalSheet_(CFG.PC_SS_ID, CFG.PC_SHEET, "Phiếu Cân"), new Set(canKhoa.map(x => utils.standardize(x.soPhieuCan))));
+    logAction_("KHOA_LAI_PHIEU_DA_TRA", canKhoa.map(x => x.idHeThong).filter((v, i, a) => a.indexOf(v) === i).join(","),
+      `Khóa lại ${canKhoa.length} phiếu cân đã thanh toán (Bảo Trì): ` +
+      canKhoa.map(x => `${x.soPhieuCan} (hồ sơ ${x.idHeThong}): "${x.idDntt}" / "${x.chonTT}" → "${PC_ID_DNTT_DA_TRA}" / "Y"`).join("; "));
+    return { success: true, message: `✅ Đã khóa lại ${canKhoa.length} phiếu cân đã thanh toán.`, count: canKhoa.length };
+  } catch (e) {
+    return { success: false, message: "❌ Lỗi: " + _loiChoNguoiDung_(e) };
+  } finally {
+    if (lock) lock.releaseLock();
+  }
+}
+
 /** Mọi dòng (1-based) của PhieuCan_DN có Số phiếu cân (cột SO_CT - đúng cột
  * CT/Nháp lưu) thuộc soKeySet (đã chuẩn hóa), đọc lại cột ngay lúc gọi.
  * khongThay: các số không có dòng nào. Dùng chung cho khóa (Duyệt, Khôi phục),
@@ -10641,10 +10682,8 @@ function _kiemTraToanVenThucHien_() {
     if (t.phieu.length) muc.push({ ten: `Phiếu cân đã thanh toán chưa có dòng MISA (${KIEM_TRA_DEM.SO_NGAY_MISA} ngày)`, so: t.phieu.length, chiTiet: t.phieu.slice(0, 10).map(x => x.soPhieuCan).join(", ") });
   } catch (e) { muc.push({ ten: "MISA - không kiểm tra được", so: 1, chiTiet: _loiChoNguoiDung_(e) }); }
   try {
-    const daTra = new Set(_ctThatDataCache_().map(r => utils.standardize(r[11])).filter(Boolean));
-    const chuaKhoa = _pcData_().filter(r => daTra.has(utils.standardize(r[PC_COL.SO_CT])) && String(r[PC_COL.CHON_TT] || "").trim().toUpperCase() !== "Y")
-      .map(r => String(r[PC_COL.SO_CT] || "").replace(/'/g, ""));
-    if (chuaKhoa.length) muc.push({ ten: "Phiếu cân đã thanh toán nhưng chưa khóa trong Phiếu Cân (có thể bị chọn trả lần 2)", so: chuaKhoa.length, chiTiet: chuaKhoa.slice(0, 10).join(", ") });
+    const chuaKhoa = _phieuDaTraChuaKhoa_().map(x => x.soPhieuCan);
+    if (chuaKhoa.length) muc.push({ ten: "Phiếu cân đã thanh toán nhưng chưa khóa trong Phiếu Cân (Bảo Trì › Khóa lại)", so: chuaKhoa.length, chiTiet: chuaKhoa.slice(0, 10).join(", ") });
   } catch (e) { muc.push({ ten: "Khóa phiếu cân - không kiểm tra được", so: 1, chiTiet: _loiChoNguoiDung_(e) }); }
 
   const kq = { luc: Utilities.formatDate(new Date(), "GMT+7", "dd/MM/yyyy HH:mm"), muc, tong: muc.reduce((t, m) => t + m.so, 0) };
@@ -11012,7 +11051,8 @@ function getKiemTraDoiChieuBaoTri_() {
       tenKhachHangLech: _gioiHan50_(tenKhachHangLech),
       chiTietDnttYMoCoi: _gioiHan50_(chiTietDnttYMoCoi),
       chiTietDnttNMoCoi: _gioiHan50_(chiTietDnttNMoCoi),
-      chiTietUncMoCoi: _gioiHan50_(chiTietUncMoCoi)
+      chiTietUncMoCoi: _gioiHan50_(chiTietUncMoCoi),
+      phieuDaTraChuaKhoa: _gioiHan50_(_phieuDaTraChuaKhoa_(ctAll, pcData))
     };
   } catch (e) {
     return { error: "❌ Lỗi: " + _loiChoNguoiDung_(e) }; // MỚI (rà soát bổ sung): trả về dạng lỗi thân thiện thay vì lỗi thô

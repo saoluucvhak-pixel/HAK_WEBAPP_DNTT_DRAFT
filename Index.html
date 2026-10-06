@@ -748,7 +748,7 @@
     </nav>
     <div class="nguoi-dung-chip" id="nguoi-dung-chip"></div>
     <div class="sidebar-footer">
-      <span class="phien-ban">Quản Lý Thanh Toán · v2026.9.56</span>
+      <span class="phien-ban">Quản Lý Thanh Toán · v2026.9.57</span>
       <span class="chan-nut">
         <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Đổi giao diện sáng / tối">🌓 Giao diện: Tự động</button>
         <button type="button" class="nut-thu-gon" id="nut-thu-gon" aria-label="Thu gọn thanh bên" title="Thu gọn / mở rộng thanh bên"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 6-6 6 6 6"/></svg></button>
@@ -5197,6 +5197,7 @@ const NHAN_HANH_DONG = {
   LOI_MO_DONG_THANH_TOAN: '⚠️ Lỗi Mở Đóng TT', LOI_DON_DEP_KHI_MO_DONG: '⚠️ Lỗi dọn khi Mở Đóng TT', LOI_MO_KHOA_PHIEU_CAN: '⚠️ Lỗi mở khóa phiếu cân',
   LOI_DON_DEP_KHI_XOA_NHAP: '⚠️ Lỗi dọn khi xóa hồ sơ', LOI_CHOT_THANH_TOAN: '⚠️ Lỗi Duyệt', LOI_CHITIET_DNTT_LUC_CHOT: '⚠️ Lỗi ghi chi tiết lúc Duyệt',
   XOA_PHIEU_NHAP: '➖ Bỏ phiếu cân',
+  KHOA_LAI_PHIEU_DA_TRA: '🔒 Khóa lại phiếu đã thanh toán',
   XAC_NHAN_DNTT: '✅ Xác nhận ĐNTT',
   HUY_XAC_NHAN_DNTT: '↩️ Về Chờ xác nhận',
   CHOT_THANH_TOAN: '📨 Duyệt (Đóng TT)',
@@ -5892,7 +5893,7 @@ function doKiemTraBaoTri(){
       const nutXoa = del ? `
         <div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           <label style="font-size:12px"><input type="checkbox" checked onchange="document.querySelectorAll('.${sid}-chk').forEach(c=>c.checked=this.checked)"> Chọn tất cả</label>
-          <button class="btn" style="${del.riskLevel==='danger' ? 'background:#b00;color:#fff;border-color:#b00' : ''}" onclick="doXoaMoCoiBaoTri('${sid}','${dataKey}','${del.fnName}','${del.riskLevel}')">🗑️ Xóa Các Dòng Đã Chọn</button>
+          <button class="btn" style="${del.riskLevel==='danger' ? 'background:#b00;color:#fff;border-color:#b00' : ''}" onclick="doXoaMoCoiBaoTri('${sid}','${dataKey}','${del.fnName}','${del.riskLevel}')">${del.riskLevel === 'khoa' ? '🔒 Khóa Lại Các Phiếu Đã Chọn' : '🗑️ Xóa Các Dòng Đã Chọn'}</button>
         </div>` : '';
       return `<details style="margin-top:6px" open><summary style="cursor:pointer;color:#b00;font-weight:600">⚠️ ${esc(title)}: ${data.total} vấn đề${data.truncated ? ' (hiện 50 đầu tiên)' : ''}</summary>
         <div style="overflow-x:auto;margin-top:6px"><table><thead><tr>${del ? '<th></th>' : ''}${cols.map(c=>`<th>${esc(c.label)}</th>`).join('')}</tr></thead><tbody>${rowsHtml}</tbody></table></div>
@@ -5914,6 +5915,7 @@ function doKiemTraBaoTri(){
         ${section('Tên khách hàng lệch (CT ↔ Phiếu Cân)', 'tenKhachHangLech', [{key:'soPhieuCan',label:'Số phiếu cân'},{key:'chuRung',label:'Chủ rừng (CT)'},{key:'khachHang',label:'Khách hàng (PC)'},{key:'soHD',label:'Số HĐ'}])}
         ${section('ChiTietDNTT: dòng Y nhưng KHÔNG có trong CT thật', 'chiTietDnttYMoCoi', [{key:'idHeThong',label:'ID Hệ Thống'},{key:'soPhieuCan',label:'Số phiếu cân'},{key:'chuRung',label:'Chủ rừng'}], {fnName:'webXoaMoCoiChiTietDNTT', riskLevel:'safe'})}
         ${section('ChiTietDNTT: dòng N nhưng hồ sơ không còn trong File Nháp', 'chiTietDnttNMoCoi', [{key:'idHeThong',label:'ID Hệ Thống'},{key:'soPhieuCan',label:'Số phiếu cân'},{key:'chuRung',label:'Chủ rừng'}], {fnName:'webXoaMoCoiChiTietDNTT', riskLevel:'safe'})}
+        ${section('Phiếu cân ĐÃ THANH TOÁN nhưng Phiếu Cân chưa khóa (Đóng TT / Y)', 'phieuDaTraChuaKhoa', [{key:'soPhieuCan',label:'Số phiếu cân'},{key:'idHeThong',label:'Hồ sơ đã chốt'},{key:'idDntt',label:'ID_DNTT hiện tại'},{key:'chonTT',label:'Chọn TT hiện tại'}], {fnName:'webKhoaLaiPhieuDaTra', riskLevel:'khoa'})}
         ${section('ChiTietUNC: hồ sơ không còn tồn tại (Nháp lẫn Thật)', 'chiTietUncMoCoi', [{key:'idHeThong',label:'ID Hệ Thống'},{key:'chuRung',label:'Chủ rừng'},{key:'soHD',label:'Số HĐ'}], {fnName:'webXoaMoCoiChiTietUNC', riskLevel:'safe'})}
         <div class="muc-tieu-de" style="margin-top:18px">Toàn vẹn sổ đã chốt (chỉ đọc - không tự sửa)</div>
         ${section('ID_CT trùng / phiếu cân thuộc nhiều hồ sơ', 'trungIdCtPhieu', [{key:'idKey',label:'ID_KEY'},{key:'ma',label:'Mã lỗi'},{key:'mucDo',label:'Mức độ'},{key:'phieu',label:'Phiếu cân'},{key:'kgDntt',label:'DNTT KG'},{key:'kgCt',label:'CT KG'},{key:'tienCt',label:'CT tiền'},{key:'tien112',label:'112 tiền'},{key:'ghiChu',label:'Ghi chú'}])}
@@ -5946,6 +5948,11 @@ async function doXoaMoCoiBaoTri(sid, dataKey, fnName, riskLevel){
     if (it) items.push(it);
   });
   if (!items.length) { toast('Vui lòng chọn ít nhất 1 dòng.', 'warn'); return; }
+  if (riskLevel === 'khoa') { // 2026.9.57: khóa lại phiếu đã thanh toán - không xóa gì
+    if (!(await xacNhan(`Khóa lại ${items.length} phiếu cân đã thanh toán: ghi "Đóng TT" / "Y" vào Phiếu Cân để không thể chọn trả lần 2? (ghi nhật ký)`, { tieuDe: '🔒 Khóa lại phiếu cân', nutOk: 'Khóa lại' }))) return;
+    call(fnName, [items], 'Đang khóa...').then(res => handleResult(res, () => doKiemTraBaoTri()));
+    return;
+  }
   const canhBao = riskLevel === 'danger'
     ? `⚠️ CẢNH BÁO RỦI RO CAO: đây là dữ liệu TÀI CHÍNH ĐÃ CHỐT (CT/DNTT_GK_DN thật) - xóa KHÔNG THỂ hoàn tác tự động.\n\nChỉ xóa nếu bạn CHẮC CHẮN đây là dữ liệu rác/lỗi, không phải hồ sơ thật đang thiếu liên kết.\n\n`
     : '';
