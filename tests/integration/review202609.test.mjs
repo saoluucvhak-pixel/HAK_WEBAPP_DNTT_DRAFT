@@ -20,7 +20,7 @@ test('Duyệt: the same weigh ticket in two draft records of one batch is never 
     w.draft.getSheetByName('DNTT_GK_DN_CT_DRAFT').data[2][11] = 'PC001'; // B2 cũng chứa PC001
     w.draft.getSheetByName('DNTT_GK_DN_112_DRAFT').data[2][23] = 'Đang ĐNTT';
   });
-  const msg = run('runConfirmPayment_')(['A1', 'B2'], '26/09/2026');
+  const msg = run('runConfirmPayment_')(['A1', 'B2'], '2026-09-26');
   assert.match(msg, /TRÙNG trong lượt Duyệt/, msg);
   assert.match(msg, /PC001/);
   assert.deepEqual(soTrongCT(world), [], 'no record involving the duplicated ticket is committed');
@@ -33,7 +33,7 @@ test('Duyệt: a ticket listed twice inside one record is blocked, other records
     w.draft.getSheetByName('DNTT_GK_DN_CT_DRAFT').data[3][11] = 'PC001'; // A1 có PC001 hai lần
     w.draft.getSheetByName('DNTT_GK_DN_112_DRAFT').data[2][23] = 'Đang ĐNTT';
   });
-  const msg = run('runConfirmPayment_')(['A1', 'B2'], '26/09/2026');
+  const msg = run('runConfirmPayment_')(['A1', 'B2'], '2026-09-26');
   assert.match(msg, /^✅/, msg);
   assert.deepEqual(soTrongCT(world), ['PC003'], 'only B2 is committed');
 });
@@ -45,7 +45,7 @@ test('Mở Đóng TT unlocks by the Số phiếu cân column Duyệt locked (W),
     pc.data.push(pcRow('PC002', 'Nguyen Van A')); // phiếu PC002 có 2 dòng
     pc.data[pc.data.length - 1][0] = 'CAN-PC002-B';
   });
-  assert.match(run('runConfirmPayment_')(['A1'], '26/09/2026'), /^✅/);
+  assert.match(run('runConfirmPayment_')(['A1'], '2026-09-26'), /^✅/);
   const locked = world.pc.getSheetByName('PhieuCan_DN').rows(28).slice(1).filter(r => r[27] === 'Y');
   assert.equal(locked.length, 3, 'Duyệt locks every row of PC001 + PC002');
 
@@ -77,7 +77,7 @@ test('Công nợ theo phiếu cân "đến ngày D" excludes tickets paid ON day
   const { run } = setup(w => {
     w.pc.getSheetByName('PhieuCan_DN').data.slice(1).forEach(r => { r[1] = ngayVN('2026-09-20'); });
   });
-  assert.match(run('runConfirmPayment_')(['A1'], '26/09/2026'), /^✅/);
+  assert.match(run('runConfirmPayment_')(['A1'], '2026-09-26'), /^✅/);
   const so = d => Array.from(run('getChiTietCongNoPhieuCan_')(d), r => r.soPhieuCan).sort();
   assert.deepEqual(so('2026-09-25'), ['PC001', 'PC002', 'PC003', 'PC999'], 'before payment: all are debt');
   assert.deepEqual(so('2026-09-26'), ['PC003', 'PC999'], 'paid on the day -> no longer debt that day');
@@ -105,10 +105,10 @@ test('Tình hình thanh toán is sorted by real date across months (newest first
   w.pc.getSheetByName('PhieuCan_DN').data.slice(1).forEach(r => { r[1] = ngayVN('2026-09-20'); });
   w.draft.getSheetByName('DNTT_GK_DN_112_DRAFT').data[2][23] = 'Đang ĐNTT';
   const { run } = loadCode(w.options);
-  assert.match(run('runConfirmPayment_')(['A1'], '30/09/2026'), /^✅/);
-  assert.match(run('runConfirmPayment_')(['B2'], '01/10/2026'), /^✅/);
+  assert.match(run('runConfirmPayment_')(['A1'], '2026-09-30'), /^✅/);
+  assert.match(run('runConfirmPayment_')(['B2'], '2026-10-01'), /^✅/);
   const ngay = Array.from(run('getTinhHinhThanhToanHangNgay_')('2026-09-01', '2026-10-31'), r => r.ngayThanhToan);
-  assert.deepEqual(ngay, ['01/10/2026', '30/09/2026', '30/09/2026']);
+  assert.deepEqual(ngay, ['01/10/2026', '30/09/2026', '30/09/2026']); // mới nhất trước - sắp theo chuỗi dd/MM sẽ ra 30/09 trước 01/10
 });
 
 test('Hiệu năng: 1 lượt Duyệt mở File Chính đúng 1 lần (trước đây mở lại ở mỗi lần ghi nhật ký...)', () => {
@@ -117,7 +117,7 @@ test('Hiệu năng: 1 lượt Duyệt mở File Chính đúng 1 lần (trước 
   const mo = env.SpreadsheetApp.openById;
   let soLanMoChinh = 0;
   env.SpreadsheetApp.openById = id => { if (id === 'MAIN_SS') soLanMoChinh++; return mo(id); };
-  assert.match(run('runConfirmPayment_')(['A1'], '26/09/2026'), /^✅/);
+  assert.match(run('runConfirmPayment_')(['A1'], '2026-09-26'), /^✅/);
   assert.equal(soLanMoChinh, 1);
 });
 
