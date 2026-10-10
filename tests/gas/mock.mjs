@@ -58,14 +58,21 @@ export class MockRange {
     for (let r = 0; r < this.numRows; r++) for (let c = 0; c < this.numCols; c++) this.sheet._set(this.row + r, this.col + c, '');
     return this;
   }
-  setNumberFormat() { return this; }
-  setNumberFormats() { return this; }
-  getNumberFormat() { return ''; }
-  getNumberFormats() { return Array.from({ length: this.numRows }, () => new Array(this.numCols).fill('')); }
+  // Định dạng số/ngày lưu theo từng ô (sheet.formats) để test kiểm tra được cột ngày/chữ.
+  _eachCell(fn) { for (let r = 0; r < this.numRows; r++) for (let c = 0; c < this.numCols; c++) fn(this.row + r, this.col + c, r, c); }
+  setNumberFormat(fmt) { const f = (this.sheet.formats ||= new Map()); this._eachCell((r, c) => f.set(r + ',' + c, fmt)); return this; }
+  setNumberFormats(m) { const f = (this.sheet.formats ||= new Map()); this._eachCell((r, c, i, j) => f.set(r + ',' + c, m[i][j])); return this; }
+  getNumberFormat() { return (this.sheet.formats && this.sheet.formats.get(this.row + ',' + this.col)) || ''; }
+  getNumberFormats() {
+    const f = this.sheet.formats || new Map();
+    return Array.from({ length: this.numRows }, (_, i) => Array.from({ length: this.numCols }, (_, j) => f.get((this.row + i) + ',' + (this.col + j)) || ''));
+  }
   setFontWeight() { return this; }
   setBackground() { return this; }
   setFontColor() { return this; }
-  setHorizontalAlignment() { return this; }
+  // Căn lề ngang lưu theo từng ô (sheet.alignments) để test kiểm tra được.
+  setHorizontalAlignment(v) { const m = (this.sheet.alignments ||= new Map()); this._eachCell((r, c) => m.set(r + ',' + c, v)); return this; }
+  setHorizontalAlignments(mt) { const m = (this.sheet.alignments ||= new Map()); this._eachCell((r, c, i, j) => m.set(r + ',' + c, mt[i][j])); return this; }
   setWrap() { return this; }
   setFontSize() { return this; }
   setFontStyle() { return this; }
@@ -169,8 +176,11 @@ export class MockSheet {
   }
   clearContents() { return this.clear(); }
   setFrozenRows() { return this; }
-  setColumnWidths() { return this; }
-  setColumnWidth() { return this; }
+  // Độ rộng cột / chiều cao dòng lưu lại để test kiểm tra bố cục bảng xuất.
+  setColumnWidths(c, n, w) { for (let i = 0; i < n; i++) (this.colWidths ||= {})[c + i] = w; return this; }
+  setColumnWidth(c, w) { (this.colWidths ||= {})[c] = w; return this; }
+  setRowHeights(r, n, h) { for (let i = 0; i < n; i++) (this.rowHeights ||= {})[r + i] = h; return this; }
+  setRowHeight(r, h) { (this.rowHeights ||= {})[r] = h; return this; }
   autoResizeColumns() { return this; }
   autoResizeRows() { return this; }
   hideSheet() { return this; }
@@ -319,7 +329,9 @@ export function createGasEnvironment({ activeSpreadsheet, spreadsheets = [], pro
     return out;
   };
 
+  const driveFiles = []; // file đã lưu vào Drive (createFile)
   const env = {
+    driveFiles,
     SpreadsheetApp,
     PropertiesService: { getScriptProperties: () => scriptProps, getUserProperties: () => makeStore(), getDocumentProperties: () => makeStore() },
     CacheService: { getScriptCache: () => scriptCache, getUserCache: () => makeCache(), getDocumentCache: () => makeCache() },
@@ -328,7 +340,11 @@ export function createGasEnvironment({ activeSpreadsheet, spreadsheets = [], pro
       formatDate,
       getUuid: () => randomUUID(),
       sleep: () => {},
-      newBlob: (s) => ({ getDataAsString: () => toBuffer(typeof s === 'string' ? s : s).toString('utf8'), getBytes: () => Array.from(toBuffer(s)) }),
+      newBlob: (s, loai, ten) => ({
+        getDataAsString: () => toBuffer(typeof s === 'string' ? s : s).toString('utf8'), getBytes: () => Array.from(toBuffer(s)),
+        // HTML -> PDF: giữ nguồn HTML để test đọc nội dung phiếu.
+        getAs: (mime) => ({ mime, nguon: s, name: ten, setName(n) { this.name = n; return this; } })
+      }),
       computeDigest: () => [],
       computeHmacSha256Signature: (value, key) => Array.from(createHmac('sha256', toBuffer(key)).update(toBuffer(value)).digest()).map(b => (b > 127 ? b - 256 : b)),
       base64Encode: s => toBuffer(s).toString('base64'),
@@ -343,7 +359,10 @@ export function createGasEnvironment({ activeSpreadsheet, spreadsheets = [], pro
       getScriptTimeZone: () => 'Asia/Ho_Chi_Minh'
     },
     DriveApp: {
-      getFolderById: () => ({ addFile() {}, createFile() { return {}; } }),
+      getFolderById: () => ({ addFile() {}, createFile(blob) {
+        driveFiles.push(blob);
+        return { setName(n) { blob.name = n; return this; }, getUrl: () => 'https://drive.test/' + encodeURIComponent(blob && blob.name || '') };
+      } }),
       getFileById: () => ({ getId: () => 'file', getUrl: () => 'url', moveTo() {}, getParents: () => ({ hasNext: () => false }) }),
       getRootFolder: () => ({ removeFile() {} })
     },
@@ -359,6 +378,7 @@ export function createGasEnvironment({ activeSpreadsheet, spreadsheets = [], pro
     },
     ContentService: { createTextOutput: s => ({ text: s, setMimeType() { return this; } }), MimeType: { JSON: 'JSON' } },
     UrlFetchApp: { fetch: () => { throw new Error('Mock: network disabled'); } },
+    MailApp: { daGui: [], sendEmail(to, subject, body) { this.daGui.push({ to, subject, body }); } },
     Logger: { log: () => {} },
     console: { log: () => {}, warn: () => {}, error: () => {}, info: () => {} },
     _registry: registry,

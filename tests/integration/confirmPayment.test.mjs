@@ -13,7 +13,7 @@ const idsIn = (sheet, col) => sheet.rows().slice(1).map(r => String(r[col]).trim
 
 test('runConfirmPayment commits the selected record end-to-end', () => {
   const { world, run } = setup();
-  const msg = run('runConfirmPayment_')(['A1'], '26/09/2026');
+  const msg = run('runConfirmPayment_')(['A1'], '2026-09-26');
   assert.match(msg, /^✅/, msg);
 
   const ct = world.main.getSheetByName('DNTT_GK_DN_CT').rows(22).slice(1);
@@ -48,7 +48,7 @@ test('runConfirmPayment commits the selected record end-to-end', () => {
 
   const chiTiet = world.main.getSheetByName('ChiTietDNTT').rows(28).slice(1);
   assert.equal(chiTiet.length, 2);
-  chiTiet.forEach(r => { assert.equal(r[26], 'Y'); assert.equal(r[3], '26/09/2026'); });
+  chiTiet.forEach(r => { assert.equal(r[26], 'Y'); assert.ok(r[3] instanceof Date, 'ledger stores a real date'); assert.equal(r[3].toISOString().slice(0, 10), '2026-09-26'); });
 
   const misa = world.updateNh.getSheetByName('Update_NganHang_DN').rows(33).slice(1);
   assert.equal(misa.length, 2);
@@ -59,7 +59,7 @@ test('runConfirmPayment never rewrites unrelated rows of external/main sheets', 
   const pcSheet = world.pc.getSheetByName('PhieuCan_DN');
   const srcSheet = world.main.getSheetByName('DNTT_GK_DN');
   const chiTietSheet = world.main.getSheetByName('ChiTietDNTT');
-  const msg = run('runConfirmPayment_')(['A1'], '26/09/2026');
+  const msg = run('runConfirmPayment_')(['A1'], '2026-09-26');
   assert.match(msg, /^✅/, msg);
 
   assert.equal(rowWasWritten(pcSheet, 1), false, 'PhieuCan header must not be rewritten');
@@ -77,11 +77,11 @@ test('runConfirmPayment re-run after an interrupted commit does not duplicate da
   const draftNames = ['DNTT_GK_DN_CT_DRAFT', 'DNTT_GK_DN_112_DRAFT', 'DNTT_GK_DN_DRAFT'];
   const snapshot = draftNames.map(n => world.draft.getSheetByName(n).data.map(r => r.slice()));
 
-  assert.match(run('runConfirmPayment_')(['A1'], '26/09/2026'), /^✅/);
+  assert.match(run('runConfirmPayment_')(['A1'], '2026-09-26'), /^✅/);
   // Simulate a crash that happened before the draft clean-up: drafts still hold A1.
   draftNames.forEach((n, i) => { world.draft.getSheetByName(n).data = snapshot[i].map(r => r.slice()); });
   // Re-running also has to cope with ChiTietDNTT already being "Y".
-  const msg = run('runConfirmPayment_')(['A1'], '26/09/2026');
+  const msg = run('runConfirmPayment_')(['A1'], '2026-09-26');
   assert.match(msg, /^✅/, msg);
 
   assert.equal(idsIn(world.main.getSheetByName('DNTT_GK_DN_CT'), 1).filter(id => id === 'A1').length, 2);
@@ -98,10 +98,10 @@ test('re-run is also safe when ChiTietDNTT had to be compensated (report never p
   const draftNames = ['DNTT_GK_DN_CT_DRAFT', 'DNTT_GK_DN_112_DRAFT', 'DNTT_GK_DN_DRAFT'];
   const snapshot = draftNames.map(n => world.draft.getSheetByName(n).data.map(r => r.slice()));
 
-  assert.match(run('runConfirmPayment_')(['A1'], '26/09/2026'), /^✅/);
+  assert.match(run('runConfirmPayment_')(['A1'], '2026-09-26'), /^✅/);
   assert.equal(world.main.getSheetByName('ChiTietDNTT').rows().length - 1, 2);
   draftNames.forEach((n, i) => { world.draft.getSheetByName(n).data = snapshot[i].map(r => r.slice()); });
-  assert.match(run('runConfirmPayment_')(['A1'], '26/09/2026'), /^✅/);
+  assert.match(run('runConfirmPayment_')(['A1'], '2026-09-26'), /^✅/);
 
   assert.equal(world.main.getSheetByName('ChiTietDNTT').rows().length - 1, 2);
   assert.equal(world.updateNh.getSheetByName('Update_NganHang_DN').rows().length - 1, 2);
@@ -109,7 +109,7 @@ test('re-run is also safe when ChiTietDNTT had to be compensated (report never p
 
 test('runConfirmPayment skips records that are not confirmed yet', () => {
   const { world, run } = setup();
-  const msg = run('runConfirmPayment_')(['B2'], '26/09/2026');
+  const msg = run('runConfirmPayment_')(['B2'], '2026-09-26');
   assert.match(msg, /Chưa "Xác Nhận"/);
   assert.equal(world.main.getSheetByName('DNTT_GK_DN_CT').rows().length, 1);
 });
@@ -121,7 +121,7 @@ test('a weigh ticket already paid can never be paid again, even with a stale cac
   const { run } = loadCode(world.options);
   run('refreshPhieuCanUnpaidCache_')();
   const cacheCu = world.draft.getSheetByName('PhieuCan_DN_CHUA_TT_DRAFT').data.map(r => r.slice());
-  assert.match(run('runConfirmPayment_')(['A1'], '26/09/2026'), /^✅/);
+  assert.match(run('runConfirmPayment_')(['A1'], '2026-09-26'), /^✅/);
   world.draft.getSheetByName('PhieuCan_DN_CHUA_TT_DRAFT').data = cacheCu;
   run('_invalidateChunkedCache_')('pc_unpaid_data_v1');
 
@@ -139,14 +139,14 @@ test('a weigh ticket already paid can never be paid again, even with a stale cac
 test('approval skips a record that contains a ticket already paid in another record', () => {
   const world = buildWorld();
   const { run } = loadCode(world.options);
-  assert.match(run('runConfirmPayment_')(['A1'], '26/09/2026'), /^✅/);
+  assert.match(run('runConfirmPayment_')(['A1'], '2026-09-26'), /^✅/);
   // Hồ sơ B2 (tạo trước khi A1 được duyệt, dữ liệu cũ) lại chứa PC001 đã trả.
   const ct = world.draft.getSheetByName('DNTT_GK_DN_CT_DRAFT');
   ct.data.find(r => r[1] === 'B2')[11] = 'PC001';
   const h = world.draft.getSheetByName('DNTT_GK_DN_112_DRAFT');
   h.data.find(r => r[0] === 'B2')[23] = 'Đang ĐNTT';
   const truoc = world.main.getSheetByName('DNTT_GK_DN_CT').rows().slice(1).filter(r => r[11]).length;
-  const msg = run('runConfirmPayment_')(['B2'], '26/09/2026');
+  const msg = run('runConfirmPayment_')(['B2'], '2026-09-26');
   assert.match(msg, /^❌.*ĐÃ ĐƯỢC THANH TOÁN.*B2.*PC001/);
   assert.equal(world.main.getSheetByName('DNTT_GK_DN_CT').rows().slice(1).filter(r => r[11]).length, truoc, 'nothing was paid again');
 });
@@ -155,6 +155,8 @@ test('approving reads Phiếu Cân once and the day summary equals a full recalc
   const { world, run } = setup();
   const pcSheet = world.pc.getSheetByName('PhieuCan_DN');
   pcSheet.data.slice(1).forEach(r => { r[1] = new Date('2026-09-20T03:00:00Z'); r[13] = 'DL1'; r[14] = 'NG1'; });
+  // Sổ Phiếu Cân cỡ thật hơn (vài trăm phiếu khác): đọc theo khóa phải rẻ hơn hẳn đọc cả sổ.
+  for (let i = 0; i < 500; i++) { const r = new Array(28).fill(''); r[0] = 'X' + i; r[22] = 'X' + i; pcSheet.data.push(r); }
   // Khoản đã trả trước đó CÙNG ngày: phải có trong tổng thanh toán của ngày.
   const cu = new Array(22).fill(''); cu[0] = 'OLD-CT1'; cu[1] = 'OLD'; cu[11] = 'PC999'; cu[12] = 2; cu[16] = 3e6; cu[18] = 'Y'; cu[20] = new Date('2026-09-26T05:00:00Z');
   world.main.getSheetByName('DNTT_GK_DN_CT').data.push(cu);
@@ -165,7 +167,7 @@ test('approving reads Phiếu Cân once and the day summary equals a full recalc
   let oPhieuCan = 0;
   const goc = pcSheet.getRange.bind(pcSheet);
   pcSheet.getRange = (...a) => { const r = goc(...a); const gv = r.getValues.bind(r); r.getValues = () => { const v = gv(); oPhieuCan += v.length * v[0].length; return v; }; return r; };
-  assert.match(run('runConfirmPayment_')(['A1'], '26/09/2026'), /^✅/);
+  assert.match(run('runConfirmPayment_')(['A1'], '2026-09-26'), /^✅/);
   const soDong = pcSheet.getLastRow() - 1;
   assert.ok(oPhieuCan < 2 * soDong * run('PC_COT_CAN_DOC.length'), `Phiếu Cân must not be read in full twice (${oPhieuCan} cells)`);
 

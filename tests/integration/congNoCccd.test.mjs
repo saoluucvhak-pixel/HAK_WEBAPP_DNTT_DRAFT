@@ -76,6 +76,7 @@ test('comparison with the old name-only method: same total, lists what changed',
 test('the Công Nợ snapshot keeps CCCD leading zeros and an old-format snapshot is recomputed', () => {
   const { run, w } = world();
   const snap = () => w.draft.getSheetByName('CongNoKhachHang_DRAFT');
+  const { fDate: F, tDate: T } = run('_defaultCongNoRange_')(); // chỉ khoảng mặc định có bản tổng hợp
   const lan1 = run('getDebtByCustomer_')(F, T);
   const lan2 = run('getDebtByCustomer_')(F, T); // đọc lại từ snapshot
   assert.deepEqual(JSON.parse(JSON.stringify(lan2)), JSON.parse(JSON.stringify(lan1)));

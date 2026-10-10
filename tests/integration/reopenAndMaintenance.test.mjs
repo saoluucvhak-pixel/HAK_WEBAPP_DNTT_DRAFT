@@ -6,7 +6,7 @@ import { buildWorld, rowWasWritten } from '../gas/fixtures.mjs';
 function committedWorld() {
   const world = buildWorld();
   const { run } = loadCode(world.options);
-  const msg = run('runConfirmPayment_')(['A1'], '26/09/2026');
+  const msg = run('runConfirmPayment_')(['A1'], '2026-09-26');
   assert.match(msg, /^✅/, msg);
   Object.values(world).forEach(ss => ss && ss.sheets && ss.sheets.forEach(sh => { sh.writes = []; }));
   return { world, run };

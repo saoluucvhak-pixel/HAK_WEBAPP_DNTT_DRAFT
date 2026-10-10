@@ -18,5 +18,12 @@ export function loadCode(options = {}) {
   const env = createGasEnvironment(options);
   const context = vm.createContext({ ...env, Date, Math, JSON, Set, Map });
   vm.runInContext(SOURCE, context, { filename: 'Code.gs' });
-  return { env, run: expr => vm.runInContext(expr, context) };
+  // Trên Google mỗi lần gọi (1 lần bấm / 1 trigger) là 1 LƯỢT CHẠY mới: biến toàn cục (vd
+  // bộ nhớ trong lượt _DA_DOC_TRONG_LUOT_) bắt đầu trống. Mỗi lần test gọi 1 hàm cũng vậy.
+  const luotMoi = () => vm.runInContext("typeof _DA_DOC_TRONG_LUOT_ === 'object' && _DA_DOC_TRONG_LUOT_.clear()", context);
+  const run = expr => {
+    const v = vm.runInContext(expr, context);
+    return typeof v === 'function' ? (...a) => { luotMoi(); return v(...a); } : v;
+  };
+  return { env, run };
 }

@@ -26,7 +26,7 @@ Trạng thái: ✅ xong · 🟡 một phần · ⏳ chưa làm · ⚖️ cần n
 | H-08 | `ALLOWALL` iframe | 🚫 Giữ nguyên | Người dùng quyết định 26/09/2026: web app đang nhúng vào trang chủ |
 | H-09 | PII trong localStorage | 🚫 Giữ nguyên | Người dùng quyết định 26/09/2026: giữ (máy dùng riêng, ưu tiên gợi ý nhanh) |
 | H-10 | PII gửi Gemini | 🚫 Giữ nguyên | Người dùng quyết định 26/09/2026: không sửa |
-| H-11 | Audit thiếu user thật & before/after | 🟡 2026.7.0 | Đã ghi email thật cho mọi thao tác; before/after mới có ở Đồng bộ tên, Sửa tên KH, Phân quyền |
+| H-11 | Audit thiếu user thật & before/after | ✅ 2026.9.42 | Email thật mọi thao tác; trước → sau ở Sửa hồ sơ Nháp, Đồng bộ tên, Sửa tên KH, Phân quyền; thao tác hồ sơ hiện ở Lịch sử sửa đổi |
 | H-12 | Formula injection | ✅ 2026.7.4 | `_oAnToan_`/`_dongAnToan_` ở mọi chỗ ghi dữ liệu |
 | H-13 | `showAddPaymentDialog` trỏ file không tồn tại | ✅ 2026.7.5 | Cách B: mở Web App màn Tạo Mới (`?trang=taoMoi`) |
 | H-14 | Test tự động | ✅ 2026.6.0 | 68 test (2026.7.4); mở rộng dần mỗi Phase |
@@ -77,14 +77,55 @@ Trạng thái: ✅ xong · 🟡 một phần · ⏳ chưa làm · ⚖️ cần n
 - ✅ Khóa sổ năm (quy trình người dùng): kiểm chứng công nợ đầu năm = phiếu chưa trả mang sang (test `khoaSoNam`); không cần bộ nhớ đệm 6 tháng.
 - ✅ 2026.9.16: Nhật ký thao tác giữ dạng chữ cho Mã hồ sơ / mã lỗi (không mất số 0 đầu).
 - ✅ 2026.9.15: Hệ Thống › Dọn Dẹp MISA (trùng / mồ côi / tất cả trong khoảng Ngày CK), xem trước + sao lưu. UNC không cần nút xóa riêng (xem CHANGELOG).
+- ✅ 2026.9.44: Rà soát toàn bộ mã nguồn (`docs/RA_SOAT_2026-09-28.md`) - sửa: chặn Xác nhận / In / UNC / Duyệt hồ sơ lệch tiền sau Thêm / Bỏ phiếu cân; Xuất Báo Cáo đọc lại từ sổ; bộ nhớ đệm chia theo byte; đổi link chỉ theo khai báo; nhật ký cấu hình. Người dùng quyết định 28/09/2026: đối chiếu STK với HD_STK khi Lưu / Sửa → làm ở 2026.9.45; tách quyền Lập / Duyệt và mã xác nhận đăng nhập nhúng → không làm; quyền "Cập nhật ngay" của tài khoản Chỉ xem và H-01/H-08/H-09/H-10 → giữ như cũ.
+- ✅ 2026.9.45: ⚖️ Lưu / Sửa hồ sơ chỉ nhận Số tài khoản có trong HD_STK của đúng hợp đồng (S-03).
+- ✅ 2026.9.46: ⚖️ P-02 màn chỉ xem không chờ đồng bộ; sửa B-11 (mã hồ sơ trùng), B-12 (Mở Đóng TT nuốt lỗi dọn), B-13 (báo cáo nuốt lỗi đọc sổ), B-14 (Về Chờ ĐNTT khi đã có UNC), B-15 (Chi tiết giữ dòng mới nhất), B-16 (Ghi chú 112 theo Vùng xuất).
+- ✅ 2026.9.47: ⚖️ B-10 dòng MISA 1 kiểu như Duyệt; ⚖️ báo cáo Excel ghi ngày thật theo Vùng xuất (mẫu nhập UNC / XuatMISA giữ chữ); sửa dòng Báo cáo ĐNTT giãn; P-04, P-05, P-06, P-07, P-08, P-10; giao diện U-03…U-08.
+- Không làm (người dùng không chọn 28/09/2026): P-09; bảo mật S-10…S-13.
+- ✅ 2026.9.50: Xuất Excel + PDF cho Công nợ theo Khách hàng, theo Hợp đồng và Sổ chi tiết công nợ; ghi rõ người nhận email kiểm tra đêm (Quản trị) cạnh nút bật.
+- ✅ 2026.9.49: nâng cấp #1 tự tính tiền, #3 hộp xác nhận, #4 lịch sử hồ sơ, #5 kiểm tra đêm + email, #6 hoàn tất Duyệt dở, #7 tuổi nợ + xu hướng, #8 tìm nhanh, #9 lưu nháp Tạo Mới, #10 tên trạng thái, #11 Hệ Thống 2 tab, #12 nhãn Lưu, #13 đối chiếu sao kê, #14 VietQR, #15 CI, #16 dọn chú thích. Không làm #2 (thông báo người duyệt - người dùng bỏ).
+- ✅ 2026.9.54: Bỏ phiếu cân dọn ChiTietDNTT (phiếu cuối: như Xóa hồ sơ); Duyệt so ChiTietDNTT theo từng phiếu (phiếu đã bỏ không thành Y / không vào MISA, phiếu thêm sau In được tính bù). Dòng mồ côi cũ (vd 96c36b58 / 10034) xóa ở Bảo Trì.
+- ✅ 2026.9.57: Bảo Trì › "Phiếu cân đã thanh toán nhưng chưa khóa" + nút Khóa lại (7 phiếu chốt 30/07/2026 còn "Đã Lập ĐNTT" / "N" - Duyệt bản cũ ghi đè cả sheet Phiếu Cân cùng lúc công cụ khác ghi; nguồn ghi "Đã Lập ĐNTT" không có trong app). Người dùng cần bấm Khóa lại.
+- ✅ 2026.9.56: tối ưu hiệu năng theo SYS_HieuNang thật - Danh Sách ĐNTT −85%, Xác nhận −82%, In −77%, Tính lại −74%, trigger 10 phút −72% (bỏ qua file không đổi), Duyệt −68%, Trang chủ −68%, MISA −66%, Tạo mới −61% số ô đọc (sổ 1 năm). Chưa làm: Công nợ làm mới (người dùng chấp nhận chậm).
+- ✅ 2026.9.55: Integrity Gate (Xác nhận / In / UNC / Duyệt): ID_CT trùng, phiếu ở 2 hồ sơ, sai chủ phiếu, tập phiếu đơn xin ≠ CT, KG, giá Phiếu Cân đổi, tiền; sửa gốc ID_CT trùng và đơn xin không cập nhật; Bảo Trì 3 mục toàn vẹn + CSV. Còn chờ: mã hồ sơ + nhật ký ca lệch 1.000đ và 9636702c để xác nhận nguyên nhân dữ liệu cũ.
+- ✅ 2026.9.53: mã hồ sơ mới không bao giờ toàn chữ số / dạng số mũ (trước ~1/70 lần tạo, hồ sơ có thể không tìm lại được theo mã; cũng là nguyên nhân 1 test lúc qua lúc hỏng).
+- ✅ 2026.9.52: Ghi chú sổ 112 có "SL HĐ" (SL hợp đồng dự kiến) đứng đầu cho mọi hồ sơ.
+- ✅ 2026.9.51: làm lại giao diện trên tông màu cũ - thanh bên theo nhóm + thu gọn + ngăn kéo điện thoại, thanh tiêu đề có đường dẫn, thành phần đồng bộ, Trang chủ 2 cột, Danh Sách ĐNTT vừa màn hình; sửa thanh "Đi nhanh" xếp dọc.
+- Còn lại (dài hạn, chưa yêu cầu): tách Code.gs theo lớp, đọc cột theo tên tiêu đề (H-01 đã từ chối), chuyển DB sang PostgreSQL khi thương mại hóa.
+- ✅ 2026.9.43: Tạo lại UNC theo Ngày CK. Ô ký phiếu PDF giữ Người lập phiếu / Kế toán trưởng / Giám đốc (người dùng chọn giữ nguyên 28/09/2026).
+- ✅ 2026.9.42: Công nợ mở bằng bản tổng hợp (Làm mới khi cần); thanh Đi nhanh cho trang dài; nhật ký trước → sau cho thao tác hồ sơ.
+- ✅ 2026.9.41: Trang chủ — ô số liệu dạng nút mở thẳng màn hình; tab “Đã có số tiền” ở Danh Sách ĐNTT.
+- ✅ 2026.9.40: Thiết kế lại giao diện — 1 font Inter, thang cỡ chữ 1 chỗ, Trang chủ dạng bước + nhóm số liệu.
+- ✅ 2026.9.39: Trang chủ — Quy trình thanh toán 5 bước lên đầu trang (chung nội dung với Hướng Dẫn).
+- ✅ 2026.9.38: Danh Sách ĐNTT — tổng tiền đang đề nghị, tổng theo khách hàng, lọc tên khách hàng.
+- ✅ 2026.9.37: Trigger đang chạy → thông báo, thao tác chờ đồng bộ xong rồi tự chạy.
+- ✅ 2026.9.36: Làm mới bản sao chỉ ghi khi dữ liệu đổi (File Nháp bớt bận, Danh Sách ĐNTT không phải chờ). ⏳ Theo dõi Hệ Thống › Hiệu Năng: nếu còn chức năng nhẹ bị quá giờ, xem các chức năng nặng chạy cùng thời điểm.
+- ✅ 2026.9.35: Báo Cáo Thanh Toán — bấm dòng khách hàng xem phiếu hoàn thành trước khi in.
+- ✅ 2026.9.34: Kiểm tra hiệu năng lần 2 — Duyệt, MISA, trigger bớt đọc lại sổ (xem CHANGELOG). ⏳ Người dùng đo thời gian thật ở Hệ Thống › Hiệu Năng. Còn lại nặng nhất: báo cáo Công Nợ (~1,2 triệu ô, cần toàn bộ lịch sử).
+- ✅ 2026.9.33: ⚖️ Báo Cáo Thanh Toán (Gỗ Keo, Chi Tiết, MISA, UNC) chỉ trong phạm vi 1 tháng. Người dùng xác nhận 28/09/2026: "1 tháng" = khoảng 1 tháng bất kỳ (không theo tháng lịch); KHÔNG áp dụng cho báo cáo Công Nợ.
+- ✅ 2026.9.32: Đo lại hiệu năng Báo Cáo TT / Chi Tiết (xem CHANGELOG); xuất Excel Chi Tiết đủ dòng (tối đa 30.000). ⏳ Người dùng đo thời gian thật ở Hệ Thống › Hiệu Năng sau khi triển khai.
+- ✅ 2026.9.31: Phiếu PDF luôn có Nội dung chuyển khoản + Ghi chú; tự điền Nội dung CK chuẩn khi sổ trống.
+- ✅ 2026.9.30: Bảng Kê Chi Tiết CK từ ChiTietDNTT; Báo cáo Chi Tiết lọc theo Ngày CK; nút In phiếu hoàn thành thanh toán (Ngày CK). ⏳ Hồ sơ cũ chưa có ChiTietDNTT: chạy Hệ Thống › Đồng Bộ Lịch Sử để Bảng Kê và tab Chi Tiết đầy đủ.
+- ✅ 2026.9.29: Xuất báo cáo / MISA chỉ đọc dòng cần (không đọc cả sổ CT, cả file Phiếu Cân); Dọn Dẹp UNC. ⏳ Người dùng đo lại thời gian Xuất Báo Cáo trên Google thật (Hệ Thống › Hiệu Năng).
+- ✅ 2026.9.28: Xuất Báo Cáo ĐNTT nhanh lại (lỗi chậm từ 2026.9.25); font web đồng bộ; nút in phiếu chi tiết thanh toán PDF. ⏳ Kiểm chứng trên Google thật: chuyển HTML → PDF (`getAs`) hiển thị đúng tiếng Việt; người dùng xác nhận các ô ký trên phiếu.
+- ✅ 2026.9.27: Quy tắc căn lề toàn web app (mọi file xuất + mọi bảng web).
+- ✅ 2026.9.26: Báo Cáo ĐNTT — Nội dung CK luôn 2 dòng; tên/chuỗi căn trái, số căn phải (2 sheet).
+- ✅ 2026.9.25: Bảng Đề Xuất — Ghi chú 2 mục/dòng, cột vừa phải, chiều cao dòng đủ chữ.
+- ✅ 2026.9.24: SL dự kiến hợp đồng = tổng lô rừng HD_RUNG (app Hợp Đồng để cột Z = 0). 🟡 App Hợp Đồng (HDMB_HAK) ghi cột Z: người phụ trách đã sửa, chưa triển khai (28/09/2026). App này không cần đổi — vẫn ưu tiên tổng lô rừng, rồi tới cột Z.
+- ✅ 2026.9.23: Ghi sổ ChiTietDNTT/ChiTietUNC bằng Date theo Vùng Lãnh Thổ; file xuất theo Vùng xuất. ⏳ Người dùng soát cột Ngày hiệu lực các dòng ChiTietUNC cũ (ngày ≤ 12 có thể bị Sheets đọc lộn).
+- ✅ 2026.9.22: Quy định định dạng ngày giờ (web VN / Sheet theo Vùng Lãnh Thổ / xuất theo Vùng xuất) — mọi ô ngày web dd/mm/yyyy.
+- ✅ 2026.9.21: Ô ngày Duyệt gõ dd/mm/yyyy cố định + nút lịch (trình duyệt tiếng Anh hiện tháng/ngày).
+- ✅ 2026.9.20: Tiêu chuẩn vùng US (Google Sheet) / VN (xuất MISA); Vùng xuất mặc định VN. ⏳ Người dùng kiểm tra Update_NganHang_DN có dòng cũ dạng mm/dd/yyyy không (nếu Vùng xuất từng để trống).
+- ✅ 2026.9.19: Duyệt chọn ngày bằng lịch; máy chủ từ chối ngày không có thật (lỗi 26/09/2026 → 09/02/2028 khi Vùng lãnh thổ = US).
+- ✅ 2026.9.18: Tạo lại MISA chọn theo Ngày CK (trước theo Ngày ĐN - lệch với Báo Cáo MISA). ✅ 2026.9.43: Tạo lại UNC cũng chọn theo Ngày CK (người dùng đồng ý 28/09/2026).
 - ✅ Kiểm chứng: trigger không bị phân quyền chặn (test `triggers.test.mjs`).
-- ✅ Kiểm chứng: cờ “đang khóa sổ” trên file Phiếu Cân đặt/gỡ đúng (test `luuTruNam`). ⏳ Phía QL_NHAPKHO (dự án khác) cần đọc cờ theo quy ước trong Code.gs (khóa, DOCUMENT, hết hiệu lực sau 10 phút).
+- ✅ Kiểm chứng: cờ “đang khóa sổ” trên file Phiếu Cân đặt/gỡ đúng (test `luuTruNam`). ✅ Đã đọc mã QL_NHAPKHO (28/09/2026): đọc cờ đúng quy ước.
 - ✅ 2026.9.17: Báo Cáo MISA cảnh báo phiếu đã chốt chưa có dòng MISA + nút “Tạo bổ sung”. Mở Đóng TT vẫn xóa dòng MISA (người dùng chọn không giữ).
 - ✅ 2026.9.14: Tạo lại UNC thay dòng cũ trong ChiTietUNC; Báo Cáo UNC mỗi hồ sơ 1 dòng (mới nhất).
 - ✅ 2026.9.13: Xuất MISA theo ngày trở lại đúng mẫu nhập MISA 33 cột như bản 2026.8 (+ sheet tóm tắt).
 - ✅ 2026.9.7 → 2026.9.12 (cập nhật trực tiếp trên main): an toàn Mở Đóng TT, chặn trùng phiếu trong lượt Duyệt, số dạng chữ VN, cờ khóa sổ cho QL_NHAPKHO, giao diện tối / bàn phím, bỏ webhook — xem CHANGELOG.
 - ✅ 2026.9.6: Ngày đề nghị ở Danh sách ĐNTT, % tiến độ màn hình chờ, Hệ Thống › Hiệu Năng (đo thật), Duyệt bớt 1 lượt đọc Phiếu Cân + CT.
-- ⏳ Sau 1–2 tuần dùng: xem Hệ Thống › Hiệu Năng để quyết định tối ưu tiếp (trigger 7:30 đọc Phiếu Cân/CT 2 lần; Công nợ/Sổ chi tiết đọc toàn bộ).
+- ⏳ Sau 1–2 tuần dùng: xem Hệ Thống › Hiệu Năng để quyết định tối ưu tiếp (trigger đọc 2 lần đã sửa ở 2026.9.34; còn Công nợ/Sổ chi tiết đọc toàn bộ lịch sử).
 - ✅ 2026.9.5: Đăng nhập khi nhúng trong trang chủ (cửa sổ nhỏ, không rời trang chủ).
 - ⏳ Kiểm chứng trên Google thật: đăng nhập từ trang chủ nhúng (popup, tự đóng cửa sổ) sau khi dán lại mã Cổng.
 - ✅ 2026.9.4: Vai trò Kế toán tổng hợp (Kế toán + toàn bộ Hệ Thống, không Cài đặt).

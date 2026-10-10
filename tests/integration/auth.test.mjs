@@ -230,7 +230,7 @@ test('view-only role cannot run business actions', () => {
   const phien = openApp(run, actAs, loginThroughGateway(run, actAs, XEM)).phien;
   assert.ok(run('api')(phien, 'getAppSetupStatus', []));
   assert.throws(() => run('api')(phien, 'createNewPaymentRequest', [{}]), /^Error: \[QUYEN\]/);
-  assert.throws(() => run('api')(phien, 'webConfirmPayment', [['A1'], '26/09/2026']), /^Error: \[QUYEN\]/);
+  assert.throws(() => run('api')(phien, 'webConfirmPayment', [['A1'], '2026-09-26']), /^Error: \[QUYEN\]/);
 });
 
 test('login links are single-use, expire, and cannot be forged', () => {

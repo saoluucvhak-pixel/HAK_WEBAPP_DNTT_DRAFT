@@ -24,7 +24,12 @@
 | Làm mới 10 phút | 5 | 0,48 triệu | 112 nghìn | Bản sao phiếu cân chưa TT + hợp đồng. Chạy nền |
 | Công nợ HĐ (khoảng khác mặc định) | 3 | 0,37 triệu | 24 nghìn | Sổ CT + 112 mọi năm |
 | Tổng hợp 112 | 2 | 0,31 triệu | 4 nghìn | |
-| Báo cáo MISA | 2 | 0,26 triệu | 0 | |
+| Duyệt 1 hồ sơ (2026.9.34) | 3 | 1,41 triệu (9.27: 2,91 triệu) | 18 nghìn (9.27: 298 nghìn) | Đọc Phiếu Cân + sổ CT 1 lần; ChiTietDNTT / bản sao chưa TT chỉ dòng liên quan |
+| Trigger 7:30 / 15h (2026.9.34) | 6 / 2 | 1,54 / 1,16 triệu (9.27: 2,70 / 2,32 triệu) | 387 / 151 nghìn | Mỗi sổ đọc 1 lần trong lượt dù không vừa bộ nhớ đệm |
+| Xuất Báo Cáo TT 1.648 hồ sơ (2026.9.32) | 1 | 370 nghìn | file mới | 169 lời gọi Google, không tăng theo số hồ sơ (9.27: 1.790) |
+| Báo cáo Chi Tiết xem 7 ngày / xuất 3 tháng (2026.9.32) | 0 | 37 / 205 nghìn | file mới | Chỉ đọc dòng ChiTietDNTT có Ngày CK trong khoảng (9.27: 560 nghìn ô mỗi lần) |
+| Xuất Báo Cáo TT 30 hồ sơ (2026.9.29) | 1 | 57 nghìn (trước: 1,16 triệu) | file mới | Chỉ đọc dòng CT của hồ sơ chọn + phiếu cân của chúng (đo trên 30.000 phiếu / 20.000 dòng CT) |
+| Báo cáo MISA (2026.9.29) | 2 | 58 nghìn (trước: 0,44 triệu) | 0 | Chỉ đọc dòng CT có Ngày CK trong khoảng (cùng bộ dữ liệu) |
 | Chọn phiếu cân (Tạo mới) | 1 | 97 nghìn | 0 | Đọc bản sao "chưa TT" ở File Nháp |
 | Báo cáo thanh toán 3 tháng | 1 | 53 nghìn | 0 | Đọc từ cuối sheet 112, dừng sớm |
 | Trang chủ, Danh sách ĐNTT | 0 | 17 nghìn | 0 | Chỉ File Nháp + bản tổng hợp |
@@ -39,3 +44,21 @@
 - **Duyệt**: bỏ lượt đọc lại toàn bộ Phiếu Cân và sổ CT khi cập nhật Phân Tích ngày TT
   (dùng dữ liệu vừa đọc ở đầu lượt Duyệt) — 1,44 → 0,82 triệu ô. Test đối chiếu số liệu
   Phân Tích với tính lại từ đầu.
+
+## 2026.9.56 - tối ưu theo số đo thật (SYS_HieuNang 27/09-03/10)
+
+Số đo thật 7 ngày (lượt bị ghi chậm): trigger 10 phút 403 lượt × 14,2 s; Tạo mới 194 lượt × 14,6 s; Làm mới cache 37 s; Duyệt 52 s; Báo cáo MISA 23,6 s. Đo lại bằng `tests/perf/doHieuNang.mjs`, sổ 1 năm, không bộ nhớ đệm (như thực tế):
+
+| Thao tác | Trước (lượt / ô đọc) | Sau | Giảm |
+|---|---|---|---|
+| Trigger 10 phút | 6 / 253k | 7 / 71k (0 khi file nguồn không đổi) | 72% |
+| Danh Sách ĐNTT | 9 / 441k | 10 / 68k | 85% |
+| Tạo mới hồ sơ | 46 / 287k | 20 / 112k | 61% |
+| Tính lại số tiền | 39 / 278k | 13 / 73k | 74% |
+| Xác nhận 5 hồ sơ | 12 / 442k | 15 / 79k | 82% |
+| In Báo Cáo ĐNTT 5 hồ sơ | 30 / 482k | 31 / 109k | 77% |
+| Duyệt 5 hồ sơ | 42 / 704k | 48 / 226k | 68% |
+| Báo cáo MISA 1 tháng | 7 / 357k | 8 / 123k | 66% |
+| Trang chủ (có tính Phân Tích hôm nay) | 16 / 441k | 25 / 143k | 68% |
+
+Nguyên nhân chung: đọc cả sheet (mọi cột, mọi dòng) trong khi chỉ cần vài cột hoặc vài chục dòng; bản đủ cột của sổ CT / Phiếu Cân 1 năm gần chạm hoặc vượt giới hạn bộ nhớ đệm và chỉ giữ 90 giây. Test `hieuNang2026_9_56.test.mjs`: kết quả giống hệt cách đọc cũ + giới hạn số ô đọc (7/7 thất bại trên bản 2026.9.55).

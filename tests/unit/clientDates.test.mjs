@@ -24,3 +24,15 @@ test('the client has no UTC-based date defaults left', () => {
   assert.doesNotMatch(INDEX, /new Date\(\)\.toISOString\(\)/);
   assert.doesNotMatch(INDEX, /\bisoDaysAgo\(/);
 });
+
+test('the payment date box always reads day/month/year, whatever the browser language or region', () => {
+  const c = vm.createContext({ Date });
+  vm.runInContext(['_vnSangIso', '_isoSangVN'].map(clientFunction).join('\n'), c);
+  for (const [go, iso] of [['26/09/2026', '2026-09-26'], ['26-9-2026', '2026-09-26'], ['26.09.2026', '2026-09-26'], ['26092026', '2026-09-26'], [' 1/10/2026 ', '2026-10-01']]) {
+    assert.equal(c._vnSangIso(go), iso, go);
+  }
+  for (const sai of ['09/26/2026', '31/02/2026', '0/1/2026', '26/09/26', '2026-09-26', '', 'abc', '26/09/1999']) {
+    assert.equal(c._vnSangIso(sai), '', sai); // tháng 26, ngày không có thật... -> không gửi đi
+  }
+  assert.equal(c._isoSangVN('2026-09-26'), '26/09/2026');
+});
