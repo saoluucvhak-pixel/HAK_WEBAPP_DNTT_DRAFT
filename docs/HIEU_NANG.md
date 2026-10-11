@@ -62,3 +62,7 @@ Số đo thật 7 ngày (lượt bị ghi chậm): trigger 10 phút 403 lượt 
 | Trang chủ (có tính Phân Tích hôm nay) | 16 / 441k | 25 / 143k | 68% |
 
 Nguyên nhân chung: đọc cả sheet (mọi cột, mọi dòng) trong khi chỉ cần vài cột hoặc vài chục dòng; bản đủ cột của sổ CT / Phiếu Cân 1 năm gần chạm hoặc vượt giới hạn bộ nhớ đệm và chỉ giữ 90 giây. Test `hieuNang2026_9_56.test.mjs`: kết quả giống hệt cách đọc cũ + giới hạn số ô đọc (7/7 thất bại trên bản 2026.9.55).
+
+## 2026.9.59 - khởi động trang trong trình duyệt
+
+Mở web app trước đây đi 3 lượt gọi máy chủ NỐI TIẾP (thongTinDangNhap → getAppSetupStatus → getDashboardStats); mỗi lượt Apps Script ~1-2 giây chỉ để khởi động. Nay: trạng thái cài đặt đi kèm thongTinDangNhap; đã có phiên thì Trang chủ gọi song song; Trang chủ hiện số liệu lần trước ngay; Danh Sách ĐNTT nạp sẵn ngầm (dùng 1 lần trong 60 giây, bỏ khi có thao tác ghi). Mô phỏng (0,8 s / lượt, Trang chủ 2,4 s): 4,1 s → 2,5 s; mở lại ~0,8 s. Test `tests/ui/tocDoMoTrang.ui.mjs`.

@@ -2,6 +2,29 @@
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/). Phiên bản theo `NĂM.ĐỢT.SỬA`; thay đổi làm đổi hành vi nghiệp vụ (⚖️) sẽ tăng số ĐỢT và ghi rõ đã được người dùng đồng ý.
 
+## [2026.9.59] — Mở web app nhanh hơn (người dùng yêu cầu 11/10/2026: "webapp tải chậm")
+
+Mỗi lượt trình duyệt gọi Apps Script tốn ~1-2 giây chỉ để khởi động (Code.gs ~700 KB nạp lại mỗi lượt). Trước đây mở web app phải đi **3 lượt nối tiếp** (xác định người dùng → trạng thái cài đặt → số liệu Trang chủ) mới có số. Phía máy chủ đã tối ưu ở 2026.9.56; bản này tối ưu phần khởi động trong trình duyệt. Không đổi nghiệp vụ, số liệu hay sheet.
+
+### Changed
+- **Bớt 2 lượt chờ khi mở trang:**
+  - Trạng thái "đã kết nối File Chính" trả kèm bước xác định người dùng (`thongTinDangNhap` - chỉ đọc 1 thuộc tính, không đọc sheet), bỏ lượt `getAppSetupStatus`.
+  - Đã có phiên (mở lại / tải lại trang): số liệu Trang chủ được gọi **song song** với bước xác định người dùng thay vì đợi xong mới gọi.
+- **Trang chủ hiện ngay số liệu lần trước** (lưu trên máy này theo tài khoản) với dòng "⏳ Đang cập nhật - tạm hiện số liệu lúc …", rồi thay bằng số mới khi về. Đăng xuất thì xóa số đã lưu.
+- **Danh Sách ĐNTT nạp sẵn ngầm** sau khi Trang chủ hiện (người có quyền Kế toán) - bấm sang là hiện ngay. Dữ liệu nạp sẵn chỉ dùng 1 lần trong 60 giây, và bị bỏ ngay khi có bất kỳ thao tác nào không phải đọc (Tạo, Sửa, Duyệt…) để không bao giờ hiện danh sách cũ sau khi ghi. Lỗi khi nạp ngầm (phiên hết hạn, đang đồng bộ…) thì màn hình gọi lại như cũ - xử lý lỗi, chờ đồng bộ không đổi.
+
+### Đo (mô phỏng mỗi lượt gọi 0,8 giây, Trang chủ 2,4 giây)
+| | 2026.9.58 | 2026.9.59 |
+|---|---|---|
+| Mở trang → có số Trang chủ | 4,1 giây | 2,5 giây |
+| Mở lại (số đã lưu) | 4,1 giây | ~0,8 giây |
+| Sang Danh Sách ĐNTT | chờ 1 lượt gọi | tức thì |
+
+### Tests
+- `tests/ui/tocDoMoTrang.ui.mjs` (4, Playwright): Trang chủ sau 1 lượt chờ, không gọi `getAppSetupStatus`; Danh Sách ĐNTT nạp sẵn không gọi lại; mở lại hiện số đã lưu trước rồi thay số mới; đăng xuất xóa số đã lưu. Trên bản 2026.9.58: 4/4 thất bại.
+- `sua2026_9_58.test.mjs` +1: `thongTinDangNhap` trả `mainSetup` cho người đã đăng nhập, không trả cho người lạ.
+- 328 test Node + 9 test giao diện đạt.
+
 ## [2026.9.58] — Sửa 3 lỗi tìm thấy khi rà soát 9.17 → 9.57 (người dùng yêu cầu 11/10/2026)
 
 ### Fixed

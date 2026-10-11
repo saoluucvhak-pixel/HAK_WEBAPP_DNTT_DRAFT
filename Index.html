@@ -748,7 +748,7 @@
     </nav>
     <div class="nguoi-dung-chip" id="nguoi-dung-chip"></div>
     <div class="sidebar-footer">
-      <span class="phien-ban">Quản Lý Thanh Toán · v2026.9.58</span>
+      <span class="phien-ban">Quản Lý Thanh Toán · v2026.9.59</span>
       <span class="chan-nut">
         <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Đổi giao diện sáng / tối">🌓 Giao diện: Tự động</button>
         <button type="button" class="nut-thu-gon" id="nut-thu-gon" aria-label="Thu gọn thanh bên" title="Thu gọn / mở rộng thanh bên"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 6-6 6 6 6"/></svg></button>
@@ -1226,6 +1226,8 @@ function apDungQuyenGiaoDien(){
 }
 function dangXuatWeb(){
   const phien = PHIEN;
+  _boNapTruoc_();
+  _xoaTrangChuDaLuu_();
   google.script.run.withSuccessHandler(() => {}).withFailureHandler(() => {}).dangXuat(phien);
   state.nguoiDung = Object.assign({}, state.nguoiDung, { daDangNhap: false, quyen: [] });
   _xoaNhapTaoMoi_();
@@ -1234,6 +1236,8 @@ function dangXuatWeb(){
 
 /** Gọi server qua cửa api (kèm phiên) - Promise hóa + loading overlay. */
 function call(fnName, args, loadingMsg){
+  // 2026.9.59: thao tác không phải đọc (có thể ghi) -> bỏ dữ liệu nạp sẵn, màn hình sau đọc lại mới.
+  if (!/^get/.test(fnName)) _boNapTruoc_();
   return new Promise((resolve, reject) => {
    const goi = () => {
     // SỬA LỖI (theo yêu cầu - "hay bị load khi đổi menu, không biết sao"):
@@ -1269,6 +1273,32 @@ function call(fnName, args, loadingMsg){
    goi();
   });
 }
+
+/* ---------- Nạp trước (2026.9.59 - tốc độ mở trang) ----------
+ * Mỗi lượt gọi Apps Script tốn ~1-2 giây chỉ để khởi động. Trước đây mở web app phải đi 3 lượt NỐI
+ * TIẾP (đăng nhập -> trạng thái cài đặt -> Trang chủ). Nay: đã có phiên thì gọi Trang chủ SONG SONG
+ * với bước đăng nhập; trạng thái cài đặt đi kèm bước đăng nhập; Danh Sách ĐNTT nạp sẵn ngầm sau khi
+ * Trang chủ hiện. Lời gọi ngầm lỗi (phiên hết hạn, đang đồng bộ...) thì bỏ qua - màn hình gọi lại
+ * bằng call() như cũ nên mọi xử lý lỗi / chờ đồng bộ giữ nguyên. */
+const NAP_TRUOC_HAN_MS = 60 * 1000; // dữ liệu nạp sẵn chỉ dùng trong 60 giây, và chỉ dùng 1 lần
+const _napTruoc_ = {};
+function _goiNgam_(fnName, args){
+  return new Promise((ok, loi) => google.script.run.withSuccessHandler(ok).withFailureHandler(loi).api(PHIEN, fnName, args || []));
+}
+function _batDauNapTruoc_(khoa, fnName){
+  if (!PHIEN) return;
+  const p = _goiNgam_(fnName, []);
+  p.catch(() => {}); // lỗi để màn hình tự gọi lại
+  _napTruoc_[khoa] = { p, luc: Date.now() };
+}
+/** Lấy dữ liệu nạp sẵn (nếu còn mới) - không có / lỗi thì gọi như bình thường. */
+function _layNapTruoc_(khoa, fnName, args, loadingMsg){
+  const n = _napTruoc_[khoa];
+  delete _napTruoc_[khoa];
+  if (n && Date.now() - n.luc < NAP_TRUOC_HAN_MS) return n.p.catch(() => call(fnName, args, loadingMsg));
+  return call(fnName, args, loadingMsg);
+}
+function _boNapTruoc_(){ Object.keys(_napTruoc_).forEach(k => delete _napTruoc_[k]); }
 
 /* ---------- Chờ đồng bộ (người dùng yêu cầu 28/09/2026) ----------
  * Trigger cập nhật dữ liệu đang chạy -> máy chủ không chạy thao tác mà trả LOI_DONG_BO kèm
@@ -1814,7 +1844,40 @@ function renderDashboard(){
 `;
 
   // Không che cả màn hình: từng ô tự hiện khi có số, người dùng vẫn chuyển trang được.
-  call('getDashboardStats', [], null).then(s => {
+  // 2026.9.59: hiện ngay số liệu lần trước (lưu trên máy này), rồi thay bằng số mới khi về.
+  const cu = _docTrangChuDaLuu_();
+  if (cu) _veTrangChu_(cu.s, cu.luc);
+  _layNapTruoc_('trangChu', 'getDashboardStats', [], null).then(s => {
+    if (!document.getElementById('s-draft')) return; // đã chuyển sang trang khác
+    _luuTrangChu_(s);
+    _veTrangChu_(s, 0);
+    // Nạp sẵn Danh Sách ĐNTT (trang hay mở tiếp theo) - chạy ngầm, không che màn hình.
+    if (coQuyen('NGHIEP_VU')) _batDauNapTruoc_('dsDntt', 'getDraftListSummary');
+  }).catch(() => {
+    const dangCu = document.getElementById('dash-dang-cu');
+    if (dangCu && dangCu.textContent) dangCu.textContent = dangCu.textContent.replace('⏳ Đang cập nhật - tạm hiện', '⚠️ Chưa tải được số mới - đang hiện') + ' (bấm Trang chủ để thử lại)';
+  });
+}
+/* Lưu số liệu Trang chủ lần gần nhất trên máy này (theo tài khoản) - chỉ để hiện ngay khi mở lại;
+ * luôn được thay bằng số mới tải về. Lưu trữ bị chặn thì bỏ qua. Đăng xuất thì xóa. */
+const TRANG_CHU_KHOA = 'hak_trang_chu_v1';
+function _luuTrangChu_(s){
+  try { localStorage.setItem(TRANG_CHU_KHOA, JSON.stringify({ email: (state.nguoiDung && state.nguoiDung.email) || '', luc: Date.now(), s })); } catch (e) { /* bỏ qua */ }
+}
+function _docTrangChuDaLuu_(){
+  try {
+    const j = JSON.parse(localStorage.getItem(TRANG_CHU_KHOA) || 'null');
+    return j && j.s && j.email && j.email === ((state.nguoiDung && state.nguoiDung.email) || '') ? j : null;
+  } catch (e) { return null; }
+}
+function _xoaTrangChuDaLuu_(){ try { localStorage.removeItem(TRANG_CHU_KHOA); } catch (e) { /* bỏ qua */ } }
+/** Vẽ số liệu Trang chủ. lucCu > 0: đang hiện số liệu lưu lần trước (lúc lucCu) trong khi chờ số mới. */
+function _veTrangChu_(s, lucCu){
+    const el = id => document.getElementById(id);
+    if (!el('s-draft')) return;
+    let dangCu = el('dash-dang-cu');
+    if (!dangCu) { dangCu = document.createElement('div'); dangCu.id = 'dash-dang-cu'; dangCu.className = 'hint-text'; el('dash-stats').before(dangCu); }
+    dangCu.textContent = lucCu ? `⏳ Đang cập nhật - tạm hiện số liệu lúc ${new Date(lucCu).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })} ${new Date(lucCu).toLocaleDateString('vi-VN')}` : '';
     document.getElementById('s-draft').textContent = s.draftCount;
     document.getElementById('s-ready').textContent = s.draftReady;
     document.getElementById('s-pending').textContent = s.draftPending;
@@ -1835,7 +1898,7 @@ function renderDashboard(){
     document.getElementById('dash-top5-no').innerHTML = _renderDashTop5NoTable_(s.top5KhachHangNo);
     _veTuoiNo_(s.tuoiNo);
     _veXuHuong_(document.getElementById('dash-xu-huong'), s.xuHuong30Ngay || []);
-    if (s.canhBao && s.canhBao.length) toast('⚠️ Trang chủ thiếu số liệu - ' + s.canhBao.join(' · '), 'warn');
+    if (!lucCu && s.canhBao && s.canhBao.length) toast('⚠️ Trang chủ thiếu số liệu - ' + s.canhBao.join(' · '), 'warn');
     const kt = s.kiemTraDem, ktBox = document.getElementById('dash-kiem-tra-dem');
     if (ktBox) ktBox.innerHTML = kt && kt.tong ? `<div class="card" style="border-color:var(--danger);background:var(--danger-light)">
       <b>⚠️ Kiểm tra dữ liệu lúc ${esc(kt.luc)} phát hiện ${kt.muc.length} loại vấn đề:</b>
@@ -1854,7 +1917,6 @@ function renderDashboard(){
     // lại refreshBadge() (trước đây gọi thêm 1 lượt getDashboardStats()
     // NỮA - tính lại TOÀN BỘ Trang chủ lần 2 chỉ để lấy đúng con số đã có).
     _setDraftBadgeUI_(s.draftCount);
-  });
 }
 
 /* ============================================================
@@ -2664,7 +2726,7 @@ function hoanTatDuyetDoDang(){
 }
 function loadDraftList(){
   kiemTraDuyetDoDang();
-  call('getDraftListSummary', [], 'Đang tải Danh Sách ĐNTT...').then(list => {
+  _layNapTruoc_('dsDntt', 'getDraftListSummary', [], 'Đang tải Danh Sách ĐNTT...').then(list => {
     state.draftList = list;
     state.draftSelected.clear();
     renderDraftTable();
@@ -6212,8 +6274,11 @@ function chatbotGuiCauHoi(){
 const MO_THANG = {
   taoMoi: { quyen: 'NGHIEP_VU', mo: () => { goTo('draft'); startCreateFlow(); } }
 };
-function _moTrangDauTien_(){
-  call('getAppSetupStatus', [], null).then(stats => {
+function _moTrangDauTien_(info){
+  // 2026.9.59: trạng thái cài đặt đi kèm thongTinDangNhap - không tốn thêm 1 lượt gọi máy chủ.
+  const trangThai = info && typeof info.mainSetup === 'boolean'
+    ? Promise.resolve({ mainSetup: info.mainSetup }) : call('getAppSetupStatus', [], null);
+  trangThai.then(stats => {
     if (stats.mainSetup) {
       const t = MO_THANG[document.body.dataset.trangDau];
       if (t && coQuyen(t.quyen)) t.mo(); else goTo('dashboard');
@@ -6225,6 +6290,8 @@ function _moTrangDauTien_(){
 }
 /** Xác định người dùng theo phiên hiện tại rồi mở trang đầu (hoặc màn hình đăng nhập). */
 function _batDauUngDung_(){
+  // Đã có phiên (mở lại / tải lại trang): nạp Trang chủ song song với bước xác định người dùng.
+  _batDauNapTruoc_('trangChu', 'getDashboardStats');
   google.script.run
     .withSuccessHandler(info => {
       state.nguoiDung = info;
@@ -6235,7 +6302,7 @@ function _batDauUngDung_(){
         return;
       }
       apDungQuyenGiaoDien();
-      _moTrangDauTien_();
+      _moTrangDauTien_(info);
     })
     .withFailureHandler(err => hienManHinhDangNhap(String((err && err.message) || err)))
     .thongTinDangNhap(PHIEN);

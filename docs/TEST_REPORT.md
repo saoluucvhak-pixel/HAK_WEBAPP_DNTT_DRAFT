@@ -4,9 +4,10 @@
 
 | Bộ | Số test | Kết quả | Thời gian | Môi trường |
 |---|---|---|---|---|
-| Nghiệp vụ + bảo mật (`tests/unit`, `tests/integration`) | **327** | ✅ 327/327 | ~0,8 s | Node 22, mock Apps Script trong bộ nhớ |
+| Nghiệp vụ + bảo mật (`tests/unit`, `tests/integration`) | **328** | ✅ 328/328 | ~0,8 s | Node 22, mock Apps Script trong bộ nhớ |
 | Giao diện (`tests/ui/giaoDien.ui.mjs`) | **5** | ✅ 5/5 | ~3 s | Chromium 1194 (Playwright 1.56), `google.script.run` giả |
-| **Tổng** | **113** | ✅ | | |
+| Tốc độ mở trang (`tests/ui/tocDoMoTrang.ui.mjs`) | **4** | ✅ 4/4 | ~12 s | Mô phỏng 0,8 s / lượt gọi máy chủ, Trang chủ 2,4 s |
+| **Tổng** | **337** | ✅ | | |
 
 Mới ở bản này: 9 test hồi quy (`review202609.test.mjs`) — **cả 9 đều thất bại trên 2026.9.6** (đã chạy lại với `HAK_CODE_GS=Code.gs của 2026.9.6`) và đạt trên 2026.9.7; 5 test giao diện (lần đầu có).
 
@@ -56,5 +57,5 @@ Mới ở bản này: 9 test hồi quy (`review202609.test.mjs`) — **cả 9 đ
 ## Cách chạy lại
 ```bash
 node --test "tests/**/*.test.mjs"
-NODE_PATH=$(npm root -g) node --test tests/ui/giaoDien.ui.mjs
+NODE_PATH=$(npm root -g) node --test tests/ui/giaoDien.ui.mjs tests/ui/tocDoMoTrang.ui.mjs
 ```

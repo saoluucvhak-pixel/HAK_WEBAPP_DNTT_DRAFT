@@ -64,3 +64,14 @@ test('Đối chiếu sao kê: a UNC dated after the statement\'s last day is not
   const trong = run('doiChieuSaoKe_')([{ ngay: homNay(), soTien: 999, noiDung: 'x', tk: '' }]);
   assert.equal(trong.uncThieu.length, 1);
 });
+
+// 2026.9.59 - tốc độ mở trang: trạng thái đã kết nối File Chính đi kèm bước đăng nhập.
+test('thongTinDangNhap tells a signed-in user whether the main file is connected (no extra call needed)', () => {
+  const { run, env } = theGioi();
+  const phien = run('_taoPhien_')('owner@hak.test');
+  assert.equal(run('thongTinDangNhap')(phien).mainSetup, true);
+  env.PropertiesService.getScriptProperties().deleteProperty('MAIN_SS_ID');
+  assert.equal(run('thongTinDangNhap')(phien).mainSetup, false);
+  run("_vaiTroCua_ = () => null"); // người lạ: không có vai trò
+  assert.equal(run('thongTinDangNhap')('').mainSetup, undefined, 'nothing extra for visitors without a role');
+});

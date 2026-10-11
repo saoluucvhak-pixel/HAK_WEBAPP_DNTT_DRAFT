@@ -1,6 +1,6 @@
 /**
  * ============================================================
- * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.58
+ * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.59
  * Lịch sử thay đổi: CHANGELOG.md · Kiến trúc: docs/ARCHITECTURE.md
  * ------------------------------------------------------------
  * *** QUAN TRỌNG - CẦN LÀM TRƯỚC KHI DÙNG BẢN NÀY (chỉ 1 LẦN DUY NHẤT
@@ -1570,7 +1570,10 @@ function thongTinDangNhap(phien) {
     vaiTroNhan: vaiTro ? VAI_TRO_NHAN[vaiTro] : "",
     quyen: vaiTro ? QUYEN_THEO_VAI_TRO[vaiTro].slice() : [],
     quaPhien: !!emailPhien,
-    congDangNhapUrl: PropertiesService.getScriptProperties().getProperty(AUTH_CFG.PROP_CONG_DANG_NHAP_URL) || ""
+    congDangNhapUrl: PropertiesService.getScriptProperties().getProperty(AUTH_CFG.PROP_CONG_DANG_NHAP_URL) || "",
+    // 2026.9.59 (tốc độ mở trang): trả luôn trạng thái đã kết nối File Chính - trình duyệt khỏi gọi
+    // thêm 1 lượt getAppSetupStatus trước khi mở trang đầu. Chỉ đọc 1 thuộc tính, không đọc sheet.
+    mainSetup: vaiTro ? !!PropertiesService.getScriptProperties().getProperty('MAIN_SS_ID') : undefined
   };
 }
 
