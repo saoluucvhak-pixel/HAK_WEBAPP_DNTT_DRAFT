@@ -1,4 +1,4 @@
-# ARCHITECTURE — HAK Quản Lý Thanh Toán (v2026.9.57)
+# ARCHITECTURE — HAK Quản Lý Thanh Toán (v2026.9.59)
 
 > Tài liệu sống: cập nhật mỗi khi đổi module, lớp, luồng dữ liệu hoặc schema.
 > Phân tích chi tiết hiện trạng: `docs/PROJECT_ANALYSIS.md`. Kiến trúc đích: `docs/REFACTOR_PLAN.md` §3–§4.
@@ -322,3 +322,16 @@ Lỗi đọc sổ trong báo cáo (2026.9.46): công nợ / phân tích / tiến
 - `_phieuDaTraChuaKhoa_(ctRows?, pcRows?)`: phiếu có trong sổ CT đã chốt (năm đang mở) mà Phiếu Cân chưa "Y" ở cột Chọn TT - dùng chung cho Bảo Trì (mục `phieuDaTraChuaKhoa`, dữ liệu đã đọc sẵn) và kiểm tra hằng đêm (chỉ đọc cột mã hồ sơ + Số phiếu của sổ CT, 3 cột trạng thái Phiếu Cân).
 - `webKhoaLaiPhieuDaTra_(items)` (quyền Hệ Thống): kiểm tra lại ngay lúc khóa, chỉ khóa phiếu vẫn còn trong sổ đã chốt, qua `_khoaPhieuCanDaTra_` (như Duyệt); nhật ký `KHOA_LAI_PHIEU_DA_TRA` ghi trước -> sau (hiện ở Lịch sử sửa đổi).
 - Nút Bảo Trì dùng chung `doXoaMoCoiBaoTri` với `riskLevel: 'khoa'` (nhãn / câu hỏi riêng, không xóa gì).
+
+## Lượt Duyệt dở 2026.9.58
+
+- Dấu lượt dở (`DUYET_DO_DANG`) là DANH SÁCH, mỗi lượt 1 dấu (`_docDsDuyetDoDang_` / `_ghiDsDuyetDoDang_`; 1 lượt giữ dạng object cũ). `_ghiDuyetDoDang_(validIds)` trước khi ghi sổ; `_xoaDuyetDoDang_(validIds)` ngay sau khi ghi sổ chính + dọn Nháp (trước bước tính lại Phân Tích).
+- `webHoanTatDuyetDoDang_`: chạy lại lượt cũ nhất; `_luotDuyetDaXong_(ids)` (mọi hồ sơ có dòng 112 sổ chính và không còn ở Nháp) → xóa dấu trong `sysLock`.
+- Duyệt lỗi ở bất kỳ bước nào: `_invalidateCtSrc112Cache_()` trong `catch`.
+- Đối chiếu sao kê: UNC lấy thêm ±`SAO_KE.LECH_NGAY` ngày chỉ để ghép; chỉ báo "UNC chưa thấy" khi Ngày hiệu lực trong khoảng ngày của sao kê.
+
+## Mở trang nhanh 2026.9.59 (trình duyệt)
+
+- `thongTinDangNhap` trả `mainSetup` (đã đăng nhập) → `_moTrangDauTien_(info)` không gọi `getAppSetupStatus`.
+- Nạp trước: `_batDauNapTruoc_(khoa, fnName)` / `_layNapTruoc_(khoa, fnName, args, msg)` (dùng 1 lần trong `NAP_TRUOC_HAN_MS` = 60 giây; lỗi → gọi lại bằng `call()`); `call()` với hàm không bắt đầu bằng `get` và Đăng xuất gọi `_boNapTruoc_()`. Dùng cho Trang chủ (song song bước xác định người dùng) và Danh Sách ĐNTT (sau khi Trang chủ hiện).
+- Trang chủ lưu số lần trước ở `localStorage` `hak_trang_chu_v1` theo email (`_luuTrangChu_` / `_docTrangChuDaLuu_`, xóa khi Đăng xuất), vẽ qua `_veTrangChu_(s, lucCu)`.
