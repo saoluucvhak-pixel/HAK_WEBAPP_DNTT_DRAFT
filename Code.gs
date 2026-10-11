@@ -11141,11 +11141,10 @@ const DOI_SOAT_D = {
   D15: "Ghi dở do gián đoạn", D16: "Dữ liệu mồ côi", D17: "Lệch qua ranh giới năm đã khóa sổ", D18: "KL đề nghị vượt KL hợp đồng",
   D19: "Khác ngày / số lần thanh toán giữa các bảng", D20: "Sửa sau khi xuất chứng từ chưa cập nhật chứng từ"
 };
+// Mã chỉ kiểm tại cổng (hồ sơ Nháp) - trang Đối soát quét sổ đã chốt nên không lặp lại.
 const DOI_SOAT_CHUA_KIEM = {
-  D05: "Cần đọc cả file lưu trữ các năm đã khóa sổ - chưa làm để tránh báo nhầm phiếu năm cũ.",
   D08: "Chỉ kiểm tại cổng (Xác nhận / In / UNC / Duyệt) với hồ sơ Nháp - sau khi chốt giá phiếu không còn là căn cứ.",
-  D12: "Chưa có - ChiTietUNC mồ côi được báo ở D16.", D13: "Chưa có - STK được kiểm theo HD_STK lúc Tạo / Sửa hồ sơ.",
-  D17: "Chưa có.", D18: "Chỉ kiểm tại cổng với hồ sơ Nháp (VUOT_SL_HD).", D19: "Chưa có.", D20: "Chưa có."
+  D18: "Chỉ kiểm tại cổng với hồ sơ Nháp (VUOT_SL_HD)."
 };
 const DOI_SOAT_MUC = { BLOCK: "BLOCK", WARNING: "WARNING", INFO: "INFO" };
 const DOI_SOAT_TU_MA_GATE = { DUPLICATE_ID_CT: "D02", DUPLICATE_TICKET: "D03", AMOUNT_MISMATCH: "D06", KG_MISMATCH: "D07",
@@ -11189,9 +11188,10 @@ function getDoiSoatToanVenThanhToan_() {
     } catch (e) { loiKiem.push("D04: " + _loiChoNguoiDung_(e)); }
 
     // D09 - phiếu đã chốt chưa có dòng ChiTietDNTT "Y" (mới) + D16 ChiTietDNTT Y mồ côi
+    let ctd = [];
     try {
       const sh = getMainSs_().getSheetByName(CHITIET_DNTT_SHEET);
-      const ctd = sh ? _docCacCot_(sh, [0, 2, 26], CHITIET_DNTT_HEADERS.length) : [];
+      ctd = sh ? _docCacCot_(sh, [0, 1, 2, 3, 21, 26], CHITIET_DNTT_HEADERS.length) : [];
       const daY = new Set(ctd.filter(r => String(r[26] || "").trim() === "Y").map(r => _khoaPhieuDongBo_(r[0], r[2])));
       const ctKhoa = new Set();
       ctAll.forEach(r => {
@@ -11206,6 +11206,106 @@ function getDoiSoatToanVenThanhToan_() {
           them("D16", M.WARNING, { idKey: String(r[0]).trim(), phieu: _soPhieuHien_(r[2]), ghiChu: "ChiTietDNTT (Y) không còn trong sổ CT" });
       });
     } catch (e) { loiKiem.push("D09: " + _loiChoNguoiDung_(e)); }
+
+    // D19 - ngày CK / lần thanh toán khác nhau giữa sổ CT, đơn xin, 112 và ChiTietDNTT (mới)
+    {
+      const isoNgay = v => v instanceof Date ? Utilities.formatDate(v, "GMT+7", "yyyy-MM-dd") : "";
+      const ngayCt = new Map(), lan112 = new Map(h112All.map(r => [String(r[0] || "").trim(), String(r[18] == null ? "" : r[18]).trim()]));
+      ctAll.forEach(r => { const id = String(r[1] || "").trim(), so = _soPhieuHien_(r[11]); if (id && so) ngayCt.set(_khoaPhieuDongBo_(id, so), r[20]); });
+      ctd.forEach(r => {
+        if (String(r[26] || "").trim() !== "Y") return;
+        const id = String(r[0] || "").trim(), k = _khoaPhieuDongBo_(id, r[2]);
+        if (!ngayCt.has(k)) return;
+        // Ô ngày cũ có thể là chữ (dd/MM hoặc theo Vùng) - chuẩn hóa cả 2 phía; không đọc được thì bỏ qua.
+        const a = isoNgay(_docNgaySo_(ngayCt.get(k))), b = isoNgay(_docNgaySo_(r[3]));
+        if (a && b && a !== b) them("D19", M.WARNING, { idKey: id, phieu: _soPhieuHien_(r[2]), ngayTT: _ngayWeb_(ngayCt.get(k)),
+          kyVong: _ngayWeb_(ngayCt.get(k)) + " (sổ CT)", hienTai: _ngayWeb_(r[3]) + " (ChiTietDNTT)", ghiChu: "Ngày CK khác giữa sổ CT và ChiTietDNTT" });
+        const lan = String(r[1] == null ? "" : r[1]).trim();
+        if (lan && lan112.get(id) && lan !== lan112.get(id)) them("D19", M.WARNING, { idKey: id, phieu: _soPhieuHien_(r[2]), kyVong: "Lần " + lan112.get(id) + " (112)", hienTai: "Lần " + lan + " (ChiTietDNTT)", ghiChu: "Lần thanh toán khác giữa 112 và ChiTietDNTT" });
+      });
+      srcAll.forEach(r => {
+        const id = String(r[0] || "").trim();
+        if (!id || String(r[17] || "").trim() !== "Y") return;
+        const lanSrc = String(r[15] || "").split("_").pop().trim();
+        if (lanSrc && lan112.get(id) && lanSrc !== lan112.get(id)) them("D19", M.WARNING, { idKey: id, kyVong: "Lần " + lan112.get(id) + " (112)", hienTai: String(r[15]) + " (đơn xin)", ghiChu: "Lần thanh toán khác giữa 112 và đơn xin" });
+        const ngaySrc = _docNgaySo_(r[16]), ngayHoSo = ngayTheoHoSo.get(id) || "";
+        if (ngaySrc && ngayHoSo && utils.formatDate(ngaySrc) !== ngayHoSo) them("D19", M.WARNING, { idKey: id, ngayTT: ngayHoSo, kyVong: ngayHoSo + " (sổ CT)", hienTai: utils.formatDate(ngaySrc) + " (đơn xin)", ghiChu: "Ngày thanh toán khác giữa sổ CT và đơn xin" });
+      });
+    }
+
+    // D20 - hồ sơ Nháp đã In Báo Cáo ĐNTT (ChiTietDNTT "N") rồi đổi phiếu / tiền mà chưa In lại (mới)
+    {
+      const ctNhapTheoKhoa = new Map(), hoSoNhap = new Set();
+      _docCacCot_(shNhapCt, [1, 11, 16], 22).forEach(r => { const id = String(r[1] || "").trim(), so = _soPhieuHien_(r[11]); if (id && so) { hoSoNhap.add(id); ctNhapTheoKhoa.set(_khoaPhieuDongBo_(id, so), utils.parseNum(r[16])); } });
+      const daIn = new Map();
+      ctd.forEach(r => {
+        const id = String(r[0] || "").trim();
+        if (String(r[26] || "").trim() !== "N" || !hoSoNhap.has(id)) return;
+        if (!daIn.has(id)) daIn.set(id, new Map());
+        daIn.get(id).set(_khoaPhieuDongBo_(id, r[2]), { so: _soPhieuHien_(r[2]), tien: utils.parseNum(r[21]) });
+      });
+      daIn.forEach((dsIn, id) => {
+        dsIn.forEach((x, k) => {
+          if (!ctNhapTheoKhoa.has(k)) them("D20", M.WARNING, { idKey: id, phieu: x.so, kyVong: "Phiếu còn trong hồ sơ", hienTai: "Đã bỏ khỏi hồ sơ", ghiChu: "Báo cáo ĐNTT đã in có phiếu này - In lại Báo Cáo ĐNTT" });
+          else if (Math.abs(ctNhapTheoKhoa.get(k) - x.tien) > LECH_TIEN_CHO_PHEP) them("D20", M.WARNING, { idKey: id, phieu: x.so, kyVong: fmt(ctNhapTheoKhoa.get(k)) + " đ (hồ sơ hiện tại)", hienTai: fmt(x.tien) + " đ (báo cáo đã in)", ghiChu: "Tiền đổi sau khi In Báo Cáo ĐNTT - In lại" });
+        });
+        ctNhapTheoKhoa.forEach((tien, k) => { if (k.indexOf(id + "|") === 0 && !dsIn.has(k)) them("D20", M.WARNING, { idKey: id, phieu: k.slice(id.length + 1), kyVong: "Có trong báo cáo đã in", hienTai: "Thêm sau khi In", ghiChu: "Phiếu thêm sau khi In Báo Cáo ĐNTT - In lại" }); });
+      });
+    }
+
+    // D12 - ChiTietUNC trùng / khác hồ sơ hiện tại (Nháp hoặc đã chốt) về số tiền, STK (mới)
+    try {
+      const shUnc = getMainSs_().getSheetByName(CHITIET_UNC_SHEET);
+      const unc = shUnc ? _docCacCot_(shUnc, [0, 5, 7, 14], CHITIET_UNC_HEADERS.length) : [];
+      const h112Nhap = new Map(_docCacCot_(shNhap112, [0, 5, 6], 24).map(r => [String(r[0] || "").trim(), r]));
+      const h112TheoId = new Map(h112All.map(r => [String(r[0] || "").trim(), r]));
+      const theoHoSo = new Map();
+      unc.forEach(r => { const id = String(r[0] || "").trim(); if (!id) return; if (!theoHoSo.has(id)) theoHoSo.set(id, []); theoHoSo.get(id).push(r); });
+      theoHoSo.forEach((ds, id) => {
+        const lucMoi = ds.reduce((m, r) => Math.max(m, r[14] instanceof Date ? r[14].getTime() : 0), 0);
+        const moiNhat = ds.filter(r => (r[14] instanceof Date ? r[14].getTime() : 0) === lucMoi);
+        if (moiNhat.length > 1) them("D12", M.WARNING, { idKey: id, kyVong: "1 dòng UNC / lần tạo", hienTai: `${moiNhat.length} dòng`, ghiChu: "ChiTietUNC trùng dòng cùng lần tạo" });
+        const u = moiNhat[moiNhat.length - 1], h = h112Nhap.get(id) || h112TheoId.get(id);
+        if (!h) return; // không còn hồ sơ: Bảo Trì báo mồ côi
+        if (Math.abs(utils.parseNum(h[6]) - utils.parseNum(u[7])) > LECH_TIEN_CHO_PHEP) them("D12", M.WARNING, { idKey: id, ngayTT: ngayTheoHoSo.get(id) || "",
+          kyVong: fmt(utils.parseNum(h[6])) + " đ (112)", hienTai: fmt(utils.parseNum(u[7])) + " đ (UNC)", ghiChu: "Số tiền UNC khác 112 - hồ sơ sửa sau khi tạo UNC? Tạo lại UNC" });
+        if (_khoaStk_(h[5]) && _khoaStk_(u[5]) && _khoaStk_(h[5]) !== _khoaStk_(u[5])) them("D12", M.WARNING, { idKey: id, ngayTT: ngayTheoHoSo.get(id) || "",
+          kyVong: _soPhieuHien_(h[5]) + " (112)", hienTai: _soPhieuHien_(u[5]) + " (UNC)", ghiChu: "STK trên UNC khác 112 - Tạo lại UNC" });
+      });
+    } catch (e) { loiKiem.push("D12: " + _loiChoNguoiDung_(e)); }
+
+    // D13 - STK của 112 (đã chốt + Nháp) không có trong HD_STK của hợp đồng (mới, chỉ so STK)
+    try {
+      const hopLe = new Set(_hdStkFullData_().map(r => utils.standardize(r[HDSTK_SRC_COL.SO_HD]) + "|" + _khoaStk_(r[HDSTK_SRC_COL.STK])));
+      const kiemStk = (r, nguon) => {
+        const id = String(r[0] || "").trim(), hd = utils.standardize(r[8]), tk = _khoaStk_(r[5]);
+        if (id && hd && tk && !hopLe.has(hd + "|" + tk)) them("D13", M.WARNING, { idKey: id, ngayTT: ngayTheoHoSo.get(id) || "",
+          kyVong: "STK thuộc HD_STK của HĐ " + _soPhieuHien_(r[8]), hienTai: _soPhieuHien_(r[5]) + ` (${nguon})`, ghiChu: "STK không có trong HD_STK - kiểm tra trước khi chuyển tiền" });
+      };
+      h112All.forEach(r => kiemStk(r, "112 đã chốt"));
+      _docCacCot_(shNhap112, [0, 5, 8], 24).forEach(r => kiemStk(r, "112 Nháp"));
+    } catch (e) { loiKiem.push("D13: " + _loiChoNguoiDung_(e)); }
+
+    // D17 - dòng sổ CT đang mở có Ngày CK thuộc năm đã khóa sổ (mới)
+    {
+      const namKhoa = new Set(Object.keys(_fileLuuTruTheoNam_()));
+      if (namKhoa.size) ctAll.forEach(r => {
+        if (!(r[20] instanceof Date) || !namKhoa.has(Utilities.formatDate(r[20], "GMT+7", "yyyy"))) return;
+        them("D17", M.WARNING, { idKey: String(r[1] || "").trim(), phieu: _soPhieuHien_(r[11]), ngayTT: utils.formatDate(r[20]),
+          kyVong: "Nằm trong file lưu trữ năm " + Utilities.formatDate(r[20], "GMT+7", "yyyy"), hienTai: "Còn trong sổ đang mở", ghiChu: "Năm đã khóa sổ mà sổ đang mở còn dòng - báo cáo có thể đếm 2 lần" });
+      });
+    }
+
+    // D05 - phiếu cân đã khóa "đã trả" mà không có trong sổ CT (đang mở + các năm đã khóa sổ) (mới)
+    try {
+      const daTra = new Set(ctAll.concat(_docLuuTruTrongKhoang_(CFG.DNTT_CT, 22, "", "")).map(r => _soPhieuChuan_(r[11])).filter(Boolean));
+      _pcData_().forEach(r => {
+        const k = _soPhieuChuan_(r[PC_COL.SO_CT]);
+        const khoa = String(r[PC_COL.CHON_TT] || "").trim().toUpperCase() === "Y" || String(r[PC_COL.ID_DNTT] || "").trim() === PC_ID_DNTT_DA_TRA;
+        if (k && khoa && !daTra.has(k)) them("D05", M.WARNING, { phieu: _soPhieuHien_(r[PC_COL.SO_CT]), kyVong: "Có trong sổ CT", hienTai: `Phiếu Cân: ${r[PC_COL.ID_DNTT] || ""} / ${r[PC_COL.CHON_TT] || ""}`,
+          ghiChu: "Phiếu khóa đã trả nhưng không có trong sổ CT (kể cả năm đã khóa sổ) - kiểm tra trước khi mở khóa" });
+      });
+    } catch (e) { loiKiem.push("D05: " + _loiChoNguoiDung_(e)); }
 
     // D10 - MISA thiếu (cùng cách so với Tạo bổ sung MISA), D11 - Số phiếu trùng trong Update_NganHang_DN
     try {

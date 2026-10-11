@@ -20,15 +20,23 @@ Không đổi nghiệp vụ, cách tính tiền / khối lượng, trạng thái
 - **P1-05 - Bất đồng bộ:**
   - Thao tác ghi bấm lặp (cùng chức năng + tham số khi lượt trước chưa xong) không gửi lần 2.
   - Lỗi từ máy chủ đã báo (toast) không còn sinh "Uncaught (in promise)".
-  - Danh Sách ĐNTT bỏ kết quả của lượt tải cũ về sau lượt mới.
+  - Danh Sách ĐNTT bỏ kết quả của lượt tải cũ về sau lượt mới (có test).
   - Chống trùng phía máy chủ vẫn theo khóa nghiệp vụ như cũ: Duyệt bỏ qua hồ sơ đã chốt; Tạo mới từ chối phiếu đã nằm trong Nháp; MISA theo Số phiếu cân.
 
 ### Added
 - **Hệ Thống › Đối Soát Toàn Vẹn Thanh Toán (D01–D20)** - chỉ đọc (`getDoiSoatToanVenThanhToan`, quyền Hệ Thống).
   - Tổng quan: hồ sơ, phiếu, KL, tiền, hồ sơ lỗi, phiếu trùng, thiếu MISA, lệch tiền, phiếu chưa khóa.
   - Bảng chi tiết (mã, mức độ, hồ sơ, phiếu, ngày TT, kỳ vọng / hiện tại, việc cần kiểm tra); lọc theo mã / mức độ; tải CSV; kiểm tra lại; mở hồ sơ qua Tìm nhanh.
-  - Mức độ theo quy tắc đang dùng: mã cổng toàn vẹn chặn → BLOCK, `WRONG_OWNER` → WARNING; kiểm tra mới (D01, D09, D11, D14) chỉ WARNING.
-  - Mã chưa có kiểm tra tự động (D05, D08, D12, D13, D17–D20) hiện "chưa kiểm tra" kèm lý do - không báo là sạch.
+  - Mức độ theo quy tắc đang dùng: mã cổng toàn vẹn chặn → BLOCK, `WRONG_OWNER` → WARNING; mọi kiểm tra mới (D01, D05, D09–D14, D16, D17, D19, D20) chỉ WARNING.
+  - Kiểm tra mới:
+    - D05: phiếu khóa "đã trả" không có trong sổ CT, kể cả các năm đã khóa sổ.
+    - D12: ChiTietUNC trùng, hoặc số tiền / STK trên UNC khác 112.
+    - D13: STK của 112 (đã chốt và Nháp) không có trong HD_STK của hợp đồng.
+    - D17: sổ đang mở còn dòng thuộc năm đã khóa sổ.
+    - D19: ngày CK / lần thanh toán khác nhau giữa sổ CT, đơn xin, 112 và ChiTietDNTT.
+    - D20: hồ sơ Nháp đã In Báo Cáo ĐNTT rồi bỏ / thêm phiếu hoặc đổi tiền mà chưa in lại.
+  - D08, D18 chỉ kiểm tại cổng với hồ sơ Nháp - trang ghi rõ, không báo là sạch.
+  - Lọc theo Ngày TT (từ / đến).
 - **Cờ `doc` trên API_ROUTES (mục 8.3)** - trình duyệt nhận danh sách chức năng chỉ đọc qua `thongTinDangNhap.tuyenDoc` thay cho đoán theo tên `get…`; chức năng không có cờ coi là ghi. Test `docKhongGhi` chạy mọi chức năng có cờ và kiểm tra không ghi sheet nào.
 - **CI chạy test giao diện**: job `ui` trong `.github/workflows/test.yml` cài Playwright 1.56.1 + Chromium.
 
@@ -36,10 +44,10 @@ Không đổi nghiệp vụ, cách tính tiền / khối lượng, trạng thái
 - Bước kiểm lại cuối Duyệt đọc thêm 1 cột mã hồ sơ của ChiTietDNTT + 1 cột Số phiếu của Update_NganHang_DN (để kết luận trung thực). Chưa đo trên dữ liệu thật.
 
 ### Tests
-- `dongBoSauDuyet.test.mjs` (10), `sua2026_9_60.test.mjs` (5), `docKhongGhi.test.mjs` (2), `tests/ui/sua2026_9_60.ui.mjs` (7).
+- `dongBoSauDuyet.test.mjs` (10), `sua2026_9_60.test.mjs` (6), `docKhongGhi.test.mjs` (2), `tests/ui/sua2026_9_60.ui.mjs` (8).
 - Trên 2026.9.59: 10/10 test P0-01, 6/6 test giao diện P1/P0 đầu tiên và test email Quản trị thất bại.
 - `hieuNangDuyet`: ngân sách đọc ChiTietDNTT 3N → 4N (bước kiểm lại).
-- 345 test Node + 16 test giao diện đạt (mock - không phải bằng chứng Google Sheets thật đã ghi).
+- 346 test Node + 17 test giao diện đạt (mock - không phải bằng chứng Google Sheets thật đã ghi).
 
 ## [2026.9.59] — Mở web app nhanh hơn (người dùng yêu cầu 11/10/2026: "webapp tải chậm")
 

@@ -171,10 +171,32 @@ test('Đối soát toàn vẹn: System page shows totals, filters by code / leve
   assert.match(chu, /Hồ sơ thiếu MISA[\s\S]*1/);
   assert.match(chu, /Chưa kiểm tra: Chưa có\./);
   assert.equal(await page.locator('#doisoat-tv-result > div[style*="overflow"] tbody tr').count(), 2);
+  await page.fill('#dstv-tu', '2026-10-12'); await page.dispatchEvent('#dstv-tu', 'change');
+  assert.match(await page.textContent('#doisoat-tv-result'), /Không có dòng nào theo bộ lọc/, 'date filter hides rows paid on 11/10');
+  await page.fill('#dstv-tu', ''); await page.dispatchEvent('#dstv-tu', 'change');
   await page.selectOption('#dstv-muc', 'BLOCK');
   assert.doesNotMatch(await page.textContent('#doisoat-tv-result > div[style*="overflow"]'), /PC003/);
   assert.equal(await page.evaluate(() => window.__xss), undefined);
   assert.equal(await page.evaluate(() => window.__goi.filter(t => t !== 'getDoiSoatToanVenThanhToan' && !/^get/.test(t)).length), 0, 'read-only: no write call');
+  assert.deepEqual(loi, []);
+  await context.close();
+});
+
+test('P1-05: an older draft-list response arriving after a newer one does not overwrite it', async () => {
+  const context = await browser.newContext();
+  const { page, loi } = await moTrang(context);
+  await datMayChu(page);
+  await page.evaluate(() => {
+    let lan = 0;
+    window.__xuLy.getDraftListSummary = () => (++lan === 1
+      ? { ok: [{ idKey: 'CU', ngayDeNghi: '', chuRung: 'Cũ', soLuongPhieu: 1, klTongKg: 1, soTien: 1, trangThaiKey: 'cho_dntt', trangThaiLabel: '' }], tre: 600 }
+      : { ok: [{ idKey: 'MOI', ngayDeNghi: '', chuRung: 'Mới', soLuongPhieu: 1, klTongKg: 1, soTien: 1, trangThaiKey: 'cho_dntt', trangThaiLabel: '' }], tre: 50 });
+    _boNapTruoc_();            // không dùng dữ liệu nạp sẵn lúc mở trang
+    goTo('draft');            // lượt 1 (chậm)
+    setTimeout(() => loadDraftList(), 100); // lượt 2 (nhanh) - vd sau khi Duyệt
+  });
+  await page.waitForTimeout(1000);
+  assert.deepEqual(await page.evaluate(() => state.draftList.map(x => x.idKey)), ['MOI']);
   assert.deepEqual(loi, []);
   await context.close();
 });

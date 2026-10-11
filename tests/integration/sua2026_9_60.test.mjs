@@ -38,7 +38,8 @@ test('Đối soát: a clean approval reports no BLOCK and lists the codes it doe
   assert.equal(kq.tongQuan.soPhieu, 2);
   assert.equal(kq.tongQuan.tongTien, 2000000);
   assert.equal(kq.dsMa.length, 20);
-  assert.ok(kq.dsMa.find(x => x.ma === 'D20').chuaKiem, 'unchecked codes are flagged, not reported as clean');
+  assert.ok(kq.dsMa.find(x => x.ma === 'D08').chuaKiem, 'gate-only codes are flagged, not reported as clean');
+  assert.equal(kq.dsMa.filter(x => x.chuaKiem).length, 2, 'only D08 / D18 are gate-only');
 });
 
 test('Đối soát: missing MISA (D10), duplicate MISA row (D11), pending catch-up (D15) and a draft left behind (D14) are reported', () => {
@@ -70,4 +71,32 @@ test('Đối soát: gate codes keep their approved level (amount mismatch BLOCK,
   assert.equal(kq.tongQuan.soHoSoLechTien, 1);
   assert.equal(run('DOI_SOAT_TU_MA_GATE.WRONG_OWNER'), 'D03');
   assert.ok(run('TOAN_VEN.CHI_CANH_BAO').includes('WRONG_OWNER'));
+});
+
+test('Đối soát: D05 D12 D13 D17 D19 D20 catch injected inconsistencies (and stay WARNING)', () => {
+  const { run, w, env } = theGioi();
+  assert.equal(run('webCreateUNCFromDraft_')(['A1'], homNay(), '', '').success, true);
+  assert.match(run('runConfirmPayment_')(['A1'], homNay()), /^✅/);
+  // D12: số tiền UNC khác 112 (hồ sơ sửa sau khi tạo UNC)
+  const unc = w.main.getSheetByName('ChiTietUNC');
+  unc.data[1][7] = 1;
+  // D13: STK trên 112 đã chốt không có trong HD_STK
+  w.main.getSheetByName('DNTT_GK_DN_112').data[1][5] = "'99999";
+  // D19: Ngày CK ChiTietDNTT khác sổ CT
+  w.main.getSheetByName('ChiTietDNTT').data[1][3] = new Date('2020-01-02T05:00:00Z');
+  // D05: phiếu khóa "đã trả" không có trong sổ
+  const pc = w.pc.getSheetByName('PhieuCan_DN');
+  pc.data[2][26] = 'Đóng TT'; pc.data[2][27] = 'Y'; // PC999
+  // D17: năm đã khóa sổ trùng năm Ngày CK của sổ đang mở
+  env.PropertiesService.getScriptProperties().setProperty('LUU_TRU_NAM', JSON.stringify({ [homNay().slice(0, 4)]: 'MAIN_SS' }));
+  // D20: hồ sơ Nháp B2 đã In Báo Cáo ĐNTT với phiếu PC003 tiền khác, rồi thêm phiếu khác
+  const ctd = new Array(28).fill(''); ctd[0] = 'B2'; ctd[1] = '1'; ctd[2] = "'PC003"; ctd[21] = 5; ctd[26] = 'N';
+  w.main.getSheetByName('ChiTietDNTT').data.push(ctd);
+  run('_invalidateCtSrc112Cache_')(); run('_invalidatePcCache_')();
+  const kq = run('getDoiSoatToanVenThanhToan_')();
+  assert.equal(kq.success, true, kq.message);
+  const ma = new Set(kq.rows.map(x => x.ma));
+  ['D05', 'D12', 'D13', 'D17', 'D19', 'D20'].forEach(m => assert.ok(ma.has(m), `${m} missing; got ${[...ma].join(',')} / loiKiem ${kq.loiKiem}`));
+  assert.ok(kq.rows.filter(x => ['D05', 'D12', 'D13', 'D17', 'D19', 'D20'].includes(x.ma)).every(x => x.mucDo === 'WARNING'));
+  assert.ok(kq.rows.find(x => x.ma === 'D05').phieu === 'PC999');
 });

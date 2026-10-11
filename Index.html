@@ -6100,7 +6100,7 @@ function doDoiSoatToanVen(){
     if (!document.getElementById('doisoat-tv-result')) return; // đã rời trang
     if (!r || !r.success) { box.innerHTML = `<div class="empty"><div class="ic">⚠️</div>${esc((r && r.message) || 'Không kiểm tra được.')}</div>`; return; }
     state.doiSoatTv = r;
-    state.doiSoatTvLoc = { ma: '', muc: '' };
+    state.doiSoatTvLoc = Object.assign({ ma: '', muc: '', tu: '', den: '' }, state.doiSoatTvLoc || {});
     _veDoiSoatToanVen_();
   }, () => { box.innerHTML = ''; });
 }
@@ -6108,7 +6108,12 @@ function _veDoiSoatToanVen_(){
   const box = document.getElementById('doisoat-tv-result'), r = state.doiSoatTv;
   if (!box || !r) return;
   const loc = state.doiSoatTvLoc, tq = r.tongQuan;
-  const ds = r.rows.filter(x => (!loc.ma || x.ma === loc.ma) && (!loc.muc || x.mucDo === loc.muc));
+  // Lọc theo Ngày TT (dd/MM/yyyy từ máy chủ). Có lọc ngày thì dòng không có ngày (vd MISA trùng) bị ẩn - đếm riêng.
+  const isoTT = x => { const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(x.ngayTT || ''); return m ? `${m[3]}-${m[2]}-${m[1]}` : ''; };
+  const coLocNgay = !!(loc.tu || loc.den);
+  const ds = r.rows.filter(x => (!loc.ma || x.ma === loc.ma) && (!loc.muc || x.mucDo === loc.muc)
+    && (!coLocNgay || (isoTT(x) && (!loc.tu || isoTT(x) >= loc.tu) && (!loc.den || isoTT(x) <= loc.den))));
+  const anKhongNgay = coLocNgay ? r.rows.filter(x => (!loc.ma || x.ma === loc.ma) && (!loc.muc || x.mucDo === loc.muc) && !isoTT(x)).length : 0;
   const the = (nhan, so) => `<div class="stat"><div class="label">${esc(nhan)}</div><div class="value">${esc(so)}</div></div>`;
   const mau = m => m === 'BLOCK' ? 'color:var(--danger);font-weight:600' : m === 'WARNING' ? 'color:var(--timber);font-weight:600' : '';
   box.innerHTML = `<div class="hint-text">Kiểm tra lúc ${esc(r.luc)}. ${esc(r.ghiChu || '')}</div>
@@ -6128,7 +6133,10 @@ function _veDoiSoatToanVen_(){
       <div class="field"><label for="dstv-muc">Mức độ</label><select id="dstv-muc" onchange="state.doiSoatTvLoc.muc=this.value;_veDoiSoatToanVen_()">
         ${['', 'BLOCK', 'WARNING', 'INFO'].map(m => `<option value="${m}"${loc.muc === m ? ' selected' : ''}>${m || 'Tất cả'}</option>`).join('')}</select></div>
       <div class="field" style="display:flex;align-items:flex-end;gap:6px"><button class="btn" onclick="taiDoiSoatToanVen()">📥 Tải CSV</button><button class="btn" onclick="doDoiSoatToanVen()">🔁 Kiểm tra lại</button></div>
+      <div class="field"><label for="dstv-tu">Ngày TT từ</label><input type="date" id="dstv-tu" value="${esc(loc.tu)}" onchange="state.doiSoatTvLoc.tu=this.value;_veDoiSoatToanVen_()"></div>
+      <div class="field"><label for="dstv-den">Ngày TT đến</label><input type="date" id="dstv-den" value="${esc(loc.den)}" onchange="state.doiSoatTvLoc.den=this.value;_veDoiSoatToanVen_()"></div>
     </div>
+    ${anKhongNgay ? `<div class="hint-text">Đang lọc theo ngày: ẩn ${anKhongNgay} dòng không gắn ngày thanh toán (vd MISA trùng, phiếu khóa không có trong sổ).</div>` : ''}
     ${ds.length ? `<div style="overflow-x:auto"><table><thead><tr><th>Mã</th><th>Mức độ</th><th>Hồ sơ</th><th>Phiếu cân</th><th>Ngày TT</th><th>Kỳ vọng</th><th>Hiện tại</th><th>Cần kiểm tra</th></tr></thead><tbody>
       ${ds.slice(0, DS_TV_TOI_DA_DONG).map(x => `<tr><td class="mono" title="${esc(x.ten)}">${esc(x.ma)}</td><td style="${mau(x.mucDo)}">${esc(x.mucDo)}</td>
         <td class="mono">${x.idKey && !/,/.test(x.idKey) ? `<button type="button" class="btn sm" ${hanhDong('moHoSoDoiSoat', x.idKey)}>${esc(x.idKey)}</button>` : esc(x.idKey)}</td>
