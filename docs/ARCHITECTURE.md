@@ -1,4 +1,4 @@
-# ARCHITECTURE — HAK Quản Lý Thanh Toán (v2026.9.59)
+# ARCHITECTURE — HAK Quản Lý Thanh Toán (v2026.9.60)
 
 > Tài liệu sống: cập nhật mỗi khi đổi module, lớp, luồng dữ liệu hoặc schema.
 > Phân tích chi tiết hiện trạng: `docs/PROJECT_ANALYSIS.md`. Kiến trúc đích: `docs/REFACTOR_PLAN.md` §3–§4.
@@ -333,5 +333,14 @@ Lỗi đọc sổ trong báo cáo (2026.9.46): công nợ / phân tích / tiến
 ## Mở trang nhanh 2026.9.59 (trình duyệt)
 
 - `thongTinDangNhap` trả `mainSetup` (đã đăng nhập) → `_moTrangDauTien_(info)` không gọi `getAppSetupStatus`.
-- Nạp trước: `_batDauNapTruoc_(khoa, fnName)` / `_layNapTruoc_(khoa, fnName, args, msg)` (dùng 1 lần trong `NAP_TRUOC_HAN_MS` = 60 giây; lỗi → gọi lại bằng `call()`); `call()` với hàm không bắt đầu bằng `get` và Đăng xuất gọi `_boNapTruoc_()`. Dùng cho Trang chủ (song song bước xác định người dùng) và Danh Sách ĐNTT (sau khi Trang chủ hiện).
+- Nạp trước: `_batDauNapTruoc_(khoa, fnName)` / `_layNapTruoc_(khoa, fnName, args, msg)` (dùng 1 lần trong `NAP_TRUOC_HAN_MS` = 60 giây; lỗi → gọi lại bằng `call()`); `call()` với chức năng GHI (2026.9.60: theo cờ `doc` của máy chủ, không theo tên `get…`) và Đăng xuất gọi `_boNapTruoc_()`. Dùng cho Trang chủ (song song bước xác định người dùng) và Danh Sách ĐNTT (sau khi Trang chủ hiện).
 - Trang chủ lưu số lần trước ở `localStorage` `hak_trang_chu_v1` theo email (`_luuTrangChu_` / `_docTrangChuDaLuu_`, xóa khi Đăng xuất), vẽ qua `_veTrangChu_(s, lucCu)`.
+
+## 2026.9.60 - Đồng bộ sau Duyệt, cờ đọc / ghi, đối soát
+
+- **Trạng thái đồng bộ sau Duyệt** (`DONG_BO_TT`: `HOAN_TAT` / `HOAN_TAT_MOT_PHAN` / `LOI_CAN_KIEM_TRA`). `runConfirmPayment_` gom lỗi bước ChiTietDNTT / MISA vào `loiDongBo`; sau khi dọn Nháp gọi `_ketLuanDongBoSauDuyet_` → `_kiemDongBoSauDuyet_` đọc lại ChiTietDNTT (dòng Y theo `_khoaPhieuDongBo_` = mã hồ sơ + Số phiếu chuẩn hóa) và Update_NganHang_DN (Số phiếu). Hồ sơ còn thiếu lưu ở Script Property `DONG_BO_BO_SUNG_SAU_DUYET` (mảng `{ids, ngay, luc, nguoi, trangThai, thieuChiTiet, thieuMisa, loi}`, cập nhật theo từng mã hồ sơ, trong `sysLock`).
+- `_tuDongXuatMisaKhiDong_` trả `{ok, ghi, boQua, loi}` (không còn im lặng). `webDongBoBoSungSauDuyet_` (trong `sysLock`): đọc CT / 112 đã chốt theo mã → `_chuyenChiTietDNTTSangYVaTinhBu_` + `_tuDongXuatMisaKhiDong_` (đều chạy lại được) → kiểm lại → cập nhật danh sách. `getDongBoBoSung_` (CHI_DOC) cho thông báo ở Danh Sách ĐNTT.
+- Các trạng thái của một lượt Duyệt: đang xử lý / dừng giữa chừng = dấu `DUYET_DO_DANG` (2026.9.58, chưa xong sổ chính + Nháp); hoàn tất một phần = `DONG_BO_BO_SUNG_SAU_DUYET`; không còn dấu nào = hoàn tất.
+- **Cờ `doc`** trên `API_ROUTES` (`r(fn, quyen, kieu, DOC)`; `CHI_DOC` ⇒ `doc`): chức năng không ghi dữ liệu nghiệp vụ. `thongTinDangNhap.tuyenDoc` gửi danh sách cho trình duyệt (`TUYEN_DOC`); chưa có / không có trong danh sách = ghi. `call()` chặn gửi lặp chức năng ghi cùng tham số khi lượt trước chưa xong (`_maYeuCauDangGhi_`), đánh dấu lỗi đã báo (`daBao`) để `unhandledrejection` không báo thêm.
+- **Trình duyệt theo tài khoản**: `hak_bulk_ref_v1` và `hak_tao_moi_nhap_v1` mang `email`; `hak_tai_khoan_v1` ghi tài khoản lần trước - khác thì `_xoaDuLieuTaiKhoan_()` (cũng gọi khi Đăng xuất; giữ `hak_giao_dien`, `hak_thanh_ben_gon`, `hak_tg_*`, `hak_phien`).
+- **Đối soát D01–D20** (`getDoiSoatToanVenThanhToan_`, Hệ Thống, CHI_DOC): dùng `_quetToanVenSoChinh_` (D02 D03 D06 D07 D15) + `_phieuDaTraChuaKhoa_` (D04) + kiểm tra báo cáo mới (D01, D09, D10, D11, D14, D15 từ các dấu, D16). Đổi mã cổng → D theo `DOI_SOAT_TU_MA_GATE`; mức độ BLOCK cho mã cổng đang chặn, WARNING cho `TOAN_VEN.CHI_CANH_BAO` và kiểm tra mới. `DOI_SOAT_CHUA_KIEM` liệt kê mã chưa kiểm tự động.

@@ -748,7 +748,7 @@
     </nav>
     <div class="nguoi-dung-chip" id="nguoi-dung-chip"></div>
     <div class="sidebar-footer">
-      <span class="phien-ban">Quản Lý Thanh Toán · v2026.9.59</span>
+      <span class="phien-ban">Quản Lý Thanh Toán · v2026.9.60</span>
       <span class="chan-nut">
         <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Đổi giao diện sáng / tối">🌓 Giao diện: Tự động</button>
         <button type="button" class="nut-thu-gon" id="nut-thu-gon" aria-label="Thu gọn thanh bên" title="Thu gọn / mở rộng thanh bên"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 6-6 6 6 6"/></svg></button>
@@ -848,7 +848,7 @@ const HANH_DONG = {
   goToLedgerFor, openLedgerFor, pickChuRung, pickModongChuRung,
   viewDraftDetail, editDraftRecord, confirmDeleteDraft, doHuyXacNhan, saveDraftEdit,
   removePhieuCan, searchPhieuCanForEdit, inPhieuChiTietThanhToan, inPhieuHoanThanh, xemPhieuHoanThanh, doDonDep, moTrang,
-  toggleShareBox, doSwapLink, doShareLink, doRevokeLink
+  toggleShareBox, doSwapLink, doShareLink, doRevokeLink, moHoSoDoiSoat
 };
 ['click', 'mousedown'].forEach(loai => document.addEventListener(loai, e => {
   const el = e.target.closest('[data-hd]');
@@ -1001,27 +1001,38 @@ function standardizeClient(v){
 
 /** Trả về Promise<{hopDong, taiKhoan}> - đọc từ localStorage nếu còn mới
  * (theo mốc 7:30/13:00), ngược lại gọi server 1 lần rồi lưu lại. */
+function _emailHienTai_(){ return String((state.nguoiDung && state.nguoiDung.email) || '').toLowerCase(); }
+const _laBulkRefHopLe_ = d => !!d && typeof d === 'object' && Array.isArray(d.hopDong) && Array.isArray(d.taiKhoan);
 function ensureBulkRef(forceRefresh){
   if (_bulkRefPromise && !forceRefresh) return _bulkRefPromise;
-  _bulkRefPromise = new Promise(resolve => {
+  // 2026.9.60 (P1-03): lỗi / dữ liệu rỗng không còn bị giữ làm cache hợp lệ - trước đây Promise
+  // trả {hopDong:[], taiKhoan:[]} khi lỗi nằm lại đến khi tải lại trang (gợi ý hợp đồng / STK trống mãi).
+  // P1-04: cache gắn với tài khoản - đổi tài khoản trên cùng trình duyệt không thấy dữ liệu người trước.
+  const p = new Promise(resolve => {
     if (!forceRefresh) {
       try {
         const raw = localStorage.getItem(BULK_REF_CACHE_KEY);
         if (raw) {
           const cached = JSON.parse(raw);
-          if (cached && cached.fetchedAt >= _bulkRefBoundary_()) {
+          if (cached && cached.fetchedAt >= _bulkRefBoundary_() && cached.email === _emailHienTai_() && _laBulkRefHopLe_(cached.data)) {
             resolve(cached.data);
             return;
           }
         }
       } catch(e) { /* localStorage lỗi/không khả dụng -> tải lại từ server */ }
     }
+    const thatBai = () => {
+      if (_bulkRefPromise === p) _bulkRefPromise = null; // lần sau gọi lại máy chủ (không lặp tự động)
+      resolve({ hopDong: [], taiKhoan: [], loi: true });
+    };
     call('getBulkReferenceData', [], null).then(data => {
-      try { localStorage.setItem(BULK_REF_CACHE_KEY, JSON.stringify({ data, fetchedAt: Date.now() })); } catch(e) {}
+      if (!_laBulkRefHopLe_(data)) { thatBai(); return; }
+      try { localStorage.setItem(BULK_REF_CACHE_KEY, JSON.stringify({ email: _emailHienTai_(), data, fetchedAt: Date.now() })); } catch(e) {}
       resolve(data);
-    }).catch(() => resolve({ hopDong: [], taiKhoan: [] }));
+    }).catch(thatBai);
   });
-  return _bulkRefPromise;
+  _bulkRefPromise = p;
+  return p;
 }
 /** Buộc tải lại cache trình duyệt (dùng khi bấm "Tải & Tính Lại" hoặc "↻ Làm mới"). */
 function invalidateBulkRef(){
@@ -1224,20 +1235,74 @@ function apDungQuyenGiaoDien(){
   });
   _veNguoiDungChip_();
 }
+/** 2026.9.60 (P1-04): xóa MỌI dữ liệu nghiệp vụ lưu trên trình duyệt (hợp đồng / STK / CCCD, số liệu
+ * Trang chủ, danh sách đã nạp, nhập dở Tạo mới, dữ liệu nạp sẵn). Giữ lựa chọn giao diện (sáng / tối,
+ * thu gọn thanh bên) và thống kê thời gian chờ - không chứa dữ liệu nghiệp vụ. */
+function _xoaDuLieuTaiKhoan_(){
+  _boNapTruoc_();
+  _bulkRefPromise = null;
+  const xoa = kho => {
+    try {
+      Object.keys(kho).forEach(k => {
+        if (k.indexOf('hak_') !== 0 || k === PHIEN_STORAGE_KEY || k.indexOf(TIEN_DO_KHOA) === 0 || k === GIAO_DIEN_KHOA || k === THU_GON_KHOA) return;
+        kho.removeItem(k);
+      });
+    } catch (e) { /* trình duyệt chặn lưu trữ */ }
+  };
+  try { xoa(localStorage); } catch (e) {}
+  try { xoa(sessionStorage); } catch (e) {}
+  if (state.draftSelected && state.draftSelected.clear) state.draftSelected.clear();
+  state.draftList = [];
+  if (typeof resetCreateData === 'function') resetCreateData();
+  _maYeuCauDangGhi_.clear();
+}
+const TAI_KHOAN_KHOA = 'hak_tai_khoan_v1';
+/** Đổi tài khoản trên cùng trình duyệt (không qua Đăng xuất): bỏ dữ liệu của tài khoản trước. */
+function _damBaoCungTaiKhoan_(email){
+  const moi = String(email || '').toLowerCase();
+  let cu = '';
+  try { cu = localStorage.getItem(TAI_KHOAN_KHOA) || ''; } catch (e) {}
+  if (cu && cu !== moi) _xoaDuLieuTaiKhoan_();
+  try { localStorage.setItem(TAI_KHOAN_KHOA, moi); } catch (e) {}
+}
 function dangXuatWeb(){
   const phien = PHIEN;
-  _boNapTruoc_();
-  _xoaTrangChuDaLuu_();
+  _xoaDuLieuTaiKhoan_();
   google.script.run.withSuccessHandler(() => {}).withFailureHandler(() => {}).dangXuat(phien);
   state.nguoiDung = Object.assign({}, state.nguoiDung, { daDangNhap: false, quyen: [] });
   _xoaNhapTaoMoi_();
   hienManHinhDangNhap('Đã đăng xuất.');
 }
 
+/* 2026.9.60 (mục 8.3 + P1-05): chức năng CHỈ ĐỌC lấy từ máy chủ (cờ doc của API_ROUTES, gửi kèm
+ * thongTinDangNhap) - không đoán theo tên "get...". Chưa có danh sách / không có trong danh sách -> coi
+ * là GHI (an toàn): bỏ dữ liệu nạp sẵn và chặn gửi lặp cùng thao tác + cùng tham số khi lượt trước chưa xong. */
+let TUYEN_DOC = null;
+const _maYeuCauDangGhi_ = new Set();
+function _laTuyenDoc_(fnName){ return !!(TUYEN_DOC && TUYEN_DOC.has(fnName)); }
+// Lỗi từ call() đã được báo (toast / màn đăng nhập) - không để trình duyệt báo thêm "Uncaught (in promise)".
+window.addEventListener('unhandledrejection', e => { if (e.reason && e.reason.daBao) e.preventDefault(); });
+function _loiDaBao_(err){
+  const loi = err instanceof Error ? err : new Error(String((err && err.message) || err));
+  loi.daBao = true;
+  return loi;
+}
+
 /** Gọi server qua cửa api (kèm phiên) - Promise hóa + loading overlay. */
 function call(fnName, args, loadingMsg){
-  // 2026.9.59: thao tác không phải đọc (có thể ghi) -> bỏ dữ liệu nạp sẵn, màn hình sau đọc lại mới.
-  if (!/^get/.test(fnName)) _boNapTruoc_();
+  const laDoc = _laTuyenDoc_(fnName);
+  // 2026.9.59: thao tác ghi -> bỏ dữ liệu nạp sẵn, màn hình sau đọc lại mới.
+  if (!laDoc) _boNapTruoc_();
+  let khoaGhi = '';
+  if (!laDoc) {
+    try { khoaGhi = fnName + '|' + JSON.stringify(args || []); } catch (e) { khoaGhi = ''; }
+    if (khoaGhi && _maYeuCauDangGhi_.has(khoaGhi)) {
+      if (loadingMsg) toast('⏳ Thao tác này đang chạy - chờ kết quả, không cần bấm lại.', 'warn');
+      return Promise.reject(_loiDaBao_(new Error('Đang chạy - bỏ qua lần gửi lặp.')));
+    }
+    if (khoaGhi) _maYeuCauDangGhi_.add(khoaGhi);
+  }
+  const xong = () => { if (khoaGhi) _maYeuCauDangGhi_.delete(khoaGhi); };
   return new Promise((resolve, reject) => {
    const goi = () => {
     // SỬA LỖI (theo yêu cầu - "hay bị load khi đổi menu, không biết sao"):
@@ -1252,12 +1317,13 @@ function call(fnName, args, loadingMsg){
     if (loadingMsg) showLoading(loadingMsg, fnName);
     const batDau = Date.now();
     google.script.run
-      .withSuccessHandler(res => { if (loadingMsg) hideLoading(true); resolve(res); })
+      .withSuccessHandler(res => { xong(); if (loadingMsg) hideLoading(true); resolve(res); })
       .withFailureHandler(err => {
         if (loadingMsg) hideLoading(false);
         const msg = String((err && err.message) || err);
         const dongBo = _phanSauTienTo_(msg, LOI_DONG_BO);
-        if (dongBo) { _choDongBo(dongBo).then(goi, () => reject(new Error('Đã hủy - thao tác chưa chạy.'))); return; }
+        if (dongBo) { _choDongBo(dongBo).then(goi, () => { xong(); reject(_loiDaBao_(new Error('Đã hủy - thao tác chưa chạy.'))); }); return; }
+        xong();
         const loiDangNhap = _phanSauTienTo_(msg, LOI_DANG_NHAP);
         const loiQuyen = _phanSauTienTo_(msg, LOI_QUYEN);
         if (loiDangNhap) hienManHinhDangNhap(loiDangNhap);
@@ -1266,7 +1332,7 @@ function call(fnName, args, loadingMsg){
           google.script.run.withFailureHandler(() => {}).api(PHIEN, 'ghiQuaGioTrinhDuyet', [fnName, Math.round((Date.now() - batDau) / 1000)]);
         }
         else toast('❌ ' + (loiQuyen || ('Lỗi hệ thống: ' + msg)), 'err');
-        reject(err);
+        reject(_loiDaBao_(err));
       })
       .api(PHIEN, fnName, args || []);
    };
@@ -1944,11 +2010,14 @@ function _luuNhapTaoMoi_(){
   try {
     const d = state.createData;
     if (!d || (!d.hoTenChuRung && !(d.phieuCan || []).length)) { sessionStorage.removeItem(TAO_MOI_NHAP_KHOA); return; }
-    sessionStorage.setItem(TAO_MOI_NHAP_KHOA, JSON.stringify({ luc: Date.now(), step: state.createStep, data: d }));
+    sessionStorage.setItem(TAO_MOI_NHAP_KHOA, JSON.stringify({ email: _emailHienTai_(), luc: Date.now(), step: state.createStep, data: d }));
   } catch (e) { /* trình duyệt chặn lưu trữ - bỏ qua */ }
 }
 function _docNhapTaoMoi_(){
-  try { return JSON.parse(sessionStorage.getItem(TAO_MOI_NHAP_KHOA) || 'null'); } catch (e) { return null; }
+  try {
+    const j = JSON.parse(sessionStorage.getItem(TAO_MOI_NHAP_KHOA) || 'null');
+    return j && (j.email || '') === _emailHienTai_() ? j : null; // 2026.9.60: nhập dở của tài khoản khác -> không khôi phục
+  } catch (e) { return null; }
 }
 function _xoaNhapTaoMoi_(){ try { sessionStorage.removeItem(TAO_MOI_NHAP_KHOA); } catch (e) { /* bỏ qua */ } }
 let _henLuuNhap_ = 0;
@@ -2650,6 +2719,7 @@ function renderDraft(){
       <div class="hint-text" style="margin-top:8px">Quy trình: Tạo Mới → hệ thống tự tính tiền → (2) Chờ xác nhận → chọn hồ sơ, bấm "Xác Nhận" → (3) Chờ duyệt → in Báo Cáo ĐNTT / tạo UNC, rồi bấm "Duyệt" để Đóng Thanh Toán (ghi sổ chính thức).</div>
     </div>
     <div id="duyet-do-dang"></div>
+    <div id="dong-bo-bo-sung"></div>
     <div class="card" id="draft-table-wrap"><div class="empty"><div class="ic">⏳</div>Đang tải...</div></div>
     <div class="sticky-actionbar hidden" id="draft-actionbar">
       <span id="draft-selected-info" style="font-size:13px"></span>
@@ -2721,12 +2791,39 @@ function kiemTraDuyetDoDang(){
       <div style="margin-top:8px"><button class="btn danger" onclick="hoanTatDuyetDoDang()">🔁 Hoàn tất lượt Duyệt</button></div></div>` : '';
   }, () => {});
 }
+/** 2026.9.60 (P0-01): hồ sơ ĐÃ CHỐT nhưng ChiTietDNTT / Update_NganHang_DN (MISA) chưa ghi đủ -> nút đồng bộ bổ sung. */
+function kiemTraDongBoBoSung(){
+  call('getDongBoBoSung', [], null).then(j => {
+    const box = document.getElementById('dong-bo-bo-sung');
+    if (!box) return;
+    if (!j || !Array.isArray(j.ds) || !j.ds.length) { box.innerHTML = ''; return; }
+    const dong = j.ds.map(x => `<li>${esc(x.luc)}${x.nguoi ? ' (' + esc(x.nguoi) + ')' : ''}: ${x.ids.map(esc).join(', ')}
+      - ${x.trangThai === 'LOI_CAN_KIEM_TRA' ? 'lỗi cần kiểm tra' : 'hoàn tất một phần'}${x.thieuChiTiet ? `, ChiTietDNTT thiếu ${x.thieuChiTiet} phiếu` : ''}${x.thieuMisa ? `, MISA thiếu ${x.thieuMisa} phiếu` : ''}</li>`).join('');
+    box.innerHTML = `<div class="card" role="alert" style="border-color:var(--timber);background:var(--timber-light)">
+      <b>⚠️ ${j.soHoSo} hồ sơ đã chốt nhưng CẦN ĐỒNG BỘ BỔ SUNG</b> (ChiTietDNTT / Update_NganHang_DN - MISA chưa ghi đủ).
+      Sổ chính và Phiếu Cân đã chốt đúng - <b>không Duyệt lại</b>. Bấm nút để ghi nốt phần còn thiếu (tự bỏ qua phần đã có, không ghi trùng).
+      <ul style="margin:6px 0 0 18px">${dong}</ul>
+      <div style="margin-top:8px"><button class="btn" id="nut-dong-bo-bo-sung" onclick="dongBoBoSungSauDuyet()">🔁 Đồng bộ bổ sung</button></div></div>`;
+  }, () => {});
+}
+function dongBoBoSungSauDuyet(){
+  const nut = document.getElementById('nut-dong-bo-bo-sung');
+  if (nut) { if (nut.disabled) return; nut.disabled = true; }
+  call('webDongBoBoSungSauDuyet', [], 'Đang đồng bộ ChiTietDNTT / MISA...').then(res => {
+    handleResult(res);
+    kiemTraDongBoBoSung();
+  }).catch(() => { if (nut) nut.disabled = false; });
+}
 function hoanTatDuyetDoDang(){
   call('webHoanTatDuyetDoDang', [], 'Đang hoàn tất lượt Duyệt...').then(res => handleResult(res, () => loadDraftList()));
 }
+let _luotTaiDs_ = 0;
 function loadDraftList(){
   kiemTraDuyetDoDang();
+  kiemTraDongBoBoSung();
+  const luot = ++_luotTaiDs_; // P1-05: kết quả của lượt tải cũ về sau lượt mới -> bỏ, không ghi đè danh sách mới
   _layNapTruoc_('dsDntt', 'getDraftListSummary', [], 'Đang tải Danh Sách ĐNTT...').then(list => {
+    if (luot !== _luotTaiDs_) return;
     state.draftList = list;
     state.draftSelected.clear();
     renderDraftTable();
@@ -5050,6 +5147,12 @@ function renderHeThong(){
       <div id="baotri-result" style="margin-top:10px"></div>
     </div>
     <div class="card">
+      <h3>🧾 Đối Soát Toàn Vẹn Thanh Toán (D01–D20)</h3>
+      <p class="muted" style="font-size:13px">Gom mọi kiểm tra toàn vẹn theo mã D01–D20: phiếu trùng, lệch tiền / KG, thiếu ChiTietDNTT / MISA, MISA trùng, phiếu chưa khóa, Nháp chưa dọn, ghi dở, mồ côi. <b>Chỉ đọc</b> - sửa ở Bảo Trì / Báo Cáo MISA / Danh Sách ĐNTT sau khi xem. Mã chưa có kiểm tra tự động được ghi rõ "chưa kiểm tra".</p>
+      <button class="btn accent" onclick="doDoiSoatToanVen()">🧾 Kiểm tra</button>
+      <div id="doisoat-tv-result" style="margin-top:10px"></div>
+    </div>
+    <div class="card">
       <h3>⏱️ Hiệu Năng (chức năng chạy chậm)</h3>
       <p class="muted" style="font-size:13px">Hệ thống tự ghi mọi lần chạy từ vài giây trở lên - trên web app lẫn các trigger 7:30/13:00, 15h, 10 phút - và các lần bị Google <b>dừng vì quá 6 phút</b>. Số liệu thật trên dữ liệu của công ty, chậm nhất / quá giờ xếp trước.</p>
       <div class="grid cols-3">
@@ -5987,6 +6090,71 @@ function doKiemTraBaoTri(){
       </div>`;
   });
 }
+/* 2026.9.60 (mục V.5.3): Đối soát toàn vẹn thanh toán - chỉ đọc. */
+const DS_TV_TOI_DA_DONG = 300;
+function doDoiSoatToanVen(){
+  const box = document.getElementById('doisoat-tv-result');
+  if (!box) return;
+  box.innerHTML = '<div class="empty"><div class="ic">⏳</div>Đang kiểm tra...</div>';
+  call('getDoiSoatToanVenThanhToan', [], 'Đang đối soát toàn vẹn...').then(r => {
+    if (!document.getElementById('doisoat-tv-result')) return; // đã rời trang
+    if (!r || !r.success) { box.innerHTML = `<div class="empty"><div class="ic">⚠️</div>${esc((r && r.message) || 'Không kiểm tra được.')}</div>`; return; }
+    state.doiSoatTv = r;
+    state.doiSoatTvLoc = { ma: '', muc: '' };
+    _veDoiSoatToanVen_();
+  }, () => { box.innerHTML = ''; });
+}
+function _veDoiSoatToanVen_(){
+  const box = document.getElementById('doisoat-tv-result'), r = state.doiSoatTv;
+  if (!box || !r) return;
+  const loc = state.doiSoatTvLoc, tq = r.tongQuan;
+  const ds = r.rows.filter(x => (!loc.ma || x.ma === loc.ma) && (!loc.muc || x.mucDo === loc.muc));
+  const the = (nhan, so) => `<div class="stat"><div class="label">${esc(nhan)}</div><div class="value">${esc(so)}</div></div>`;
+  const mau = m => m === 'BLOCK' ? 'color:var(--danger);font-weight:600' : m === 'WARNING' ? 'color:var(--timber);font-weight:600' : '';
+  box.innerHTML = `<div class="hint-text">Kiểm tra lúc ${esc(r.luc)}. ${esc(r.ghiChu || '')}</div>
+    ${r.loiKiem && r.loiKiem.length ? `<div class="hint-text" style="color:var(--danger)">Không kiểm tra được: ${r.loiKiem.map(esc).join('; ')}</div>` : ''}
+    <div class="grid cols-3" style="margin:8px 0">
+      ${the('Hồ sơ đã chốt', fmtMoney(tq.soHoSo))}${the('Phiếu cân', fmtMoney(tq.soPhieu))}${the('Tổng KL (kg)', fmtMoney(tq.tongKg))}
+      ${the('Tổng tiền (đ)', fmtMoney(tq.tongTien))}${the('Hồ sơ có lỗi', fmtMoney(tq.soHoSoLoi))}${the('Phiếu trùng', fmtMoney(tq.soPhieuTrung))}
+      ${the('Hồ sơ thiếu MISA', fmtMoney(tq.soHoSoThieuMisa))}${the('Hồ sơ lệch tiền', fmtMoney(tq.soHoSoLechTien))}${the('Phiếu đã trả chưa khóa', fmtMoney(tq.soPhieuChuaKhoa))}
+    </div>
+    <details><summary style="cursor:pointer">Danh mục D01–D20 (số dòng / chưa kiểm tra)</summary>
+      <table style="margin-top:6px"><thead><tr><th>Mã</th><th>Nội dung</th><th class="num">Số dòng</th><th>Ghi chú</th></tr></thead><tbody>
+      ${r.dsMa.map(m => `<tr><td class="mono">${esc(m.ma)}</td><td>${esc(m.ten)}</td><td class="num">${m.chuaKiem ? '-' : m.so}</td><td class="muted">${m.chuaKiem ? 'Chưa kiểm tra: ' + esc(m.chuaKiem) : ''}</td></tr>`).join('')}
+      </tbody></table></details>
+    <div class="grid cols-3" style="margin-top:8px">
+      <div class="field"><label for="dstv-ma">Loại lỗi</label><select id="dstv-ma" onchange="state.doiSoatTvLoc.ma=this.value;_veDoiSoatToanVen_()">
+        <option value="">Tất cả</option>${r.dsMa.filter(m => m.so).map(m => `<option value="${esc(m.ma)}"${loc.ma === m.ma ? ' selected' : ''}>${esc(m.ma)} - ${esc(m.ten)} (${m.so})</option>`).join('')}</select></div>
+      <div class="field"><label for="dstv-muc">Mức độ</label><select id="dstv-muc" onchange="state.doiSoatTvLoc.muc=this.value;_veDoiSoatToanVen_()">
+        ${['', 'BLOCK', 'WARNING', 'INFO'].map(m => `<option value="${m}"${loc.muc === m ? ' selected' : ''}>${m || 'Tất cả'}</option>`).join('')}</select></div>
+      <div class="field" style="display:flex;align-items:flex-end;gap:6px"><button class="btn" onclick="taiDoiSoatToanVen()">📥 Tải CSV</button><button class="btn" onclick="doDoiSoatToanVen()">🔁 Kiểm tra lại</button></div>
+    </div>
+    ${ds.length ? `<div style="overflow-x:auto"><table><thead><tr><th>Mã</th><th>Mức độ</th><th>Hồ sơ</th><th>Phiếu cân</th><th>Ngày TT</th><th>Kỳ vọng</th><th>Hiện tại</th><th>Cần kiểm tra</th></tr></thead><tbody>
+      ${ds.slice(0, DS_TV_TOI_DA_DONG).map(x => `<tr><td class="mono" title="${esc(x.ten)}">${esc(x.ma)}</td><td style="${mau(x.mucDo)}">${esc(x.mucDo)}</td>
+        <td class="mono">${x.idKey && !/,/.test(x.idKey) ? `<button type="button" class="btn sm" ${hanhDong('moHoSoDoiSoat', x.idKey)}>${esc(x.idKey)}</button>` : esc(x.idKey)}</td>
+        <td class="mono">${esc(x.phieu)}</td><td>${esc(x.ngayTT)}</td><td>${esc(x.kyVong)}</td><td>${esc(x.hienTai)}</td><td>${esc(x.ghiChu)}</td></tr>`).join('')}
+      </tbody></table></div>${ds.length > DS_TV_TOI_DA_DONG ? `<div class="hint-text">Hiện ${DS_TV_TOI_DA_DONG}/${ds.length} dòng - tải CSV để xem đủ.</div>` : ''}`
+      : '<div class="empty"><div class="ic">✅</div>Không có dòng nào theo bộ lọc (mã "chưa kiểm tra" không tính).</div>'}`;
+}
+function moHoSoDoiSoat(idKey){
+  const o = document.getElementById('tim-nhanh-o');
+  if (!o || !coQuyen('NGHIEP_VU')) { toast('Mã hồ sơ: ' + idKey); return; }
+  o.value = idKey;
+  timNhanh();
+}
+function taiDoiSoatToanVen(){
+  const r = state.doiSoatTv; if (!r) return;
+  const o = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+  const cot = ['ma', 'ten', 'mucDo', 'idKey', 'phieu', 'ngayTT', 'kyVong', 'hienTai', 'ghiChu'];
+  const dong = [['Mã', 'Nội dung', 'Mức độ', 'Hồ sơ', 'Phiếu cân', 'Ngày TT', 'Kỳ vọng', 'Hiện tại', 'Cần kiểm tra']]
+    .concat(r.rows.map(x => cot.map(k => x[k])))
+    .concat(r.dsMa.filter(m => m.chuaKiem).map(m => [m.ma, m.ten, 'CHƯA KIỂM TRA', '', '', '', '', '', m.chuaKiem]));
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob(['\ufeff' + dong.map(x => x.map(o).join(',')).join('\r\n')], { type: 'text/csv;charset=utf-8' }));
+  a.download = 'DoiSoatToanVen_' + todayISOVN() + '.csv';
+  document.body.appendChild(a); a.click(); a.remove();
+}
+
 /** 2026.9.55: báo cáo toàn vẹn sổ đã chốt (đủ mọi dòng, không giới hạn 50) -> file CSV. Chỉ đọc. */
 function taiBaoCaoToanVen(){
   call('getBaoCaoToanVen', [], 'Đang quét toàn vẹn dữ liệu...').then(res => {
@@ -6301,6 +6469,8 @@ function _batDauUngDung_(){
         hienManHinhDangNhap(loi);
         return;
       }
+      TUYEN_DOC = new Set(Array.isArray(info.tuyenDoc) ? info.tuyenDoc : []);
+      _damBaoCungTaiKhoan_(info.email);
       apDungQuyenGiaoDien();
       _moTrangDauTien_(info);
     })

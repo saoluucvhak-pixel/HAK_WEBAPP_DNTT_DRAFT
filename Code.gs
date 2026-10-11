@@ -1,6 +1,6 @@
 /**
  * ============================================================
- * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.59
+ * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.60
  * Lịch sử thay đổi: CHANGELOG.md · Kiến trúc: docs/ARCHITECTURE.md
  * ------------------------------------------------------------
  * *** QUAN TRỌNG - CẦN LÀM TRƯỚC KHI DÙNG BẢN NÀY (chỉ 1 LẦN DUY NHẤT
@@ -1573,7 +1573,10 @@ function thongTinDangNhap(phien) {
     congDangNhapUrl: PropertiesService.getScriptProperties().getProperty(AUTH_CFG.PROP_CONG_DANG_NHAP_URL) || "",
     // 2026.9.59 (tốc độ mở trang): trả luôn trạng thái đã kết nối File Chính - trình duyệt khỏi gọi
     // thêm 1 lượt getAppSetupStatus trước khi mở trang đầu. Chỉ đọc 1 thuộc tính, không đọc sheet.
-    mainSetup: vaiTro ? !!PropertiesService.getScriptProperties().getProperty('MAIN_SS_ID') : undefined
+    mainSetup: vaiTro ? !!PropertiesService.getScriptProperties().getProperty('MAIN_SS_ID') : undefined,
+    // 2026.9.60 (mục 8.3): chức năng chỉ đọc (cờ doc của API_ROUTES) - trình duyệt chỉ chống bấm lặp /
+    // bỏ dữ liệu nạp sẵn với chức năng KHÔNG có trong danh sách này (coi là ghi).
+    tuyenDoc: vaiTro ? Object.keys(API_ROUTES).filter(k => API_ROUTES[k].doc) : []
   };
 }
 
@@ -1816,15 +1819,20 @@ const API_ROUTES = (() => {
   // đồng bộ (trigger) không ghi -> chạy luôn, không bắt chờ mỗi 10 phút. Thao tác ghi và
   // các màn đọc số liệu do trigger dựng (Trang chủ, Công nợ, Phân tích, dữ liệu Tạo mới)
   // vẫn chờ như cũ. Test chiDoc.test.mjs kiểm tra các chức năng CHI_DOC không ghi gì.
-  const KHONG_CHO = "KHONG_CHO", CHI_DOC = "CHI_DOC";
-  const r = (fn, quyen, kieu) => ({ fn, quyen, khongChoDongBo: kieu === KHONG_CHO || kieu === CHI_DOC, chiDoc: kieu === CHI_DOC });
+  // DOC (2026.9.60, mục 8.3): chức năng KHÔNG ghi dữ liệu nghiệp vụ (có thể dựng bộ nhớ đệm) nhưng
+  // vẫn chờ đồng bộ như cũ. CHI_DOC luôn là DOC. Trình duyệt dùng cờ `doc` (gửi kèm thongTinDangNhap)
+  // thay cho việc đoán theo tên bắt đầu bằng "get"; chức năng không có cờ coi là GHI (an toàn).
+  // Test docKhongGhi.test.mjs chạy mọi chức năng có cờ doc và kiểm tra không ghi sheet nào.
+  const KHONG_CHO = "KHONG_CHO", CHI_DOC = "CHI_DOC", DOC = "DOC";
+  const r = (fn, quyen, kieu, laDoc) => ({ fn, quyen, khongChoDongBo: kieu === KHONG_CHO || kieu === CHI_DOC, chiDoc: kieu === CHI_DOC,
+    doc: kieu === CHI_DOC || kieu === DOC || laDoc === DOC });
   return {
     // --- Chung, Trang chủ, Trợ lý AI ---
-    getAppSetupStatus: r(getAppSetupStatus_, X, KHONG_CHO),
-    getDashboardStats: r(getDashboardStats_, X),
+    getAppSetupStatus: r(getAppSetupStatus_, X, KHONG_CHO, DOC),
+    getDashboardStats: r(getDashboardStats_, X, DOC),
     ghiQuaGioTrinhDuyet: r(ghiQuaGioTrinhDuyet_, X, KHONG_CHO),
-    getTrangThaiDongBo: r(getTrangThaiDongBo_, X, KHONG_CHO),
-    getDraftBadgeCount: r(getDraftBadgeCount_, X),
+    getTrangThaiDongBo: r(getTrangThaiDongBo_, X, KHONG_CHO, DOC),
+    getDraftBadgeCount: r(getDraftBadgeCount_, X, DOC),
     TRA_LOI_CHATBOT: r(TRA_LOI_CHATBOT_, X),
 
     // --- Báo cáo thanh toán (xem + xuất Excel) ---
@@ -1838,18 +1846,18 @@ const API_ROUTES = (() => {
     exportLichSuUNCExcel: r(_theoKhoangBaoCao_(exportLichSuUNCExcel_), X),
 
     // --- Công nợ & phân tích (xem, xuất, tính lại số liệu báo cáo) ---
-    getDebtByCustomer: r(getDebtByCustomer_, X),
-    getDebtByContract: r(getDebtByContract_, X),
-    getCongNoTrangThai: r(getCongNoTrangThai_, X, KHONG_CHO),
-    getDebtLedgerDetail: r(getDebtLedgerDetail_, X),
+    getDebtByCustomer: r(getDebtByCustomer_, X, DOC),
+    getDebtByContract: r(getDebtByContract_, X, DOC),
+    getCongNoTrangThai: r(getCongNoTrangThai_, X, KHONG_CHO, DOC),
+    getDebtLedgerDetail: r(getDebtLedgerDetail_, X, DOC),
     exportCongNo: r(exportCongNo_, X),
-    getDoiChieuCongNoCccd: r(getDoiChieuCongNoCccd_, X),
-    getPaymentAnalysis: r(getPaymentAnalysis_, X),
-    getPhanTichNhapTTReport: r(getPhanTichNhapTTReport_, X),
+    getDoiChieuCongNoCccd: r(getDoiChieuCongNoCccd_, X, DOC),
+    getPaymentAnalysis: r(getPaymentAnalysis_, X, DOC),
+    getPhanTichNhapTTReport: r(getPhanTichNhapTTReport_, X, DOC),
     exportPhanTichNhapTTBaoCao: r(exportPhanTichNhapTTBaoCao_, X),
-    getChiTietCongNoPhieuCanWeb: r(getChiTietCongNoPhieuCanWeb_, X),
+    getChiTietCongNoPhieuCanWeb: r(getChiTietCongNoPhieuCanWeb_, X, DOC),
     exportChiTietCongNoPhieuCanExcel: r(exportChiTietCongNoPhieuCanExcel_, X),
-    getTinhHinhThanhToanHangNgayWeb: r(getTinhHinhThanhToanHangNgayWeb_, X),
+    getTinhHinhThanhToanHangNgayWeb: r(getTinhHinhThanhToanHangNgayWeb_, X, DOC),
     exportTinhHinhThanhToanExcel: r(exportTinhHinhThanhToanExcel_, X),
     webRunCongNoRefreshNow: r(webRunCongNoRefreshNow_, X),
     webRunDaily15hRefreshNow: r(webRunDaily15hRefreshNow_, X),
@@ -1857,9 +1865,9 @@ const API_ROUTES = (() => {
     getRegionInfoForWeb: r(getRegionInfoForWeb_, X, CHI_DOC),
 
     // --- Tạo mới ĐNTT (Kế toán) ---
-    getBulkReferenceData: r(getBulkReferenceData_, N),
-    getAvailablePhieuCanForChuRung: r(getAvailablePhieuCanForChuRung_, N),
-    getHopDongSummary: r(getHopDongSummary_, N),
+    getBulkReferenceData: r(getBulkReferenceData_, N, DOC),
+    getAvailablePhieuCanForChuRung: r(getAvailablePhieuCanForChuRung_, N, DOC),
+    getHopDongSummary: r(getHopDongSummary_, N, DOC),
     webRefreshCreateFlowData: r(webRefreshCreateFlowData_, N),
     // Nút "↻ Làm mới" trên thanh trên cùng: chỉ dựng lại cache, không sửa dữ liệu gốc.
     webRefreshPhieuCanCache: r(webRefreshPhieuCanCache_, N),
@@ -1869,6 +1877,7 @@ const API_ROUTES = (() => {
     // --- Danh sách ĐNTT / Nháp / Duyệt (Kế toán) ---
     getDraftListSummary: r(getDanhSachNhapCoKiemTra_, N, CHI_DOC),
     getBaoCaoToanVen: r(getBaoCaoToanVen_, H, CHI_DOC),
+    getDoiSoatToanVenThanhToan: r(getDoiSoatToanVenThanhToan_, H, CHI_DOC),
     getDraftRecordDetail: r(getDraftRecordDetail_, N, CHI_DOC),
     getLichSuHoSo: r(getLichSuHoSo_, N, CHI_DOC),
     timKiemNhanh: r(timKiemNhanh_, N, CHI_DOC),
@@ -1889,12 +1898,14 @@ const API_ROUTES = (() => {
     webConfirmPayment: r(webConfirmPayment_, N),
     getDuyetDoDang: r(getDuyetDoDang_, N, CHI_DOC),
     webHoanTatDuyetDoDang: r(webHoanTatDuyetDoDang_, N),
+    getDongBoBoSung: r(getDongBoBoSung_, N, CHI_DOC),
+    webDongBoBoSungSauDuyet: r(webDongBoBoSungSauDuyet_, N),
 
     // --- Hệ thống: đối soát, bảo trì, sửa dữ liệu đã chốt (Quản trị + Kế toán tổng hợp) ---
-    getDoiSoatTenKhachHang: r(getDoiSoatTenKhachHang_, H),
+    getDoiSoatTenKhachHang: r(getDoiSoatTenKhachHang_, H, DOC),
     webDongBoTenKhachHang: r(webDongBoTenKhachHang_, H),
     exportDoiSoatTenKhachHangExcel: r(exportDoiSoatTenKhachHangExcel_, H),
-    getKiemTraDoiChieuBaoTri: r(getKiemTraDoiChieuBaoTri_, H),
+    getKiemTraDoiChieuBaoTri: r(getKiemTraDoiChieuBaoTri_, H, DOC),
     webXoaCTMoCoi: r(webXoaCTMoCoi_, H),
     webXoaSrcMoCoi: r(webXoaSrcMoCoi_, H),
     webXoaMoCoiChiTietDNTT: r(webXoaMoCoiChiTietDNTT_, H),
@@ -1926,12 +1937,12 @@ const API_ROUTES = (() => {
     setupDraftSpreadsheet: r(setupDraftSpreadsheet_, Q),
     getConfigLinksForSettings: r(getConfigLinksForSettings_, Q, CHI_DOC),
     webSetSwappableLink: r(webSetSwappableLink_, Q),
-    getSharedUsersForLink: r(getSharedUsersForLink_, Q),
+    getSharedUsersForLink: r(getSharedUsersForLink_, Q, DOC),
     webShareConfigLink: r(webShareConfigLink_, Q),
     webRevokeConfigLinkAccess: r(webRevokeConfigLinkAccess_, Q),
     getTriggerStatusForWeb: r(getTriggerStatusForWeb_, Q, CHI_DOC),
     webXacNhanHeaderPhieuCanMoi: r(webXacNhanHeaderPhieuCanMoi_, Q),
-    getFormatLockStatusForWeb: r(getFormatLockStatusForWeb_, Q),
+    getFormatLockStatusForWeb: r(getFormatLockStatusForWeb_, Q, DOC),
     webKhoaDinhDangTextTatCa: r(webKhoaDinhDangTextTatCa_, Q),
     webSetupPcCacheAutoRefreshTrigger: r(webSetupPcCacheAutoRefreshTrigger_, Q),
     setup10MinRefreshTrigger: r(setup10MinRefreshTrigger_, Q),
@@ -1953,9 +1964,9 @@ const API_ROUTES = (() => {
     generateThongSoSheet: r(generateThongSoSheet_, Q),
 
     // --- Người dùng & Cổng đăng nhập (Quản trị) ---
-    getDanhSachNguoiDungForWeb: r(getDanhSachNguoiDungForWeb_, Q),
+    getDanhSachNguoiDungForWeb: r(getDanhSachNguoiDungForWeb_, Q, DOC),
     webLuuNguoiDung: r(webLuuNguoiDung_, Q),
-    getCauHinhDangNhapForWeb: r(getCauHinhDangNhapForWeb_, Q),
+    getCauHinhDangNhapForWeb: r(getCauHinhDangNhapForWeb_, Q, DOC),
     webSetCongDangNhapUrl: r(webSetCongDangNhapUrl_, Q),
     webTaoLaiSsoSecret: r(webTaoLaiSsoSecret_, Q)
   };
@@ -5456,12 +5467,17 @@ function webTaoLaiUNCTheoNgay_(fDate, tDate, ngayHieuLuc, offset, gioiHanMoiLan,
  * SỬA (theo yêu cầu): CHỈ GHI THÊM (append) vào cuối, KHÔNG còn xóa/ghi
  * lại TOÀN BỘ sheet mỗi lần như trước - Đóng Thanh Toán vì vậy nhanh và
  * ổn định hơn (không phụ thuộc kích thước lịch sử Update_NganHang_DN). */
+// 2026.9.60 (P0-01): trả kết quả { ok, ghi, boQua, loi } thay vì im lặng - Duyệt / Đồng bộ bổ sung
+// dựa vào đó (và kiểm lại dữ liệu thật) để báo đúng "hoàn tất" hay "hoàn tất một phần".
 function _tuDongXuatMisaKhiDong_(rowsChiTietY) {
   try {
-    if (!rowsChiTietY || !rowsChiTietY.length) return;
+    if (!rowsChiTietY || !rowsChiTietY.length) return { ok: true, ghi: 0, boQua: 0 };
     const ssNH = SpreadsheetApp.openById(CFG.UPDATE_NH_SS_ID);
     const shUpdateNH = ssNH.getSheetByName("Update_NganHang_DN");
-    if (!shUpdateNH) return;
+    if (!shUpdateNH) {
+      logAction_("LOI_TU_DONG_MISA", "-", "Không tìm thấy sheet Update_NganHang_DN - chưa ghi MISA lúc Đóng Thanh Toán.");
+      return { ok: false, ghi: 0, boQua: 0, loi: "Không tìm thấy sheet Update_NganHang_DN" };
+    }
     const bankInfo = getCompanyBankInfo_();
 
     // MỚI (theo yêu cầu - "có chức năng loại trùng không"): file này
@@ -5470,7 +5486,7 @@ function _tuDongXuatMisaKhiDong_(rowsChiTietY) {
     // NỘP NGÂN HÀNG TRÙNG LẶP nếu ai đó import cả file không để ý).
     const soPDaCo = _laySoPhieuCanDaCoTrongMisa_(shUpdateNH);
     const rowsChuaCo = rowsChiTietY.filter(r => !soPDaCo.has(utils.standardize(String(r[2] || "").replace(/^'/, ""))));
-    if (!rowsChuaCo.length) return; // tất cả đã có sẵn - không ghi thêm gì
+    if (!rowsChuaCo.length) return { ok: true, ghi: 0, boQua: rowsChiTietY.length }; // tất cả đã có sẵn - không ghi thêm gì
 
     // Vị trí theo _xayChiTietDNTTRows_(): [2]soPhieuCan [3]ngayCK [6]soHD [8]hoTenChuRung
     // [9]cccdChuRung [10]tenThuHuong [11]cccdThuHuong [12]diaChi [21]thanhTien [23]nganHang [24]soTK
@@ -5485,10 +5501,12 @@ function _tuDongXuatMisaKhiDong_(rowsChiTietY) {
     if (rowsChiTietY.length > rowsChuaCo.length) {
       logAction_("MISA_BO_QUA_TRUNG", "-", `Tự động ghi MISA: bỏ qua ${rowsChiTietY.length - rowsChuaCo.length} dòng đã có sẵn Số phiếu cân trùng trong Update_NganHang_DN.`);
     }
+    return { ok: true, ghi: bankRows.length, boQua: rowsChiTietY.length - rowsChuaCo.length };
   } catch (e) {
     // Không chặn luồng chính "Đóng Thanh Toán" nếu lỗi tự động ghi MISA -
-    // ghi log để biết và có thể xử lý tay (Xuất MISA thủ công vẫn dùng được).
+    // ghi log, trả lỗi để báo "hoàn tất một phần" và cho Đồng bộ bổ sung.
     logAction_("LOI_TU_DONG_MISA", "-", "Lỗi khi tự động ghi MISA lúc Đóng Thanh Toán: " + e.toString());
+    return { ok: false, ghi: 0, boQua: 0, loi: _loiChoNguoiDung_(e) };
   }
 }
 
@@ -5835,6 +5853,156 @@ function webHoanTatDuyetDoDang_() {
   return { success: true, message: `✅ Lượt Duyệt ${j.luc} đã hoàn tất từ trước (${j.ids.length} hồ sơ đã có trong sổ chính) - đã xóa cảnh báo.` };
 }
 
+// ------------------------------------------------------------
+// 2026.9.60 (P0-01) - TRẠNG THÁI ĐỒNG BỘ SAU DUYỆT. Trước đây bước ChiTietDNTT N→Y + ghi
+// Update_NganHang_DN (MISA) lỗi chỉ ghi nhật ký, Duyệt vẫn báo "đã tự động ghi vào MISA". Nay:
+// - lỗi được gom lại, cuối lượt ĐỌC LẠI 2 bảng (ChiTietDNTT dòng "Y" theo mã hồ sơ + Số phiếu cân,
+//   Update_NganHang_DN theo Số phiếu cân) rồi mới kết luận;
+// - thiếu -> "HOÀN TẤT MỘT PHẦN - CẦN ĐỒNG BỘ BỔ SUNG", lưu danh sách hồ sơ còn thiếu (Script
+//   Properties) để Danh Sách ĐNTT báo + nút "Đồng bộ bổ sung" (chạy lại được, không ghi trùng);
+// - không đọc lại được -> "LỖI CẦN KIỂM TRA" (không khẳng định đã ghi).
+// Sổ CT / 112 / Phiếu Cân KHÔNG bị hoàn tác (đã chốt đúng) - chỉ làm nốt phần còn thiếu.
+// Trạng thái "đang xử lý" / "dừng giữa chừng" vẫn là dấu Lượt Duyệt dở (DUYET_DO_DANG) ở trên.
+// ------------------------------------------------------------
+const DONG_BO_TT = {
+  HOAN_TAT: "HOAN_TAT",
+  HOAN_TAT_MOT_PHAN: "HOAN_TAT_MOT_PHAN", // đã chốt sổ, ChiTietDNTT / MISA còn thiếu -> cần đồng bộ bổ sung
+  LOI_CAN_KIEM_TRA: "LOI_CAN_KIEM_TRA"    // không đọc lại được để kiểm -> không kết luận
+};
+const DONG_BO_BO_SUNG_PROP = "DONG_BO_BO_SUNG_SAU_DUYET";
+let _ketQuaDuyetGanNhat_ = null; // trạng thái đồng bộ của lượt runConfirmPayment_ vừa chạy (cho webConfirmPayment_)
+
+const _khoaPhieuDongBo_ = (id, soP) => String(id || "").trim() + "|" + utils.standardize(String(soP || "").replace(/'/g, "").trim());
+
+/** Kiểm lại DỮ LIỆU THẬT: phiếu nào của `ctRows` (dòng CT đã chốt: [1] mã hồ sơ, [11] Số phiếu cân)
+ * chưa có dòng "Y" trong ChiTietDNTT / chưa có trong Update_NganHang_DN. Lỗi đọc -> `loiDoc`. */
+function _kiemDongBoSauDuyet_(ids, ctRows) {
+  const phieu = ctRows.filter(r => utils.standardize(String(r[11] || "").replace(/'/g, "")))
+    .map(r => ({ id: String(r[1] || "").trim(), soP: String(r[11] || "").replace(/'/g, "").trim() }));
+  const kq = { thieuChiTiet: [], thieuMisa: [], loiDoc: [] };
+  const idSet = new Set(ids);
+  try {
+    const daY = new Set();
+    _doanDongTheoKhoa_(_getChiTietDnttSheet_(), 0, CHITIET_DNTT_HEADERS.length, v => idSet.has(String(v || "").trim()))
+      .forEach(({ values: r }) => { if (String(r[26] || "").trim() === "Y") daY.add(_khoaPhieuDongBo_(r[0], r[2])); });
+    kq.thieuChiTiet = phieu.filter(x => !daY.has(_khoaPhieuDongBo_(x.id, x.soP)));
+  } catch (e) { kq.loiDoc.push("ChiTietDNTT: " + _loiChoNguoiDung_(e)); }
+  try {
+    const daCo = _laySoPhieuCanDaCoTrongMisa_(_sheetMisa_());
+    kq.thieuMisa = phieu.filter(x => !daCo.has(utils.standardize(x.soP)));
+  } catch (e) { kq.loiDoc.push("Update_NganHang_DN: " + _loiChoNguoiDung_(e)); }
+  return kq;
+}
+
+function _docDsDongBoBoSung_() {
+  try {
+    const j = JSON.parse(PropertiesService.getScriptProperties().getProperty(DONG_BO_BO_SUNG_PROP) || "[]");
+    return (Array.isArray(j) ? j : []).filter(x => x && Array.isArray(x.ids) && x.ids.length);
+  } catch (e) { return []; }
+}
+function _ghiDsDongBoBoSung_(ds) {
+  const props = PropertiesService.getScriptProperties();
+  if (ds.length) props.setProperty(DONG_BO_BO_SUNG_PROP, JSON.stringify(ds));
+  else props.deleteProperty(DONG_BO_BO_SUNG_PROP);
+}
+/** Ghi / cập nhật (theo từng mã hồ sơ - không trùng) danh sách hồ sơ cần đồng bộ bổ sung. Gọi trong sysLock. */
+function _capNhatDongBoBoSung_(ids, kiem, loi, payDateStr) {
+  const conThieu = new Set(kiem.thieuChiTiet.concat(kiem.thieuMisa).map(x => x.id));
+  if (kiem.loiDoc.length) ids.forEach(id => conThieu.add(id));
+  const ds = _docDsDongBoBoSung_().map(x => ({ ...x, ids: x.ids.filter(id => ids.indexOf(id) === -1) })).filter(x => x.ids.length);
+  const idsThieu = ids.filter(id => conThieu.has(id));
+  if (idsThieu.length) {
+    ds.push({
+      ids: idsThieu, ngay: String(payDateStr || ""), luc: Date.now(), nguoi: _emailNguoiThucHien_() || "",
+      trangThai: kiem.loiDoc.length ? DONG_BO_TT.LOI_CAN_KIEM_TRA : DONG_BO_TT.HOAN_TAT_MOT_PHAN,
+      thieuChiTiet: kiem.thieuChiTiet.length, thieuMisa: kiem.thieuMisa.length,
+      loi: loi.concat(kiem.loiDoc).join("; ").slice(0, 500)
+    });
+  }
+  _ghiDsDongBoBoSung_(ds);
+}
+
+/** Cuối lượt Duyệt (đang giữ sysLock): kiểm lại + lưu hồ sơ còn thiếu + câu báo cho người dùng. */
+function _ketLuanDongBoSauDuyet_(ids, ctRows, loi, payDateStr) {
+  let kiem;
+  try {
+    SpreadsheetApp.flush();
+    kiem = _kiemDongBoSauDuyet_(ids, ctRows);
+  } catch (e) {
+    kiem = { thieuChiTiet: [], thieuMisa: [], loiDoc: [_loiChoNguoiDung_(e)] };
+  }
+  const trangThai = kiem.loiDoc.length ? DONG_BO_TT.LOI_CAN_KIEM_TRA
+    : (kiem.thieuChiTiet.length || kiem.thieuMisa.length) ? DONG_BO_TT.HOAN_TAT_MOT_PHAN : DONG_BO_TT.HOAN_TAT;
+  try { _capNhatDongBoBoSung_(ids, kiem, loi, payDateStr); } catch (e) { loi.push("Không lưu được danh sách cần đồng bộ: " + _loiChoNguoiDung_(e)); }
+  let thongBao = "";
+  if (trangThai !== DONG_BO_TT.HOAN_TAT) {
+    const phan = [];
+    if (kiem.thieuChiTiet.length) phan.push(`ChiTietDNTT thiếu ${kiem.thieuChiTiet.length} phiếu`);
+    if (kiem.thieuMisa.length) phan.push(`Update_NganHang_DN (MISA) thiếu ${kiem.thieuMisa.length} phiếu`);
+    if (kiem.loiDoc.length) phan.push(`không đọc lại được để kiểm (${kiem.loiDoc.join("; ")})`);
+    thongBao = (trangThai === DONG_BO_TT.LOI_CAN_KIEM_TRA ? "⚠️ LỖI CẦN KIỂM TRA" : "⚠️ HOÀN TẤT MỘT PHẦN - CẦN ĐỒNG BỘ BỔ SUNG") +
+      `: ${phan.join(", ")}${loi.length ? ` (lỗi: ${loi.join("; ")})` : ""}. Sổ chính, Phiếu Cân đã chốt đúng - KHÔNG Duyệt lại. ` +
+      `Vào Danh Sách ĐNTT bấm "Đồng bộ bổ sung" để ghi nốt phần còn thiếu (không ghi trùng).`;
+    logAction_("DONG_BO_SAU_DUYET_THIEU", ids.join(",").slice(0, 200), `${trangThai}: ${phan.join(", ")}${loi.length ? " | " + loi.join("; ") : ""}`);
+  }
+  return { trangThai, thongBao, thieuChiTiet: kiem.thieuChiTiet.length, thieuMisa: kiem.thieuMisa.length };
+}
+
+/** #Web (chỉ đọc): hồ sơ đã chốt còn thiếu ChiTietDNTT / MISA (null nếu không có). */
+function getDongBoBoSung_() {
+  const ds = _docDsDongBoBoSung_();
+  if (!ds.length) return null;
+  return {
+    soLuot: ds.length, soHoSo: ds.reduce((t, x) => t + x.ids.length, 0),
+    ds: ds.map(x => ({ ids: x.ids, ngay: x.ngay, nguoi: x.nguoi, trangThai: x.trangThai, thieuChiTiet: x.thieuChiTiet, thieuMisa: x.thieuMisa, loi: x.loi,
+      luc: Utilities.formatDate(new Date(Number(x.luc)), "GMT+7", "dd/MM/yyyy HH:mm") }))
+  };
+}
+
+/** #Web: ghi nốt ChiTietDNTT / MISA còn thiếu cho các hồ sơ đã chốt trong danh sách. Chạy lại được:
+ * dữ liệu lấy từ sổ CT / 112 ĐÃ CHỐT; ChiTietDNTT so theo mã hồ sơ + Số phiếu cân, MISA theo Số
+ * phiếu cân (bỏ qua phần đã có). Hồ sơ đã Mở Đóng Thanh Toán (không còn trong sổ) -> bỏ khỏi danh sách. */
+function webDongBoBoSungSauDuyet_() {
+  return _chayTrongKhoa_(() => {
+    const ds = _docDsDongBoBoSung_();
+    if (!ds.length) return { success: true, message: "✅ Không có hồ sơ nào cần đồng bộ bổ sung.", conLai: 0 };
+    const tatCa = Array.from(new Set([].concat(...ds.map(x => x.ids))));
+    const idSet = new Set(tatCa);
+    const ss = getMainSs_();
+    const ctRows = _doanDongTheoKhoa_(ss.getSheetByName(CFG.DNTT_CT), 1, 22, v => idSet.has(String(v || "").trim()))
+      .map(x => x.values).filter(r => String(r[18] || "").trim() === "Y");
+    const mapSoLan = new Map(), mapNhanTien112 = new Map();
+    _doanDongTheoKhoa_(ss.getSheetByName(CFG.DNTT_112), 0, 23, v => idSet.has(String(v || "").trim())).forEach(({ values: r }) => {
+      const id = String(r[0] || "").trim();
+      mapSoLan.set(id, String(r[18]).trim());
+      mapNhanTien112.set(id, { nguoiNhan: r[3], nganHang: r[4], stk: r[5] });
+    });
+    const conTrongSo = tatCa.filter(id => mapSoLan.has(id) && ctRows.some(r => String(r[1] || "").trim() === id));
+    const daMoLai = tatCa.filter(id => conTrongSo.indexOf(id) === -1);
+    const loi = [];
+    if (conTrongSo.length) {
+      try {
+        const rowsY = _chuyenChiTietDNTTSangYVaTinhBu_(conTrongSo, ctRows, mapSoLan, mapNhanTien112);
+        const kqMisa = _tuDongXuatMisaKhiDong_(rowsY);
+        if (kqMisa && !kqMisa.ok) loi.push("MISA: " + kqMisa.loi);
+      } catch (e) { loi.push("ChiTietDNTT: " + _loiChoNguoiDung_(e)); }
+    }
+    SpreadsheetApp.flush();
+    const kiem = conTrongSo.length ? _kiemDongBoSauDuyet_(conTrongSo, ctRows) : { thieuChiTiet: [], thieuMisa: [], loiDoc: [] };
+    // Giữ ngày / người của lượt gốc cho hồ sơ còn thiếu.
+    const goc = ds[0];
+    _ghiDsDongBoBoSung_([]);
+    _capNhatDongBoBoSung_(conTrongSo, kiem, loi, goc.ngay);
+    const conLai = _docDsDongBoBoSung_().reduce((t, x) => t + x.ids.length, 0);
+    _invalidateCtSrc112Cache_();
+    logAction_("DONG_BO_BO_SUNG_SAU_DUYET", tatCa.join(",").slice(0, 200),
+      `Đồng bộ bổ sung ${conTrongSo.length} hồ sơ; còn thiếu ${conLai}; bỏ qua (đã mở lại) ${daMoLai.length}${loi.length ? "; lỗi: " + loi.join("; ") : ""}.`);
+    const boQua = daMoLai.length ? ` Bỏ khỏi danh sách (không còn trong sổ đã chốt - đã Mở Đóng Thanh Toán): ${daMoLai.join(", ")}.` : "";
+    if (!conLai) return { success: true, conLai: 0, message: `✅ Đã đồng bộ đủ ChiTietDNTT + Update_NganHang_DN (MISA) cho ${conTrongSo.length} hồ sơ - đã kiểm lại dữ liệu.${boQua}` };
+    return { success: false, conLai, message: `⚠️ Còn ${conLai} hồ sơ chưa đồng bộ đủ (ChiTietDNTT thiếu ${kiem.thieuChiTiet.length}, MISA thiếu ${kiem.thieuMisa.length} phiếu)${loi.concat(kiem.loiDoc).length ? " - lỗi: " + loi.concat(kiem.loiDoc).join("; ") : ""}. Kiểm tra quyền / file rồi bấm lại.${boQua}` };
+  });
+}
+
 function runConfirmPayment_(selectedIds, payDateStr) {
   let lock;
   try {
@@ -6024,6 +6192,9 @@ function runConfirmPayment_(selectedIds, payDateStr) {
     // bước 4 của quy trình), tính bù trực tiếp ngay tại đây. Sau đó tự
     // động ghi MISA (Update_NganHang_DN) NGAY - append thêm, không cần
     // bấm "Xuất MISA" thủ công nữa.
+    // 2026.9.60 (P0-01): lỗi ở bước này KHÔNG chặn chốt sổ (giữ như cũ) nhưng được gom vào
+    // loiDongBo; cuối lượt kiểm lại dữ liệu THẬT rồi mới báo "hoàn tất" hay "hoàn tất một phần".
+    const loiDongBo = [];
     try {
       // SỬA LỖI (rà soát phát hiện): dùng ĐÚNG người nhận/ngân hàng/STK
       // của dòng 112 vừa chốt (the112ToCommit - có thể đã sửa tay khác
@@ -6037,8 +6208,10 @@ function runConfirmPayment_(selectedIds, payDateStr) {
         if (id) mapNhanTien112.set(id, { nguoiNhan: row[3], nganHang: row[4], stk: row[5] });
       });
       const rowsChiTietY = _chuyenChiTietDNTTSangYVaTinhBu_(validIds, ctToCommit, mapSoLan, mapNhanTien112);
-      _tuDongXuatMisaKhiDong_(rowsChiTietY);
+      const kqMisa = _tuDongXuatMisaKhiDong_(rowsChiTietY);
+      if (kqMisa && !kqMisa.ok) loiDongBo.push("MISA: " + kqMisa.loi);
     } catch (e) {
+      loiDongBo.push("ChiTietDNTT: " + _loiChoNguoiDung_(e));
       logAction_("LOI_CHITIET_DNTT_LUC_CHOT", validIds.join(","), "Lỗi khi xử lý ChiTietDNTT/MISA tự động lúc Đóng Thanh Toán: " + e.toString());
     }
 
@@ -6117,7 +6290,11 @@ function runConfirmPayment_(selectedIds, payDateStr) {
     // lại Phân Tích chậm: bị dừng ở đó thì dấu kẹt mãi vì hồ sơ không còn trong Nháp để hoàn tất).
     _xoaDuyetDoDang_(validIds);
 
-    let msg = `✅ Đã chốt thành công ${validIds.length} hồ sơ, đẩy dữ liệu về sheet chính, khóa Phiếu Cân, dọn khỏi File Nháp và đã tự động ghi vào Update_NganHang_DN (MISA)!`;
+    // 2026.9.60 (P0-01): đọc lại ChiTietDNTT + Update_NganHang_DN, chỉ báo "đã ghi MISA" khi thấy đủ.
+    const dongBo = _ketLuanDongBoSauDuyet_(validIds, ctToCommit, loiDongBo, payDateStr);
+    let msg = `✅ Đã chốt thành công ${validIds.length} hồ sơ, đẩy dữ liệu về sheet chính, khóa Phiếu Cân, dọn khỏi File Nháp` +
+      (dongBo.trangThai === DONG_BO_TT.HOAN_TAT ? " và đã ghi đủ ChiTietDNTT + Update_NganHang_DN (MISA) - đã kiểm lại dữ liệu." : ".") +
+      (dongBo.thongBao ? " " + dongBo.thongBao : "");
     if (idsDaCoTruoc.length) msg += ` ℹ️ Đã có sẵn trong bản chính từ lần chốt trước (chỉ hoàn tất phần còn thiếu, không ghi trùng): ${idsDaCoTruoc.join(", ")}.`;
     if (skippedNoData.length) msg += ` ⚠️ Không tìm thấy trong Nháp (bỏ qua): ${skippedNoData.join(", ")}.`;
     if (skippedNotCalculated.length) msg += ` ⚠️ Chưa chạy Tổng Hợp 112 (bỏ qua): ${skippedNotCalculated.join(", ")}.`;
@@ -6143,6 +6320,7 @@ function runConfirmPayment_(selectedIds, payDateStr) {
       });
       if (ngayBiAnhHuong.size) _refreshPhanTichNhapTTChoDanhSachNgayNoLock_(Array.from(ngayBiAnhHuong), { ct: ctThatLucDau.concat(ctCanGhi) }); // dùng bản KHÔNG khóa - hàm này đang chạy TRONG lượt đã giữ sysLock rồi, tránh khóa lồng nhau
     } catch (e) { /* không chặn luồng chính nếu làm mới báo cáo công nợ lỗi */ }
+    _ketQuaDuyetGanNhat_ = { trangThai: dongBo.trangThai, thieuChiTiet: dongBo.thieuChiTiet, thieuMisa: dongBo.thieuMisa };
     return msg;
   } catch (e) {
     // 2026.9.58: lỗi có thể xảy ra SAU khi đã ghi sổ CT / 112 (vd bước kiểm lại R10) - xóa bộ nhớ đệm sổ
@@ -10754,7 +10932,14 @@ function _kiemTraToanVenThucHien_() {
 /** Gửi email tới Quản trị (cố định + tài khoản vai trò Quản trị đang hoạt động). Trả số người nhận. */
 function _guiEmailQuanTri_(tieuDe, noiDung) {
   const ds = new Set(QUAN_TRI_CO_DINH.map(_chuanHoaEmail_));
-  try { _docDanhSachNguoiDung_().forEach(x => { if (x.vaiTro === "QUAN_TRI" && x.trangThai !== TRANG_THAI_NGUOI_DUNG.KHOA) ds.add(x.email); }); } catch (e) { /* chỉ gửi Quản trị cố định */ }
+  // 2026.9.60 (P1-02): mã vai trò lưu trong sheet là VAI_TRO.ADMIN ("ADMIN") - trước đây so với
+  // "QUAN_TRI" (tên QUYỀN, không phải vai trò) nên Quản trị thêm trên giao diện không bao giờ nhận email.
+  const laKhoa = t => String(t || "").trim().toLowerCase() === TRANG_THAI_NGUOI_DUNG.KHOA.toLowerCase();
+  try {
+    _docDanhSachNguoiDung_().forEach(x => {
+      if (String(x.vaiTro || "").trim().toUpperCase() === VAI_TRO.ADMIN && !laKhoa(x.trangThai)) ds.add(_chuanHoaEmail_(x.email));
+    });
+  } catch (e) { logAction_("LOI_GUI_EMAIL", "-", "Không đọc được danh sách người dùng - chỉ gửi Quản trị cố định: " + (e && e.message ? e.message : e)); }
   const nhan = Array.from(ds).filter(Boolean);
   if (!nhan.length) return 0;
   try {
@@ -10938,6 +11123,136 @@ function _quetToanVenSoChinh_(srcAll, ctAll, h112All, draftCT) {
   h112TheoId.forEach((r, id) => { if (id && !srcIds.has(id)) out.push({ idKey: id, ma: "ORPHAN_112", mucDo: C.HIGH, phieu: "", tien112: utils.parseNum(r[6]), ghiChu: "Dòng 112 đã chốt không có đơn xin" }); });
   ctTheoHoSo.forEach((dong, id) => { if (id && !srcIds.has(id) && !h112TheoId.has(id)) out.push({ idKey: id, ma: "MISSING_112", mucDo: C.HIGH, phieu: "", kgCt: tong(dong, 12, 1000), tienCt: tong(dong, 16), ghiChu: "Dòng CT đã chốt không có đơn xin lẫn 112" }); });
   return out;
+}
+
+// ------------------------------------------------------------
+// 2026.9.60 (mục V.5.3) - ĐỐI SOÁT TOÀN VẸN THANH TOÁN: gom các kiểm tra ĐÃ CÓ (Integrity Gate quét
+// sổ chính, Bảo Trì, MISA thiếu, phiếu chưa khóa, lượt Duyệt dở) + vài kiểm tra mới chỉ để BÁO CÁO
+// (D01, D09, D11, D14) theo mã D01-D20. CHỈ ĐỌC - không sửa gì, không đổi quy tắc chặn/cảnh báo đang
+// dùng ở Tạo / Xác nhận / In / UNC / Duyệt. Mức độ: mã mà cổng toàn vẹn đang CHẶN -> BLOCK; mã cổng
+// chỉ cảnh báo (TOAN_VEN.CHI_CANH_BAO) và kiểm tra mới -> WARNING; thông tin -> INFO.
+// Mã chưa có kiểm tra tự động được liệt kê ở `chuaKiemTra` (không báo "không lỗi" cho mã chưa kiểm).
+// ------------------------------------------------------------
+const DOI_SOAT_D = {
+  D01: "Mã hồ sơ trùng", D02: "ID_CT trùng", D03: "Một phiếu cân thuộc nhiều hồ sơ", D04: "Phiếu cân đã thanh toán nhưng chưa khóa",
+  D05: "Phiếu cân đã khóa nhưng không thấy trong sổ thanh toán", D06: "Số tiền CT không bằng 112", D07: "Khối lượng CT không bằng phiếu / đơn xin",
+  D08: "Giá / khối lượng phiếu cân đổi sau lập hồ sơ", D09: "Hồ sơ đã chốt thiếu ChiTietDNTT", D10: "Hồ sơ đã chốt thiếu MISA",
+  D11: "Dòng MISA trùng", D12: "UNC trùng / không nhất quán", D13: "STK / người nhận không khớp hợp đồng", D14: "Nháp chưa dọn sau khi chốt",
+  D15: "Ghi dở do gián đoạn", D16: "Dữ liệu mồ côi", D17: "Lệch qua ranh giới năm đã khóa sổ", D18: "KL đề nghị vượt KL hợp đồng",
+  D19: "Khác ngày / số lần thanh toán giữa các bảng", D20: "Sửa sau khi xuất chứng từ chưa cập nhật chứng từ"
+};
+const DOI_SOAT_CHUA_KIEM = {
+  D05: "Cần đọc cả file lưu trữ các năm đã khóa sổ - chưa làm để tránh báo nhầm phiếu năm cũ.",
+  D08: "Chỉ kiểm tại cổng (Xác nhận / In / UNC / Duyệt) với hồ sơ Nháp - sau khi chốt giá phiếu không còn là căn cứ.",
+  D12: "Chưa có - ChiTietUNC mồ côi được báo ở D16.", D13: "Chưa có - STK được kiểm theo HD_STK lúc Tạo / Sửa hồ sơ.",
+  D17: "Chưa có.", D18: "Chỉ kiểm tại cổng với hồ sơ Nháp (VUOT_SL_HD).", D19: "Chưa có.", D20: "Chưa có."
+};
+const DOI_SOAT_MUC = { BLOCK: "BLOCK", WARNING: "WARNING", INFO: "INFO" };
+const DOI_SOAT_TU_MA_GATE = { DUPLICATE_ID_CT: "D02", DUPLICATE_TICKET: "D03", AMOUNT_MISMATCH: "D06", KG_MISMATCH: "D07",
+  MISSING_CT: "D07", ORPHAN_CT: "D07", WRONG_OWNER: "D03", PARTIAL_COMMIT: "D15", ORPHAN_112: "D15", MISSING_112: "D15" };
+
+/** #Web (Hệ Thống, chỉ đọc): báo cáo đối soát toàn vẹn thanh toán theo mã D01-D20. */
+function getDoiSoatToanVenThanhToan_() {
+  try {
+    const M = DOI_SOAT_MUC, out = [], loiKiem = [];
+    const them = (ma, muc, x) => out.push(Object.assign({ ma, ten: DOI_SOAT_D[ma], mucDo: muc, idKey: "", phieu: "", ngayTT: "", kyVong: "", hienTai: "", ghiChu: "" }, x));
+    const srcAll = _srcThatDataCache_(), ctAll = _ctThatDataCache_(), h112All = _h112ThatDataCache_();
+    const { shCT: shNhapCt, sh112: shNhap112 } = getDraftSheets_();
+    const draftCT = _docCacCot_(shNhapCt, [0, 1, 11], 22);
+    const nhap112 = new Set(_docCacCot_(shNhap112, [0], 1).map(r => String(r[0] || "").trim()).filter(Boolean));
+    const ngayTheoHoSo = new Map();
+    ctAll.forEach(r => { const id = String(r[1] || "").trim(); if (id && r[20] && !ngayTheoHoSo.has(id)) ngayTheoHoSo.set(id, utils.formatDate(r[20])); });
+    const fmt = n => n == null ? "" : Math.round(n).toLocaleString("vi-VN");
+
+    // D02 D03 D06 D07 D15 - quét sổ chính (logic Integrity Gate 2026.9.55, toàn bộ, không giới hạn 50 dòng)
+    _quetToanVenSoChinh_(srcAll, ctAll, h112All, draftCT).forEach(x => {
+      const ma = DOI_SOAT_TU_MA_GATE[x.ma];
+      if (!ma) return;
+      const muc = TOAN_VEN.CHI_CANH_BAO.indexOf(x.ma) >= 0 ? M.WARNING : M.BLOCK;
+      const tien = x.ma === "AMOUNT_MISMATCH", kg = x.ma === "KG_MISMATCH";
+      them(ma, muc, { idKey: x.idKey, phieu: x.phieu || "", ngayTT: ngayTheoHoSo.get(x.idKey) || "", maGoc: x.ma,
+        kyVong: tien ? fmt(x.tien112) + " đ (112)" : kg ? _kg_(x.kgDntt) + " kg (đơn xin)" : "",
+        hienTai: tien ? fmt(x.tienCt) + " đ (CT)" : kg ? _kg_(x.kgCt) + " kg (CT)" : "", ghiChu: x.ghiChu || "" });
+    });
+
+    // D01 - mã hồ sơ trùng trong đơn xin / 112 đã chốt (mới, chỉ báo cáo)
+    [["DNTT_GK_DN", srcAll, 0], ["DNTT_GK_DN_112", h112All, 0]].forEach(([ten, rows, cot]) => {
+      const dem = new Map();
+      rows.forEach(r => { const id = String(r[cot] || "").trim(); if (id) dem.set(id, (dem.get(id) || 0) + 1); });
+      dem.forEach((n, id) => { if (n > 1) them("D01", M.WARNING, { idKey: id, ngayTT: ngayTheoHoSo.get(id) || "", kyVong: "1 dòng", hienTai: `${n} dòng`, ghiChu: `${ten}: mã hồ sơ có ${n} dòng` }); });
+    });
+
+    // D04 - phiếu đã thanh toán chưa khóa (Bảo Trì 2026.9.57)
+    try {
+      _phieuDaTraChuaKhoa_(ctAll).forEach(x => them("D04", M.WARNING, { idKey: x.idHeThong, phieu: x.soPhieuCan, ngayTT: ngayTheoHoSo.get(x.idHeThong) || "",
+        kyVong: "Chọn TT = Y", hienTai: x.chonTT || "(trống)", ghiChu: "Hệ Thống › Bảo Trì › Khóa lại phiếu đã trả" }));
+    } catch (e) { loiKiem.push("D04: " + _loiChoNguoiDung_(e)); }
+
+    // D09 - phiếu đã chốt chưa có dòng ChiTietDNTT "Y" (mới) + D16 ChiTietDNTT Y mồ côi
+    try {
+      const sh = getMainSs_().getSheetByName(CHITIET_DNTT_SHEET);
+      const ctd = sh ? _docCacCot_(sh, [0, 2, 26], CHITIET_DNTT_HEADERS.length) : [];
+      const daY = new Set(ctd.filter(r => String(r[26] || "").trim() === "Y").map(r => _khoaPhieuDongBo_(r[0], r[2])));
+      const ctKhoa = new Set();
+      ctAll.forEach(r => {
+        const id = String(r[1] || "").trim(), so = _soPhieuHien_(r[11]);
+        if (!id || !so) return;
+        const k = _khoaPhieuDongBo_(id, so);
+        ctKhoa.add(k);
+        if (!daY.has(k)) them("D09", M.WARNING, { idKey: id, phieu: so, ngayTT: utils.formatDate(r[20]), kyVong: "Có dòng Y", hienTai: "Không có", ghiChu: "Danh Sách ĐNTT › Đồng bộ bổ sung, hoặc Hệ Thống › Đồng bộ ChiTietDNTT" });
+      });
+      ctd.forEach(r => {
+        if (String(r[26] || "").trim() === "Y" && r[0] && !ctKhoa.has(_khoaPhieuDongBo_(r[0], r[2])))
+          them("D16", M.WARNING, { idKey: String(r[0]).trim(), phieu: _soPhieuHien_(r[2]), ghiChu: "ChiTietDNTT (Y) không còn trong sổ CT" });
+      });
+    } catch (e) { loiKiem.push("D09: " + _loiChoNguoiDung_(e)); }
+
+    // D10 - MISA thiếu (cùng cách so với Tạo bổ sung MISA), D11 - Số phiếu trùng trong Update_NganHang_DN
+    try {
+      const shNH = _sheetMisa_();
+      const daCo = _laySoPhieuCanDaCoTrongMisa_(shNH);
+      ctAll.forEach(r => {
+        const k = _soPhieuChuan_(r[11]);
+        if (k && !daCo.has(k)) them("D10", M.WARNING, { idKey: String(r[1] || "").trim(), phieu: _soPhieuHien_(r[11]), ngayTT: utils.formatDate(r[20]),
+          kyVong: "Có dòng MISA", hienTai: "Không có", ghiChu: "Báo Cáo › MISA › Tạo bổ sung" });
+      });
+      const dem = new Map(), lr = shNH.getLastRow();
+      if (lr > 1) shNH.getRange(2, 5, lr - 1, 1).getValues().forEach(v => { const k = _soPhieuChuan_(v[0]); if (k) dem.set(k, (dem.get(k) || 0) + 1); });
+      dem.forEach((n, k) => { if (n > 1) them("D11", M.WARNING, { phieu: k, kyVong: "1 dòng", hienTai: `${n} dòng`, ghiChu: "Hệ Thống › Dọn dẹp MISA (xem trước rồi mới xóa)" }); });
+    } catch (e) { loiKiem.push("D10/D11: " + _loiChoNguoiDung_(e)); }
+
+    // D14 - hồ sơ đã có trong sổ 112 chính mà vẫn còn trong Nháp (mới)
+    const id112Chinh = new Set(h112All.map(r => String(r[0] || "").trim()));
+    nhap112.forEach(id => { if (id112Chinh.has(id)) them("D14", M.WARNING, { idKey: id, ngayTT: ngayTheoHoSo.get(id) || "", ghiChu: "Đã chốt nhưng Nháp còn dòng - xem Danh Sách ĐNTT (Hoàn tất lượt Duyệt dở)" }); });
+
+    // D15 - lượt Duyệt dở / cần đồng bộ bổ sung (dấu trong Script Properties)
+    _docDsDuyetDoDang_().forEach(j => them("D15", M.WARNING, { idKey: j.ids.join(", "), ngayTT: j.ngay, ghiChu: `Lượt Duyệt bắt đầu ${Utilities.formatDate(new Date(Number(j.luc)), "GMT+7", "dd/MM/yyyy HH:mm")} chưa xong (có thể đang chạy)` }));
+    _docDsDongBoBoSung_().forEach(j => them("D15", M.WARNING, { idKey: j.ids.join(", "), ngayTT: j.ngay, ghiChu: `Đã chốt, ChiTietDNTT / MISA chưa đủ (${j.trangThai}) - Đồng bộ bổ sung` }));
+
+    // D16 - dòng CT mồ côi (không có đơn xin)
+    const srcIds = new Set(srcAll.map(r => String(r[0] || "").trim()));
+    ctAll.forEach(r => { const id = String(r[1] || "").trim(); if (id && !srcIds.has(id)) them("D16", M.WARNING, { idKey: id, phieu: _soPhieuHien_(r[11]), ngayTT: utils.formatDate(r[20]), ghiChu: "Dòng sổ CT không có đơn xin" }); });
+
+    const coLoi = new Set();
+    out.forEach(x => { if (x.mucDo !== M.INFO) String(x.idKey || "").split(/,\s*/).forEach(id => { const k = id.replace(/ \((đã chốt|Nháp)\)$/, "").trim(); if (k) coLoi.add(k); }); });
+    const demMa = ma => out.filter(x => x.ma === ma);
+    const hoSo = ds => new Set(ds.map(x => x.idKey)).size;
+    return {
+      success: true, luc: Utilities.formatDate(new Date(), "GMT+7", "dd/MM/yyyy HH:mm"),
+      tongQuan: {
+        soHoSo: srcAll.length, soPhieu: ctAll.length,
+        tongKg: Math.round(ctAll.reduce((t, r) => t + utils.parseNum(r[12]), 0) * 1000),
+        tongTien: Math.round(ctAll.reduce((t, r) => t + utils.parseNum(r[16]), 0)),
+        soHoSoLoi: coLoi.size, soPhieuTrung: demMa("D03").length, soHoSoThieuMisa: hoSo(demMa("D10")),
+        soHoSoLechTien: hoSo(demMa("D06")), soPhieuChuaKhoa: demMa("D04").length
+      },
+      dsMa: Object.keys(DOI_SOAT_D).map(ma => ({ ma, ten: DOI_SOAT_D[ma], so: demMa(ma).length, chuaKiem: DOI_SOAT_CHUA_KIEM[ma] || "" })),
+      rows: out, loiKiem,
+      ghiChu: "Chỉ đọc. Dữ liệu sổ đọc qua bộ nhớ đệm (tối đa ~90 giây) - quyết định thanh toán vẫn kiểm trên sổ mới nhất tại cổng Duyệt."
+    };
+  } catch (e) {
+    return { success: false, message: "❌ Lỗi: " + _loiChoNguoiDung_(e) };
+  }
 }
 
 /** Báo cáo toàn vẹn đầy đủ (không giới hạn 50 dòng) để tải CSV ở Hệ Thống › Bảo Trì. Chỉ đọc. */
@@ -11274,8 +11589,12 @@ function runHuyXacNhanDNTT_(idKey, dongYDaCoUnc) {
  * màn "Danh Sách Nháp", trả về object thay vì chuỗi để JS dễ xử lý.
  */
 function webConfirmPayment_(selectedIds, payDateStr) {
+  _ketQuaDuyetGanNhat_ = null;
   const msg = runConfirmPayment_(selectedIds, payDateStr);
-  return { success: msg.indexOf("✅") === 0, message: msg };
+  const kq = { success: msg.indexOf("✅") === 0, message: msg };
+  // 2026.9.60 (P0-01): trạng thái đồng bộ ChiTietDNTT / MISA của lượt vừa chốt (đã kiểm lại dữ liệu).
+  if (kq.success && _ketQuaDuyetGanNhat_) Object.assign(kq, _ketQuaDuyetGanNhat_);
+  return kq;
 }
 
 /**

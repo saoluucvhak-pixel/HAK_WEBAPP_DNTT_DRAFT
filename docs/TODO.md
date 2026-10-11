@@ -141,3 +141,8 @@ Trạng thái: ✅ xong · 🟡 một phần · ⏳ chưa làm · ⚖️ cần n
 - 🚫 Không làm (người dùng quyết định): gọn bộ nhớ đệm Phiếu Cân; nhật ký trước/sau khi sửa hồ sơ; P4.1 hộp gõ mã (đã có hộp xác nhận).
 - ✅ 2026.8.1: Chặn trả 2 lần cho cùng 1 phiếu cân (cache “chưa TT” cũ khi làm mới chạy trùng lúc Duyệt) — kiểm tra với CT thật ở Tạo mới / Thêm phiếu / Duyệt.
 - ✅ 2026.7.4: Kế toán không Duyệt được / không bấm được “↻ Làm mới” (route xếp nhầm quyền Quản trị) — thêm test dò quyền theo trang.
+- ✅ 2026.9.60: Duyệt báo trung thực khi ChiTietDNTT / MISA lỗi + Đồng bộ bổ sung; email Quản trị đúng vai trò ADMIN; cache hợp đồng không giữ lỗi; Đăng xuất / đổi tài khoản xóa dữ liệu trình duyệt; chống bấm lặp; cờ `doc` thay tiền tố `get`; CI chạy test giao diện; Hệ Thống › Đối soát toàn vẹn D01–D20 (chỉ đọc).
+- ⏳ Đối soát: chưa có kiểm tra tự động cho D05 (cần đọc file lưu trữ năm), D12, D13, D17, D19, D20; D08 / D18 chỉ kiểm tại cổng với hồ sơ Nháp. Lọc theo thời gian, lịch sử sửa trên trang Đối soát chưa có.
+- ⏳ Nhật ký lượt Duyệt đầy đủ (mã lượt, bước đã xong / chưa xong) bằng Sheet quản trị (mục VI.6.1) - hiện dùng 2 Script Property (`DUYET_DO_DANG`, `DONG_BO_BO_SUNG_SAU_DUYET`), mỗi property tối đa 9 KB (~ vài trăm mã hồ sơ).
+- ⏳ Đo hiệu năng thật (Hệ Thống › Hiệu Năng) cho bước kiểm lại cuối Duyệt (+2 lần đọc 1 cột).
+- ⏳ Kiểm chứng trên Google thật: Duyệt khi Update_NganHang_DN không ghi được → thông báo "hoàn tất một phần" → Đồng bộ bổ sung.

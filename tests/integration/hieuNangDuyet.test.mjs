@@ -29,7 +29,8 @@ test('approval touches only the approved records\' ChiTietDNTT rows', () => {
   const y = w.main.getSheetByName('ChiTietDNTT').rows(28).slice(1).filter(r => r[0] === 'A1');
   assert.equal(y.length, 2);
   assert.ok(y.every(r => r[26] === 'Y' && r[3] instanceof Date), 'A1 rows switched to Y with Ngày CK');
-  assert.ok(doc.ctd < 3 * N, `ChiTietDNTT: ${doc.ctd} cells read (whole sheet = ${28 * N})`);
+  // 2026.9.60 (P0-01): +1 cột mã hồ sơ cho bước kiểm lại sau khi ghi (đọc dữ liệu thật trước khi báo hoàn tất).
+  assert.ok(doc.ctd < 4 * N, `ChiTietDNTT: ${doc.ctd} cells read (whole sheet = ${28 * N})`);
 });
 
 test('building ChiTietDNTT rows reads only the tickets it needs, not the whole weigh-ticket file', () => {

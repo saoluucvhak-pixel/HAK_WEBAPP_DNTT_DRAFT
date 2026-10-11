@@ -21,3 +21,20 @@ jobs:
         run: node --check --input-type=commonjs < Code.gs
       - name: Chạy test
         run: node --test "tests/**/*.test.mjs"
+
+  # 2026.9.60: test giao diện (Playwright + Chromium) - trước đây chỉ chạy tay trong môi trường có sẵn
+  # Chromium nên CI không bắt được lỗi trình duyệt. Trang chạy với máy chủ giả, không gọi Google thật.
+  ui:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Cài Playwright và Chromium
+        run: |
+          npm install --no-save --no-package-lock playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Chạy test giao diện
+        run: node --test tests/ui/*.ui.mjs
