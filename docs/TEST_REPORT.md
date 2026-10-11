@@ -62,5 +62,5 @@ Mới ở bản này: 9 test hồi quy (`review202609.test.mjs`) — **cả 9 đ
 ## Cách chạy lại
 ```bash
 node --test "tests/**/*.test.mjs"
-NODE_PATH=$(npm root -g) node --test tests/ui/*.ui.mjs   # hoặc: npm install --no-save playwright@1.56.1 && npx playwright install chromium
+NODE_PATH=$(npm root -g) node --test --test-concurrency=1 tests/ui/*.ui.mjs   # hoặc: npm install --no-save playwright@1.56.1 && npx playwright install chromium
 ```
