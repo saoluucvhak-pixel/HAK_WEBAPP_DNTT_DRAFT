@@ -748,7 +748,7 @@
     </nav>
     <div class="nguoi-dung-chip" id="nguoi-dung-chip"></div>
     <div class="sidebar-footer">
-      <span class="phien-ban">Quản Lý Thanh Toán · v2026.9.57</span>
+      <span class="phien-ban">Quản Lý Thanh Toán · v2026.9.58</span>
       <span class="chan-nut">
         <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Đổi giao diện sáng / tối">🌓 Giao diện: Tự động</button>
         <button type="button" class="nut-thu-gon" id="nut-thu-gon" aria-label="Thu gọn thanh bên" title="Thu gọn / mở rộng thanh bên"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 6-6 6 6 6"/></svg></button>
@@ -2655,7 +2655,7 @@ function kiemTraDuyetDoDang(){
     if (!box) return;
     box.innerHTML = j && Array.isArray(j.ids) ? `<div class="card" style="border-color:var(--danger);background:var(--danger-light)">
       <b>⚠️ Lượt Duyệt lúc ${esc(j.luc)}${j.nguoi ? ' (' + esc(j.nguoi) + ')' : ''} bị dừng giữa chừng</b> - ${j.ids.length} hồ sơ, ngày thanh toán ${esc(/^\d{4}-\d{2}-\d{2}$/.test(j.ngay) ? _isoSangVN(j.ngay) : j.ngay)}.
-      Một phần có thể đã ghi vào sổ. Bấm <b>Hoàn tất</b> để hệ thống làm nốt các bước còn lại (tự bỏ qua phần đã ghi, không ghi trùng).
+      Một phần có thể đã ghi vào sổ. Bấm <b>Hoàn tất</b> để hệ thống làm nốt các bước còn lại (tự bỏ qua phần đã ghi, không ghi trùng).${j.soLuotDo > 1 ? ` <b>Còn ${j.soLuotDo - 1} lượt dở khác</b> - hiện tiếp sau khi hoàn tất lượt này.` : ''}
       <div style="margin-top:8px"><button class="btn danger" onclick="hoanTatDuyetDoDang()">🔁 Hoàn tất lượt Duyệt</button></div></div>` : '';
   }, () => {});
 }

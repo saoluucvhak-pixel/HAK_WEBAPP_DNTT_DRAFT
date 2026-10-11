@@ -2,6 +2,22 @@
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/). Phiên bản theo `NĂM.ĐỢT.SỬA`; thay đổi làm đổi hành vi nghiệp vụ (⚖️) sẽ tăng số ĐỢT và ghi rõ đã được người dùng đồng ý.
 
+## [2026.9.58] — Sửa 3 lỗi tìm thấy khi rà soát 9.17 → 9.57 (người dùng yêu cầu 11/10/2026)
+
+### Fixed
+- **Cảnh báo "Lượt Duyệt bị dừng giữa chừng" có thể kẹt mãi.** Dấu lượt dở chỉ được xóa ở dòng cuối của Duyệt, SAU bước tính lại Phân Tích (chậm). Google dừng lượt ở bước này thì sổ chính và Nháp đã xong, nhưng bấm "🔁 Hoàn tất" chỉ báo "không có hồ sơ đủ điều kiện" (hồ sơ không còn trong Nháp) và dải đỏ không bao giờ tắt. Nay:
+  - Dấu được xóa ngay sau khi ghi sổ + dọn Nháp xong.
+  - "Hoàn tất" kiểm sổ thật: mọi hồ sơ của lượt đã có dòng 112 trong sổ chính và không còn trong Nháp → báo đã hoàn tất từ trước, xóa cảnh báo (nhật ký `HOAN_TAT_DUYET_DO_DANG`).
+  - Mỗi lượt dở có dấu riêng: lượt Duyệt sau không còn ghi đè / xóa mất dấu của lượt khác còn dở. Dải cảnh báo nói thêm "Còn N lượt dở khác" nếu có. Dấu 1 lượt giữ đúng dạng cũ.
+- **Duyệt lỗi sau khi đã ghi sổ CT thì bộ nhớ đệm sổ không được xóa.** Bước kiểm lại sau khi chốt (thiếu dòng CT / 112) báo lỗi thì thoát trước dòng xóa bộ nhớ đệm; bản gọn sổ CT (giữ 10 phút) khiến Tạo mới / Thêm phiếu coi các phiếu vừa ghi là chưa trả (Duyệt vẫn chặn được nhờ đọc thẳng sổ). Nay Duyệt lỗi ở bất kỳ bước nào cũng xóa bộ nhớ đệm sổ.
+- **Đối chiếu sao kê báo nhầm "UNC chưa thấy trên sao kê".** UNC có Ngày hiệu lực trong 3 ngày sau ngày cuối (hoặc trước ngày đầu) của sao kê - lấy thêm chỉ để ghép lệch ngày - bị báo thiếu dù sao kê đó không thể có khoản này. Nay chỉ báo UNC có Ngày hiệu lực trong khoảng ngày của sao kê; ghép lệch ngày vẫn như cũ.
+
+### Không đổi
+- Nội dung CK của hồ sơ Nháp vẫn được ghi đè mỗi lần tự tính lại (người dùng xác nhận 11/10/2026: "nội dung CK đã tính lại thì phải ghi đè").
+
+### Tests
+- `sua2026_9_58.test.mjs` (5): dấu lượt dở đã xóa khi tới bước Phân Tích; "Hoàn tất" lượt đã xong xóa cảnh báo; lượt sau không xóa dấu lượt khác; lỗi kiểm lại sau chốt vẫn chặn Tạo mới phiếu vừa ghi; UNC ngoài khoảng sao kê không báo thiếu. Trên bản 2026.9.57: 5/5 thất bại. Tổng 327 test Node + 5 test giao diện đạt.
+
 ## [2026.9.57] — Khóa lại phiếu cân đã thanh toán nhưng chưa khóa (kiểm tra đêm 06/10/2026)
 
 ### Nguyên nhân (đã tra dữ liệu thật)
