@@ -1,6 +1,6 @@
 /**
  * ============================================================
- * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.57
+ * HỆ THỐNG QUẢN LÝ THANH TOÁN HAK - PHIÊN BẢN 2026.9.59
  * Lịch sử thay đổi: CHANGELOG.md · Kiến trúc: docs/ARCHITECTURE.md
  * ------------------------------------------------------------
  * *** QUAN TRỌNG - CẦN LÀM TRƯỚC KHI DÙNG BẢN NÀY (chỉ 1 LẦN DUY NHẤT
@@ -1570,7 +1570,10 @@ function thongTinDangNhap(phien) {
     vaiTroNhan: vaiTro ? VAI_TRO_NHAN[vaiTro] : "",
     quyen: vaiTro ? QUYEN_THEO_VAI_TRO[vaiTro].slice() : [],
     quaPhien: !!emailPhien,
-    congDangNhapUrl: PropertiesService.getScriptProperties().getProperty(AUTH_CFG.PROP_CONG_DANG_NHAP_URL) || ""
+    congDangNhapUrl: PropertiesService.getScriptProperties().getProperty(AUTH_CFG.PROP_CONG_DANG_NHAP_URL) || "",
+    // 2026.9.59 (tốc độ mở trang): trả luôn trạng thái đã kết nối File Chính - trình duyệt khỏi gọi
+    // thêm 1 lượt getAppSetupStatus trước khi mở trang đầu. Chỉ đọc 1 thuộc tính, không đọc sheet.
+    mainSetup: vaiTro ? !!PropertiesService.getScriptProperties().getProperty('MAIN_SS_ID') : undefined
   };
 }
 
@@ -3031,9 +3034,12 @@ function doiChieuSaoKe_(dsDong) {
     const t = ghep(u, (a, b) => coStk(a, b) || coTen(a, b));
     if (t) { daDung.add(t.d.i); khop.push({ unc: u, saoKe: t.d, theo: coStk(u, t.d) ? "STK" : "Tên" }); } else conLai.push(u);
   });
+  // 2026.9.58: UNC có Ngày hiệu lực NGOÀI khoảng ngày của sao kê (lấy thêm ±LECH_NGAY chỉ để ghép
+  // lệch ngày) không khớp thì không báo "chưa thấy" - sao kê này không thể có khoản đó.
+  const trongKhoang = u => u.ngay >= tuNgay && u.ngay <= denNgay;
   conLai.forEach(u => {
     const t = ghep(u, () => true);
-    if (t) { daDung.add(t.d.i); canKiem.push({ unc: u, saoKe: t.d }); } else uncThieu.push(u);
+    if (t) { daDung.add(t.d.i); canKiem.push({ unc: u, saoKe: t.d }); } else if (trongKhoang(u)) uncThieu.push(u);
   });
   const saoKeThua = sk.filter(d => !daDung.has(d.i));
   logAction_("DOI_CHIEU_SAO_KE", "-", `Đối chiếu sao kê ${tuNgay} → ${denNgay}: ${sk.length} khoản chi, ${unc.length} UNC - khớp ${khop.length}, cần kiểm tra ${canKiem.length}, UNC chưa thấy ${uncThieu.length}, khoản chi không có UNC ${saoKeThua.length}.`);
@@ -5770,25 +5776,63 @@ function buildBankLookupFromHDSTK_(useFull) {
 // ------------------------------------------------------------
 const DUYET_DO_DANG_PROP = "DUYET_DO_DANG";
 const DUYET_DO_DANG_CHO_MS = 7 * 60 * 1000; // quá giới hạn 6 phút + 1 phút dư -> chắc chắn đã dừng
+// 2026.9.58: lưu DANH SÁCH lượt dở (mỗi lượt 1 dấu) - trước đây chỉ 1 ô nên lượt Duyệt sau ghi đè
+// / xóa mất dấu của lượt khác còn dở. Dấu cũ dạng 1 object vẫn đọc được.
+function _docDsDuyetDoDang_() {
+  const raw = PropertiesService.getScriptProperties().getProperty(DUYET_DO_DANG_PROP);
+  if (!raw) return [];
+  try {
+    const j = JSON.parse(raw);
+    return (Array.isArray(j) ? j : [j]).filter(x => x && Array.isArray(x.ids) && x.ids.length);
+  } catch (e) { return []; }
+}
+function _ghiDsDuyetDoDang_(ds) {
+  const props = PropertiesService.getScriptProperties();
+  // 1 lượt -> giữ đúng dạng cũ (1 object); từ 2 lượt -> danh sách.
+  if (ds.length) props.setProperty(DUYET_DO_DANG_PROP, JSON.stringify(ds.length === 1 ? ds[0] : ds));
+  else props.deleteProperty(DUYET_DO_DANG_PROP);
+}
+const _cungLuot_ = (a, b) => a.length === b.length && a.every(id => b.indexOf(id) !== -1);
 function _ghiDuyetDoDang_(ids, payDateStr) {
-  PropertiesService.getScriptProperties().setProperty(DUYET_DO_DANG_PROP,
-    JSON.stringify({ ids, ngay: String(payDateStr || ""), luc: Date.now(), nguoi: _emailNguoiThucHien_() || "" }));
+  const ds = _docDsDuyetDoDang_().filter(x => !_cungLuot_(x.ids, ids)); // lượt chạy lại -> thay dấu cũ của chính nó
+  ds.push({ ids, ngay: String(payDateStr || ""), luc: Date.now(), nguoi: _emailNguoiThucHien_() || "" });
+  _ghiDsDuyetDoDang_(ds);
+}
+/** Xóa dấu của ĐÚNG lượt này (giữ dấu các lượt khác còn dở). */
+function _xoaDuyetDoDang_(ids) {
+  _ghiDsDuyetDoDang_(_docDsDuyetDoDang_().filter(x => !_cungLuot_(x.ids, ids)));
 }
 /** #Web: lượt Duyệt bị dừng giữa chừng (null nếu không có hoặc có thể còn đang chạy). */
 function getDuyetDoDang_() {
-  const raw = PropertiesService.getScriptProperties().getProperty(DUYET_DO_DANG_PROP);
-  if (!raw) return null;
-  let j;
-  try { j = JSON.parse(raw); } catch (e) { return null; }
-  if (!j || !Array.isArray(j.ids) || Date.now() - Number(j.luc) < DUYET_DO_DANG_CHO_MS) return null;
-  return { ids: j.ids, ngay: j.ngay, nguoi: j.nguoi, luc: Utilities.formatDate(new Date(Number(j.luc)), "GMT+7", "dd/MM/yyyy HH:mm") };
+  const ds = _docDsDuyetDoDang_().filter(j => Date.now() - Number(j.luc) >= DUYET_DO_DANG_CHO_MS);
+  if (!ds.length) return null;
+  const j = ds[0];
+  return { ids: j.ids, ngay: j.ngay, nguoi: j.nguoi, luc: Utilities.formatDate(new Date(Number(j.luc)), "GMT+7", "dd/MM/yyyy HH:mm"), soLuotDo: ds.length };
+}
+/** Lượt dở `ids` đã xong thật chưa: mọi hồ sơ có dòng 112 trong sổ chính và không còn trong Nháp. */
+function _luotDuyetDaXong_(ids) {
+  const sh112 = getMainSs_().getSheetByName(CFG.DNTT_112);
+  const daChot = new Set((sh112 ? _docCacCot_(sh112, [0], 1) : []).map(r => String(r[0] || "").trim()));
+  const { sh112: shNhap } = getDraftSheets_();
+  const conNhap = new Set(_docCacCot_(shNhap, [0], 1).map(r => String(r[0] || "").trim()));
+  return ids.every(id => daChot.has(id) && !conNhap.has(id));
 }
 /** #Web: hoàn tất lượt Duyệt dở - chạy lại ĐÚNG các hồ sơ + ngày TT đó (tự bỏ qua phần đã ghi). */
 function webHoanTatDuyetDoDang_() {
   const j = getDuyetDoDang_();
   if (!j) return { success: false, message: "Không có lượt Duyệt nào bị dừng giữa chừng." };
   logAction_("HOAN_TAT_DUYET_DO_DANG", j.ids.join(","), `Hoàn tất lượt Duyệt bị dừng lúc ${j.luc} (${j.ids.length} hồ sơ, ngày TT ${j.ngay}).`);
-  return webConfirmPayment_(j.ids, j.ngay);
+  const kq = webConfirmPayment_(j.ids, j.ngay);
+  // 2026.9.58: lượt bị dừng SAU khi đã ghi sổ + dọn Nháp (vd lúc tính lại Phân Tích) thì chạy lại báo
+  // "không có hồ sơ đủ điều kiện" mãi; lượt chạy lại chỉ được một phần hồ sơ thì dấu cũ cũng ở lại.
+  // Kiểm sổ thật: lượt đã xong -> xóa dấu.
+  let daXong = false;
+  try { daXong = _luotDuyetDaXong_(j.ids); } catch (e) { /* không kiểm được -> giữ dấu */ }
+  if (!daXong) return kq;
+  _chayTrongKhoa_(() => _xoaDuyetDoDang_(j.ids)); // trong khóa: không giẫm dấu của lượt Duyệt đang chạy
+  if (kq.success) return kq;
+  logAction_("HOAN_TAT_DUYET_DO_DANG", j.ids.join(","), "Lượt Duyệt đã ghi đủ sổ chính và dọn Nháp trước khi bị dừng - xóa dấu lượt dở.");
+  return { success: true, message: `✅ Lượt Duyệt ${j.luc} đã hoàn tất từ trước (${j.ids.length} hồ sơ đã có trong sổ chính) - đã xóa cảnh báo.` };
 }
 
 function runConfirmPayment_(selectedIds, payDateStr) {
@@ -6069,6 +6113,9 @@ function runConfirmPayment_(selectedIds, payDateStr) {
     _thayVungDuLieu_(shDraft112, 2, 24, draft112All.length, the112ToKeepInDraft, COT_CHU.H112);
 
     SpreadsheetApp.flush();
+    // 2026.9.58: sổ chính + Nháp đã xong -> xóa dấu lượt dở NGAY (trước đây xóa ở cuối, sau bước tính
+    // lại Phân Tích chậm: bị dừng ở đó thì dấu kẹt mãi vì hồ sơ không còn trong Nháp để hoàn tất).
+    _xoaDuyetDoDang_(validIds);
 
     let msg = `✅ Đã chốt thành công ${validIds.length} hồ sơ, đẩy dữ liệu về sheet chính, khóa Phiếu Cân, dọn khỏi File Nháp và đã tự động ghi vào Update_NganHang_DN (MISA)!`;
     if (idsDaCoTruoc.length) msg += ` ℹ️ Đã có sẵn trong bản chính từ lần chốt trước (chỉ hoàn tất phần còn thiếu, không ghi trùng): ${idsDaCoTruoc.join(", ")}.`;
@@ -6096,9 +6143,11 @@ function runConfirmPayment_(selectedIds, payDateStr) {
       });
       if (ngayBiAnhHuong.size) _refreshPhanTichNhapTTChoDanhSachNgayNoLock_(Array.from(ngayBiAnhHuong), { ct: ctThatLucDau.concat(ctCanGhi) }); // dùng bản KHÔNG khóa - hàm này đang chạy TRONG lượt đã giữ sysLock rồi, tránh khóa lồng nhau
     } catch (e) { /* không chặn luồng chính nếu làm mới báo cáo công nợ lỗi */ }
-    PropertiesService.getScriptProperties().deleteProperty(DUYET_DO_DANG_PROP); // đã xong trọn lượt
     return msg;
   } catch (e) {
+    // 2026.9.58: lỗi có thể xảy ra SAU khi đã ghi sổ CT / 112 (vd bước kiểm lại R10) - xóa bộ nhớ đệm sổ
+    // (bản gọn giữ 10 phút) để Tạo mới / Thêm phiếu thấy ngay phiếu vừa ghi, chặn trả 2 lần sớm.
+    try { _invalidateCtSrc112Cache_(); } catch (e2) { /* không chặn báo lỗi gốc */ }
     logAction_("LOI_CHOT_THANH_TOAN", Array.isArray(selectedIds) ? selectedIds.join(",") : "-", e.toString());
     return "❌ Lỗi: " + _loiChoNguoiDung_(e) + " - Có thể bấm Duyệt lại cho CÙNG các hồ sơ này: hệ thống tự bỏ qua phần đã ghi, không tạo dữ liệu trùng.";
   } finally { if (lock) lock.releaseLock(); }
