@@ -4,7 +4,7 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
-import { trangMau } from './trangMau.mjs';
+import { trangMau, tuyChonChromium } from './trangMau.mjs';
 
 const require = createRequire(import.meta.url);
 const { chromium } = require('playwright');
@@ -13,7 +13,7 @@ const TRE_TRANG_CHU_MS = 3 * TRE_MS; // Trang chủ tổng hợp số liệu - c
 const URL = 'http://hak.test/';
 
 let browser;
-before(async () => { browser = await chromium.launch({ executablePath: process.env.CHROMIUM || '/opt/pw-browsers/chromium-1194/chrome-linux/chrome' }); });
+before(async () => { browser = await chromium.launch(tuyChonChromium()); });
 after(async () => { await browser.close(); });
 
 /** Trang mẫu đã có phiên đăng nhập; mỗi lượt gọi máy chủ trễ TRE_MS và được ghi lại. */

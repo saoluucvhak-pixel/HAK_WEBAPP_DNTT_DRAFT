@@ -2,6 +2,53 @@
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/). Phiên bản theo `NĂM.ĐỢT.SỬA`; thay đổi làm đổi hành vi nghiệp vụ (⚖️) sẽ tăng số ĐỢT và ghi rõ đã được người dùng đồng ý.
 
+## [2026.9.60] — Duyệt báo trung thực + đồng bộ bổ sung, 4 lỗi P1, đối soát D01–D20 (Master prompt 11/10/2026)
+
+Không đổi nghiệp vụ, cách tính tiền / khối lượng, trạng thái hồ sơ, điều kiện duyệt, cấu trúc sheet hay quy tắc chặn / cảnh báo đã duyệt. Chi tiết, bảng lỗi, bảng hiệu năng và hướng dẫn triển khai: `docs/BAO_CAO_2026_9_60.md`.
+
+### Fixed
+- **P0-01 - Duyệt báo "đã ghi MISA" cả khi ChiTietDNTT / MISA lỗi.**
+  - Lỗi ở bước ChiTietDNTT N→Y / ghi Update_NganHang_DN trước đây chỉ ghi nhật ký. Nay lỗi được gom lại; cuối lượt **đọc lại** ChiTietDNTT (dòng "Y" theo mã hồ sơ + Số phiếu cân) và Update_NganHang_DN (theo Số phiếu cân).
+  - Chỉ khi đủ mới báo "đã ghi đủ ChiTietDNTT + Update_NganHang_DN (MISA) - đã kiểm lại dữ liệu". Thiếu → "⚠️ HOÀN TẤT MỘT PHẦN - CẦN ĐỒNG BỘ BỔ SUNG"; không đọc lại được → "⚠️ LỖI CẦN KIỂM TRA".
+  - Sổ CT / 112 / Phiếu Cân **không bị hoàn tác** (đã chốt đúng); hồ sơ còn thiếu được lưu (Script Property `DONG_BO_BO_SUNG_SAU_DUYET`).
+  - Danh Sách ĐNTT hiện thông báo + nút **🔁 Đồng bộ bổ sung** (`webDongBoBoSungSauDuyet`): lấy dữ liệu từ sổ đã chốt, chạy lại được, không ghi trùng (ChiTietDNTT theo mã hồ sơ + phiếu, MISA theo phiếu). Hồ sơ đã Mở Đóng Thanh Toán thì bỏ khỏi danh sách.
+  - Sheet Update_NganHang_DN không tồn tại nay là lỗi, không còn im lặng như thành công.
+  - `webConfirmPayment` trả thêm `trangThai` (`HOAN_TAT` / `HOAN_TAT_MOT_PHAN` / `LOI_CAN_KIEM_TRA`), `thieuChiTiet`, `thieuMisa`.
+- **P1-02 - Email cảnh báo không tới Quản trị thêm trên giao diện.** `_guiEmailQuanTri_` so vai trò với `"QUAN_TRI"` (tên quyền) trong khi sheet lưu `ADMIN`. Nay dùng `VAI_TRO.ADMIN`, bỏ tài khoản Khóa, không trùng địa chỉ, lỗi đọc danh sách được ghi nhật ký.
+- **P1-03 - Lỗi tải hợp đồng / STK bị giữ như dữ liệu hợp lệ** (`ensureBulkRef`): lỗi hoặc dữ liệu sai dạng không còn được lưu cache, lần dùng sau gọi lại máy chủ (không tự lặp).
+- **P1-04 - Đăng xuất / đổi tài khoản còn dữ liệu người trước trên trình duyệt.** Đăng xuất xóa mọi khóa `hak_*` nghiệp vụ trong localStorage / sessionStorage (hợp đồng / STK / CCCD, số liệu Trang chủ, nhập dở Tạo mới), dữ liệu nạp sẵn, danh sách đã nạp; giữ lựa chọn giao diện. Cache hợp đồng và nhập dở Tạo mới gắn với email; mở web app bằng tài khoản khác trên cùng trình duyệt thì bỏ dữ liệu tài khoản trước. Cơ chế cache cục bộ (H-09) vẫn giữ.
+- **P1-05 - Bất đồng bộ:**
+  - Thao tác ghi bấm lặp (cùng chức năng + tham số khi lượt trước chưa xong) không gửi lần 2.
+  - Lỗi từ máy chủ đã báo (toast) không còn sinh "Uncaught (in promise)".
+  - Danh Sách ĐNTT bỏ kết quả của lượt tải cũ về sau lượt mới (có test).
+  - Chống trùng phía máy chủ vẫn theo khóa nghiệp vụ như cũ: Duyệt bỏ qua hồ sơ đã chốt; Tạo mới từ chối phiếu đã nằm trong Nháp; MISA theo Số phiếu cân.
+
+### Added
+- **Hệ Thống › Đối Soát Toàn Vẹn Thanh Toán (D01–D20)** - chỉ đọc (`getDoiSoatToanVenThanhToan`, quyền Hệ Thống).
+  - Tổng quan: hồ sơ, phiếu, KL, tiền, hồ sơ lỗi, phiếu trùng, thiếu MISA, lệch tiền, phiếu chưa khóa.
+  - Bảng chi tiết (mã, mức độ, hồ sơ, phiếu, ngày TT, kỳ vọng / hiện tại, việc cần kiểm tra); lọc theo mã / mức độ; tải CSV; kiểm tra lại; mở hồ sơ qua Tìm nhanh.
+  - Mức độ theo quy tắc đang dùng: mã cổng toàn vẹn chặn → BLOCK, `WRONG_OWNER` → WARNING; mọi kiểm tra mới (D01, D05, D09–D14, D16, D17, D19, D20) chỉ WARNING.
+  - Kiểm tra mới:
+    - D05: phiếu khóa "đã trả" không có trong sổ CT, kể cả các năm đã khóa sổ.
+    - D12: ChiTietUNC trùng, hoặc số tiền / STK trên UNC khác 112.
+    - D13: STK của 112 (đã chốt và Nháp) không có trong HD_STK của hợp đồng.
+    - D17: sổ đang mở còn dòng thuộc năm đã khóa sổ.
+    - D19: ngày CK / lần thanh toán khác nhau giữa sổ CT, đơn xin, 112 và ChiTietDNTT.
+    - D20: hồ sơ Nháp đã In Báo Cáo ĐNTT rồi bỏ / thêm phiếu hoặc đổi tiền mà chưa in lại.
+  - D08, D18 chỉ kiểm tại cổng với hồ sơ Nháp - trang ghi rõ, không báo là sạch.
+  - Lọc theo Ngày TT (từ / đến).
+- **Cờ `doc` trên API_ROUTES (mục 8.3)** - trình duyệt nhận danh sách chức năng chỉ đọc qua `thongTinDangNhap.tuyenDoc` thay cho đoán theo tên `get…`; chức năng không có cờ coi là ghi. Test `docKhongGhi` chạy mọi chức năng có cờ và kiểm tra không ghi sheet nào.
+- **CI chạy test giao diện**: job `ui` trong `.github/workflows/test.yml` cài Playwright 1.56.1 + Chromium.
+
+### Changed
+- Bước kiểm lại cuối Duyệt đọc thêm 1 cột mã hồ sơ của ChiTietDNTT + 1 cột Số phiếu của Update_NganHang_DN (để kết luận trung thực). Chưa đo trên dữ liệu thật.
+
+### Tests
+- `dongBoSauDuyet.test.mjs` (10), `sua2026_9_60.test.mjs` (6), `docKhongGhi.test.mjs` (2), `tests/ui/sua2026_9_60.ui.mjs` (8).
+- Trên 2026.9.59: 10/10 test P0-01, 6/6 test giao diện P1/P0 đầu tiên và test email Quản trị thất bại.
+- `hieuNangDuyet`: ngân sách đọc ChiTietDNTT 3N → 4N (bước kiểm lại).
+- 346 test Node + 17 test giao diện đạt (mock - không phải bằng chứng Google Sheets thật đã ghi).
+
 ## [2026.9.59] — Mở web app nhanh hơn (người dùng yêu cầu 11/10/2026: "webapp tải chậm")
 
 Mỗi lượt trình duyệt gọi Apps Script tốn ~1-2 giây chỉ để khởi động (Code.gs ~700 KB nạp lại mỗi lượt). Trước đây mở web app phải đi **3 lượt nối tiếp** (xác định người dùng → trạng thái cài đặt → số liệu Trang chủ) mới có số. Phía máy chủ đã tối ưu ở 2026.9.56; bản này tối ưu phần khởi động trong trình duyệt. Không đổi nghiệp vụ, số liệu hay sheet.

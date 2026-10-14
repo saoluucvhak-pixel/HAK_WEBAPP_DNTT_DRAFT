@@ -1,10 +1,17 @@
 // Dựng trang Index.html chạy ngoài Apps Script: bỏ thẻ template <?= ?> và giả
 // lập google.script.run bằng dữ liệu mẫu (dùng cho test giao diện + chụp màn hình).
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
+// Chromium: biến CHROMIUM, hoặc bản cài sẵn của môi trường Claude Code; không có thì để Playwright tự
+// tìm bản đã cài bằng "npx playwright install chromium" (CI GitHub Actions).
+const CHROMIUM_CAI_SAN = '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
+export const tuyChonChromium = () => {
+  const duong = process.env.CHROMIUM || (existsSync(CHROMIUM_CAI_SAN) ? CHROMIUM_CAI_SAN : '');
+  return duong ? { executablePath: duong } : {};
+};
 export const XSS = '<img src=x onerror="window.__xss=1">';
 
 // Dữ liệu trả về theo tên chức năng (API_ROUTES) - chỉ đủ để vẽ màn hình.
@@ -32,6 +39,13 @@ export const DU_LIEU = {
   exportMisaTheoNgayExcel: { success: true, url: 'https://docs.google.com/x', count: 3 }
 };
 
+// Chức năng chỉ đọc (cờ doc) đúng như máy chủ gửi trong thongTinDangNhap - đọc từ bảng API_ROUTES.
+export const TUYEN_DOC = (() => {
+  const code = readFileSync(path.join(ROOT, 'Code.gs'), 'utf8');
+  const bang = code.slice(code.indexOf('const API_ROUTES'), code.indexOf('function webConfirmPayment_'));
+  return Array.from(bang.matchAll(/^\s+(\w+): r\(.*\b(CHI_DOC|DOC)\)\s*,?\s*$/gm), m => m[1]);
+})();
+
 export function trangMau() {
   const html = readFileSync(path.join(ROOT, 'Index.html'), 'utf8')
     .replace(/<\?= *(\w+) *\?>/g, '')
@@ -42,7 +56,7 @@ export function trangMau() {
         const r = {
           withSuccessHandler(f) { ok = f; return r; }, withFailureHandler(f) { loi = f; return r; },
           thongTinDangNhap() { setTimeout(() => ok({ daDangNhap: true, email: 'qt@hak.test', vaiTro: 'ADMIN', vaiTroNhan: 'Quản trị',
-            quyen: ['XEM', 'NGHIEP_VU', 'HE_THONG', 'QUAN_TRI'], quaPhien: true }), 0); },
+            quyen: ['XEM', 'NGHIEP_VU', 'HE_THONG', 'QUAN_TRI'], quaPhien: true, tuyenDoc: ${JSON.stringify(TUYEN_DOC)} }), 0); },
           api(phien, ten) { const v = window.__DU_LIEU[ten]; setTimeout(() => ok(v === undefined ? {} : JSON.parse(JSON.stringify(v))), 0); },
           dangXuat() {}, nhanPhienDangNhap() {}
         };
